@@ -1,0 +1,16 @@
+project:
+  type: default
+  # Don't auto-render anything - we always specify files explicitly
+  render: []
+
+jupyter: ai-math-book
+
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: true
+
+execute:
+  error: true
