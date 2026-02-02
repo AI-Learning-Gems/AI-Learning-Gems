@@ -2,3 +2,6 @@
 **/.quarto/
 _extensions/
 .obsidian/
+
+
+.env

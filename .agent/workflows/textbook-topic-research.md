@@ -47,12 +47,12 @@ For a topic like "Bayesian Credible Intervals", create:
 Statistics/
 ├── Bayesian Credible Intervals.qmd          ← Index file (includes all sections)
 └── Bayesian Credible Intervals/             ← Folder (same name as index)
-    ├── _00-sources.qmd                      ← Source Processing Log
-    ├── _01-introduction.qmd                 ← Section 1
+    ├── _01-introduction.qmd                 ← Section 1 (each section has its own sources header)
     ├── _02-the-bayesian-framework.qmd       ← Section 2
     ├── _03-computing-credible-intervals.qmd ← Section 3
     ├── _04-examples.qmd                     ← Section 4
-    └── _99-closing.qmd                      ← Summary, questions, resources
+    ├── _99-closing.qmd                      ← Summary, questions, resources
+    └── sources/                             ← Downloaded source files
 ```
 
 **Key conventions:**
@@ -80,8 +80,6 @@ filters:
 ```
 
 ```markdown
-{{< include Bayesian Credible Intervals/_00-sources.qmd >}}
-
 {{< include Bayesian Credible Intervals/_01-introduction.qmd >}}
 
 {{< include Bayesian Credible Intervals/_02-the-bayesian-framework.qmd >}}
@@ -237,6 +235,178 @@ From [Source Name](URL):
 - [COURSE] for university course materials
 - [TUTORIAL] for educational blogs/videos
 - [COMMUNITY] for forums/discussions
+
+---
+
+=== PHASE 1B: SOURCE DOWNLOADING (CRITICAL — Before Writing) ===
+
+**CRITICAL RULE:** Do NOT write any chapter content until all authoritative sources have been downloaded and saved locally.
+
+### Why Download Before Writing?
+
+1. **Prevents hallucination** — You can only cite what you've actually read
+2. **Enables direct quotes** — Quote exact text from local files
+3. **Creates audit trail** — Every claim traces to a downloaded source
+4. **Avoids link rot** — Local copies persist even if URLs change
+
+### The Source Downloading Workflow
+
+**STEP 1: Identify Sources (from PHASE 1 Research)**
+
+After your web searches, you'll have a list of URLs. For each, determine:
+- What type of source is it? (arXiv paper, GitHub docs, tutorial site, etc.)
+- What is the best fetch method? (see lookup table in `.agent/rules/web-source-fetching.md`)
+
+**STEP 2: Create Sources Folder**
+
+```bash
+mkdir -p "[Chapter]/sources"
+```
+
+**STEP 3: Download Each Source Using the Appropriate Method**
+
+Refer to `.agent/rules/web-source-fetching.md` for site-specific strategies. Quick reference:
+
+| Source Type | Method |
+|-------------|--------|
+| **arXiv papers** | `curl arxiv.org/src/PAPER_ID` → extract `.tar.gz` → read `.tex` files |
+| **GitHub-hosted docs** (d2l.ai, PyTorch tutorials) | `curl raw.githubusercontent.com/OWNER/REPO/BRANCH/PATH` |
+| **HuggingFace/PyTorch docs** | `read_url_content` + `view_content_chunk` |
+| **Static tutorial sites** | `read_url_content` or `curl` + `pandoc` |
+| **JS-heavy pages** | `browser_subagent` (last resort only) |
+
+**STEP 4: Convert/Extract as Needed**
+
+For arXiv papers:
+```bash
+# Extract LaTeX source
+tar -xzf source.tar.gz
+
+# Convert PDF figures to PNG (macOS)
+sips -s format png images/figure.pdf --out images/figure.png
+```
+
+**STEP 5: Verify Downloads**
+
+Before proceeding, verify each source was downloaded correctly:
+```bash
+ls -la "[Chapter]/sources/"
+wc -l "[Chapter]/sources/main_source.md"
+head -50 "[Chapter]/sources/main_source.md"
+```
+
+---
+
+### Source Selection Criteria
+
+**Prioritize sources that:**
+1. ✅ Are authoritative (original papers, official docs, university courses)
+2. ✅ Contain equations, code, or precise technical details
+3. ✅ Include figures and diagrams you can reference
+4. ✅ Have different perspectives (theory, intuition, implementation)
+5. ✅ Cover edge cases and common misconceptions
+
+**Minimum source set for a chapter:**
+- 1-2 original/foundational papers (arXiv LaTeX)
+- 1-2 authoritative tutorials (d2l.ai, official docs)
+- 2-3 intuition-focused explanations (blogs, videos transcripts)
+- 1-2 implementation references (code documentation)
+
+---
+
+### Expected Folder Structure After Downloading
+
+```
+[Chapter]/
+├── [Chapter].qmd                    ← Index file
+├── [Chapter]/
+│   ├── _01-introduction.qmd         ← Section files (each has its own sources header)
+│   ├── _02-core-concepts.qmd
+│   ├── ...
+│   ├── _99-closing.qmd
+│   └── sources/                     ← Downloaded sources
+│       ├── arxiv-{paper_id}/        ← Hyphenated naming
+│       │   ├── main.tex
+│       │   ├── 01_method.tex
+│       │   ├── images/
+│       │   │   ├── figure1.pdf
+│       │   │   └── figure1.png
+│       │   └── references.bib
+│       ├── d2l_chapter.md
+│       ├── huggingface_docs.md
+│       └── source_index.yaml        ← Optional: metadata
+```
+
+---
+
+### Per-Section Source Headers (Collapsible)
+
+Instead of a single `_00-sources.qmd` file, **each section should include its own sources** as a collapsible header at the top. This keeps sources close to the content they support.
+
+**Template for each section file:**
+
+```markdown
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Local Path | Method | Accessed | Summary |
+|---|--------|------------|--------|----------|---------|
+| 1 | [ViT Paper](https://arxiv.org/abs/2010.11929) | `sources/arxiv-2010.11929/` | arXiv LaTeX | 2026-02-01 | Original ViT equations |
+| 2 | [D2L ViT](https://d2l.ai/chapter_attention/vision-transformer.html) | `sources/d2l_vit.md` | GitHub raw | 2026-02-01 | Implementation details |
+
+:::
+
+## Section Title {#sec-section-name}
+
+[Section content...]
+```
+
+**Benefits of per-section sources:**
+- Sources are traceable to specific claims
+- Each section is self-contained
+- Easier to verify citations during review
+- Collapsed by default, doesn't clutter reading
+
+---
+
+### Writing from Downloaded Sources
+
+**When writing chapter content:**
+
+1. **Read from local files** — Use `view_file` on downloaded sources
+2. **Quote directly** — Copy exact text when citing
+3. **Reference figures** — Use images from downloaded `images/` folders
+4. **Cross-reference sources** — Mention when multiple sources agree or differ
+
+**Example workflow during writing:**
+
+```python
+# 1. Read the source file
+view_file("sources/arxiv_2010.11929_latex/03_method.tex")
+
+# 2. Extract the relevant equation and quote it
+# From the file, I see line 38-44 contains:
+# \mbf{z}_0 &= [ \mbf{x}_\text{class}; ... ] + \mbf{E}_{pos}
+
+# 3. Write in chapter (citing the local source):
+# From the original ViT paper (Dosovitskiy et al., 2020):
+# $$
+# \mathbf{z}_0 = [\mathbf{x}_\text{class}; \mathbf{x}_p^1\mathbf{E}; ...] + \mathbf{E}_{pos}
+# $$
+```
+
+---
+
+### Chat Output After Source Downloading
+
+```
+✓ **Sources downloaded:** 8 sources to `[Chapter]/sources/`
+  - arxiv_2010.11929_latex/ (ViT paper, 7 .tex files, 9 images)
+  - d2l_vit.md (411 lines)
+  - huggingface_vit.md (3 chunks extracted)
+  - ...
+
+✓ **Ready to write:** All sources verified and locally available
+```
 
 ---
 
@@ -1666,7 +1836,7 @@ Research by Lakoff & Núñez shows that abstract math is understood through phys
 **Folder Structure Quality:**
 - [ ] Index file and folder have the same name (e.g., `Topic.qmd` and `Topic/`)
 - [ ] Each section is a separate `_NN-name.qmd` file in the folder
-- [ ] `_00-sources.qmd` contains the Source Processing Log
+- [ ] Each section has a collapsible sources header
 - [ ] `_99-closing.qmd` contains summary, questions, and resources
 - [ ] Index file includes all section files in correct order
 
@@ -1694,15 +1864,16 @@ Research by Lakoff & Núñez shows that abstract math is understood through phys
 2. **Create the folder** for section files: `[Parent]/[Topic Name]/`
 3. **Create the index file** with YAML header: `[Parent]/[Topic Name].qmd`
 4. **Create placeholder section files** (empty for now):
-   - `[Topic Name]/_00-sources.qmd`
+   - `[Topic Name]/_01-introduction.qmd`
    - `[Topic Name]/_99-closing.qmd`
+   - `[Topic Name]/sources/` (folder for downloaded sources)
 5. Chat: "✓ Creating: `[Parent]/[Topic Name].qmd` + folder"
 
 ---
 
 ## STEP 1: Topic Discovery & Outline (Deep Research)
 
-**Goal:** Understand the landscape of the topic before writing anything.
+**Goal:** Understand the landscape of the topic and identify authoritative sources.
 
 1. **Broad web search:** Search for the topic to understand:
    - What are the key concepts/subtopics?
@@ -1710,7 +1881,13 @@ Research by Lakoff & Núñez shows that abstract math is understood through phys
    - What are common misconceptions?
    - What prerequisites does a reader need?
 
-2. **Create section files:** For each major section identified, create a file:
+2. **Identify authoritative sources** during research:
+   - Original papers (arXiv IDs)
+   - Official documentation URLs
+   - Tutorial sites (d2l.ai chapters, HuggingFace docs)
+   - Keep a running list of URLs to download
+
+3. **Create section files:** For each major section identified, create a file:
    - `_01-[section-name].qmd`
    - `_02-[section-name].qmd`
    - etc.
@@ -1724,11 +1901,62 @@ Research by Lakoff & Núñez shows that abstract math is understood through phys
    [Content to be filled]
    ```
 
-3. **Update the index file:** Add `{{< include >}}` statements for all section files
+4. **Update the index file:** Add `{{< include >}}` statements for all section files
 
-4. **Create `_00-sources.qmd`:** Initialize with empty Source Processing Log table
+5. **Create `sources/` folder:** For storing downloaded authoritative sources
 
-5. Chat: "✓ Outline complete: [N] sections identified, files created"
+6. Chat: "✓ Outline complete: [N] sections identified, [M] sources to download"
+
+---
+
+## STEP 1B: Download All Authoritative Sources (CRITICAL)
+
+**Goal:** Download and store all primary sources BEFORE writing any content.
+
+**CRITICAL:** Do NOT proceed to writing until this step is complete.
+
+1. **Create sources folder:**
+   ```bash
+   mkdir -p "[Chapter]/sources"
+   ```
+
+2. **For each source, use the appropriate download method:**
+
+   Refer to `.agent/rules/web-source-fetching.md` for site-specific strategies.
+
+   | Source Type | Command |
+   |-------------|---------|
+   | arXiv paper | `curl -sL "https://arxiv.org/src/PAPER_ID" -o source.tar.gz && tar -xzf source.tar.gz` |
+   | d2l.ai chapter | `curl -sL "https://raw.githubusercontent.com/d2l-ai/d2l-en/master/CHAPTER_PATH.md" -o file.md` |
+   | HuggingFace docs | `read_url_content(url)` + `view_content_chunk(doc_id, position)`, save output |
+   | Static pages | `curl -sL "URL" -o page.html` or `read_url_content` |
+
+3. **Convert PDFs to PNGs (for figures):**
+   ```bash
+   # macOS
+   sips -s format png figure.pdf --out figure.png
+   ```
+
+4. **Verify all downloads:**
+   ```bash
+   ls -la "[Chapter]/sources/"
+   find "[Chapter]/sources" -type f | wc -l
+   ```
+
+5. **Add sources header to introduction file** (`_01-introduction.qmd`):
+   - Source URL
+   - Local path
+   - Extraction method
+   - Access date
+
+6. Chat: 
+   ```
+   ✓ **Sources downloaded:** [N] sources to `[Chapter]/sources/`
+     - arxiv_XXXX_latex/ ([M] .tex files, [K] images)
+     - d2l_chapter.md ([L] lines)
+     - ...
+   ✓ **Ready to write**
+   ```
 
 ---
 
@@ -1738,25 +1966,38 @@ Research by Lakoff & Núñez shows that abstract math is understood through phys
 
 The Chapter Introduction goes in the first body section file (e.g., `_01-introduction.qmd`). It should be 8-16 paragraphs and provide a narrative "survey" of the entire topic.
 
-1. **Write the introduction content:**
+**IMPORTANT:** Reference your downloaded sources in `sources/` folder while writing.
+
+1. **Read the downloaded sources first:**
+   ```
+   view_file("sources/arxiv_XXXX_latex/01_introduction.tex")
+   view_file("sources/d2l_chapter.md", StartLine=1, EndLine=100)
+   ```
+
+2. **Write the introduction content:**
    - Remind reader of prerequisites (1-2 paragraphs)
    - Tell the "story" of this topic (3-5 paragraphs)
    - Explain the mental model — how pieces connect (3-5 paragraphs)
    - Preview what's coming in each section (2-3 paragraphs)
    - Set expectations (1-2 paragraphs)
 
-2. **Writing style:**
+3. **Quote and cite from sources:**
+   - Copy exact equations from LaTeX sources
+   - Reference specific figures from downloaded images
+   - Use direct quotes with attribution
+
+4. **Writing style:**
    - Flow like a narrative, not a bulleted list
    - Conversational but precise
    - Concrete examples woven in
    - No deep technical details — that's what body sections are for
 
-3. **Test yourself:** After reading this introduction, the reader should be able to:
+5. **Test yourself:** After reading this introduction, the reader should be able to:
    - Talk intelligently about the topic at a survey level
    - Understand how all the pieces fit together
    - Not be surprised by anything in the detailed sections
 
-4. Chat: "✓ Chapter Introduction complete: [N] paragraphs"
+6. Chat: "✓ Chapter Introduction complete: [N] paragraphs"
 
 ---
 
@@ -1764,16 +2005,29 @@ The Chapter Introduction goes in the first body section file (e.g., `_01-introdu
 
 **For each body section file in the folder (after the introduction):**
 
-1. **Targeted web search:** Execute searches specific to that section's research goal
+1. **Read relevant downloaded sources:**
+   - Identify which sources cover this section's topic
+   - `view_file` on relevant `.tex`, `.md`, or extracted content
+   
 2. **Write the section content** to that section's file:
    - Following the A-G structure (example first, then explanation, visual, etc.)
+   - Quote exact equations from LaTeX sources
+   - Reference figures from downloaded images
    - Remove the research goal comment when done
-3. **Update `_00-sources.qmd`:** Add sources used for this section
-4. **Use Quarto cross-references** to link to other sections:
+   
+3. **Use downloaded figures:**
+   - Copy relevant figures from `sources/` to chapter folder
+   - Reference with: `![Caption](Chapter/figure.png)`
+   - Credit source in caption: `Image Source: [Paper Name](URL)`
+   
+4. **Add sources header** to the section file (collapsible callout at top)
+
+5. **Use Quarto cross-references** to link to other sections:
    - `@sec-section-name` to reference another section
    - `@fig-label` to reference a figure
    - `@eq-label` to reference an equation
-5. Chat: "✓ Section [N] complete: `_0N-name.qmd` ([X] examples, [Y] visualizations)"
+   
+6. Chat: "✓ Section [N] complete: `_0N-name.qmd` ([X] examples, [Y] visualizations)"
 
 **Repeat for all sections. Each section is a separate file, so edits don't affect other sections.**
 
@@ -1864,7 +2118,7 @@ This pass has TWO purposes: (1) add cross-references between sections, and (2) f
 ### 6A. Cross-References
 
 1. **Review all section files:** Add `@sec-*`, `@fig-*`, `@eq-*` cross-references wherever one section relates to another
-2. **Update `_00-sources.qmd`:** Finalize the Source Processing Log with all sources and dates
+2. **Review source headers:** Ensure each section's sources are complete and accurate
 3. **Add notation table:** Create or update a notation section (can be in `_01-introduction.qmd` or a separate `_00-notation.qmd`)
 4. **Verify the index file:** Ensure all `{{< include >}}` statements are correct and in order
 
