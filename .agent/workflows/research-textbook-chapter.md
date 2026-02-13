@@ -195,12 +195,33 @@ Use the centralized `AI-Learning-Gems/sources/` directory. Refer to `.agent/rule
 | **HuggingFace docs** | `read_url_content(url)` + `view_content_chunk(doc_id, position)`, save to `sources/huggingface.co/{path}/content.md` |
 | **Static pages** | `read_url_content` or `curl`, save to `sources/{domain}/{path}/content.md` |
 
-**STEP 4: Convert/Extract as Needed**
+**STEP 4: Convert PDF Figures to PNG (Cross-Platform)**
 
-For arXiv papers:
+Many arXiv papers include figures as PDFs. Quarto cannot embed PDFs inline — they must be converted to PNG.
+
 ```bash
-# Convert PDF figures to PNG (macOS)
+# Cross-platform PDF→PNG conversion (pick whichever is available):
+
+# Option 1: pdftoppm (from poppler-utils — works on macOS, Linux, Windows via conda)
+# Install: brew install poppler (macOS) | apt install poppler-utils (Linux) | conda install poppler (any)
+pdftoppm -png -r 300 -singlefile images/figure.pdf images/figure
+# Produces: images/figure.png
+
+# Option 2: ImageMagick (cross-platform)
+# Install: brew install imagemagick (macOS) | apt install imagemagick (Linux) | choco install imagemagick (Windows)
+magick -density 300 images/figure.pdf images/figure.png
+
+# Option 3: macOS-only (sips)
 sips -s format png images/figure.pdf --out images/figure.png
+```
+
+**Batch convert all PDF figures in an arXiv source:**
+```bash
+# Using pdftoppm (preferred — highest quality, no Ghostscript dependency):
+find "sources/arxiv-{ID}/" -name '*.pdf' -path '*/images/*' -o -name '*.pdf' -path '*/figs/*' -o -name '*.pdf' -path '*/figures/*' | while read f; do
+  outfile="${f%.pdf}"
+  [ ! -f "${outfile}.png" ] && pdftoppm -png -r 300 -singlefile "$f" "$outfile" && echo "Converted: $f"
+done
 ```
 
 **STEP 5: Verify Downloads**
@@ -225,6 +246,63 @@ find AI-Learning-Gems/sources/ -type f | head -30
 - 1-2 authoritative tutorials (d2l.ai, official docs)
 - 2-3 intuition-focused explanations (blogs, videos transcripts)
 - 1-2 implementation references (code documentation)
+
+---
+
+=== PHASE 1C: SOURCE IMAGE INVENTORY (CRITICAL — After Downloading) ===
+
+**CRITICAL RULE:** After downloading and converting sources, you MUST build an image inventory before creating the plan. The writing agent cannot use images it doesn't know about.
+
+### Why Inventory Images?
+
+1. **Papers contain the best figures** — Original architecture diagrams, attention maps, scaling plots, etc. are canonical and should be reused rather than recreated.
+2. **Captions provide context** — LaTeX `\caption{}` text tells you exactly what each figure shows.
+3. **The writing agent needs concrete paths** — Without file paths in TEXTBOOK-PLAN.md, the writer has no way to find relevant images.
+
+### The Image Inventory Workflow
+
+**STEP 1: Find all image files in downloaded sources**
+
+```bash
+# List all image files across all source folders
+find AI-Learning-Gems/sources/ \( -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' -o -name '*.svg' \) | sort
+```
+
+**STEP 2: Convert PDF figures to PNG (if not already done)**
+
+```bash
+# Batch convert — skip if PNG already exists
+find AI-Learning-Gems/sources/ \( -name '*.pdf' \) \( -path '*/images/*' -o -path '*/figs/*' -o -path '*/figures/*' -o -path '*/resources/*' \) | while read f; do
+  outfile="${f%.pdf}"
+  [ ! -f "${outfile}.png" ] && pdftoppm -png -r 300 -singlefile "$f" "$outfile" && echo "Converted: $f"
+done
+```
+
+**STEP 3: Extract captions from LaTeX sources**
+
+For each arXiv source, parse `\includegraphics` and `\caption{}` pairs:
+
+```bash
+# Find all \includegraphics and nearby \caption in .tex files
+grep -n -A5 'includegraphics' sources/arxiv-{ID}/*.tex | grep -E '(includegraphics|caption)'
+```
+
+Then use `view_file` to read the surrounding context for each figure. Build a mapping:
+- `\includegraphics{images/model_scheme}` → `sources/arxiv-2010.11929/images/model_scheme.png`
+- `\caption{Model overview...}` → Caption text
+
+**STEP 4: Build the Source Image Catalog**
+
+Create a table mapping each useful image to its caption and the section(s) where it should appear. This goes into TEXTBOOK-PLAN.md (see template below).
+
+**Selection criteria for which images to include:**
+- ✅ Architecture diagrams (ALWAYS include — these are canonical)
+- ✅ Attention maps / feature visualizations (essential for interpretability sections)
+- ✅ Scaling/performance plots (essential for comparison sections)
+- ✅ Training curves / ablation results
+- ❌ Low-resolution or illegible images
+- ❌ Supplementary figures that don't add to the chapter's narrative
+- ❌ Figures whose content is better conveyed by a custom D2 diagram or hvPlot
 
 ---
 
@@ -307,6 +385,7 @@ The plan MUST follow this exact structure:
 
 **Key equations:** [List the main equations this section must include]
 **Visualizations:** [List diagrams/plots needed: D2 concept map, hvPlot, downloaded images]
+**Source images to embed:** [List specific images from the Source Image Catalog below, by path]
 **Self-explanation prompts:** [List 1-2 reflection questions for this section]
 
 ---
@@ -318,6 +397,27 @@ The plan MUST follow this exact structure:
 ---
 
 [... repeat for all 5-6 sections ...]
+
+---
+
+## Source Image Catalog
+
+**These are images from the downloaded sources that should be embedded in the chapter.**
+The writing agent should copy these to `{Chapter}/images/` and embed them in the appropriate sections.
+
+| # | Source Image Path | Caption (from paper) | Relevant Section(s) | Notes |
+|---|---|---|---|---|
+| 1 | `sources/arxiv-XXXX/images/model_scheme.png` | "Model overview. We split an image into..." | §2 Architecture | Architecture diagram — MUST include |
+| 2 | `sources/arxiv-XXXX/images/attention_distance.png` | "Size of attended area by head..." | §3 Why ViTs Work | Shows local vs global attention |
+| 3 | ... | ... | ... | ... |
+
+**Priority order for visuals (the writing agent should follow this):**
+
+1. **Source images from downloaded papers** — already in `sources/`. Canonical, authoritative, and high-quality.
+2. **D2 diagrams** — for concept maps, flowcharts, and structural diagrams.
+3. **Python/hvPlot** — for data visualizations, distributions, and function plots.
+4. **Web downloads** — for images not in sources/ (search and download during writing).
+5. **generate_image** — only as a last resort for custom illustrations.
 
 ---
 
@@ -355,11 +455,14 @@ The plan MUST follow this exact structure:
 Before finalizing the plan, verify:
 - [ ] User query is included verbatim at the top
 - [ ] All downloaded sources are listed in the Source Processing Log with local paths
-- [ ] 5-6 sections planned, each 1,500-2,000 words
+- [ ] **EXACTLY 5-6 body sections** planned (plus introduction and closing). If more subtopics exist, merge related ones rather than adding more sections. The total chapter should be 7,500-12,000 words.
+- [ ] Each section is 1,500-2,000 words
 - [ ] Each section specifies WHICH sources it needs and WHICH specific parts
 - [ ] Running example is designed and its use in each section is specified
 - [ ] Key equations are identified for each section
 - [ ] Visualizations are planned for each section
+- [ ] **Source Image Catalog is present** with concrete file paths, captions, and section assignments
+- [ ] Each section lists which source images to embed (under "Source images to embed")
 - [ ] Notation table covers all symbols across all sections
 - [ ] Misconceptions and difficult questions are captured
 - [ ] Closing section includes all required elements
@@ -407,13 +510,24 @@ Keep chat messages brief. Example:
 3. Verify all downloads
 4. Chat: "✓ Sources downloaded: [N] new, [M] existing"
 
+## STEP 2B: Image Inventory (CRITICAL — Do NOT skip)
+
+1. Convert all PDF figures to PNG in downloaded sources (batch `pdftoppm` command)
+2. List all image files across all source folders
+3. Parse LaTeX `\includegraphics` + `\caption{}` pairs from `.tex` files
+4. Select the most relevant images for the chapter topic
+5. Build the Source Image Catalog table (image path, caption, target section)
+6. Chat: "✓ Image inventory: [N] images found, [M] selected for chapter"
+
 ## STEP 3: Read Sources & Create Plan
 
 1. Read through each downloaded source (`view_file` on local copies)
 2. Identify the best content for each planned section
 3. Design the running example
-4. Write `TEXTBOOK-PLAN.md` to the output folder
-5. Chat: "✓ TEXTBOOK-PLAN.md created: [N] sections, ~[W] total words"
+4. **CRITICAL: Plan MUST contain exactly 5-6 body sections** (plus introduction and closing). If the topic has more subtopics, merge related ones.
+5. Include the Source Image Catalog in the plan, with each section listing its images
+6. Write `TEXTBOOK-PLAN.md` to the output folder
+7. Chat: "✓ TEXTBOOK-PLAN.md created: [N] sections, ~[W] total words, [I] source images mapped"
 
 ## STEP 4: Handoff
 

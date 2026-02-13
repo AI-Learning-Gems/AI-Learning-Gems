@@ -436,16 +436,36 @@ For each downloaded source, record metadata:
 
 ## Image Handling
 
-### From PDF figures (macOS):
+### PDF→PNG Conversion (Cross-Platform)
+
+Many arXiv papers include figures as PDFs. For embedding in Quarto chapters, these must be converted to PNG.
+
+**Preferred tool: `pdftoppm` (from poppler-utils)**
+- Highest quality, no Ghostscript dependency, fast
+- Install: `brew install poppler` (macOS) | `apt install poppler-utils` (Linux) | `conda install poppler` (any platform)
+
 ```bash
-sips -s format png figure.pdf --out figure.png
+# Single file:
+pdftoppm -png -r 300 -singlefile figure.pdf figure
+# Produces: figure.png (300 DPI, high quality)
+
+# Batch convert all PDF figures in an arXiv source:
+find "sources/arxiv-{ID}/" \( -name '*.pdf' \) \( -path '*/images/*' -o -path '*/figs/*' -o -path '*/figures/*' -o -path '*/resources/*' \) | while read f; do
+  outfile="${f%.pdf}"
+  [ ! -f "${outfile}.png" ] && pdftoppm -png -r 300 -singlefile "$f" "$outfile" && echo "Converted: $f"
+done
 ```
 
-### From PDF figures (cross-platform):
+**Fallback 1: ImageMagick (cross-platform)**
+- Install: `brew install imagemagick` (macOS) | `apt install imagemagick` (Linux) | `choco install imagemagick` (Windows)
+
 ```bash
-pdftoppm -png figure.pdf figure
-# or
-convert figure.pdf figure.png  # ImageMagick
+magick -density 300 figure.pdf figure.png
+```
+
+**Fallback 2: sips (macOS-only)**
+```bash
+sips -s format png figure.pdf --out figure.png
 ```
 
 ### From web pages:

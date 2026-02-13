@@ -535,27 +535,56 @@ $$ {#eq-label}
 
 **Goal:** Your chapter should contain the absolutely perfect picture to explain each concept.
 
+### Visual Priority Order (CRITICAL)
+
+**Follow this order when choosing how to illustrate a concept:**
+
+1. **Source images from downloaded papers** — Check the TEXTBOOK-PLAN.md Source Image Catalog FIRST. These are canonical, authoritative figures that readers expect to see. Copy them to `{Chapter}/images/` and embed.
+2. **D2 diagrams** — for concept maps, flowcharts, and structural diagrams. Always use ELK engine.
+3. **Python/hvPlot** — for data visualizations, distributions, and function plots.
+4. **Web downloads** — for images not in sources/ (search and download during writing).
+5. **generate_image** — only as a last resort for custom illustrations that can’t be found or generated programmatically.
+
 ### Choosing the Right Visualization Approach
 
 | Type of Visual | Approach |
 |----------------|----------|
+| **Canonical figures from papers** (architecture diagrams, attention maps, scaling plots) | **Copy from `sources/` — see Source Image Catalog** |
 | **Data plots** (distributions, functions, comparisons) | Generate with code (hvPlot, matplotlib) |
 | **Simple concept maps** (flowcharts, relationships) | Generate with D2 |
 | **Mathematical diagrams** (geometric, annotated) | Generate with TikZ |
-| **Complex canonical images** (architectures, famous diagrams, multi-part illustrations) | **Download from web** |
+| **Complex images NOT in sources** (rare) | **Download from web** |
 
-**When to download vs generate:**
-- **Download** if: The image is complex, canonical, has intricate shading/detail, or is a famous diagram that everyone uses
-- **Generate** if: The image is a simple concept map, a data plot, or a mathematical function visualization
+**When to use source images vs generate:**
+- **Source image** if: The figure is canonical (architecture diagram, famous result), already exists in `sources/`, and has good resolution
+- **Generate** if: The image is a simple concept map, a data plot, a mathematical function visualization, or needs custom annotation
+- **Download from web** if: The image is not in sources/ and is too complex to generate
 
 ---
 
-### For CANONICAL/COMPLEX IMAGES (download from web):
+### For SOURCE IMAGES (from downloaded papers — PREFERRED):
+
+1. Check the TEXTBOOK-PLAN.md **Source Image Catalog** for images assigned to this section
+2. Copy the image to the chapter’s `images/` subfolder:
+   ```bash
+   mkdir -p "{Chapter}/images"
+   cp "AI-Learning-Gems/sources/arxiv-XXXX/images/figure.png" "{Chapter}/images/descriptive-name.png"
+   ```
+3. Name descriptively: `vit-architecture.png`, `dino-attention-maps.png`, `scaling-vs-data.png`
+4. Embed with caption and attribution:
+   ```markdown
+   ![Caption describing the figure. Source: Author et al. (Year), Figure N.](images/descriptive-name.png){#fig-label}
+   ```
+5. **CRITICAL:** Always attribute the source in the caption. Use the format: `Source: Author et al. (Year), Figure N.`
+
+---
+
+### For CANONICAL/COMPLEX IMAGES NOT in sources (download from web):
 
 1. Search the web for the best version of the image
-2. Download to the chapter folder (same folder as section files)
+2. Download to the chapter’s `images/` subfolder
 3. Name descriptively: `transformer-architecture.png`, `attention-mechanism.png`
-4. Reference in markdown: `![Caption. Image Source: URL](Chapter/image.png){#fig-label}`
+4. Reference in markdown: `![Caption. Image Source: URL](images/filename.png){#fig-label}`
 
 ---
 
@@ -839,6 +868,9 @@ Every example must pass the **"15-year-old to 35-year-old test":**
 - [ ] Concept map follows introduction (D2 diagram)
 - [ ] Every equation has a concrete numerical example
 - [ ] Every major concept has a visual
+- [ ] **Source images from papers are embedded** where the Source Image Catalog assigns them
+- [ ] All images are in `{Chapter}/images/` with descriptive names
+- [ ] All embedded images have captions with source attribution
 - [ ] Examples have narrative context (not just numbers)
 - [ ] Examples pass the "15-year-old to 35-year-old test"
 - [ ] Self-explanation prompts included
@@ -887,14 +919,21 @@ Every example must pass the **"15-year-old to 35-year-old test":**
 
 ## STEP 0: Read the Plan & Initialize
 
-1. **Read `TEXTBOOK-PLAN.md`** — understand the full plan, sources, and section structure
+1. **Read `TEXTBOOK-PLAN.md`** — understand the full plan, sources, section structure, and **Source Image Catalog**
 2. **Read key downloaded sources** — `view_file` on the most important sources listed in the plan
 3. **Create the folder structure:**
    - Index file: `{OutputFolder}/[Topic Name].qmd`
    - Section folder: `{OutputFolder}/[Topic Name]/`
+   - **Images folder:** `{OutputFolder}/[Topic Name]/images/`
    - Create empty section files from the plan: `_01-`, `_02-`, ..., `_99-closing.qmd`
-4. **Write the index file** with YAML header and `{{< include >}}` statements
-5. Chat: "✓ Creating: `[Topic Name].qmd` + folder with [N] sections"
+4. **Copy source images assigned in the Source Image Catalog:**
+   ```bash
+   mkdir -p "{OutputFolder}/[Topic Name]/images"
+   # For each image in the Source Image Catalog:
+   cp "AI-Learning-Gems/sources/arxiv-XXXX/images/figure.png" "{OutputFolder}/[Topic Name]/images/descriptive-name.png"
+   ```
+5. **Write the index file** with YAML header and `{{< include >}}` statements
+6. Chat: "✓ Creating: `[Topic Name].qmd` + folder with [N] sections, [I] source images copied"
 
 ---
 
@@ -929,7 +968,8 @@ Chat: "✓ Introduction complete: `_01-introduction.qmd`"
    - Per-section source header (collapsible)
    - Concrete example FIRST
    - Explanation connecting to example
-   - Visual diagram (D2 or hvPlot)
+   - **Embed source images** assigned to this section (from Source Image Catalog): `![Caption. Source: ...](images/name.png){#fig-label}`
+   - Visual diagram (D2 or hvPlot) for concepts not covered by source images
    - Second worked example
    - Self-explanation prompt
    - Fading practice check
