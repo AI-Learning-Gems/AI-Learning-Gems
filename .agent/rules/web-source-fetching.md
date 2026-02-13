@@ -360,22 +360,45 @@ browser_subagent(
 
 ## Local Storage Structure
 
-Store all source materials in a `sources/` folder within the chapter:
+**All sources are stored centrally in `AI-Learning-Gems/sources/` — NOT in each chapter folder.**
+
+This allows the same source to be referenced by multiple chapters without duplication.
 
 ```
-{Chapter}/
-├── sources/
-│   ├── arxiv-{paper_id}/           ← Hyphenated naming
+AI-Learning-Gems/
+├── sources/                                        ← CENTRALIZED source storage
+│   ├── arxiv-2010.11929/                            ← ArXiv papers (hyphenated)
 │   │   ├── main.tex
 │   │   ├── 01_section.tex
 │   │   ├── images/
 │   │   │   ├── figure1.pdf
-│   │   │   └── figure1.png  # converted
+│   │   │   └── figure1.png                          # converted
 │   │   └── references.bib
-│   ├── d2l_chapter.md              # GitHub raw download
-│   ├── huggingface_docs.md         # read_url_content extraction
-│   └── source_index.yaml           # Optional: metadata
+│   ├── d2l.ai/chapter_attention-mechanisms-and-transformers/vision-transformer/
+│   │   └── content.md                               # GitHub raw download
+│   ├── lilianweng.github.io/posts/2022-06-09-vlm/
+│   │   └── content.md                               # Blog post
+│   ├── huggingface.co/docs/transformers/model_doc/vit/
+│   │   └── content.md                               # Documentation
+│   └── source_index.yaml                            # Optional: global metadata
 ```
+
+### Folder Naming Conventions
+
+| Source Type | Folder Pattern | Example |
+|-------------|---------------|---------|
+| **ArXiv papers** | `sources/arxiv-{PAPER_ID}` | `sources/arxiv-2010.11929/` |
+| **Blogs/sites** | `sources/{domain}/{path}/` | `sources/lilianweng.github.io/posts/2022-06-09-vlm/` |
+| **d2l.ai** | `sources/d2l.ai/{chapter-path}/` | `sources/d2l.ai/chapter_attention.../vision-transformer/` |
+| **HuggingFace** | `sources/huggingface.co/{path}/` | `sources/huggingface.co/docs/transformers/model_doc/vit/` |
+
+**Blog/site URL → folder name rules:**
+
+1. Strip `https://` and `http://`
+2. Strip `www.`
+3. Use the remaining URL path as the folder path
+4. Store main content as `content.md` inside the folder
+5. Store images in `images/` subfolder
 
 ---
 
@@ -388,7 +411,7 @@ For each downloaded source, record metadata:
   source_url: https://arxiv.org/src/2010.11929
   accessed: 2026-02-01T11:42:00+05:30
   type: arxiv_latex
-  local_path: sources/arxiv-2010.11929/    # Hyphenated naming
+  local_path: sources/arxiv-2010.11929/
   title: "An Image is Worth 16x16 Words"
   authors: [Dosovitskiy, Beyer, ...]
   extraction_method: curl + tar
@@ -397,9 +420,16 @@ For each downloaded source, record metadata:
   source_url: https://raw.githubusercontent.com/d2l-ai/d2l-en/master/chapter_attention-mechanisms-and-transformers/vision-transformer.md
   accessed: 2026-02-01T11:30:00+05:30
   type: github_raw
-  local_path: sources/d2l_vision_transformer.md
+  local_path: sources/d2l.ai/chapter_attention-mechanisms-and-transformers/vision-transformer/content.md
   title: "11.8. Transformers for Vision"
   extraction_method: curl raw GitHub
+
+- url: https://lilianweng.github.io/posts/2022-06-09-vlm/
+  accessed: 2026-02-01T12:00:00+05:30
+  type: blog
+  local_path: sources/lilianweng.github.io/posts/2022-06-09-vlm/content.md
+  title: "Vision Language Models"
+  extraction_method: trafilatura
 ```
 
 ---
@@ -443,9 +473,14 @@ Before writing any chapter content:
 
 1. **Use `search_web`** to identify relevant sources (discovery only)
 2. **For each source**, determine the best fetch method from this lookup table
-3. **Download all sources** to `sources/` folder using appropriate method
+3. **Download all sources** to `AI-Learning-Gems/sources/` using appropriate method and naming conventions
 4. **Only then start writing** — reference local files, not URLs
 5. **Source Processing Log** should contain only URLs that were actually downloaded and read
+
+**Note:** Sources are shared across chapters via the centralized `sources/` folder. Before downloading, check if a source already exists:
+```bash
+ls AI-Learning-Gems/sources/arxiv-2010.11929/ 2>/dev/null && echo "EXISTS" || echo "NEW"
+```
 
 ---
 
