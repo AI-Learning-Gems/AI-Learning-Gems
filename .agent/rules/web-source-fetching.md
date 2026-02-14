@@ -239,7 +239,17 @@ read_url_content(url="https://pytorch.org/docs/stable/{module}.html")
 
 ### Static Tutorial Sites / Blogs
 
-**Best approach for web content**: `trafilatura` (boilerplate removal + MD output)
+**Best approach for web content WITH images**: `webpage_to_md.py` (downloads images locally + clean MD)
+
+```bash
+# Single page with all images downloaded locally
+python scripts/webpage_to_md.py "https://example.com/article" -o sources/article/
+
+# With custom CSS selector for content area
+python scripts/webpage_to_md.py "https://d2l.ai/chapter_.../section.html" -o sources/section/ -s ".document"
+```
+
+**Text-only (no images needed)**: `trafilatura` (boilerplate removal + MD output, but does NOT download images)
 
 ```bash
 pip install trafilatura
@@ -263,18 +273,23 @@ view_content_chunk(document_id="https://example.com/article", position=1)
 
 #### Tool Comparison
 
-| Tool | Install | Speed | LaTeX Handling | Best For |
-|------|---------|-------|----------------|----------|
-| **trafilatura** | `pip install trafilatura` | Fast | Pass-through | Web content + boilerplate removal |
-| **Pandoc** | `conda install -c conda-forge pandoc` | Medium | ✅ Best (`+tex_math_dollars`) | Complex documents, accuracy |
-| **html-to-markdown** | `pip install html-to-markdown` | ⚡ Fastest | Custom handler needed | High-volume, inline images |
-| **markdownify** | `pip install markdownify` | Medium | Custom handler needed | Simple conversion |
-| **html2text** | `pip install html2text` | Fast | Limited | Plain text output |
-| **Jina Reader** | API: `r.jina.ai/URL` | Fast | Depends on source | LLM pipelines |
+| Tool | Install | Speed | Image Download | LaTeX Handling | Best For |
+|------|---------|-------|----------------|----------------|----------|
+| **webpage_to_md.py** | Already installed | Fast | ✅ Downloads locally | Pass-through | **Web pages with images** |
+| **trafilatura** | `pip install trafilatura` | Fast | ❌ URLs only | Pass-through | Text-only, boilerplate removal |
+| **Pandoc** | `conda install -c conda-forge pandoc` | Medium | ✅ (`--extract-media`) | ✅ Best | Complex documents, accuracy |
+| **html-to-markdown** | `pip install html-to-markdown` | ⚡ Fastest | ❌ | Custom handler | High-volume, inline images |
+| **markdownify** | `pip install markdownify` | Medium | ❌ | Custom handler | Simple conversion |
+| **Jina Reader** | API: `r.jina.ai/URL` | Fast | ❌ | Depends on source | LLM pipelines |
 
 #### Recommended Workflows
 
-**For web articles (removes ads/nav):**
+**For web articles WITH images (recommended):**
+```bash
+python scripts/webpage_to_md.py "URL" -o output_dir/
+```
+
+**For web articles text-only (removes ads/nav):**
 ```bash
 trafilatura -u "URL" -of markdown > output.md
 ```
@@ -316,8 +331,19 @@ pandoc -f html+tex_math_dollars -t markdown input.html -o output.md
 
 #### Image Handling
 
-Most converters keep image URLs as `![alt](https://...)`. To download locally:
+**Primary tool**: `webpage_to_md.py` handles image downloading automatically.
 
+**Alternative** (wget + pandoc pipeline, zero-install):
+```bash
+# Step 1: Download page + all images
+wget --page-requisites --convert-links --adjust-extension \
+     --span-hosts --no-directories -P /tmp/page/ "URL"
+
+# Step 2: Convert to markdown, downloading & localizing images
+pandoc /tmp/page/*.html -f html -t gfm --extract-media=./images -o output.md
+```
+
+**Manual post-processing** (if using a converter that doesn't download images):
 ```python
 import re, requests
 from pathlib import Path
@@ -333,7 +359,7 @@ for i, url in enumerate(urls):
 Path('output.md').write_text(md)
 ```
 
-**Note**: `html-to-markdown` (Rust) can extract base64 inline images automatically.
+> **NOTE**: `trafilatura --images` does NOT download images — it only lists image URLs in XML/TEI output.
 
 ---
 
