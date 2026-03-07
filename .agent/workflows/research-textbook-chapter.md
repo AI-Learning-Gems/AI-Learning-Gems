@@ -102,6 +102,27 @@ If a source already exists, skip downloading and reference the existing path.
 - Search for original papers that introduced key concepts
 - Find official documentation for algorithms/methods
 
+**PHASE 2B - High-Quality Blog Search (MANDATORY — see `.agent/rules/high-quality-blogs.md`):**
+
+Search the curated blog registry for relevant posts. These blogs produce textbook-quality content. Spend at least 2-3 searches here:
+
+```
+site:lilianweng.github.io {TOPIC}
+site:colah.github.io {TOPIC}
+site:cameronrwolfe.substack.com {TOPIC}
+site:magazine.sebastianraschka.com {TOPIC}
+site:distill.pub {TOPIC}
+site:gregorygundersen.com {TOPIC}
+site:jalammar.github.io {TOPIC}
+site:karpathy.github.io {TOPIC}
+site:ruder.io {TOPIC}
+site:huyenchip.com {TOPIC}
+site:eugeneyan.com {TOPIC}
+site:bair.berkeley.edu/blog {TOPIC}
+```
+
+Pick the blogs most relevant to the topic's domain. If you find an excellent blog not in the registry, add it following the instructions in `.agent/rules/high-quality-blogs.md`.
+
 **PHASE 3 - Intuition & Explanation Mining:**
 - Search "[TOPIC] intuition explained"
 - Search "[TOPIC] visual explanation" and "[TOPIC] geometric interpretation"

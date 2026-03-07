@@ -156,6 +156,15 @@ Content goes here...
 [Section content...]
 ```
 
+**CRITICAL — Attribution for Blog Content:**
+
+Many sources in this project come from independent researchers' blogs (see `.cursor/rules/high-quality-blogs.mdc`). These are original intellectual contributions that MUST be attributed:
+
+- **Source header**: Always list blog posts in the section source table with the author's name: `[Lilian Weng — "Reward Hacking in RL"](URL)`
+- **Figures**: When using images from blog posts, always caption with: `Source: [Author Name], "[Post Title]" ([year]).`
+- **Explanations and framings**: When your explanation is adapted from or inspired by a blog post's framing, say so in the text: *"The following derivation follows Gundersen's treatment in [post title]"* or *"As Olah explains in [post title], ..."*
+- **Never present blog content as original**: If a worked example, analogy, or visual explanation comes from a blog, credit it explicitly
+
 ### Chat Output Style
 
 Keep chat messages brief. Example:
@@ -1078,6 +1087,7 @@ Every example must pass the **"15-year-old to 35-year-old test":**
 - [ ] **Source images from papers are embedded** where the Source Image Catalog assigns them
 - [ ] All images are in `{Chapter}/images/` with descriptive names
 - [ ] All embedded images have captions with source attribution
+- [ ] Blog-sourced explanations and framings are attributed to the original author in the text
 - [ ] Examples have narrative context (not just numbers)
 - [ ] Examples pass the "15-year-old to 35-year-old test"
 - [ ] **Misconception callouts** (1-2 per body section) — `.callout-warning` explaining why the misconception is wrong and what's right
