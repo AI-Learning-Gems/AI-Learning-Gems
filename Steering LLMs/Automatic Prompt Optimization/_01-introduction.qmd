@@ -45,31 +45,31 @@ After completing this chapter, you will be able to:
 
 ### Notation
 
-| Symbol | Meaning |
-|---|---|
-| $p$, $\rho$ | Prompt / instruction (text string) |
-| $\mathcal{P}$ | Prompt space (set of all possible prompts) |
-| $p^*$ | Optimal prompt |
-| $M_T$ | Task model (the LLM performing the task) |
-| $M_O$ | Optimizer model (the LLM proposing prompt improvements) |
-| $F$, $f$, $\mu$ | Metric / scoring function |
-| $S(p)$ | Accuracy score of prompt $p$ |
-| $\mathcal{D}$, $\mathcal{D}_\text{train}$, $\mathcal{D}_\text{val}$ | Dataset, training set, validation set |
-| $(x, y)$ | Input-output example pair |
-| $\partial \mathcal{L} / \partial v$ | Textual gradient of loss $\mathcal{L}$ with respect to variable $v$ |
-| $\nabla_f$ | Textual gradient operator for function $f$ |
-| $\Phi$ | Compound AI system |
-| $\pi_i$ | Prompt for module $i$ in a multi-module system |
-| $f_i$ | $i$-th objective function (in multi-objective setting) |
-| $a \succ b$ | Solution $a$ Pareto-dominates solution $b$ |
-| $H(S)$ | Hypervolume indicator of solution set $S$ |
-| $B$ | Optimization budget (number of LLM calls) |
-| $\text{ASI}$ | Actionable Side Information (diagnostic feedback) |
-| $\phi_i$ | Shapley value for agent/module $i$ |
-| $\mathbf{c} \in \mathbb{R}^{d \times L}$ | Continuous soft prompt ($L$ vectors of dimension $d$) |
-| $R_\varphi(P, x, y)$ | Reward model score (learned from human preferences) |
-| $W$ | Beam width (in beam search) |
-| $\cos(\varphi_{ij})$ | Gradient cosine similarity between objectives $i$ and $j$ |
+| Symbol | Definition | Valid Values | Example |
+|---|---|---|---|
+| $p$, $\rho$ | Prompt / instruction (text string) | $p \in \mathcal{P}$ (any natural language string) | "Classify this ticket's urgency as low, medium, or high" |
+| $\mathcal{P}$ | Prompt space (set of all possible prompts) | Discrete, combinatorial ($\lvert\mathcal{P}\rvert$ is finite but vast) | All English instructions up to 500 tokens |
+| $p^*$ | Optimal prompt that maximizes the scoring function | $p^* \in \mathcal{P}$ | The best triage instruction found by OPRO |
+| $M_T$ | Task model: the LLM performing the task | Any LLM | GPT-4, Llama 3, Claude |
+| $M_O$ | Optimizer model: the LLM proposing prompt improvements | Any LLM (can be same as $M_T$) | GPT-4 generating candidate triage instructions |
+| $F$, $f$, $\mu$ | Metric / scoring function: $F\colon \text{outputs} \to \mathbb{R}$ | $F \in [0, 1]$ (typically) | $F = \text{accuracy} = 0.84$ |
+| $S(p)$ | Accuracy score of prompt $p$: $S\colon \mathcal{P} \to [0,1]$ | $S(p) \in [0, 1]$ | $S(\text{triage prompt v3}) = 0.84$ |
+| $\mathcal{D}$ | Dataset of input-output examples | Set of $(x, y)$ pairs | 500 labeled support tickets |
+| $(x, y)$ | Input-output example pair | $x \in \text{inputs}$, $y \in \text{labels}$ | ("Account charged twice...", "high") |
+| $\partial \mathcal{L} / \partial v$ | Textual gradient of loss $\mathcal{L}$ w.r.t. variable $v$ | Natural language string | "The prompt lacks neurological symptom keywords" |
+| $\nabla_f$ | Textual gradient operator for function $f$ | LLM call producing critique text | TextGrad's backward pass through one edge |
+| $\Phi$ | Compound AI system (multi-module pipeline) | DAG of modules | Extractor $\to$ Classifier $\to$ Safety Checker |
+| $\pi_i$ | Prompt for module $i$ in a multi-module system | $\pi_i \in \mathcal{P}$ | $\pi_1$ = extraction prompt, $\pi_2$ = classification prompt |
+| $f_i$ | $i$-th objective function (multi-objective setting) | $f_i\colon \mathcal{P} \to \mathbb{R}$ | $f_1 = \text{accuracy}$, $f_2 = \text{safety}$, $f_3 = \text{conciseness}$ |
+| $a \succ b$ | Solution $a$ Pareto-dominates solution $b$ | Boolean relation | Prompt A (85% acc, 90% safe) $\succ$ Prompt B (80% acc, 85% safe) |
+| $H(S)$ | Hypervolume indicator of solution set $S$ | $H(S) \geq 0$ | $H(\{\text{prompt A, prompt B}\}) = 650$ |
+| $B$ | Optimization budget (number of LLM calls allowed) | $B \in \{1, 2, 3, \ldots\}$ | $B = 500$ calls for MIPROv2 |
+| $\text{ASI}$ | Actionable Side Information (diagnostic feedback) | Structured text (errors, traces, scores) | Compiler error from a CUDA kernel attempt |
+| $\phi_i$ | Shapley value for agent/module $i$ | $\phi_i \in \mathbb{R}$; $\sum_i \phi_i = v(N)$ | $\phi_\text{Retriever} = 35.3\%$ of total system accuracy |
+| $\mathbf{c}$ | Continuous soft prompt ($L$ learnable vectors of dim $d$) | $\mathbf{c} \in \mathbb{R}^{d \times L}$ | 16 vectors of dimension 512 prepended to CLIP input |
+| $R_\varphi(P, x, y)$ | Reward model score (learned from human preferences) | $R_\varphi \in \mathbb{R}$ (higher = better) | $R_\varphi = 0.92$ for a helpful, safe response |
+| $W$ | Beam width in beam search | $W \in \{1, 2, 3, \ldots\}$ | $W = 4$ parallel prompt candidates in ProTeGi |
+| $\cos(\varphi_{ij})$ | Gradient cosine similarity between objectives $i$ and $j$ | $\cos(\varphi_{ij}) \in [-1, 1]$ | $\cos(\varphi_{\text{acc, safe}}) = -0.3$ (conflicting) |
 
 ### The Story of Prompt Optimization
 
