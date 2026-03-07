@@ -1,0 +1,123 @@
+## What Is a System Demonstration Paper? {#sec-what-is-a-demo-paper}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [ACL 2025 Demo CFP](https://2025.aclweb.org/calls/system_demonstration/) | 6 pages, 2.5-min video, single-blind, desk-reject criteria |
+| 2 | [NAACL 2025 Demo CFP](https://2025.naacl.org/calls/demos/) | 2-min video, ethics checklist, OpenReview |
+| 3 | [ACL 2024 Demo Proceedings](https://aclanthology.org/volumes/2024.acl-demos/) | 38/114 accepted (35%) |
+| 4 | [EMNLP 2024 Demo Proceedings](https://aclanthology.org/volumes/2024.emnlp-demo/) | 52/153 accepted (34%) |
+| 5 | [ACL ARR Reviewer Guidelines](https://aclrollingreview.org/reviewertutorial) | Artifact vs. knowledge contributions |
+| 6 | [EMNLP 2020 Demo Proceedings](https://aclanthology.org/volumes/2020.emnlp-demos/) | 29/81 accepted (36%) |
+| 7 | [ACL 2021 Demo Proceedings](https://aclanthology.org/volumes/2021.acl-demo/) | 43/133 accepted (32.3%) |
+
+:::
+
+Priya's first instinct when writing her PromptBench paper is to open one of her previously published research papers and start filling in the familiar template: Introduction, Related Work, Methods, Experiments, Conclusion. She plans to describe her prompt optimization algorithm in the Methods section and compare against baselines on standard benchmarks. After all, that is how NLP papers work.
+
+This instinct will lead her astray. A system demonstration paper is not a research paper with the word "demo" stamped on it. It is a fundamentally different type of academic contribution, with its own structure, review criteria, and conventions. Getting this distinction right is the first and most important step toward a successful submission.
+
+### The Demo Track vs. the Main Conference Track
+
+Every major *CL venue (ACL, EMNLP, NAACL) runs a system demonstration track alongside its main research track. The two tracks share a venue, a proceedings volume, and a presentation format, but they evaluate entirely different kinds of contributions. A research paper asks: "What new knowledge does this contribute to the field?" A demo paper asks: "What new capability does this system provide to the community?"
+
+This distinction maps onto what the ACL Rolling Review guidelines call "artifact contributions" versus "knowledge contributions." A research paper is a knowledge contribution: it advances scientific understanding through novel methods, theoretical insights, or empirical findings. A demo paper is an artifact contribution: it presents a working system, tool, or platform that others can use. The system may embed novel techniques, but the primary contribution is the artifact itself, not the underlying algorithm.
+
+Consider a concrete example. Suppose Priya has developed a clever prompt-selection algorithm that achieves state-of-the-art accuracy on few-shot classification tasks. If she writes a research paper, the contribution is the algorithm. She needs ablation studies, comparisons against existing prompt-selection methods, and analysis of why the method works. The system that implements the algorithm is incidental.
+
+Now suppose she takes that same algorithm and builds a full toolkit around it: a Gradio UI for interactive prompt exploration, an API for programmatic access, integration with multiple LLM providers, experiment tracking, and reproducible configuration management. If she writes a demo paper, the contribution is the toolkit. She needs to explain the architecture, show the UI, demonstrate the workflow, and provide evidence that the system is useful. The algorithm matters, but it is one component among many.
+
+This difference ripples through every aspect of the submission. Let's look at the specifics.
+
+### Formal Submission Requirements
+
+The mechanics of submitting a demo paper differ from a research paper in several important ways. Here are the requirements for ACL 2025 and NAACL 2025, which are representative of recent venues:
+
+| Requirement | Main Track (Research) | Demo Track |
+|---|---|---|
+| Page limit | 8 pages + unlimited references | 6 pages + unlimited references + 2-page appendix |
+| Review type | Double-blind | Single-blind (author names visible) |
+| Video | Not required | Mandatory: 2-2.5 minute screencast |
+| Screenshots | Not required | Mandatory: at least one screenshot of the system |
+| Style file | ACL LaTeX template | Same ACL LaTeX template |
+| Concurrent submission | Restricted | Cannot be under review at another *CL venue |
+| Presentation | Oral or poster | Live demo session (interactive) |
+
+Three points deserve emphasis. First, the page limit is tight. Six pages forces you to be disciplined about what you include. Every sentence must earn its place, and page budgeting (how much space each section gets) becomes a critical skill. The 2-page appendix can hold supplementary material like additional screenshots, extended evaluation tables, or implementation details, but reviewers are not required to read it.
+
+Second, the review is single-blind. Reviewers can see your name, your institution, and your GitHub repository. This means you should include links to your code, your demo URL, and your video directly in the paper. It also means your reputation and institutional affiliation are visible, which cuts both ways: a paper from a well-known lab may get the benefit of the doubt, but a paper from any institution can succeed if the system is compelling. Unlike double-blind review, you do not need to anonymize self-citations or hide your identity.
+
+Third, the video is not optional. The ACL 2025 CFP states a maximum of 2.5 minutes; NAACL 2025 specifies 2 minutes. A missing or broken video link can result in desk rejection (rejection without review). The video is a first-class submission artifact, and reviewers will watch it. We will cover how to create an effective video in @sec-polishing.
+
+::: {.callout-warning title="Common Misconception: Demo papers are just short research papers"}
+A surprisingly common mistake is to take a research paper, cut it down to six pages, add a screenshot, and submit it to the demo track. This almost always leads to rejection. Demo papers are not short research papers. They have a different structure (system architecture replaces methods), different evaluation expectations (usability and adoption matter as much as accuracy), and different review criteria (the system must work and be available, not just described). If your primary contribution is an algorithm, submit to the main track. If your primary contribution is a tool that implements that algorithm and makes it accessible, submit to the demo track.
+:::
+
+### What Reviewers Evaluate
+
+Understanding the review criteria is essential for writing a paper that scores well. The ACL 2025 demo CFP lists five evaluation dimensions:
+
+**Relevance:** Is this system relevant to the computational linguistics community? Does it address a real need? A tool for general-purpose project management would score poorly here; a tool for evaluating NLP model outputs would score well. The system should be squarely within the scope of NLP, computational linguistics, or closely related areas.
+
+**Contribution:** What is the system's contribution? This is where demo papers differ most sharply from research papers. For a research paper, "contribution" means advancing scientific knowledge. For a demo paper, it means providing a useful capability. The contribution can be a novel design, an integration of existing components in a new way, a significant improvement in usability over existing tools, or access to capabilities that were previously unavailable.
+
+Two examples make this concrete. AutoGen Studio's contribution was not a new agent algorithm; it was the first no-code interface for composing multi-agent workflows. Fabricator's contribution was not a new generation method; it was a modular, reproducible framework for LLM-based dataset generation.
+
+**Clarity:** Is the paper well-written and the system well-explained? Can a reader understand what the system does and how to use it from the paper alone? Clarity matters more in demo papers than in research papers because the reader is a potential user. They need to be able to picture themselves using the system.
+
+**Completeness:** Does the system appear to be a complete, usable tool? Is there a working code repository? Is the documentation adequate? Can someone install it and run it? A half-finished prototype that "will be completed before the camera-ready deadline" will score poorly. Reviewers expect a working system at submission time.
+
+**Novelty:** Is the system novel? This does not mean algorithmic novelty in the research sense. It means: does this system offer something that existing tools do not? If there are five other prompt-engineering toolkits, what makes yours different? Novelty can come from design choices, integration, target audience, evaluation capabilities, or the specific combination of features you provide.
+
+::: {.callout-note title="Think Hard: Why is the demo track single-blind while the main track is double-blind?"}
+The rationale is practical. Demo papers are about working systems, and reviewers need to verify that the system exists and functions. This requires accessing the code repository, watching the demo video, and potentially trying the tool. All of these reveal the author's identity. Anonymizing a demo paper would be nearly impossible without removing the most important evidence of its quality. The single-blind format lets authors include GitHub links, demo URLs, and download statistics directly in the paper, which strengthens the submission. The downside is that author reputation becomes visible, but the demo track community has generally accepted this tradeoff as necessary for honest evaluation of artifacts.
+:::
+
+### Acceptance Rates and the Competitive Picture
+
+One persistent myth is that demo papers are "easier" to publish than research papers. The numbers tell a different story:
+
+| Venue | Year | Submitted | Accepted | Rate |
+|---|---|---|---|---|
+| EMNLP Demo | 2024 | 153 | 52 | 34% |
+| ACL Demo | 2024 | 114 | 38 | 35% |
+| ACL Demo | 2022 | 75 | 27 | 36% |
+| ACL Demo | 2021 | 133 | 43 | 32% |
+| EMNLP Demo | 2020 | 81 | 29 | 36% |
+
+These acceptance rates (32-36%) are comparable to or slightly higher than main-track acceptance rates (which hover around 20-25% for ACL and EMNLP). However, the absolute number of submissions to the demo track is much smaller, and the bar for what constitutes a "complete" system is high. Many demo submissions are rejected not because the system is unimpressive, but because the paper fails to communicate its value or meet the formal requirements.
+
+The growth in submissions is notable. EMNLP's demo track received 81 submissions in 2020 and 153 in 2024, nearly doubling in four years. ACL similarly grew from 75 submissions in 2022 to 114 in 2024. This growth is driven in large part by the explosion of LLM-based tools. As more researchers build wrappers, frameworks, and platforms around LLM APIs, the demo track has become the natural venue for publishing this work.
+
+::: {.callout-warning title="Common Misconception: Demo papers are easier to publish than research papers"}
+The acceptance rates are similar (32-36% for demo vs. 20-25% for main track), and the demo track has its own challenging requirements: a working system, a video, screenshots, and a code repository. Research papers require deep technical novelty, but you can submit a paper about an idea. Demo papers require a finished, usable artifact. Many researchers find the demo track harder in practice because you cannot hand-wave about implementation.
+:::
+
+### The Special Case of LLM-Based and Prompt-Based Systems
+
+The demo track has undergone a quiet revolution since 2022. Before ChatGPT, the typical demo paper presented a library or toolkit built on deep learning: a model training framework (HuggingFace Transformers, EMNLP 2020), a multilingual NLP pipeline (Stanza, ACL 2020), an adversarial attack toolkit (TextAttack, EMNLP 2020), a robustness evaluation platform (TextFlint, ACL 2021). These systems required GPU resources, involved training or fine-tuning models, and their technical depth was self-evident: the papers described neural architectures, training procedures, and model-level innovations.
+
+After 2022, a new category of demo paper appeared: systems that orchestrate LLM API calls without training anything. Fabricator generates datasets by prompting GPT-3.5. RaLLe builds RAG pipelines by combining retriever models with LLM generators. AutoGen Studio composes multi-agent workflows by orchestrating LLM API calls through a visual interface. LlamaFactory, while it does involve fine-tuning, provides a no-code interface (LlamaBoard) that abstracts away the GPU-level details. The common thread is that these systems derive their power from external models rather than from training their own.
+
+This shift creates a unique authoring challenge. When your system's core computation is a call to `openai.ChatCompletion.create()`, a reviewer might reasonably ask: "What is the technical contribution here? Couldn't anyone write this wrapper?" The answer, as we will see throughout this chapter, is that the contribution lies not in the API call itself but in what surrounds it: the modular architecture that makes the tool composable, the prompt engineering that makes it effective, the evaluation framework that makes it trustworthy, and the interface that makes it accessible.
+
+Fabricator addresses this by defining three generation workflows (generate unlabeled, generate label-conditioned, annotate existing data) as composable abstractions, integrating with the HuggingFace ecosystem, and running controlled experiments comparing generated data to human data. AutoGen Studio addresses it by providing drag-and-drop workflow composition, a profiling module for debugging agent interactions, and a gallery of reusable components. Neither paper tries to claim algorithmic novelty. Instead, both papers demonstrate that their design decisions enable capabilities that raw API access does not provide.
+
+If you are building an LLM-based tool, the key question to answer in your paper is not "what model did I train?" but "what capability does my system enable that did not exist before?" The remaining sections of this chapter will show you exactly how to answer that question persuasively.
+
+::: {.callout-note title="Think Hard: If your system becomes obsolete when the LLM API changes, how do you frame its contribution?"}
+This is a real concern, and honest papers address it directly. AutoGen Studio decouples its workflow specification from any specific model: workflows are JSON-based declarations that can point to any LLM backend. Fabricator uses the Haystack framework's PromptNode abstraction, which supports multiple LLM providers. The strategy is to frame your contribution as the abstraction layer, not the underlying model. If OpenAI deprecates GPT-3.5 tomorrow, Fabricator still works, because users just swap in a different PromptNode. Your architecture should be model-agnostic, and your paper should make this explicit. Systems that are tightly coupled to a single API version are harder to defend in review, so design for abstraction from the start.
+:::
+
+### Applying This to PromptBench
+
+Let's return to Priya. She now understands that her PromptBench paper should not read like a research paper about prompt optimization. Instead, it should read like a description of a useful tool that enables prompt benchmarking across multiple providers, with a clean UI, reproducible tracking, and a clear design rationale. Her primary contribution is the toolkit, not any specific algorithm.
+
+She also understands the formal requirements: six pages, single-blind, a 2-minute video showing the Gradio UI in action, at least one screenshot, and a GitHub link. She needs to demonstrate that PromptBench is a complete, working system, not a prototype. And she needs to differentiate it from other prompt-engineering tools that have appeared in the last two years.
+
+With this foundation in place, the next question is: how exactly should her paper be structured?
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+**Before reading on, think about this:** If your system wraps an LLM API with a nice UI, what must you do beyond describing the API calls to make the paper publishable? List three things that would demonstrate technical depth to a reviewer.
+:::

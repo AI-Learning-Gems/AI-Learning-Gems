@@ -1,0 +1,208 @@
+## Closing {#sec-closing}
+
+### Key Takeaways
+
+- **System demo papers have a distinctive format** that differs from research papers: 6 pages, single-blind review, mandatory 2-2.5 minute video, at least one screenshot, and a focus on the system as artifact rather than scientific novelty.
+
+- **The canonical structure is recognizable and consistent:** Introduction (problem, gap, bridge, contributions) → System Architecture (the heart: diagram, modules, code, screenshots) → Evaluation (experiments, adoption, user studies, or case studies) → Related Work (differentiation, not survey) → Conclusion → Limitations → Ethics. More than 80% of accepted papers follow this template with minor variations.
+
+- **Your value proposition should fit one of four archetypes:** Unifier ("we bring fragmented approaches together"), Democratizer ("we make something hard accessible"), Gap-Filler ("we provide a capability that does not exist"), or Ecosystem Builder ("we create infrastructure for the community"). Strong papers blend two.
+
+- **The architecture diagram is your single most important figure.** It communicates what your system does, how components connect, and where the user interacts. Invest heavily in making it clear, labeled, and readable.
+
+- **Evaluation can range from adoption metrics to controlled experiments,** but no evaluation at all risks desk rejection. Most strong papers combine two or more strategies: experiments plus adoption metrics, user studies plus case studies, benchmark evaluation plus speed analysis.
+
+- **For LLM-based tools, the central challenge is demonstrating depth beyond "API wrapper."** Show orchestration complexity, composable abstractions, evaluation infrastructure, integration value, or interface design. The contribution is the design, not the model.
+
+- **The demo video is a first-class submission artifact,** not an afterthought. Reviewers watch it. Structure it in four acts: setup, core workflow, differentiating features, results. Test the link before submission.
+
+### Quick Reference: The Demo Paper Template
+
+| Section | Pages | Must Contain |
+|---|---|---|
+| **Introduction** | 1.0-1.5 | Problem context, gap/limitation, bridge to your system, 3-5 contribution bullets, GitHub link |
+| **System Architecture** | 2.0-2.5 | Architecture diagram, modular component descriptions (purpose, design, interface), 1-3 code snippets, screenshots (if UI) |
+| **Evaluation** | 1.0-1.5 | At least one substantive strategy: controlled experiments, adoption metrics, user study, or case study |
+| **Related Work** | 0.5-0.75 | Comparison against alternative tools with explicit differentiation |
+| **Conclusion** | 0.25-0.5 | Summary + future directions |
+| **Limitations + Ethics** | 0.25-0.5 | Candid limitations, ethical considerations (often not counted in page limit) |
+
+### Concept Map: From Tool to Submission
+
+```{.d2}
+direction: down
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 13
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 16
+      bold: true
+    }
+  }
+}
+
+# Nodes
+tool: {
+  class: [base; input]
+  label: "  Working Tool  "
+}
+
+understand_venue: {
+  class: [base; process]
+  label: "  Understand the Venue  \n  6pp, single-blind, video  "
+}
+
+choose_archetype: {
+  class: [base; highlight]
+  label: "  Choose Value Archetype  \n  Unifier / Democratizer /\n  Gap-Filler / Ecosystem  "
+}
+
+write_intro: {
+  class: [base; process]
+  label: "  Write Introduction  \n  Problem → Gap → Bridge → Bullets  "
+}
+
+design_arch: {
+  class: [base; process]
+  label: "  Design Architecture Section  \n  Diagram + Modules + Code + Screenshots  "
+}
+
+choose_eval: {
+  class: [base; decision]
+  label: "  Choose Evaluation Strategy  \n  Experiments? Adoption?\n  User Study? Case Study?  "
+}
+
+write_related: {
+  class: [base; process]
+  label: "  Write Related Work  \n  Comparison table + differentiation  "
+}
+
+package: {
+  class: [base; process]
+  label: "  Prepare Artifacts  \n  Video + GitHub + Live Demo  "
+}
+
+review_checklist: {
+  class: [base; decision]
+  label: "  Pre-Submission Checklist  \n  Page limit? Video works?\n  Ethics? Screenshots?  "
+}
+
+submit: {
+  class: [base; output]
+  label: "      Competitive *CL Demo Submission      "
+}
+
+# Edges
+tool -> understand_venue: "What are the rules?"
+understand_venue -> choose_archetype: "How do I frame this?"
+choose_archetype -> write_intro: "Make the argument"
+write_intro -> design_arch: "Show what you built"
+design_arch -> choose_eval: "Prove it works"
+choose_eval -> write_related: "Differentiate"
+write_related -> package: "Prepare artifacts"
+package -> review_checklist: "Final checks"
+review_checklist -> submit: "Submit!"
+```
+
+### Retrieval Practice Questions
+
+Test your understanding of the key concepts from this chapter:
+
+::: {.callout-note collapse="true" title="Question 1: What are the five criteria reviewers use to evaluate demo papers?"}
+**Answer:** The five evaluation dimensions are: (1) **Relevance** (is this relevant to the *CL community?), (2) **Contribution** (what useful capability does the system provide?), (3) **Clarity** (is the system well-explained?), (4) **Completeness** (is the system finished and usable?), and (5) **Novelty** (does it offer something existing tools do not?). Note that "contribution" for demo papers means system utility, not algorithmic novelty.
+:::
+
+::: {.callout-note collapse="true" title="Question 2: Name three differences between demo papers and main-track research papers."}
+**Answer:** (1) **Page limit:** Demo papers are 6 pages vs. 8+ for research papers. (2) **Review type:** Demo papers use single-blind review (author names visible) vs. double-blind for research. (3) **Mandatory artifacts:** Demo papers require a 2-2.5 minute video and at least one screenshot; research papers have no such requirement. Additional differences include: the primary contribution is a system artifact (not scientific knowledge), the evaluation can include adoption metrics and user studies (not just benchmarks), and the presentation format is a live demo session (not just an oral or poster).
+:::
+
+::: {.callout-note collapse="true" title="Question 3: For an LLM-based tool with no GPU training, what evaluation strategy would you recommend and why?"}
+**Answer:** A hybrid approach is strongest. **Primary:** a controlled comparison showing that the tool enables a workflow that is faster, more reproducible, or more systematic than the alternative (e.g., ad hoc scripts, manual logging). This directly addresses the "so what?" question. **Secondary:** adoption metrics if available (downloads, GitHub stars, number of research groups using the tool). These provide evidence of real-world utility. **Tertiary:** a demo video showing the tool in action on a real task. The key is to avoid relying on a single strategy. Controlled experiments alone may not capture usability value. Adoption metrics alone may not convince skeptics that the tool works well. Combining both provides the strongest case.
+:::
+
+::: {.callout-note collapse="true" title="Question 4: What are the four value proposition archetypes for demo paper introductions?"}
+**Answer:** (1) **The Unifier:** "There are many fragmented approaches to X; we unify them" (e.g., LlamaFactory unifying fine-tuning methods). (2) **The Democratizer:** "X is hard or expensive; we make it accessible" (e.g., AutoGen Studio making multi-agent development no-code). (3) **The Gap-Filler:** "No tool currently does X; we fill this gap" (e.g., RaLLe providing transparent R-LLM evaluation). (4) **The Ecosystem Builder:** "We provide infrastructure for the community" (e.g., HuggingFace Transformers enabling a model-sharing ecosystem). Strong papers often blend two archetypes.
+:::
+
+::: {.callout-note collapse="true" title="Question 5: Why do demo tracks use single-blind review? How does this affect your writing?"}
+**Answer:** Demo tracks use single-blind review because the primary contribution is a working system, and reviewers need to verify that it exists and functions. This requires accessing the code repository, watching the demo video, and potentially trying the tool, all of which reveal the author's identity. **Effect on writing:** You can (and should) include your GitHub URL, live demo link, download statistics, and any other evidence of the system's existence and adoption directly in the paper. You do not need to anonymize self-citations or remove identifying information. This is an advantage: your reputation, institutional affiliation, and adoption evidence are all visible and can strengthen the submission. The downside is that reviewer bias based on affiliation is possible, but the community has accepted this tradeoff.
+:::
+
+### Common Mistakes to Avoid
+
+| Mistake | Why It Happens | How to Avoid It |
+|---|---|---|
+| Writing a research paper and submitting to the demo track | Authors default to the template they know | Start with the demo paper structure from @sec-anatomy, not a research paper template |
+| No evaluation at all | Authors assume the demo video is enough | Include at minimum a case study; controlled experiments are stronger |
+| Architecture diagram is missing or illegible | Authors underinvest in the most important figure | Use a professional diagramming tool; test readability at print size |
+| Video link is broken at submission time | Last-minute upload with no testing | Upload 48 hours early; test from a different browser and device |
+| "My system just calls an API, so there is no depth" | Authors do not recognize design as contribution | Apply the 5 strategies from @sec-system-architecture: orchestration, abstraction, evaluation, integration, interface |
+
+### Curated Resources
+
+| # | Resource | URL | What It Provides |
+|---|----------|-----|-----------------|
+| 1 | ACL 2025 Demo CFP | [https://2025.aclweb.org/calls/system_demonstration/](https://2025.aclweb.org/calls/system_demonstration/) | Latest submission requirements, review criteria, deadlines |
+| 2 | NAACL 2025 Demo CFP | [https://2025.naacl.org/calls/demos/](https://2025.naacl.org/calls/demos/) | Alternative venue requirements, ethics checklist |
+| 3 | ACL Anthology Demo Proceedings | [https://aclanthology.org/](https://aclanthology.org/) | All accepted demo papers, searchable by year and venue |
+| 4 | Dan Jurafsky's Writing Advice | [https://web.stanford.edu/~jurafsky/pubs/writing-advice.pdf](https://web.stanford.edu/~jurafsky/pubs/writing-advice.pdf) | General NLP paper writing advice (applies to demo papers too) |
+| 5 | ACL Rolling Review Guidelines | [https://aclrollingreview.org/reviewertutorial](https://aclrollingreview.org/reviewertutorial) | Reviewer criteria for contribution types (artifact vs. knowledge) |
+| 6 | Fabricator paper | [https://arxiv.org/abs/2309.09582](https://arxiv.org/abs/2309.09582) | Exemplary demo paper structure (EMNLP 2023) |
+| 7 | AutoGen Studio paper | [https://arxiv.org/abs/2408.15247](https://arxiv.org/abs/2408.15247) | Strong example of LLM-based tool demo paper (EMNLP 2024) |
+| 8 | LlamaFactory paper | [https://arxiv.org/abs/2403.13372](https://arxiv.org/abs/2403.13372) | Unified framework demo paper with strong adoption (ACL 2024) |
+| 9 | RaLLe paper | [https://arxiv.org/abs/2308.10633](https://arxiv.org/abs/2308.10633) | RAG framework with comprehensive benchmark evaluation (EMNLP 2023) |
+| 10 | ACL LaTeX Style Files | [https://github.com/acl-org/acl-style-files](https://github.com/acl-org/acl-style-files) | Official LaTeX template for submission formatting |

@@ -1,0 +1,182 @@
+## Polishing the Submission: Videos, Visuals, and Common Pitfalls {#sec-polishing}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [ACL 2025 Demo CFP](https://2025.aclweb.org/calls/system_demonstration/) | Video guidelines, desk-rejection criteria |
+| 2 | [NAACL 2025 Demo CFP](https://2025.naacl.org/calls/demos/) | Ethics checklist, 2-min video |
+| 3 | [Fabricator (arXiv:2309.09582)](https://arxiv.org/abs/2309.09582) | Limitations section example |
+| 4 | [AutoGen Studio (arXiv:2408.15247)](https://arxiv.org/abs/2408.15247) | Ethics statement example |
+| 5 | [RaLLe (arXiv:2308.10633)](https://arxiv.org/abs/2308.10633) | Limitations section with technical insights |
+
+:::
+
+Priya has her paper structured, her introduction framed, her architecture described, and her evaluation designed. The content is strong. But a surprising number of demo papers with strong content get rejected because of issues that have nothing to do with the system itself.
+
+A broken video link. An exceeding page limit. Missing ethics statements. Visuals that are illegible at print size. This section covers everything beyond the content: the submission artifacts, visual quality, common rejection reasons, and a pre-submission checklist.
+
+### The Demo Video: Your Secret Weapon
+
+The mandatory video is the most undervalued component of a demo paper submission. Many authors treat it as an afterthought, recording it the night before the deadline. This is a mistake. Reviewers watch the video, and a well-made video can tip a borderline paper toward acceptance. It provides evidence that the system actually works (not just on paper), that the UI is polished, and that the workflow is smooth.
+
+**Structure your video in four acts:**
+
+**Act 1: Setup (15-20 seconds).** Show the installation process. A simple `pip install promptbench` followed by a command to launch the UI. This demonstrates that the tool is packaged and ready for use, not a collection of scripts that require manual configuration.
+
+**Act 2: Core workflow (60-90 seconds).** Walk through the primary use case from start to finish. For PromptBench, this would be: configure three LLM providers, define a prompt template with variations, launch a benchmark run, and observe results streaming into the comparison dashboard. Narrate what you are doing and why. "I'm now configuring the Anthropic provider. Notice that the interface normalizes the response format across all three providers, so I can compare them directly."
+
+**Act 3: Differentiating features (30-45 seconds).** Highlight 2-3 features that distinguish your tool from alternatives. For PromptBench: "Here is the experiment history view, where every run is logged with full reproducibility metadata. I can click any previous run to see the exact prompt template, configuration, and results. This is what makes PromptBench different from ad hoc scripts."
+
+**Act 4: Results (15-20 seconds).** Show meaningful output. Export a comparison table, display a visualization, or show a final result. End with a one-sentence summary: "PromptBench lets you systematically benchmark prompts across providers with full reproducibility, all through a single interface."
+
+**Technical tips:**
+
+- **Record using OBS Studio** (free, cross-platform) or QuickTime (macOS). Screen resolution should be 1920x1080 or higher.
+- **Use audio narration.** A silent screencast is much harder to follow. If you are uncomfortable with voice narration, add text annotations on screen.
+- **Upload to YouTube or Google Drive** with a stable link. Test the link before submission. A broken video link can trigger desk rejection.
+- **Do NOT add flashy transitions, background music, or marketing language.** The video should be a straightforward demonstration, not a product commercial. Reviewers are academics; they want to see the tool work, not be sold to.
+- **Practice the demo 2-3 times** before recording. Stumbling through the interface while recording looks unprofessional and wastes seconds of your tight time budget.
+
+::: {.callout-note title="Think Hard: How will the system demo track evolve as LLM tools proliferate?"}
+The demo track is at an inflection point. As LLM-based tools become easier to build, the bar for acceptance will rise. In 2023, being an LLM-based tool was somewhat novel. By 2025, it is the default. The demo track will likely evolve toward demanding more rigorous evaluation (not just "it works" but "it works better than alternatives"), stronger evidence of community adoption, and clearer articulation of what the tool teaches the community beyond just providing a utility. Systems that embed novel design patterns, reveal insights about effective tool design, or provide infrastructure that enables new research directions will have an edge over tools that simply provide yet another interface to LLM APIs. AutoGen Studio's "Emerging Design Patterns" section hints at this direction: the paper contributes not just a tool but knowledge about how to build such tools.
+:::
+
+### Visual Design Best Practices
+
+Your paper's visual quality matters more in a demo paper than in a research paper because you are presenting a tool that people will use. Sloppy visuals suggest sloppy engineering.
+
+**Architecture diagrams:** Use a consistent diagramming tool. D2, draw.io, Mermaid, or LaTeX TikZ all produce clean results. Use color coding consistently: if blue means "data" in one figure, blue should mean "data" in all figures. Label every component. Use arrows to show data flow direction.
+
+**Screenshots:** Annotate with callout numbers (circled numbers with lines pointing to UI elements) or red boxes highlighting the relevant area. Ensure text within the screenshot is readable at print size. If the screenshot has too much text to read at full zoom, crop it to show only the relevant portion.
+
+**Tables:** Use the `booktabs` LaTeX package for clean horizontal rules. Avoid vertical rules. Align numbers to the decimal point. Bold the best result in each column. Keep tables compact; they consume a lot of page space.
+
+**Color:** Be accessible. Approximately 8% of males have some form of color vision deficiency. Use color plus shape or pattern to encode information. If you use red and green, also use different shapes (circles vs. triangles) or patterns (solid vs. dashed).
+
+**Font sizes:** All text in figures and tables should be legible at the paper's printed size. A common mistake is creating figures at high resolution on a large monitor, where small text looks fine, but it becomes illegible when shrunk to fit in a single column of an 8.5 x 11 inch page. The minimum readable font size in a figure is approximately 7pt when printed.
+
+### The Limitations Section Done Right
+
+Since EMNLP 2023, all submissions (including demos) require a Limitations section. This section does not count against the page limit but is reviewed. A good Limitations section is candid, specific, and constructive. It should not be a throwaway paragraph that says "our system has some limitations."
+
+**What to cover:**
+
+- **Task coverage:** What tasks or domains does your system not handle? Fabricator: "we could only test and assess a subset of tasks due to resource and time constraints."
+- **Scalability:** Does your system handle large-scale inputs? If not, state the current limits.
+- **External dependencies:** If your system depends on commercial APIs, acknowledge this. What happens when the API changes, costs increase, or the provider deprecates the model? This is especially relevant for LLM-based tools.
+- **Known failure modes:** When does the system fail or produce poor results? RaLLe: "relatively small LLMs became trapped in cycles of repeated retrieval and summarization, hindering their ability to reach the final answer generation."
+
+**Tone:** Limitations should be honest but not self-defeating. Frame limitations as future work where possible. "The current system supports classification tasks; extending to sequence labeling is a natural next step" is better than "our system cannot do sequence labeling," even though both say the same thing.
+
+### Ethics and Broader Impact
+
+Also required since EMNLP 2023 for papers involving text generation, user data, or automated decision-making. For LLM-based tools, this is virtually always applicable.
+
+A demo paper ethics statement should address:
+
+- **Intended use vs. potential misuse:** What is the system designed for? How could it be misused? AutoGen Studio notes it "is not production ready" and lacks authentication for production deployments.
+- **Data privacy:** Does the system handle user data? How is it stored and processed?
+- **Bias in LLM outputs:** If the system uses LLMs, their outputs may be biased. Acknowledge this and describe any mitigation (content filtering, user warnings, transparency about model limitations).
+- **Environmental impact:** LLM API calls have compute costs. If your system makes many API calls, acknowledge the environmental footprint.
+- **Licensing:** LlamaFactory: "Adherence to the model license is mandatory when using LlamaFactory for fine-tuning LLMs, thus preventing from any potential misuse."
+
+### Common Rejection Reasons (and How to Avoid Them)
+
+Based on our analysis of demo paper review patterns and the CFP guidelines, here are the most common reasons demo papers are rejected:
+
+::: {.callout-important title="Top 6 Rejection Reasons for Demo Papers"}
+
+**1. "This is just a UI wrapper around GPT-4."**
+*Prevention:* Demonstrate technical depth in the system architecture section. Show modular design, composable abstractions, evaluation infrastructure. See @sec-system-architecture for the five strategies to address this.
+
+**2. "No evaluation."**
+*Prevention:* Include at minimum a case study + adoption metrics. Controlled experiments are stronger. Papers with zero evaluation risk desk rejection at ACL 2024+ venues.
+
+**3. "Incremental over existing tools."**
+*Prevention:* Clear differentiation in the Related Work section. Use a comparison table. Identify the specific gap your tool fills that no alternative addresses.
+
+**4. "Paper doesn't convince me the system is useful."**
+*Prevention:* Strong value proposition in the introduction (see @sec-introduction-framing). Adoption metrics if available. User testimonials.
+
+**5. "Video doesn't work / not submitted."**
+*Prevention:* Upload the video well before the deadline. Test the link from a different browser/device. Use YouTube or Google Drive with "anyone with the link" sharing.
+
+**6. "Exceeds page limit."**
+*Prevention:* Strict compliance with the ACL LaTeX style files. The 6-page limit excludes references but includes all other content (figures, tables, code). The Limitations and Ethics sections often have separate page allowances; check the specific CFP.
+
+:::
+
+### The Pre-Submission Checklist
+
+Priya tapes this checklist above her monitor for the week before the deadline:
+
+**Paper format:**
+
+- [ ] Uses official ACL LaTeX style files
+- [ ] Does not exceed 6 pages (excluding references, limitations, ethics)
+- [ ] All text, figures, and tables are within margins
+- [ ] Font sizes in figures are legible at print size
+- [ ] References are complete (no "arxiv" without year, no incomplete entries)
+
+**Content completeness:**
+
+- [ ] Introduction with problem, gap, bridge, contributions, and GitHub link
+- [ ] Architecture diagram (the single most important figure)
+- [ ] At least one code snippet or API example
+- [ ] At least one screenshot (if the system has a UI)
+- [ ] Evaluation section with at least one substantive strategy
+- [ ] Related work with explicit differentiation from alternatives
+- [ ] Limitations section (candid, specific)
+- [ ] Ethics statement (if applicable)
+
+**Submission artifacts:**
+
+- [ ] Demo video (2-2.5 minutes max), uploaded with stable link
+- [ ] Video link tested from a different browser/device
+- [ ] GitHub repository is public (or will be by camera-ready)
+- [ ] README with installation instructions and a quick-start example
+- [ ] Live demo URL (if applicable; Gradio Spaces, HuggingFace Spaces)
+
+**Author information:**
+
+- [ ] Author names and affiliations included (single-blind, no anonymization needed)
+- [ ] No concurrent submission to another *CL track or venue
+- [ ] Ethics checklist completed (if required by the specific venue)
+
+::: {.callout-warning title="Common Misconception: The 6-page limit makes writing a demo paper easy"}
+Paradoxically, the tight page limit makes writing harder, not easier. With 8 pages (research paper), you have room for detailed methods, extensive related work, and multiple experiment setups. With 6 pages, every sentence must earn its place. Page budgeting becomes a critical skill. Authors often discover in the final days before submission that they need to cut content they care about. Start with the page budget from @sec-anatomy and write to those targets. It is much easier to expand a concise draft than to cut an overwritten one.
+:::
+
+### Timing and Venue Selection
+
+ACL, EMNLP, and NAACL all have demo tracks, but they differ in timing, size, and focus:
+
+| Venue | Typical Deadline | Typical Notification | Conference | Notes |
+|---|---|---|---|---|
+| ACL Demo | January-February | March-April | July-August | Largest demo track, most competitive |
+| NAACL Demo | December-January | February-March | June | Smaller, slightly higher acceptance rate in some years |
+| EMNLP Demo | June-July | August-September | November-December | Second largest, strong LLM-tool presence recently |
+
+**When to submit where:**
+
+- If your system is ready now and you want maximum visibility, target ACL.
+- If your system will be ready in a few months and you want more time, target EMNLP.
+- If your system is in the NLP space with a North American audience, NAACL is a good fit.
+- If your system is rejected at one venue, you can revise and submit to the next. The demo track allows resubmission (unlike some workshops or shared tasks with one-shot deadlines).
+
+### Applying This to PromptBench: The Complete Submission Package
+
+Priya assembles her final submission:
+
+- **Paper:** 6 pages in ACL LaTeX format. Introduction (1.25 pp), System Architecture (2.25 pp), Evaluation (1.0 pp), Related Work (0.5 pp), Conclusion (0.25 pp). Plus 0.5 pages of Limitations and Ethics.
+- **Video:** 2-minute screencast showing pip install, provider setup, benchmark execution, interactive dashboard, and result export. Uploaded to YouTube as unlisted.
+- **GitHub:** Public repository with MIT license, README with quick-start guide, requirements.txt, and example scripts.
+- **Gradio Space:** Live demo on HuggingFace Spaces (free tier, using cached API responses to avoid cost).
+- **Ethics statement:** Acknowledges that LLM outputs may be biased, that API costs are passed to users, and that the tool should be used for research purposes.
+
+She reviews the checklist one more time, verifies the video link works, and submits. Whatever happens in review, she has given her system the best possible presentation.
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+**Before finishing, try this:** Record a 30-second elevator pitch of your system. Does it naturally flow into a 2-minute demo video structure? If you struggle to explain what your system does in 30 seconds, your introduction probably needs sharper framing. If the pitch flows naturally into "let me show you," your video will be easy to record.
+:::

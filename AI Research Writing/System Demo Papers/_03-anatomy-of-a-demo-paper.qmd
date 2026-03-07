@@ -1,0 +1,158 @@
+## Anatomy of a Demo Paper: The Canonical Structure {#sec-anatomy}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Fabricator (arXiv:2309.09582)](https://arxiv.org/abs/2309.09582) | Intro → System → Experiments → Related Work → Conclusion → Limitations |
+| 2 | [AutoGen Studio (arXiv:2408.15247)](https://arxiv.org/abs/2408.15247) | Intro → Related Work → Design Goals → System → Usage/Eval → Patterns → Conclusion |
+| 3 | [RaLLe (arXiv:2308.10633)](https://arxiv.org/abs/2308.10633) | Intro → Usage (5 subsections) → Experiments → Conclusion → Limitations |
+| 4 | [LlamaFactory (arXiv:2403.13372)](https://arxiv.org/abs/2403.13372) | Intro → Background → Framework (5 modules) → Empirical Study → Conclusion |
+| 5 | [OpenPrompt (arXiv:2111.01998)](https://arxiv.org/abs/2111.01998) | Modular architecture: PLM, Task, Template, Verbalizer |
+| 6 | [TextAttack (arXiv:2005.05909)](https://arxiv.org/abs/2005.05909) | 4-component framework: goal, constraints, transformation, search |
+
+:::
+
+Priya has now learned the rules of the game. She knows a demo paper is not a research paper, she knows the page limit and review criteria, and she understands why her LLM-based tool is a legitimate contribution. The next question is structural: what sections should her paper have, how long should each be, and what goes inside them?
+
+To answer this, we analyzed the section structure of over 20 accepted demo papers from ACL, EMNLP, and NAACL (2020-2025). A dominant pattern emerges. More than 80% of accepted papers follow a recognizable 6-section template, with minor variations in ordering and naming. Understanding this template gives you a reliable starting point. You can deviate from it when you have a good reason, but you should never deviate from it by accident.
+
+### The Canonical 6-Section Structure
+
+Here is the template, with the approximate page allocation for a 6-page paper:
+
+| Section | Approx. Pages | What It Does |
+|---|---|---|
+| 1. Introduction | 1.0-1.5 | States the problem, positions the system, lists contributions |
+| 2. System Architecture | 2.0-2.5 | Describes what you built: components, design, code, screenshots |
+| 3. Evaluation | 1.0-1.5 | Proves the system works: experiments, user studies, adoption |
+| 4. Related Work | 0.5-0.75 | Differentiates from existing tools |
+| 5. Conclusion | 0.25-0.5 | Summarizes and states future directions |
+| 6. Limitations + Ethics | 0.25-0.5 | Candid limitations, ethical considerations (often not counted in page limit) |
+
+The system architecture section is the heart of the paper, consuming roughly a third to nearly half of the available space. This is the section where you describe what you built, show how it works, and demonstrate why your design decisions are sound. The introduction and evaluation each get about a page to a page and a half. Related work is compressed. The conclusion is brief.
+
+Let's now look at how six real accepted papers implement this template.
+
+### Structural Comparison Across Accepted Papers
+
+The following table compares the section structures of six accepted demo papers. Notice the consistency of the core sections (Introduction, System, Evaluation, Conclusion) and the variation in ordering and naming:
+
+| Paper | Venue | Sec 1 | Sec 2 | Sec 3 | Sec 4 | Sec 5 | Sec 6 | Sec 7 |
+|---|---|---|---|---|---|---|---|---|
+| Fabricator | EMNLP 2023 | Introduction | Fabricator (System) | Experiments | Related Work | Conclusion | Limitations | Ethics |
+| AutoGen Studio | EMNLP 2024 | Introduction | Related Work | Design Goals | System Design | Usage & Eval | Emerging Patterns | Conclusion |
+| RaLLe | EMNLP 2023 | Introduction | RaLLe Usage (5 subsections) | Experiments | Results | Conclusion | Limitations | |
+| LlamaFactory | ACL 2024 | Introduction | Related Work | Background | Framework (5 modules) | Empirical Study | Conclusion | Broader Impact |
+| TextAttack | EMNLP 2020 | Introduction | Design & Components | Uses and Features | Related Work | Conclusion | | |
+| OpenPrompt | ACL 2022 | Introduction | Prompt Learning Formulations | OpenPrompt Library | Experiments | Related Work | Conclusion | |
+
+Several patterns jump out:
+
+**The Introduction always comes first.** No paper deviates from this. The introduction sets up the problem and establishes the value proposition. We will cover this in detail in @sec-introduction-framing.
+
+**The System Description is always the longest section.** Whether it is called "Fabricator," "System Design," "RaLLe Usage," or "Framework," this section describes the architecture, modules, interfaces, and usage workflows. It consistently occupies 2-2.5 pages.
+
+**Related Work floats.** Some papers (Fabricator, TextAttack) place Related Work late, after the system and evaluation. Others (AutoGen Studio, LlamaFactory) place it early, immediately after the introduction. The early placement works well when you need to establish the field of existing tools before describing how yours is different. The late placement works when your system is self-explanatory and differentiation can wait.
+
+**Evaluation is present in every paper, but takes different forms.** Fabricator runs controlled experiments comparing generated vs. human data. AutoGen Studio uses adoption metrics (200k downloads) and GitHub issue analysis. RaLLe benchmarks on KILT. LlamaFactory measures training efficiency and downstream task performance. The evaluation section is mandatory, but what counts as evaluation varies widely. We will explore this in depth in @sec-evaluation.
+
+### Section-by-Section Breakdown
+
+Let's now walk through each section in detail, describing what it must contain and how to allocate your limited space.
+
+#### The Introduction (1-1.5 pages)
+
+The introduction must accomplish five things in roughly one to one and a half pages:
+
+1. **Establish the problem context** (1-2 paragraphs). Why does this area matter? What is the current state of the world?
+2. **Identify a specific gap or limitation** (1 paragraph). What is missing from current tools? This is the pivot point of the introduction. Look for explicit transition markers like "However," or "Limitations." Fabricator uses the heading "Limitations." before pivoting to their system. AutoGen Studio identifies that existing frameworks "create significant barriers to entry."
+3. **Present your system as the bridge** (1 paragraph). "To close this gap, we present..." (Fabricator) or "To address these challenges, we have developed..." (AutoGen Studio). This sentence connects the problem to your solution.
+4. **List contributions as bullet points** (3-5 bullets). This is standard practice across nearly all accepted papers. Each bullet should state one concrete contribution. Typical bullets include: (a) the system itself, (b) a specific technical design decision, (c) evaluation or empirical findings, (d) open-source release or community contribution.
+5. **Mention open-source availability** (1 sentence). Include the GitHub URL, license, and any adoption metrics you have.
+
+We will cover the introduction formula in much greater depth in @sec-introduction-framing.
+
+#### The System Architecture (2-2.5 pages)
+
+This is where the paper lives or dies. The system architecture section must convince the reviewer that your system is well-designed, non-trivial, and useful. It typically contains:
+
+**A high-level architecture diagram.** This is the single most important figure in the paper. Every accepted demo paper we analyzed includes one. It shows the system's components, their relationships, and the data flow between them.
+
+The examples are instructive. Fabricator's Figure 2 shows the DatasetGenerator orchestrating between the LLM (PromptNode), the prompt (BasePrompt), and the few-shot examples. LlamaFactory's Figure 1 shows a layered architecture with Model Loader, Data Worker, and Trainer modules feeding into LlamaBoard. AutoGen Studio's Figure 1 shows a drag-and-drop UI connecting models, skills, agents, and workflows. We will cover architecture diagrams in detail in @sec-system-architecture.
+
+**Modular component descriptions.** Each major component gets its own subsection. Fabricator describes Generation Workflows (three types), then Classes and Concepts (DatasetGenerator, HuggingFace interoperability, Prompt Class, LLMs). LlamaFactory describes Model Loader, Data Worker, Trainer, Utilities, and LlamaBoard. TextAttack describes Goal Function, Constraints, Transformation, and Search Method. The pattern is: name each component, explain its purpose, describe its key design decisions, and show how it interfaces with other components.
+
+**Code snippets or API examples.** Most accepted papers include at least one code example showing the system in action. Fabricator includes a complete Python script (Listing 1) that generates movie reviews using six lines of setup code plus a `generator.generate()` call. This gives readers a concrete feel for the API's simplicity and expressiveness.
+
+**Screenshots of the UI.** If your system has a graphical interface, screenshots are expected. AutoGen Studio shows its drag-and-drop workflow builder and the playground debugging view. LlamaFactory shows its LlamaBoard web interface with training configuration and monitoring. RaLLe shows its development chain interface with prompt template editing.
+
+#### The Evaluation (1-1.5 pages)
+
+Evaluation in demo papers is more flexible than in research papers, but it is not optional. As of ACL 2024, papers with no evaluation risk desk rejection. The evaluation section should demonstrate that the system works and is useful. Accepted approaches include:
+
+- **Controlled experiments** (Fabricator: generated vs. human data across 5 benchmarks; LlamaFactory: training efficiency and downstream ROUGE scores)
+- **Adoption metrics** (AutoGen Studio: 200k+ downloads, 135+ GitHub issues analyzed)
+- **Benchmark evaluation** (RaLLe: KILT benchmark across multiple retriever-LLM combinations)
+- **User studies** (small-scale, 5-10 users, measuring task completion and satisfaction)
+- **Case studies** (walking through 2-3 concrete use cases)
+
+Strong papers combine two or more strategies. We will cover evaluation in depth in @sec-evaluation.
+
+#### Related Work (0.5-0.75 pages)
+
+Related work in a demo paper serves a different purpose than in a research paper. In a research paper, you survey the intellectual terrain and position your method. In a demo paper, you compare against alternative tools and explain why yours is different. This is a differentiation exercise, not a literature review.
+
+The most effective related work sections use a comparison table or structured contrast. Fabricator distinguishes itself from OpenPrompt by having "lightweight, dedicated interfaces for the introduced generation tasks" and HuggingFace integration. AutoGen Studio contrasts with CAMEL, TaskWeaver, and other frameworks by providing "a no-code interface" with debugging tools and reusable templates. The key sentence pattern is: "Tool X does Y, but does not do Z. Our system addresses Z by..."
+
+#### Conclusion (0.25-0.5 pages)
+
+Brief. Summarize the system, its contribution, and state future directions. Fabricator's conclusion is four sentences. Most conclusions are under half a page. Do not repeat the introduction; instead, point forward to what comes next for the system.
+
+#### Limitations and Ethics (0.25-0.5 pages, typically not counted against page limit)
+
+Required since EMNLP 2023 for all submissions (including demos). The Limitations section should be candid about what the system cannot do. Fabricator acknowledges it "could only test and assess a subset of tasks due to resource and time constraints." RaLLe notes that "relatively small LLMs became trapped in cycles of repeated retrieval and summarization." These honest disclosures actually strengthen papers by showing intellectual maturity.
+
+The Ethics section addresses potential misuse, data privacy, bias in LLM outputs, and environmental impact. AutoGen Studio notes it "is not production ready" and does not implement authentication. LlamaFactory states that "adherence to the model license is mandatory." Brief, honest, and forward-looking is the right tone.
+
+::: {.callout-note title="Think Hard: Why do demo papers put so much space in the System Architecture section?"}
+Because the system is the contribution. In a research paper, the methods section describes how you tested a hypothesis. In a demo paper, the system section describes what you are contributing to the community. This is the section where reviewers assess whether your design is thoughtful, your architecture is modular, your interfaces are clean, and your tool is non-trivial. If you compress this section to make room for more experiments, you are deprioritizing the primary contribution. The architecture section is also where you address the "just a wrapper" concern: by showing careful modular design, you demonstrate that building a useful tool requires real engineering and design thinking, not just API calls.
+:::
+
+### Alternative Structures
+
+While the canonical template covers 80%+ of accepted papers, some deviations work well:
+
+**Front-loading Design Goals** (AutoGen Studio): Before describing the system, AutoGen Studio articulates three design objectives: Rapid Prototyping, Developer Tooling, and Reusable Templates. This is effective when your design decisions are non-obvious and you want the reader to evaluate the architecture against explicit goals.
+
+**Background section** (LlamaFactory): When the system builds on techniques that may be unfamiliar (efficient fine-tuning methods like LoRA, QLoRA, GaLore), a short Background section provides the prerequisite knowledge. This is appropriate when your target audience may not know the underlying techniques. It is not appropriate when the background is standard NLP knowledge.
+
+**Usage-first structure** (RaLLe): RaLLe leads with a "Usage" section that walks through five steps: embedding/indexing, chain construction, prompt engineering, experiment tracking, and chat. This structure works when the system's value is best demonstrated through workflow. The reader understands what the system does before diving into how it works internally.
+
+### The Page Budget: A Concrete Allocation
+
+For Priya's 6-page PromptBench paper, here is a realistic page budget:
+
+| Section | Pages | Content |
+|---|---|---|
+| Introduction | 1.25 | Problem, gap, PromptBench, 4 contribution bullets, GitHub link |
+| System Architecture | 2.25 | Architecture diagram, 4 modules (Provider Abstraction, Prompt Manager, Experiment Tracker, Gradio UI), code snippet, 2 screenshots |
+| Evaluation | 1.0 | Controlled comparison: prompt iteration time with/without PromptBench, plus pilot user study (8 users) |
+| Related Work | 0.5 | Comparison table against DSPy, LangChain, PromptSource, and manual workflows |
+| Conclusion | 0.25 | Summary + future work (multi-modal prompts, cost optimization) |
+| Limitations + Ethics | 0.5 | API dependency, limited task coverage, LLM output bias (not counted in page limit) |
+| **Total** | **5.25 + 0.5** | Leaves ~0.75 pages for figures, tables, and whitespace |
+
+Notice that the total text content adds up to about 5.25 pages, leaving room for figures, tables, code blocks, and whitespace. This is deliberate. A paper crammed to exactly 6 pages with no breathing room is hard to read. Leaving some visual space for figures and tables improves readability.
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+**Before reading on, try this exercise:** Sketch the section headers for your own demo paper. Allocate an approximate page count to each. Where do you expect to need the most space? Does your allocation match the canonical template, or do you need to deviate? If so, why?
+:::
+
+::: {.callout-warning title="Common Misconception: I should minimize the system section to make room for experiments"}
+This is backwards. In a research paper, the experiments section is the climax. In a demo paper, the system architecture section is the climax. Reviewers expect 2-2.5 pages of architecture description because the system is the contribution. If your system section is only half a page and your experiments section is two pages, reviewers will wonder whether this should have been a research paper instead. Invest your page budget where the contribution lives.
+:::
+
+### Transition
+
+You now have the blueprint. You know what sections go in a demo paper, how much space each gets, and what each section must contain. But having a template is not the same as filling it in well. The next three sections zoom into the three most challenging sections: the introduction (where you frame your value proposition), the system architecture (where you show what you built), and the evaluation (where you prove it works). We start with the introduction, because if you cannot convince a reviewer that your system matters in the first page, nothing else in the paper will save you.

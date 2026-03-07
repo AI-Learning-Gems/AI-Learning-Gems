@@ -1,0 +1,149 @@
+## System Architecture: Showing What You Built {#sec-system-architecture}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Fabricator (arXiv:2309.09582)](https://arxiv.org/abs/2309.09582) | Workflows → Classes → Example Script structure |
+| 2 | [AutoGen Studio (arXiv:2408.15247)](https://arxiv.org/abs/2408.15247) | Design Goals → Frontend UI → Backend API |
+| 3 | [LlamaFactory (arXiv:2403.13372)](https://arxiv.org/abs/2403.13372) | 4 modular components + LlamaBoard |
+| 4 | [RaLLe (arXiv:2308.10633)](https://arxiv.org/abs/2308.10633) | 5-subsection usage walkthrough |
+| 5 | [TextAttack (arXiv:2005.05909)](https://arxiv.org/abs/2005.05909) | 4-component design: goal, constraints, transformation, search |
+
+:::
+
+This is the section where your paper lives or dies. The system architecture section occupies 2-2.5 pages of your 6-page budget, and for good reason: the system is the contribution. If a reviewer finishes reading this section and does not understand what your system does, how it is organized, and why its design is thoughtful, no amount of evaluation or polishing will save the paper.
+
+Priya opens Fabricator's system section and notices it has three parts: Generation Workflows (the conceptual framework), Classes and Concepts (the implementation), and an Example Script (code). She opens AutoGen Studio and sees Design Goals, then Frontend UI (Building, Testing, Deploying, Gallery), then Backend API. She opens LlamaFactory and sees Model Loader, Data Worker, Trainer, Utilities, and LlamaBoard. Three very different systems, three different ways to organize the architecture section, but all share a common logic: decompose the system into named components and describe each one.
+
+Let's break down the elements that every strong architecture section contains.
+
+### The Architecture Diagram: Your Most Important Figure
+
+Every accepted demo paper we analyzed contains at least one architecture diagram. This is the figure that readers look at first, that reviewers reference in their assessment, and that gets reposted on social media. It is the visual summary of your system.
+
+Three dominant styles emerge:
+
+**Pipeline/flowchart (Fabricator):** Shows data flowing through stages. Fabricator's Figure 2 shows a prompt template feeding into a DatasetGenerator, which orchestrates calls to an LLM (PromptNode) and produces a HuggingFace Dataset. The flow is linear: input enters on the left, passes through processing stages, and output emerges on the right. This style works when your system has a clear directional workflow.
+
+**Layered architecture (LlamaFactory):** Shows components stacked in layers, with lower layers providing services to upper layers. LlamaFactory's Figure 1 has pre-trained models and datasets at the bottom, Model Loader and Data Worker in the middle, the Trainer above them, and LlamaBoard (the UI) at the top. Each layer depends on the layer below it. This style works when your system has a clear hierarchy of abstraction.
+
+**Component/interaction diagram (AutoGen Studio):** Shows components that interact with each other, not necessarily in a linear flow. AutoGen Studio's Figure 1 shows models, skills, and memory being attached to agents, which are then attached to workflows, with the UI providing drag-and-drop composition. This style works when the primary value is in how components compose together.
+
+Regardless of style, effective architecture diagrams share several properties:
+
+- **Every component is labeled.** No unlabeled boxes.
+- **Data flow arrows show direction.** The reader can trace how information moves through the system.
+- **Color coding groups related components.** LlamaFactory uses different colors for different modules. AutoGen Studio uses colors to distinguish component types.
+- **The diagram fits in one figure.** Resist the urge to show every detail. The diagram is an overview; details go in the text.
+- **The diagram is readable at printed size.** Font sizes should be legible when the paper is printed at A4/Letter size.
+
+::: {.callout-warning title="Common Misconception: The architecture diagram should show every implementation detail"}
+The opposite is true. The architecture diagram is a communication tool, not an engineering schematic. It should show the major components, their relationships, and the data flow at a level where a reader can understand the system's design philosophy in 30 seconds. Implementation details (class hierarchies, database schemas, API endpoint lists) go in the text or appendix. A cluttered diagram that tries to show everything communicates nothing. Aim for 5-10 boxes with clear labels and connections.
+:::
+
+### Describing Modular Components
+
+After the architecture diagram, the text describes each major component in its own subsection. The standard pattern for each component description is:
+
+1. **Purpose:** What does this component do? (1-2 sentences)
+2. **Key design decisions:** Why is it designed this way? What alternatives did you consider? (2-4 sentences)
+3. **Interface:** How does a user or other component interact with it? (1-2 sentences, possibly with a code snippet)
+
+Here is how four accepted papers organize their component descriptions:
+
+| Paper | Components | Organization Logic |
+|---|---|---|
+| Fabricator | Generation Workflows (3 types), Classes (DatasetGenerator, Prompt, LLM), HuggingFace Integration | Conceptual (workflows) → Implementation (classes) |
+| LlamaFactory | Model Loader, Data Worker, Trainer, Utilities, LlamaBoard | Architecture layers (bottom-up) |
+| AutoGen Studio | Frontend UI (Build, Test, Deploy, Gallery), Backend API (DBManager, WorkflowManager, Profiler) | User-facing → Backend |
+| TextAttack | Goal Function, Constraints, Transformation, Search Method | Abstract components of the attack framework |
+
+Notice that the organization logic varies. Fabricator goes from conceptual to concrete. LlamaFactory follows the architectural layers. AutoGen Studio separates frontend from backend. TextAttack follows the abstract components of its framework. Choose the organization that best matches your system's mental model. The reader should think: "This decomposition makes sense. I can see how the pieces fit together."
+
+For each component, name it clearly and consistently. Fabricator introduces "DatasetGenerator," "BasePrompt," and "PromptNode" and uses those exact names throughout the paper. LlamaFactory introduces "Model Loader," "Data Worker," and "Trainer" and never calls them anything else. Consistent naming reduces cognitive load. If you call your component a "Prompt Manager" in the architecture diagram, "Prompt Handler" in the text, and "prompt_module" in the code, the reader will be confused.
+
+### Code Snippets: When and How
+
+Most accepted demo papers include 1-3 code snippets showing the system's API in action. Code snippets serve a dual purpose: they show that the system has a usable programming interface, and they give the reader a concrete feel for what using the system looks like.
+
+Fabricator's Listing 1 is a model of good code presentation. In 15 lines of Python, it shows the complete workflow: load a dataset, define a prompt, create a PromptNode with GPT-3.5, instantiate a generator, generate data with few-shot examples, and push to the HuggingFace hub. A reader can look at this code and immediately understand the API's surface area and design philosophy (composable objects, HuggingFace integration, few-shot support).
+
+Best practices for code snippets in demo papers:
+
+- **Show the simplest possible working example.** The goal is to demonstrate that the API is clean and usable, not to show every feature. Save advanced usage for documentation.
+- **Use syntax highlighting.** The ACL LaTeX template supports the `listings` or `minted` packages.
+- **Annotate key lines.** If a particular line demonstrates a non-obvious feature, add a comment or reference it in the text.
+- **Keep it short.** 10-20 lines is ideal. Longer code blocks consume precious page space.
+- **For LLM-based tools, show three things:** the prompt template, the API call, and the result processing. These are the three steps that define every LLM-based workflow, and showing all three demonstrates that your system handles the full pipeline.
+
+::: {.callout-note title="Think Hard: Should demo papers push boundaries or focus on accessibility?"}
+Both, but in different ways. The system should push boundaries in terms of the capability it provides (something users could not easily do before). But the paper should demonstrate that this capability is accessible. The code snippet is your proof of accessibility. If your "simple example" requires 50 lines of boilerplate, that is a design problem, not a presentation problem. The best demo papers show that powerful capabilities can be accessed through clean, minimal code. Fabricator's 15-line example generates a whole dataset. AutoGen Studio's workflow can be created without writing any code at all. The aspiration is power through simplicity.
+:::
+
+### Screenshots and UI Demonstration
+
+If your system has a graphical interface, screenshots are mandatory. The ACL 2025 CFP explicitly requires "at least one screenshot of the demo system." But screenshots are more than a requirement; they are a persuasion tool. A well-annotated screenshot communicates usability instantly.
+
+Three approaches to screenshot presentation in accepted papers:
+
+**AutoGen Studio (annotated components):** Figure 1 shows the drag-and-drop interface with clear labels indicating where models, skills, agents, and workflows are defined and composed. Figure 2 shows the playground view with streaming agent messages and the profiler panel. Each screenshot demonstrates a different capability.
+
+**LlamaFactory (workflow steps):** Shows the LlamaBoard interface with argument configuration, training status monitoring, and chat-based evaluation. Each screenshot corresponds to a step in the fine-tuning workflow: configure, train, evaluate.
+
+**RaLLe (development interface):** Shows the development chain tab with prompt template editing, retriever selection, and result highlighting. The screenshot demonstrates the transparency claim from the introduction: all inputs and outputs are visible.
+
+Best practices for screenshots:
+
+- **Show real data, not mock data.** A screenshot with actual results is more convincing than placeholder text.
+- **Annotate with callout numbers or boxes.** Point out specific UI elements referenced in the text.
+- **Limit to 2-3 screenshots.** Each screenshot consumes about 1/4 to 1/3 of a page. With only 2-2.5 pages for the entire architecture section, you cannot afford more than 2-3 screenshots plus the architecture diagram.
+- **Show the "wow moment."** If your UI has one killer feature (drag-and-drop composition, real-time profiling, interactive prompt exploration), that feature should be visible in the primary screenshot.
+
+### The "How It Works" Walkthrough
+
+Some papers include an end-to-end walkthrough showing how a user accomplishes a task with the system. This is distinct from the component descriptions (which explain what each part does) and the code snippet (which shows the API). The walkthrough shows the user's journey.
+
+RaLLe structures its entire system section as a walkthrough with five subsections: Document Embedding and Indexing, Chain Construction, Prompt Engineering, Experiment Tracking, and Chat AI. The reader follows a user from "I have documents" to "I have a working R-LLM" to "I have evaluated its performance" to "I am chatting with it." This structure is effective because it makes the system feel concrete and usable.
+
+Fabricator takes a lighter approach: the walkthrough is implicit in the code snippet (Listing 1), which shows the steps a user would take from dataset loading to data generation to hub upload.
+
+AutoGen Studio splits the walkthrough across its UI sections: define components in the Build view, compose them into workflows with drag-and-drop, test in the Playground, debug with the Profiler, export for deployment.
+
+The walkthrough approach works well when your system has a clear sequential workflow. If the user's interaction is more exploratory (trying different configurations, iterating on designs), a walkthrough may feel artificial. In that case, component descriptions with code snippets are a better choice.
+
+### Handling the "Just API Calls" Problem
+
+This is the elephant in the room for anyone building an LLM-based tool in 2024-2025. If the core of your system is a call to `openai.ChatCompletion.create()` or `anthropic.messages.create()`, you must demonstrate that the system provides value beyond what a raw API call provides. Otherwise, the reviewer will (correctly) wonder why this needs a paper.
+
+Here are the strategies that successful papers use:
+
+**Strategy 1: Emphasize orchestration complexity.** AutoGen Studio's value is not in calling an LLM; it is in managing the communication and state between multiple agents, handling tool invocations, tracking costs, and debugging failure modes across multi-turn workflows. The orchestration layer is non-trivial even though each individual LLM call is straightforward.
+
+**Strategy 2: Frame prompt engineering as a design space.** RaLLe shows that prompts are not just strings; they are engineered templates with f-string interpolation, dataset-specific formatting, and query rewriting strategies. The system makes this design space explicit and explorable.
+
+**Strategy 3: Highlight the abstraction layer.** Fabricator's abstraction is the distinction between three generation workflows (unlabeled, label-conditioned, annotation), each with different prompt construction logic, few-shot sampling strategies, and output processing. The abstraction makes it possible to run systematic experiments that would be tedious to set up manually.
+
+**Strategy 4: Show integration value.** LlamaFactory's value is in integrating dozens of fine-tuning methods (LoRA, QLoRA, GaLore, etc.) across 100+ models through a single interface. Any individual fine-tuning run could be done with raw code, but the integration and unification are the contribution.
+
+**Strategy 5: Point to evaluation infrastructure.** If your system includes evaluation, comparison, or profiling capabilities, these demonstrate depth. AutoGen Studio's profiler, which tracks message counts, costs, tool invocation success rates, and agent-by-agent metrics, is a significant engineering contribution that goes well beyond API wrapping.
+
+For Priya's PromptBench, the "just API calls" defense might look like this: the value is not in calling three LLM APIs (anyone can do that). The value is in four things that sit above the API calls: (a) a unified interface that normalizes response formats across providers, (b) structured experiment tracking that makes prompt comparisons reproducible, (c) a Gradio UI that lets non-programmers explore prompt space interactively, and (d) statistical analysis tools that quantify performance differences with confidence intervals.
+
+Each of these components is individually straightforward. Together, they provide a capability that does not exist in any current tool.
+
+::: {.callout-warning title="Common Misconception: My system just calls GPT-4, so there is no novelty"}
+The novelty in a demo paper does not need to be algorithmic. It can come from: the abstraction you provide (three generation workflows vs. raw API calls), the workflow you enable (reproducible cross-provider benchmarking), the evaluation framework you build (objective metrics for R-LLMs), the interface design (no-code drag-and-drop agent composition), or the integration of multiple components (100+ LLMs through a single UI). If your system makes something possible that was previously tedious, error-prone, or inaccessible, that is a genuine contribution.
+:::
+
+### Applying This to PromptBench
+
+Priya sketches her architecture section. She draws a diagram with four components: a Provider Abstraction Layer (normalizes API calls across OpenAI, Anthropic, Cohere), a Prompt Manager (stores, versions, and parameterizes prompt templates), an Experiment Tracker (logs runs, metrics, and configurations to a SQLite database), and a Gradio UI (interactive exploration and comparison dashboards). Data flows from the user's prompt template through the Provider Abstraction, back through the Experiment Tracker, and into the Gradio UI for visualization.
+
+She allocates her 2.25 pages: 0.5 pages for the architecture diagram and overview, 1.0 page for four component descriptions (one subsection each), 0.25 pages for a code snippet showing a 10-line benchmarking run, and 0.5 pages for two screenshots (the prompt comparison dashboard and the experiment history view).
+
+The architecture section makes it clear that PromptBench is not "just three API calls." It is a structured, modular system with clear abstractions, reproducibility guarantees, and a user interface that lowers the barrier to systematic prompt evaluation.
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+**Try this exercise:** Draw your system's architecture diagram on paper, using boxes for components and arrows for data flow. Show it to someone unfamiliar with your work. Can they explain what the system does in one sentence after looking at the diagram for 30 seconds? If not, the diagram needs simplification.
+:::

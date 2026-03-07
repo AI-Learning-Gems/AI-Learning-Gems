@@ -1,0 +1,210 @@
+## Evaluation and Validation: Proving Your System Works {#sec-evaluation}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Fabricator (arXiv:2309.09582)](https://arxiv.org/abs/2309.09582) | Controlled experiments: generated vs. human data on 5 benchmarks |
+| 2 | [AutoGen Studio (arXiv:2408.15247)](https://arxiv.org/abs/2408.15247) | In-situ evaluation: 200k downloads, GitHub issue analysis |
+| 3 | [RaLLe (arXiv:2308.10633)](https://arxiv.org/abs/2308.10633) | KILT benchmark evaluation, speed analysis |
+| 4 | [LlamaFactory (arXiv:2403.13372)](https://arxiv.org/abs/2403.13372) | Training efficiency (memory, throughput, PPL) + downstream ROUGE |
+| 5 | [HuggingFace Transformers (EMNLP 2020)](https://aclanthology.org/2020.emnlp-demos.6/) | Community adoption as validation |
+
+:::
+
+Priya has her introduction framed, her architecture designed, and her paper structured. Now comes the question that makes or breaks many submissions: "How do I prove this system actually works?"
+
+In a research paper, the answer is clear. You run experiments on standard benchmarks, compare against baselines, and report numbers. In a demo paper, the answer is much more nuanced. Your system might not have a direct baseline. There might not be a standard benchmark for what your tool does. The value might lie in usability, not accuracy. And you only have about one page to make your case.
+
+The good news is that the demo track accepts a wide range of evaluation approaches. The bad news is that submitting with no evaluation at all risks desk rejection. Let's map out the evaluation options and help you choose the right strategy.
+
+### The Evaluation Spectrum
+
+Based on our analysis of accepted demo papers, evaluation strategies fall along a spectrum from weakest to strongest:
+
+```{.d2}
+direction: right
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 13
+    }
+  }
+  weak: {
+    style: {
+      stroke: "#EF4444"
+      fill: "#FEF2F2"
+      font-color: "#991B1B"
+    }
+  }
+  moderate: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  strong: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+}
+
+none: {
+  class: [base; weak]
+  label: "  No Evaluation\n  (Desk Reject Risk)  "
+}
+
+case: {
+  class: [base; moderate]
+  label: "  Case Studies  "
+}
+
+adoption: {
+  class: [base; moderate]
+  label: "  Adoption\n  Metrics  "
+}
+
+user: {
+  class: [base; strong]
+  label: "  User\n  Studies  "
+}
+
+experiments: {
+  class: [base; strong]
+  label: "  Controlled\n  Experiments  "
+}
+
+benchmark: {
+  class: [base; strong]
+  label: "  Benchmark\n  Comparison  "
+}
+
+none -> case: ""
+case -> adoption: ""
+adoption -> user: ""
+user -> experiments: ""
+experiments -> benchmark: ""
+```
+
+This spectrum is not strictly hierarchical. A well-executed case study can be more persuasive than a poorly designed experiment. But in general, reviewers give more weight to evaluation approaches further to the right. Most strong papers combine two or more approaches.
+
+Let's examine each strategy with concrete examples.
+
+### Strategy 1: Quantitative Experiments
+
+This is the closest analogue to research paper evaluation. You design controlled experiments that measure your system's effectiveness on specific tasks.
+
+**Fabricator** runs two experiments. In the first, they compare models trained on LLM-generated datasets against models trained on human-annotated datasets across five benchmarks (IMDB, TREC-6, MRPC, SNLI, SQuAD-v2). This directly tests whether their dataset generation framework produces useful training data. The results are telling: for simple tasks (binary sentiment), LLM-generated data matches human data (down only 1 percentage point on IMDB). For complex tasks (SNLI, SQuAD), the gap is larger (19 and 16 points respectively).
+
+In their second experiment, they vary the number of few-shot examples and measure the impact, finding that 3 examples per prompt is a sweet spot.
+
+**LlamaFactory** evaluates from two angles: training efficiency (peak memory, throughput, perplexity across three model sizes) and downstream task performance (ROUGE scores on three summarization/generation datasets with six different 7B-class models). The efficiency experiments show that QLoRA has the lowest memory footprint while LoRA has the highest throughput. The downstream experiments compare full fine-tuning, freeze-tuning, LoRA, and QLoRA across models.
+
+**RaLLe** evaluates on the KILT benchmark (11 datasets across five knowledge-intensive tasks), comparing different retriever-LLM combinations. They also include a speed analysis comparing retrieval latency across different indexing methods (Faiss, HNSW, DiskANN).
+
+Quantitative experiments work best when: (a) your system produces measurable outputs (classifications, generated text, retrieved documents), (b) standard benchmarks exist for your task domain, and (c) you can define meaningful baselines. If your system is a UI or workflow tool with no direct output to measure, experiments may not be the right approach.
+
+### Strategy 2: Adoption and Usage Metrics
+
+For mature systems with real users, adoption metrics are powerful evidence of usefulness.
+
+**AutoGen Studio** leads with its adoption numbers: "over 200k downloads within a 5-month period" on PyPI. But they go further. They analyze 135+ GitHub issues to identify user pain points, cluster the issues using embeddings and K-Means, and show how each cluster led to system improvements. This transforms raw download counts into a narrative about iterative, user-driven development.
+
+**LlamaFactory** reports "over 13,000 stars and 1,600 forks on GitHub" and notes that "hundreds of open-source models have been built upon LlamaFactory on the Hugging Face Hub." They cite specific downstream projects (GemSUra-7B) that used their framework.
+
+**HuggingFace Transformers** used community adoption as its primary validation: the sheer scale of the community using the library demonstrated its value more convincingly than any controlled experiment could.
+
+Adoption metrics work best when: (a) you have genuine usage data (not just GitHub stars from self-promotion), (b) you can show growth over time, and (c) you can demonstrate that users are doing meaningful work with your tool. Reviewers are rightfully skeptical of download counts alone. AutoGen Studio's issue analysis is compelling because it shows that real users encountered real problems and the system evolved in response.
+
+::: {.callout-warning title="Common Misconception: I don't need experiments for a demo paper"}
+Partially false. While the bar for evaluation is lower than for research papers, papers with no evaluation at all risk desk rejection at ACL 2024+ venues. Even if you cannot run controlled experiments, you need at minimum a case study showing the system in action, adoption metrics if available, or a qualitative user assessment. The evaluation section does not need to be as rigorous as a research paper, but it needs to exist and demonstrate that the system provides genuine value.
+:::
+
+### Strategy 3: User Studies
+
+User studies provide direct evidence that real people find your system useful. They are especially appropriate for tools with interactive UIs where the value lies in usability rather than algorithmic performance.
+
+A user study for a demo paper does not need to be a full-blown HCI experiment with 100 participants and statistical significance tests. A small-scale study with 5-10 users is acceptable and common. The typical design is:
+
+1. **Recruit 5-10 participants** from your target audience (e.g., NLP researchers, graduate students, developers).
+2. **Define 2-3 concrete tasks** that represent typical use cases for your system.
+3. **Measure completion time, error rate, and satisfaction** (using a Likert scale or System Usability Scale).
+4. **Optionally compare against a baseline workflow** (e.g., manual approach, existing tool).
+
+The key is to show that users can accomplish meaningful tasks with your system and that they find the experience satisfactory. Qualitative feedback ("the prompt comparison view saved me hours of manual work") can be as persuasive as quantitative metrics when presented honestly.
+
+User studies work best when: (a) your system has an interactive component (UI, CLI with complex workflows), (b) the value proposition centers on usability or workflow efficiency, and (c) you have access to your target users. If your system is a backend library with no interactive component, a user study is less natural.
+
+### Strategy 4: Case Studies and Worked Examples
+
+Case studies walk through concrete use cases showing the system in action. This is the lightest form of evaluation but can be effective when done well.
+
+**CHATREPORT** (EMNLP 2023) applied their LLM-based sustainability disclosure analysis system to real corporate reports and showed the system's outputs alongside expert assessments. The case study demonstrated that the system produced useful, actionable analysis in a real domain.
+
+A case study for a demo paper typically includes:
+
+1. **A concrete scenario** with real or realistic data.
+2. **A step-by-step walkthrough** of how the system handles the scenario.
+3. **The system's output** with commentary on its quality.
+4. **A comparison** (if possible) to what the output would look like without the system.
+
+Case studies work best when: (a) your system is domain-specific and general benchmarks do not exist, (b) the value is qualitative (better analysis, clearer visualization, faster workflow), and (c) you can show realistic end-to-end usage.
+
+### Combining Strategies: The Hybrid Approach
+
+The strongest demo papers use two or more evaluation strategies. Here is how the papers we analyzed combine approaches:
+
+| Paper | Strategy 1 | Strategy 2 | Strategy 3 |
+|---|---|---|---|
+| Fabricator | Controlled experiments (5 benchmarks) | Code availability | |
+| AutoGen Studio | Adoption metrics (200k downloads) | Issue analysis (135 issues) | Case study (appendix) |
+| RaLLe | Benchmark evaluation (KILT) | Speed analysis | |
+| LlamaFactory | Efficiency experiments (3 models) | Downstream task evaluation (6 models) | Community adoption |
+
+The hybrid approach hedges against the weaknesses of any single strategy. Adoption metrics show that people use your tool, but not that it works well. Experiments show that it works well, but on a limited set of tasks. User studies show that people find it usable, but with a small sample. By combining two or three, you build a stronger overall case.
+
+::: {.callout-note title="Think Hard: What would a reviewer say if your evaluation only shows that the system 'works' but not that it works better than alternatives?"}
+This is a fair criticism, and you should anticipate it. If competing tools exist, reviewers expect you to compare against them. The comparison does not need to be on raw accuracy (that is a research paper metric). It can be on: (a) the range of tasks supported (your tool covers 5 task types, alternatives cover 2), (b) ease of use (your tool requires 10 lines of code, alternatives require 50), (c) integration (your tool works with HuggingFace ecosystems, alternatives are standalone), or (d) evaluation capabilities (your tool provides metrics that alternatives do not). The comparison table in your Related Work section should align with the dimensions you evaluate. If you claim to be more modular, show that your component count is higher. If you claim to be easier to use, measure setup time.
+:::
+
+### The Demo Video as Supplementary Evaluation
+
+The mandatory 2-2.5 minute video is not just a requirement; it functions as supplementary evidence that the system works. A well-made video demonstrates:
+
+1. **Installation and setup** (15-20 seconds): Show that the tool can be installed and launched.
+2. **Core workflow** (60-90 seconds): Walk through the primary use case end-to-end.
+3. **Key differentiating features** (30-45 seconds): Highlight what makes your tool different from alternatives.
+4. **Results** (15-20 seconds): Show meaningful output.
+
+The video should be a screencast with audio narration. It does not need professional editing. What it needs is a clear, rehearsed walkthrough that shows the system working on real data. Reviewers will watch this video, and if the system looks polished and functional, it reinforces the evaluation claims in the paper.
+
+### Applying This to PromptBench
+
+Priya decides on a hybrid evaluation strategy:
+
+**Primary: Controlled comparison.** She designs an experiment where 8 NLP researchers benchmark prompts for a text classification task (sentiment analysis on 3 datasets) using two workflows: (a) PromptBench's structured pipeline and (b) ad hoc Python scripts with manual logging. She measures time to complete the benchmarking cycle, number of configurations tested, and reproducibility (can the results be reproduced by a different person?). The hypothesis is that PromptBench enables faster, more systematic, and more reproducible prompt evaluation.
+
+**Secondary: Adoption metrics.** In the 3 months since sharing the GitHub link, PromptBench has been used by 4 research groups and has 150 PyPI downloads. She reports these numbers and includes a brief quote from a user: "PromptBench replaced our ad hoc Jupyter notebooks for prompt comparison."
+
+**Tertiary: Demo video.** She records a 2-minute screencast showing: install via pip (10 seconds), configure three providers (20 seconds), run a cross-provider benchmark (40 seconds), explore results in the Gradio dashboard (30 seconds), and export results for a paper table (20 seconds).
+
+This hybrid approach addresses the reviewer's three questions: "Does it work?" (yes, controlled experiment shows systematic benchmarking), "Do people use it?" (yes, 4 research groups), and "Can I see it?" (yes, demo video).
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+**Before reading on, answer this:** If you had only 1 page for evaluation, would you run a controlled experiment, conduct a user study, or present adoption metrics? Your answer depends on your system's maturity and nature. A new system with no users cannot present adoption metrics. A backend library with no UI is a poor fit for a user study. Choose the strategy that plays to your system's strengths.
+:::

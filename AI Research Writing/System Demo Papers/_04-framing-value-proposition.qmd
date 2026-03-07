@@ -1,0 +1,166 @@
+## The Introduction: Framing Your Value Proposition {#sec-introduction-framing}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Fabricator (arXiv:2309.09582)](https://arxiv.org/abs/2309.09582) | Problem-limitation-contribution pattern |
+| 2 | [AutoGen Studio (arXiv:2408.15247)](https://arxiv.org/abs/2408.15247) | Challenges-solution-contributions pattern |
+| 3 | [RaLLe (arXiv:2308.10633)](https://arxiv.org/abs/2308.10633) | Gap-in-tools + transparency framing |
+| 4 | [LlamaFactory (arXiv:2403.13372)](https://arxiv.org/abs/2403.13372) | Democratization + unification framing |
+| 5 | [HuggingFace Transformers (EMNLP 2020)](https://aclanthology.org/2020.emnlp-demos.6/) | Ecosystem/community framing |
+
+:::
+
+Priya sits down to write her PromptBench introduction. She opens a blank document and types: "We present PromptBench, a toolkit for benchmarking LLM prompts." She stares at the sentence. It is factually accurate but completely lifeless. A reviewer reading this would think: "So what? Why do I need another prompt toolkit?"
+
+This is the most common failure mode in demo paper introductions. The author describes what the system does without first establishing why the system matters. The introduction is not a description. It is an argument. You are arguing that a problem exists, that current solutions are inadequate, and that your system closes the gap. If that argument does not land in the first page, the reviewer's mental score starts in the red and rarely recovers.
+
+Let's examine how the best accepted papers make this argument, and then build a formula you can use for your own paper.
+
+### The Four Value Proposition Archetypes
+
+After analyzing the introductions of 30+ accepted demo papers, we identified four recurring patterns for how authors frame their system's value. Most papers use one primary archetype, and strong papers often blend two. Recognizing which archetype fits your system is the first step in writing a compelling introduction.
+
+#### Archetype 1: The Unifier
+
+**Core argument:** "There are many fragmented approaches to X; we unify them in a single framework."
+
+This is the most common archetype for toolkit papers. The claim is that practitioners currently face a fragmented ecosystem of tools, methods, or approaches, and your system brings them together under one roof.
+
+**LlamaFactory** is a textbook Unifier. Its introduction states: "the community contributes various methods for efficient fine-tuning LLMs, lacking a systematic framework that adapts and unifies these methods to different LLMs." The system's title itself contains the word "Unified." The value is clear: instead of implementing LoRA, QLoRA, GaLore, and freeze-tuning separately for each of the 100+ available LLMs, users can do it all through a single interface.
+
+**OpenPrompt** follows the same pattern: "lack of a standard implementation framework" for prompt-learning methods, so OpenPrompt provides a unified library with pluggable components (PLM, Task, Template, Verbalizer).
+
+The Unifier archetype works when: (a) there are genuinely multiple fragmented approaches in the problem space, (b) your system meaningfully integrates them rather than just listing them, and (c) the integration provides value beyond what any individual tool provides.
+
+#### Archetype 2: The Democratizer
+
+**Core argument:** "X is hard or expensive; we make it accessible to everyone."
+
+The Democratizer claims that a valuable capability is currently locked behind barriers (expertise, cost, infrastructure), and your system lowers those barriers.
+
+**LlamaFactory** blends Unifier with Democratizer: "a framework that democratizes the fine-tuning of LLMs" with "no coding efforts required" through LlamaBoard. The barrier being lowered is programming expertise.
+
+**AutoGen Studio** is primarily a Democratizer: multi-agent systems require configuring "a large number of parameters" that "create significant barriers to entry." AutoGen Studio provides a "no-code developer tool" with a drag-and-drop interface. The barrier being lowered is the complexity of multi-agent orchestration.
+
+**Fabricator** also uses Democratizer framing: manually producing labeled training data is "costly and time-intensive," so Fabricator enables researchers to generate datasets using LLMs with a simple API. The barrier being lowered is annotation cost.
+
+The Democratizer archetype works when: (a) there is a genuine barrier (cost, expertise, infrastructure) that prevents people from doing something valuable, (b) your system measurably lowers that barrier, and (c) you can point to who benefits (researchers without GPUs, practitioners without ML expertise, small teams without annotation budgets).
+
+#### Archetype 3: The Gap-Filler
+
+**Core argument:** "No tool currently does X; we fill this gap."
+
+The Gap-Filler identifies a specific capability that does not exist in any available tool and provides it for the first time.
+
+**RaLLe** is a clear Gap-Filler: "there is currently a lack of accessible evaluation framework" for R-LLMs. Existing tools like LangChain "offer a high degree of abstraction, making it challenging to verify the functionality of individual inference steps or optimize prompts within each step." RaLLe claims to be "the first framework that empowers R-LLM developers to efficiently develop, evaluate, and improve R-LLMs using objective metrics."
+
+The "first" claim is powerful but dangerous. It must be defensible. If a reviewer can name an existing tool that does what you claim no tool does, your credibility collapses. When using the Gap-Filler archetype, be precise about the specific gap. RaLLe does not claim to be the first RAG tool; it claims to be the first framework that provides transparent, step-by-step evaluation of retrieval-augmented generation with objective metrics. The narrower and more specific the gap, the more defensible the claim.
+
+#### Archetype 4: The Ecosystem Builder
+
+**Core argument:** "We provide infrastructure for the community to build upon."
+
+The Ecosystem Builder frames the system as community infrastructure, not a standalone tool. The value is in the ecosystem it creates.
+
+**HuggingFace Transformers** is the quintessential Ecosystem Builder. Its value proposition is not any specific model or algorithm, but the ecosystem of pre-trained models, tokenizers, datasets, and community contributions it enables. The system's value grows with the community.
+
+**PromptSource** is an Ecosystem Builder too: a community-driven repository of 2,000+ prompt templates for 170 datasets. The tool itself (a prompt IDE) is secondary to the shared resource it creates.
+
+The Ecosystem Builder archetype works when: (a) your system generates network effects (it becomes more valuable as more people use it), (b) you have evidence of community adoption, and (c) the contribution is the platform, not just the tool.
+
+::: {.callout-note title="Think Hard: When does a tool deserve a demo paper vs. just a GitHub release?"}
+This is a question every tool builder wrestles with. The threshold is not about the amount of code; it is about the intellectual contribution embedded in the design. A script that wraps a single API call does not merit a paper. A system that makes deliberate architectural choices (modular design, composable abstractions, evaluation frameworks, integration with existing ecosystems) embeds knowledge that the community benefits from learning. Ask yourself: "Would reading about how I designed this system teach a practitioner something non-obvious?" If yes, there is a paper here. If no, just release the code.
+:::
+
+### The Introduction Formula
+
+Based on our analysis, here is the step-by-step formula that nearly all successful demo paper introductions follow:
+
+**Step 1: Context and importance (1-2 paragraphs).** Establish the problem area and why it matters. Use recent citations and concrete statements. LlamaFactory opens with the impact of LLMs and the open-source ecosystem (5,000+ models on HuggingFace). Fabricator opens with the success of PLMs and the bottleneck of labeled training data. Start broad (the field), then narrow (the specific problem).
+
+**Step 2: The gap or limitation (1 paragraph, with explicit transition).** This is the pivot. Use a clear transition marker. Fabricator uses a bold heading: "**Limitations.**" AutoGen Studio uses: "However, while multi-agent applications advance our capacity to solve complex problems, they also introduce new challenges." LlamaFactory uses: "However, the community contributes various methods... lacking a systematic framework." The word "However" appears in virtually every demo paper introduction at this point in the argument.
+
+**Step 3: Your system as the bridge (1 paragraph).** Connect the gap to your system with a "To address" or "To close this gap" sentence. Fabricator: "To close this gap, we present FABRICATOR, an open-source Python library for dataset generation with LLMs." AutoGen Studio: "To address these challenges, we have developed AutoGen Studio, a tool for rapidly prototyping, debugging, and evaluating multi-agent workflows." The bridge sentence should feel inevitable given the gap you described. If it feels like a non-sequitur, your gap was not set up correctly.
+
+**Step 4: Contribution bullets (3-5 bullets).** List concrete contributions. Here are the most common types:
+
+| Bullet Type | Example |
+|---|---|
+| The system itself | "We introduce FABRICATOR, a user-friendly library for dataset generation utilizing LLMs" |
+| Technical design | "We introduce profiling capabilities with visualizations of messages/actions by agents" |
+| Evaluation/insights | "We present a set of example experiments" or "we outline emerging design patterns" |
+| Open-source/community | "We publish the code on GitHub under the Apache 2 license" |
+| Scale/integration | "Supports over 100 LLMs and 50+ datasets" |
+
+A strong demo paper has 3-5 bullets. Fewer than 3 feels thin. More than 5 is hard to fit in the page budget and dilutes the message. The first bullet should always be the system itself.
+
+**Step 5: Open-source availability (1 sentence).** Include the URL, the license, and any adoption metrics. AutoGen Studio: "over 200k downloads within a 5-month period." LlamaFactory: "already received over 13,000 stars and 1,600 forks." If you have adoption numbers, include them. They are powerful evidence of usefulness.
+
+::: {.callout-warning title="Common Misconception: My introduction should focus on technical novelty"}
+In a research paper, yes. In a demo paper, the introduction should focus on the problem your system solves and who benefits. Technical novelty (if you have it) goes in the contribution bullets, not in the framing. A demo paper introduction that reads like a research paper introduction ("We propose a novel algorithm for...") will confuse reviewers about whether this belongs in the demo track. Lead with the problem and the user, not the algorithm.
+:::
+
+### The "So What?" Test
+
+Every introduction must pass the "So What?" test. After reading the first page, a reviewer should be able to answer: "Why does this system need to exist? Who will use it? What can they do with it that they could not do before?"
+
+Here is a concrete example of a weak versus strong framing for the same hypothetical system:
+
+**Weak (describes what, not why):**
+
+> "We present PromptBench, a Python toolkit for benchmarking LLM prompts. PromptBench supports OpenAI, Anthropic, and Cohere APIs. It includes a Gradio interface for interactive exploration and an experiment tracking system."
+
+This describes features but gives no motivation. The reviewer thinks: "Why not just use LangChain? Or write a script?"
+
+**Strong (argues why this matters):**
+
+> "Selecting the right prompt for an LLM classification task is an empirical process that requires systematic comparison across prompt templates, model providers, and hyperparameters. Practitioners currently iterate on prompts through ad hoc scripts, manually tracking results in spreadsheets or notebooks. This process is error-prone, non-reproducible, and does not scale when comparing multiple providers. To address this gap, we present PromptBench, a Python toolkit that structures the prompt benchmarking workflow into a reproducible pipeline with cross-provider comparison, experiment tracking, and an interactive Gradio interface for real-time exploration."
+
+The strong version establishes a problem (ad hoc, error-prone prompt iteration), identifies who suffers from it (practitioners), and presents the system as the solution. The reviewer thinks: "I can see why this would be useful."
+
+### Worked Example: Priya's PromptBench Introduction
+
+Let's walk through how Priya would construct her introduction step by step, using the formula and a Democratizer + Gap-Filler hybrid archetype.
+
+**Step 1 (Context):** Priya starts by establishing that LLM prompts are crucial for classification tasks and that selecting the right prompt involves empirical comparison across providers, templates, and configurations. She cites 2-3 recent papers on the sensitivity of LLMs to prompt wording.
+
+**Step 2 (Gap):** "However, the prompt benchmarking process remains largely ad hoc. Practitioners rely on one-off scripts to test prompts, manually log results, and lack standardized comparison across model providers. Existing tools like LangChain and DSPy focus on prompt chaining and optimization rather than systematic, cross-provider benchmarking. No open-source framework currently provides a structured workflow for comparing prompt performance across multiple LLM APIs with reproducible experiment tracking."
+
+**Step 3 (Bridge):** "To fill this gap, we present PromptBench, an open-source Python toolkit that structures the prompt benchmarking workflow into a reproducible, cross-provider pipeline with an interactive Gradio interface for real-time exploration."
+
+**Step 4 (Contributions):**
+
+- We introduce PromptBench, an open-source toolkit for benchmarking LLM prompts across multiple API providers (OpenAI, Anthropic, Cohere) with a unified interface.
+- PromptBench provides a structured experiment tracking system that logs prompt templates, configurations, provider responses, and accuracy metrics in a reproducible database.
+- We provide a Gradio-based interactive UI enabling researchers to explore prompt performance in real time without writing code.
+- We evaluate PromptBench with a controlled study comparing prompt iteration workflows with and without the toolkit, demonstrating a 3x speedup in the benchmarking cycle.
+
+**Step 5 (Availability):** "PromptBench is available at https://github.com/prsharma/promptbench under the MIT license."
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+**Before reading on, try this:** Which value proposition archetype best fits your system? Can you combine two? Write the single bridge sentence that connects the gap you identify to the system you present. Read it aloud. Does it feel like the natural, inevitable next step after the gap, or does it feel like a jump?
+:::
+
+### Annotated Comparison: Two Real Introductions
+
+To make the formula concrete, here is how the same formula maps onto Fabricator and AutoGen Studio:
+
+| Formula Element | Fabricator | AutoGen Studio |
+|---|---|---|
+| **Context** | PLMs are powerful but need labeled data | Multi-agent systems show promise for complex tasks |
+| **Transition** | "**Limitations.**" (bold heading) | "However... these factors can create significant barriers to entry" |
+| **Gap** | "no open-source library specifically supports research on dataset generation with LLMs" | Configuration, orchestration, and debugging complexity makes multi-agent design "tedious and error-prone" |
+| **Bridge** | "To close this gap, we present FABRICATOR" | "To address these challenges, we have developed AutoGen Studio" |
+| **Archetype** | Democratizer + Gap-Filler | Democratizer |
+| **Bullet 1** | The library + overview of concepts | The tool + drag-and-drop experience + gallery |
+| **Bullet 2** | Example experiments | Profiling capabilities for debugging |
+| **Bullet 3** | (implicit: open-source) | Emerging design patterns from 200k+ downloads |
+| **First claim** | "facilitate experimentation, enable application, encourage reproducibility" | "first open-source project to explore a no-code interface for autonomous multi-agent application development" |
+
+Notice how both papers follow the same structural formula but instantiate it with different content. The formula is a scaffold, not a straitjacket. Your specific problem, gap, and contribution will be unique, but the argumentative structure should be recognizable.
+
+::: {.callout-note title="Think Hard: How do you differentiate your prompt engineering tool from the 50 others that appeared in the same year?"}
+This is where precision in the gap statement becomes critical. You do not differentiate by listing more features. You differentiate by identifying a specific need that no other tool addresses. RaLLe did not say "we are a better LangChain." It said "current tools offer high-level abstractions without sufficient transparency for evaluating and optimizing prompts within specific inference processes." That is a specific, falsifiable claim about a specific limitation. Your Related Work section should then systematically show that existing tools do not address this specific gap, using a comparison table. If you cannot point to a specific gap, you probably do not have a demo paper; you have a GitHub repository.
+:::

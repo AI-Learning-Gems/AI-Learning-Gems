@@ -1,0 +1,205 @@
+## Introduction {#sec-introduction}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [ACL 2025 Demo CFP](https://2025.aclweb.org/calls/system_demonstration/) | 6-page limit, 2.5-min video, single-blind, mandatory screenshots |
+| 2 | [NAACL 2025 Demo CFP](https://2025.naacl.org/calls/demos/) | 2-min video, ethics checklist, OpenReview submission |
+| 3 | [Fabricator (arXiv:2309.09582)](https://arxiv.org/abs/2309.09582) | LLM dataset generation toolkit, exemplary structure |
+| 4 | [AutoGen Studio (arXiv:2408.15247)](https://arxiv.org/abs/2408.15247) | No-code multi-agent tool, 200k+ downloads |
+| 5 | [RaLLe (arXiv:2308.10633)](https://arxiv.org/abs/2308.10633) | RAG development framework, KILT evaluation |
+| 6 | [LlamaFactory (arXiv:2403.13372)](https://arxiv.org/abs/2403.13372) | Unified LLM fine-tuning, 13k+ GitHub stars |
+| 7 | [EMNLP 2024 Demo Proceedings](https://aclanthology.org/volumes/2024.emnlp-demo/) | 52/153 accepted (34%) |
+| 8 | [ACL 2024 Demo Proceedings](https://aclanthology.org/volumes/2024.acl-demos/) | 38/114 accepted (35%) |
+| 9 | [HuggingFace Transformers (EMNLP 2020)](https://aclanthology.org/2020.emnlp-demos.6/) | Canonical NLP library paper |
+
+:::
+
+### The Hook: Dr. Sharma's Dilemma
+
+Dr. Priya Sharma has spent six months building something she is genuinely proud of. PromptBench, her Python toolkit, lets researchers benchmark, compare, and iterate on LLM prompts across multiple API providers (OpenAI, Anthropic, Cohere) for classification tasks. It doesn't train any models. Instead, it orchestrates LLM API calls, manages prompt templates, tracks experiment results in a structured database, and wraps everything in a clean Gradio-based interactive UI.
+
+Her labmates use it daily. Two research groups at other universities have started using it after she shared the GitHub link. The tool works, people like it, and she has a real user base.
+
+Then her advisor says five words that change her trajectory: "Submit this to EMNLP demos."
+
+Priya sits down to write the paper and immediately hits a wall. She opens the EMNLP call for papers and finds herself staring at the system demonstration track guidelines, which are nothing like the research paper track she is familiar with. Six pages instead of eight. Single-blind review instead of double-blind. A mandatory two-minute screencast video. A requirement for screenshots. And the review criteria mention "completeness" and "usability" alongside "novelty," which sounds very different from the main conference track where algorithmic contribution is king.
+
+She pulls up a few accepted demo papers from previous years and notices they look nothing like research papers. One paper, Fabricator, has a "Generation Workflows" section and an example Python script right in the main text. Another, AutoGen Studio, leads with "Design Goals" before describing the system and dedicates a whole section to analyzing GitHub issue patterns from 200,000+ downloads. A third, RaLLe, has five subsections just for "Usage" and evaluates on a public benchmark.
+
+None of these follow the template Priya has internalized over years of reading and writing research papers. Where is the "Methods" section? Where is the "Hypothesis"? That familiar structure simply does not apply here.
+
+Here is the puzzle that stopped Priya in her tracks, and the one this chapter will resolve: despite acceptance rates in the demo track being comparable to the main conference track (32-36%), many submissions fail not because the underlying system is weak, but because the paper does not adequately address what reviewers actually care about. The demo track has its own conventions, its own expectations, and its own pitfalls. A researcher who approaches it with a research-paper mindset will miss the mark. Understanding these conventions is the difference between a desk rejection and an acceptance.
+
+![The architecture of AutoGen Studio, an EMNLP 2024 system demonstration paper. Every accepted demo paper centers on a figure like this: a visual system overview that communicates what the tool does, how its components connect, and where the user interacts. This is the kind of figure Priya needs to create for PromptBench. Source: Dibia et al. (2024), Figure 1.](images/autogen-studio-architecture.png){#fig-hook-architecture}
+
+### Learning Objectives
+
+After completing this chapter, you will be able to:
+
+- Distinguish a system demonstration paper from a main-conference research paper in terms of structure, review criteria, and submission requirements
+- Map your own system to the canonical 6-section structure used by 80%+ of accepted demo papers
+- Frame your tool's value proposition using one of four proven archetypes: Unifier, Democratizer, Gap-Filler, or Ecosystem Builder
+- Design an architecture section that communicates modular components, data flow, and code examples within a tight page budget
+- Choose and combine evaluation strategies (experiments, user studies, adoption metrics, case studies) appropriate for your system's maturity
+- Prepare the full submission package: paper, video, code repository, ethics statement, and limitations section
+
+### Chapter Introduction
+
+If you have been reading and writing main-conference research papers at ACL, EMNLP, or NAACL, you have internalized a specific template. There is an introduction that identifies a research gap, a methods section that presents an algorithmic contribution, an experiments section that demonstrates state-of-the-art results on benchmarks, and a conclusion. The review process is double-blind. The page limit is eight. And the fundamental question reviewers ask is: "Does this paper advance our scientific understanding of language?"
+
+System demonstration papers operate under a different contract. The fundamental question shifts to: "Does this paper present a system that is useful, well-designed, and ready for the community to use?" That shift changes everything: the structure, the tone, the evaluation, the review criteria, and even the submission mechanics. This chapter will walk you through each of these differences systematically, drawing on a detailed analysis of 30+ accepted demo papers from ACL, EMNLP, and NAACL between 2020 and 2025.
+
+The system demonstration track exists because the *CL community recognized that building tools, libraries, and platforms is a distinct form of scholarly contribution. Not every advance in NLP comes from a new algorithm. Some advances come from making existing algorithms accessible, composable, or evaluable.
+
+The evidence is striking. HuggingFace's Transformers library, which appeared as a demo paper at EMNLP 2020, has arguably had more impact on the field than most research papers published that year. Stanza, a Python NLP toolkit for 66 languages, won the Best Demo Paper award at ACL 2020. ExplainaBoard, an explainable NLP leaderboard, won at ACL 2021. These are systems, not algorithms, and they needed a venue that could evaluate them on their own terms.
+
+The demo track has shifted dramatically since 2022. Before the arrival of ChatGPT and the proliferation of LLM APIs, most demo papers presented traditional NLP toolkits: libraries for training models (Transformers), frameworks for adversarial attacks (TextAttack), platforms for prompt-based learning (OpenPrompt, PromptSource). These systems typically wrapped deep learning pipelines and required GPU training. After 2022, a new category exploded onto the scene: tools that orchestrate LLM API calls without training anything. Prompt engineering platforms, RAG frameworks, multi-agent orchestrators, evaluation harnesses, dataset generation pipelines. The EMNLP 2024 demo proceedings list papers like FreeEval (modular LLM evaluation), MarkLLM (watermarking toolkit), and AutoGen Studio (multi-agent prototyping). The ACL 2024 proceedings include Wordflow (social prompt engineering) and LlamaFactory (unified fine-tuning). Nearly half of all recent demo papers involve LLM API orchestration in some form.
+
+This shift creates a specific challenge for authors in this space. If your system's core computation is performed by an external API (say, GPT-4 or Claude), reviewers will inevitably wonder: "Is this just a wrapper? Where is the technical depth?"
+
+Addressing that question is one of the central skills this chapter will teach you. The answer, as we will see from analyzing accepted papers, lies in the orchestration layer, the abstraction design, the evaluation framework, and the user experience. AutoGen Studio was accepted at EMNLP 2024 not because it invented a new agent algorithm, but because it provided a no-code interface with drag-and-drop workflow composition, real-time debugging tools, and profiling capabilities that no other open-source tool offered. Fabricator was accepted at EMNLP 2023 not because it proposed a new generation method, but because it modularized the dataset generation workflow into composable classes (DatasetGenerator, BasePrompt, PromptNode) and integrated with HuggingFace's ecosystem. The technical depth was in the design, not in the model.
+
+The chapter is organized around the journey that Priya (and you) will take from "I have a tool" to "I have a competitive submission." We begin in @sec-what-is-a-demo-paper by establishing what a system demonstration paper actually is: how it differs from a research paper, what the formal submission requirements are, what reviewers evaluate, and how the competitive picture has evolved. This is the foundation. If you do not understand the venue, you cannot write for it.
+
+In @sec-anatomy, we dissect the canonical paper structure. By analyzing six accepted papers side by side, we identify the dominant 6-section template (Introduction, System Architecture, Usage, Evaluation, Related Work, Conclusion) and show how each section maps to a specific page budget within the 6-page constraint. You will see exactly how much space to allocate to each section and what must go in each one. This is the architectural blueprint for your paper.
+
+@sec-introduction-framing zooms into the introduction, which is arguably the most important section because it establishes your value proposition. We identify four archetypes that successful papers use to frame their contribution (Unifier, Democratizer, Gap-Filler, Ecosystem Builder) and provide a step-by-step formula for constructing a compelling introduction. By the end of that section, you will have a template you can fill in for your own paper.
+
+@sec-system-architecture tackles the heart of the paper: how to describe what you built. We cover architecture diagrams (the single most important figure in any demo paper), modular component descriptions, code snippets, screenshots, and the critical question of how to demonstrate technical depth when your system calls external APIs. This is where Priya will design her PromptBench architecture section.
+
+@sec-evaluation addresses validation: how to prove your system works and is useful. We map out the full spectrum of evaluation strategies, from adoption metrics to controlled experiments, and show how different accepted papers chose different approaches based on their system's maturity and nature. You will learn when a user study is appropriate, when benchmark experiments are expected, and when download counts are enough.
+
+Finally, @sec-polishing covers everything beyond the paper text: the mandatory demo video, visual design, the limitations section, ethics statements, common rejection reasons, and a pre-submission checklist. This is the section that turns a good paper into a complete submission.
+
+Throughout the chapter, we follow Priya as she applies each principle to PromptBench. By the time we reach the closing section, she will have a complete draft and submission package, and you will have a mental template for writing your own.
+
+One important note before we begin. This chapter focuses specifically on the system demonstration track at *CL venues (ACL, EMNLP, NAACL). Other venues have demo tracks too (AAAI, IJCAI, COLING), and while many principles transfer, the specific requirements and conventions differ. We also focus disproportionately on papers from the LLM-tool era (2022-2025), because this is where the field is heading and where most readers of this chapter are likely working. If you are building a traditional NLP toolkit that involves GPU training, the principles still apply, but the specific challenge of demonstrating depth beyond "API wrapper" will be less relevant to you.
+
+Let's start where Priya started: by understanding what, exactly, a system demonstration paper is.
+
+```{.d2}
+# =========================================================================
+# 1. LAYOUT CONFIGURATION
+# =========================================================================
+direction: down
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+# =========================================================================
+# 2. DESIGN SYSTEM
+# =========================================================================
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 14
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 16
+      bold: true
+    }
+  }
+}
+
+# =========================================================================
+# 3. CONTENT
+# =========================================================================
+
+start: {
+  class: [base; input]
+  label: "        I have a working tool        "
+}
+
+understand: {
+  class: [base; process]
+  label: "  Understand the Venue\n  (§1: What Is a Demo Paper?)  "
+}
+
+structure: {
+  class: [base; process]
+  label: "  Structure the Paper\n  (§2: Anatomy of a Demo Paper)  "
+}
+
+frame: {
+  class: [base; highlight]
+  label: "  Frame the Contribution\n  (§3: Value Proposition)  "
+}
+
+describe: {
+  class: [base; process]
+  label: "  Describe the System\n  (§4: System Architecture)  "
+}
+
+evaluate: {
+  class: [base; decision]
+  label: "  Prove It Works\n  (§5: Evaluation & Validation)  "
+}
+
+polish: {
+  class: [base; process]
+  label: "  Polish & Package\n  (§6: Videos, Visuals, Pitfalls)  "
+}
+
+submit: {
+  class: [base; output]
+  label: "      Competitive *CL Submission      "
+}
+
+start -> understand: "What are the rules?"
+understand -> structure: "How is it organized?"
+structure -> frame: "Why does it matter?"
+frame -> describe: "What did I build?"
+describe -> evaluate: "Does it work?"
+evaluate -> polish: "Is it complete?"
+polish -> submit: "Submit!"
+```

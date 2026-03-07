@@ -1,0 +1,21 @@
+---
+title: "Writing System Demonstration Papers at *CL Venues"
+filters:
+  - ../../_extensions/pandoc-ext/diagram/diagram.lua
+---
+
+{{< include "System Demo Papers/_01-introduction.qmd" >}}
+
+{{< include "System Demo Papers/_02-what-is-a-demo-paper.qmd" >}}
+
+{{< include "System Demo Papers/_03-anatomy-of-a-demo-paper.qmd" >}}
+
+{{< include "System Demo Papers/_04-framing-value-proposition.qmd" >}}
+
+{{< include "System Demo Papers/_05-system-architecture.qmd" >}}
+
+{{< include "System Demo Papers/_06-evaluation-and-validation.qmd" >}}
+
+{{< include "System Demo Papers/_07-polishing-the-submission.qmd" >}}
+
+{{< include "System Demo Papers/_99-closing.qmd" >}}
