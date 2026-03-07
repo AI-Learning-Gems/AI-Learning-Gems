@@ -1,0 +1,21 @@
+---
+title: "Agents For Scientific Discovery"
+filters:
+  - ../_extensions/pandoc-ext/diagram/diagram.lua
+---
+
+{{< include "Agents For Scientific Discovery/_01-introduction.qmd" >}}
+
+{{< include "Agents For Scientific Discovery/_02-landscape.qmd" >}}
+
+{{< include "Agents For Scientific Discovery/_03-hypothesis-generation.qmd" >}}
+
+{{< include "Agents For Scientific Discovery/_04-autonomous-experimentation.qmd" >}}
+
+{{< include "Agents For Scientific Discovery/_05-data-analysis.qmd" >}}
+
+{{< include "Agents For Scientific Discovery/_06-full-cycle-ai-scientist.qmd" >}}
+
+{{< include "Agents For Scientific Discovery/_07-benchmarks.qmd" >}}
+
+{{< include "Agents For Scientific Discovery/_99-closing.qmd" >}}

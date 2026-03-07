@@ -1,0 +1,265 @@
+## Introduction {#sec-introduction}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [The AI Scientist (Lu et al., 2024)](https://arxiv.org/abs/2408.06292) | Full-cycle automated scientific discovery at <$15/paper |
+| 2 | [Robin (FutureHouse, 2025)](https://www.futurehouse.org/research-announcements/robin) | Multi-agent drug repurposing discovery for dAMD |
+| 3 | [Google AI Co-Scientist (Gottweis et al., 2025)](https://research.google/blog/accelerating-scientific-breakthroughs-with-an-ai-co-scientist/) | Generate-debate-evolve framework for hypothesis generation |
+| 4 | [DiscoveryBench (Majumder et al., 2024)](https://arxiv.org/abs/2407.01725) | Benchmark: best agents solve only 25% of discovery tasks |
+| 5 | [ScienceAgentBench (Chen et al., 2024)](https://arxiv.org/abs/2410.05080) | Benchmark: best agent solves 34.3% of scientific tasks |
+
+:::
+
+### Hook
+
+Dr. Maya Chen stares at the spreadsheet tracking her lab's drug repurposing project. It has been eighteen months since her small computational biology team at a mid-tier university set out to find existing drugs that might treat a rare autoimmune disorder, a disease so uncommon that pharmaceutical companies see no profit in developing new therapies for it. Eighteen months of painstaking work. Six months went to surveying over two thousand papers to map the disease's molecular pathways. Four months went to running computational experiments: molecular docking simulations, protein-interaction network analyses, gene expression comparisons. Eight more months went to iterating on the analysis, chasing false leads, and drafting a manuscript. The paper was finally published last month, identifying three promising drug candidates for further investigation. Maya is proud of the work but exhausted by the timeline.
+
+Now, at a computational biology conference in late 2024, she overhears something during a coffee break that makes her set down her cup mid-sip. A colleague from a larger research group mentions that a company called FutureHouse built an AI system named Robin ([FutureHouse, 2025](https://www.futurehouse.org/research-announcements/robin)): a collection of cooperating AI agents, each specialized for a different part of the research process, that autonomously discovered and validated a drug repurposing candidate for age-related macular degeneration (a common eye disease). Not in eighteen months. Not in six months. In *days*. The system searched thousands of papers, generated hypotheses about which existing drugs might work, designed computational experiments to test them, and produced a report with supporting evidence, all without a human researcher directing each step. Meanwhile, Google DeepMind announced that their AI co-scientist ([Gottweis et al., 2025](https://research.google/blog/accelerating-scientific-breakthroughs-with-an-ai-co-scientist/)), powered by their Gemini 2.0 model, proposed drug targets for acute myeloid leukemia that were later validated in laboratory experiments. And a small startup called Sakana AI demonstrated something even more audacious: a system called The AI Scientist ([Lu et al., 2024](https://arxiv.org/abs/2408.06292)) that could generate a research idea, write the code to test it, run the experiments, create figures and tables, write a complete scientific paper, and even produce an automated peer review of its own work. All for less than fifteen dollars per paper.
+
+Maya is fascinated and skeptical in equal measure. Her scientific training screams caution: extraordinary claims require extraordinary evidence. She knows firsthand how messy real research is. The dead ends. The subtle bugs in analysis code. The domain expertise needed to distinguish a genuinely interesting finding from a statistical artifact. Can AI systems really handle this complexity? Or are these just impressive demonstrations that fall apart on problems outside their carefully constructed showcases?
+
+The answer, as Maya will discover throughout this chapter, is *both*. The demonstrations are real and genuinely remarkable. But when independent research teams built rigorous benchmarks to test these AI agents on realistic scientific tasks (not cherry-picked showcases, but hundreds of problems drawn from actual published research across biology, chemistry, physics, and data science), the results told a more subtle story. On DiscoveryBench ([Majumder et al., 2024](https://arxiv.org/abs/2407.01725)), a benchmark of 264 real-world data-driven discovery tasks, the best AI agent solved only 25% of them. On ScienceAgentBench ([Chen et al., 2024](https://arxiv.org/abs/2410.05080)), which drew 102 tasks from 44 peer-reviewed papers, the best agent achieved 34.3% accuracy even when given expert-curated background knowledge. The AI systems that could write a complete paper for fifteen dollars were also the systems that hallucinated citations, introduced subtle mathematical errors, and sometimes made claims unsupported by their own experimental results.
+
+This tension between breathtaking demonstrations and sobering benchmark results is the central intellectual puzzle of this chapter. It is not a story of triumph or failure, but of a technology in a fascinating intermediate state: powerful enough to transform how science is done, yet far from ready to replace the scientists doing it.
+
+![The AI Scientist's architecture: a single system that generates research ideas, writes code to test them, runs experiments, produces figures and a complete paper, and even writes an automated peer review, all for less than $15 per paper. This is the full research loop that Maya's colleague described, and the most ambitious vision in the field. Source: Lu et al. (2024), The AI Scientist.](Agents For Scientific Discovery/images/ai-scientist-overview.png){#fig-ai-scientist-hook width="100%"}
+
+### Learning Objectives
+
+After completing this chapter, you will be able to:
+
+- **Classify** AI agents for science using the Tool → Analyst → Scientist taxonomy and identify where major systems (ChemCrow, DS-Agent, The AI Scientist) sit on this spectrum
+- **Explain** how AI literature-review agents (PaperQA2, Robin) achieve superhuman performance on search tasks, and why multi-agent debate (Google AI co-scientist, VirSci) improves hypothesis generation
+- **Describe** how autonomous experimentation agents operate, from computational code execution (CodeAct, Agent Laboratory) to physical laboratory control (Coscientist, ChemCrow), and articulate the key safety and reliability challenges
+- **Compare** approaches to AI-driven data analysis (case-based reasoning in DS-Agent, grammar-agnostic visualization in LIDA, and symbolic equation discovery in LLM-SR) explaining the trade-offs of each
+- **Analyze** the AI Scientist's end-to-end research automation pipeline (v1 and v2), critically evaluating what works, what fails, and why the automated reviewer outperforms the paper generator
+- **Interpret** benchmark results (DiscoveryBench, ScienceAgentBench, BLADE, MLGym) to assess where AI agents genuinely advance scientific discovery and where they fall short
+- **Evaluate** when to deploy AI research agents in practice, distinguishing between systems ready for augmentation today versus aspirational full-autonomy visions
+
+### Notation
+
+Throughout this chapter, we use the following notation for concepts that appear across multiple sections:
+
+| Symbol | Meaning | Example |
+|--------|---------|---------|
+| $\mathcal{H}$ | Hypothesis space — the set of possible scientific hypotheses an agent can generate | "Drug X inhibits pathway Y in disease Z" |
+| $\mathcal{D}$ | Dataset — the experimental or observational data being analyzed | A table of gene expression values across conditions |
+| $\mathcal{T}$ | Tool set — the collection of external tools available to an agent | $\mathcal{T} = \{\text{web search}, \text{Python executor}, \text{molecular docking}\}$ |
+| $\pi$ | Agent policy — the mapping from observations to actions that defines an agent's behavior | The LLM that decides what to do next given the current research state |
+| $s_t$ | State at time step $t$ — the agent's current observation of the research environment | The contents of the working directory, terminal output, and conversation history |
+| $a_t$ | Action at time step $t$ — what the agent does next | Execute a Python script, search for papers, write a section |
+| $r_t$ | Reward or feedback at time step $t$ — the signal the agent receives after acting | Code execution success, benchmark score, reviewer rating |
+| $f(\cdot)$ | Scientific equation or function being discovered (in symbolic regression) | $f(x) = a \cdot x^2 + b \cdot \sin(cx)$ |
+| $\alpha$ | Type-I error rate — the probability of falsely rejecting a true null hypothesis | In Popper's framework: $\alpha \leq 0.05$ controls false discovery |
+
+### Chapter Overview
+
+Before we dive into the architectures, benchmarks, and case studies, let us build a mental map of the entire field. The goal of this overview is to give you a "first pass" through every major idea in the chapter, so that nothing in the detailed sections comes as a complete surprise. By the end of this overview, you should be able to explain the landscape of AI agents for scientific discovery at a high level, articulate the major systems and their relationships, and understand why the field is both more advanced and more limited than the headlines suggest.
+
+**Where we start: why LLMs changed the game for scientific automation.** For decades, AI in science meant using machine learning models within a narrow, well-defined step of the scientific process. You trained a neural network to predict protein structures, ran a genetic algorithm to optimize a molecular design, or fit a statistical model to experimental data. These systems were powerful but fundamentally *passive*: they waited for a human to define the problem, prepare the data, choose the method, and interpret the results. What changed in 2023-2024 was the emergence of LLM-based *agents*, systems that could read scientific literature, reason about experimental designs, write and execute code, and synthesize findings into reports. The critical shift was from AI as a *tool* (you use it for one step) to AI as an *agent* (it drives the workflow across multiple steps, making decisions about what to do next). Two LLM capabilities enabled this shift: the ability to operate across modalities (reading papers, writing code, interpreting figures) and the ability to use external tools (calling APIs, executing programs, interacting with databases) through structured interfaces like ReAct-style prompting.
+
+**The three levels of autonomy.** Not all "AI for science" systems are created equal. A useful framework, proposed in the survey "From Automation to Autonomy" (2025), distinguishes three levels. At Level 1 (**Tool**), the LLM augments a single step: you ask ChatGPT to help brainstorm hypotheses, or use Copilot to write analysis code. The human drives the process; the AI accelerates individual tasks. At Level 2 (**Analyst**), the agent manages a multi-step sub-workflow semi-autonomously. DS-Agent downloads a dataset, explores it, builds ML models, and reports results, but within a constrained pipeline defined by its designers. At Level 3 (**Scientist**), the system aims to drive the full research cycle from problem identification through experimental execution to manuscript preparation. This is where The AI Scientist and Robin operate. Most existing systems cluster at Level 1 and Level 2; the Level 3 systems generate the most excitement but also exhibit the most dramatic failure modes. Maya's current use of ChatGPT for brainstorming? Solidly Level 1. The Robin system that her colleague described? Aiming for Level 3.
+
+**What the current systems can actually do.** Let us walk through the research pipeline stage by stage, because different AI agents target different stages, and understanding which stage each system addresses is essential for evaluating whether any of them would help someone like Maya.
+
+The pipeline starts with **literature synthesis and hypothesis generation.** Reading and synthesizing thousands of papers is exactly the kind of task where LLMs should, in principle, excel; it is fundamentally about language comprehension and information integration. FutureHouse's PaperQA2 demonstrated superhuman performance on literature search benchmarks, meaning it could find and cite relevant information more accurately than human researchers given the same time constraints. But finding information and *generating novel hypotheses from it* are very different capabilities. Systems like ResearchAgent and Google's AI co-scientist tackle hypothesis generation through multi-agent architectures: one agent proposes ideas, others critique them, and an evolutionary process refines the survivors. This "generate, debate, evolve" paradigm consistently outperforms single-agent brainstorming, much as a research group discussion produces better ideas than a lone researcher thinking in isolation. The Popper system adds another key step: before committing resources to test a hypothesis, it performs sequential statistical analyses to *falsify* weak hypotheses cheaply, controlling the false discovery rate so that only the most robust candidates proceed to expensive experiments.
+
+The next stage is **autonomous experimentation**: actually running the experiments that test the hypotheses. Here the field splits into two dramatically different arenas. On the computational side, agents like CodeAct (the foundation of the OpenHands platform) and Agent Laboratory write Python code, execute it, read the output, debug errors, and iterate, much as a graduate student interacting with a Jupyter notebook, but at machine speed. SELA goes further by using Monte Carlo Tree Search to intelligently explore the space of possible ML pipeline configurations, treating AutoML as a planning problem rather than a brute-force search. On the physical side (actual wet-lab chemistry), ChemCrow demonstrated that an LLM augmented with eighteen specialized chemistry tools could autonomously design novel molecules, including a new chromophore (a light-absorbing compound). Coscientist, published in *Nature* in late 2023, went even further: it connected GPT-4 to robotic laboratory equipment through cloud lab APIs, allowing the AI to not just *plan* but *execute* chemical reactions. It optimized a palladium-catalyzed cross-coupling reaction through fully autonomous experimentation. Maya's computational experiments (molecular docking, network analysis) fall squarely in the first arena and could plausibly be automated today. Physical validation of her drug candidates in a lab? That requires the more nascent wet-lab integration that Coscientist pioneered.
+
+After experiments comes **data analysis and discovery**: making sense of the results. DS-Agent showed that combining LLMs with case-based reasoning (retrieving relevant strategies from a knowledge base of expert Kaggle solutions) dramatically outperforms pure LLM prompting for data science tasks, achieving a 100% task completion rate with GPT-4. For visualization, LIDA demonstrated a multi-stage pipeline that goes from raw data to publication-quality infographics through natural language interaction. And for the deepest form of scientific discovery, finding mathematical equations that describe empirical data, LLM-SR combines the LLM's physical intuition (its ability to propose plausible functional forms based on scientific priors) with evolutionary optimization (a system for refining the numerical coefficients). The result: discovered equations that outperform traditional symbolic regression on both in-distribution and out-of-distribution test sets.
+
+The most ambitious systems attempt to automate the **full research cycle**. The AI Scientist v1 (August 2024) was the first to demonstrate the entire pipeline, from idea generation through code writing, experimentation, figure creation, paper writing, and automated peer review, producing complete research papers for less than $15 each. But peer review of those papers revealed significant shortcomings: inadequate literature review, bugs in experimental code, and conclusions that sometimes overstated or misinterpreted the results. AI Scientist v2 (February 2025) addressed the most fundamental limitation. Version 1 required human-authored code templates as starting points; version 2 used a progressive agentic tree-search to build experiments from scratch, eliminating the need for templates. The significance of this advance was clear when an AI Scientist-generated paper was *accepted at a peer-reviewed venue*, a milestone that raises as many questions about the peer review system as about AI capabilities. FutureHouse's Robin and Google's AI co-scientist represent a different philosophy: rather than trying to write papers, they focus on generating and *validating* scientific hypotheses. Robin autonomously discovered a drug repurposing candidate for macular degeneration. Google's system had its predictions confirmed in vitro for leukemia.
+
+**The reality check: benchmarks.** Here is where the story gets most interesting, and most honest. When researchers built rigorous, standardized benchmarks to evaluate these systems, the results were humbling. DiscoveryBench (264 real-world tasks spanning sociology, economics, biology, chemistry, psychology, and engineering) found that the best agent solved only 25% of tasks. ScienceAgentBench (102 tasks from real papers) found 34.3% success even with expert background knowledge. BLADE (12 datasets with expert ground truth) found that LLMs can perform basic analyses but are "limited in their ability to provide deeper insights." And MLGym, Meta's Gym-style environment for ML research, found that frontier models "do not generate novel hypotheses, algorithms, architectures, or substantial improvements." They can tune hyperparameters and make incremental adjustments, but they cannot do the creative reasoning that defines scientific breakthroughs.
+
+**The synthesis: augmentation today, autonomy tomorrow.** The honest assessment of this field, which Maya will reach by the end of the chapter, is that AI agents for science are transformatively useful as *augmentation tools* right now. They can accelerate literature review by orders of magnitude, automate routine computational experiments, generate publication-quality visualizations, and discover mathematical relationships in data. But as *autonomous scientists* (systems that can independently identify important problems, design creative experiments, and produce reliable scientific conclusions), they remain works in progress. The most effective approach today is the human-in-the-loop model exemplified by Agent Laboratory, which reduces research costs by 84% while keeping a human scientist in the decision loop at each major stage. The fully autonomous vision of The AI Scientist is technically feasible and intellectually thrilling, but the benchmark results make clear that we are closer to the beginning of this journey than to the end.
+
+**What to expect from the rest of this chapter.** We will build up the full picture in six sections. @sec-landscape establishes the taxonomy and historical arc, giving you a framework for classifying any AI-for-science system you encounter. @sec-hypothesis covers literature synthesis and hypothesis generation, the intellectual front-end of discovery. @sec-experimentation examines autonomous experimentation, from code execution to robotic chemistry labs. @sec-data-analysis explores data analysis, visualization, and equation discovery (making sense of results). @sec-full-cycle takes a close look at the full-cycle AI Scientist (v1 and v2) and the systems that attempt end-to-end research automation. Finally, @sec-benchmarks critically examines the benchmarks that reveal how well, and how poorly, these systems actually perform. Throughout, we will follow Maya as she evaluates each capability through the lens of her drug repurposing research, grounding abstract architectures in concrete research decisions.
+
+The material in @sec-landscape and @sec-hypothesis is primarily conceptual; you will learn the vocabulary and frameworks for thinking about this field. @sec-experimentation and @sec-data-analysis introduce more technical detail, including the specific architectures and algorithms that make these systems work. @sec-full-cycle is the narrative climax, where all the threads converge in the most ambitious systems. And @sec-benchmarks is the reality check, where we confront the gap between aspiration and achievement. If you are a researcher or practitioner evaluating whether to adopt any of these tools, @sec-benchmarks is likely the section that will most directly inform your decisions.
+
+```{.d2}
+# =========================================================================
+# CONCEPT MAP: AI Agents for Scientific Discovery
+# =========================================================================
+direction: down
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 14
+    }
+  }
+  system: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  capability: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  benchmark: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  challenge: {
+    style: {
+      fill: "#FFF1F2"
+      stroke: "#F43F5E"
+      font-color: "#BE123C"
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 16
+      bold: true
+    }
+  }
+}
+
+# =========================================================================
+# SCIENTIFIC WORKFLOW STAGES
+# =========================================================================
+
+research_pipeline: "The AI-Driven Research Pipeline" {
+  class: [base; container]
+  label.near: top-left
+
+  lit_review: "Literature Synthesis\n& Hypothesis Generation" {
+    class: [base; capability]
+    label: "  Literature Synthesis  \n  & Hypothesis Generation  "
+  }
+
+  experimentation: "Autonomous\nExperimentation" {
+    class: [base; capability]
+    label: "  Autonomous  \n  Experimentation  "
+  }
+
+  analysis: "Data Analysis\n& Discovery" {
+    class: [base; capability]
+    label: "  Data Analysis  \n  & Discovery  "
+  }
+
+  full_cycle: "Full-Cycle\nResearch Automation" {
+    class: [base; capability]
+    label: "  Full-Cycle  \n  Research Automation  "
+  }
+
+  lit_review -> experimentation: "hypotheses" {
+    style.font-size: 11
+  }
+  experimentation -> analysis: "raw results" {
+    style.font-size: 11
+  }
+  analysis -> full_cycle: "insights" {
+    style.font-size: 11
+  }
+}
+
+# =========================================================================
+# SYSTEMS (organized by capability)
+# =========================================================================
+
+systems: "Representative Systems" {
+  class: [base; container]
+  label.near: top-left
+
+  lit_systems: "Literature & Hypotheses" {
+    class: [base; container]
+    label.near: top-left
+    paperqa: "    PaperQA2    " { class: [base; system] }
+    robin: "    Robin    " { class: [base; system] }
+    coscientist_hyp: "    Google Co-Scientist    " { class: [base; system] }
+    popper: "    Popper    " { class: [base; system] }
+  }
+
+  exp_systems: "Experimentation" {
+    class: [base; container]
+    label.near: top-left
+    chemcrow: "    ChemCrow    " { class: [base; system] }
+    coscientist: "    Coscientist    " { class: [base; system] }
+    agent_lab: "    Agent Laboratory    " { class: [base; system] }
+    sela: "    SELA    " { class: [base; system] }
+  }
+
+  analysis_systems: "Data Analysis" {
+    class: [base; container]
+    label.near: top-left
+    ds_agent: "    DS-Agent    " { class: [base; system] }
+    lida: "    LIDA    " { class: [base; system] }
+    llm_sr: "    LLM-SR    " { class: [base; system] }
+  }
+
+  full_systems: "Full Cycle" {
+    class: [base; container]
+    label.near: top-left
+    ai_sci_v1: "    AI Scientist v1    " { class: [base; system] }
+    ai_sci_v2: "    AI Scientist v2    " { class: [base; system] }
+  }
+}
+
+# =========================================================================
+# BENCHMARKS
+# =========================================================================
+
+benchmarks: "Evaluation Benchmarks" {
+  class: [base; container]
+  label.near: top-left
+  discoverybench: "  DiscoveryBench\n  (best: 25%)  " { class: [base; benchmark] }
+  scienceagent: "  ScienceAgentBench\n  (best: 34.3%)  " { class: [base; benchmark] }
+  blade: "  BLADE\n  (basic only)  " { class: [base; benchmark] }
+  mlgym: "  MLGym\n  (no novel hypotheses)  " { class: [base; benchmark] }
+}
+
+# =========================================================================
+# CHALLENGES
+# =========================================================================
+
+challenges: "Open Challenges" {
+  class: [base; container]
+  label.near: top-left
+
+  hallucination: "  Hallucination &\n  Unreliable Reasoning  " { class: [base; challenge] }
+  benchmark_gap: "  Demo vs.\n  Benchmark Gap  " { class: [base; challenge] }
+  safety: "  Safety in\n  Physical Labs  " { class: [base; challenge] }
+  novelty: "  Genuine Novelty\n  vs. Recombination  " { class: [base; challenge] }
+}
+
+# =========================================================================
+# CONNECTIONS
+# =========================================================================
+
+research_pipeline -> systems: "implemented by" {
+  style.font-size: 11
+}
+systems -> benchmarks: "evaluated by" {
+  style.font-size: 11
+}
+benchmarks -> challenges: "reveal" {
+  style.font-size: 11
+}
+```

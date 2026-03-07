@@ -1,0 +1,120 @@
+## Benchmarking the Dream: How Well Do AI Agents Actually Do Science? {#sec-benchmarks}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [DiscoveryBench (Majumder et al., Jul 2024)](https://arxiv.org/abs/2407.01725) | 264 real + 903 synthetic tasks; facet-based evaluation; best=25% |
+| 2 | [ScienceAgentBench (Chen et al., Oct 2024)](https://arxiv.org/abs/2410.05080) | 102 tasks from 44 papers; 4 disciplines; best=34.3% |
+| 3 | [BLADE (Gu et al., Aug 2024)](https://arxiv.org/abs/2408.09667) | 12 datasets; expert ground truth; EMNLP 2024 |
+| 4 | [MLAgentBench (Huang et al., Oct 2023)](https://arxiv.org/abs/2310.03302) | 13 ML tasks; file system interaction; 37.5% success |
+| 5 | [MLGym (Meta, Feb 2025)](https://arxiv.org/abs/2502.14499) | First Gym env for ML research; frontier models can't generate novel hypotheses |
+| 6 | [DSBench / DataSciBench (2024)](https://arxiv.org/abs/2408.XXXXX) | Additional data science benchmarks |
+
+:::
+
+### Why Evaluating AI Scientists Is Fundamentally Hard
+
+Before we examine specific benchmark results, it is worth understanding why evaluating AI research agents is a qualitatively different, and harder, challenge than evaluating AI systems for well-defined tasks like translation, code completion, or question answering.
+
+**Open-endedness.** Most AI benchmarks have a single correct answer or a clearly defined success criterion. SWE-bench (for coding agents) checks whether the generated code patch makes failing tests pass. MMLU (for language models) checks whether the model picks the right multiple-choice answer. But scientific research is open-ended: there are multiple valid approaches to a problem, multiple defensible interpretations of data, and multiple ways to communicate findings. A data analysis task like "What factors predict housing prices in this dataset?" has no single correct answer. A valid response could focus on linear regression, tree-based models, spatial analysis, or any of dozens of other legitimate approaches. Evaluating whether a scientific analysis is *good* requires human judgment about relevance, rigor, creativity, and insight, none of which can be fully automated.
+
+**Compositionality.** Scientific discovery requires chaining multiple capabilities: reading literature, forming hypotheses, designing experiments, writing code, running analyses, interpreting results, and communicating findings. A system that excels at code generation (90% accuracy on coding benchmarks) might still fail at scientific tasks if it cannot *combine* coding with scientific reasoning, data interpretation, and domain knowledge. Benchmark performance decomposes multiplicatively: if each step in a five-step pipeline has 80% accuracy, the end-to-end accuracy is $0.8^5 = 33\%$. This compositional challenge explains much of the gap between impressive single-capability demonstrations and disappointing end-to-end performance.
+
+**Partial credit.** In many scientific analyses, the agent produces a result that is partially correct: it identifies some relevant factors but misses others, conducts a reasonable analysis but with a methodological flaw, writes working code but for a suboptimal approach. How do you score this? Binary pass/fail loses most of the signal. Continuous metrics (like CodeBERTScore, which measures code similarity to a reference solution) capture some nuance but can miss conceptual equivalence: two very different code implementations might perform the same scientifically valid analysis.
+
+These challenges mean that benchmark results for scientific agents should be interpreted with more nuance than benchmark results for, say, image classifiers. A "25% success rate" on DiscoveryBench is not comparable to "25% accuracy" on ImageNet. The tasks are harder, the evaluation is noisier, and partial success is more common (and more useful) than the binary metric suggests.
+
+### DiscoveryBench: The Data-Driven Discovery Benchmark
+
+**DiscoveryBench** ([Majumder et al., 2024](https://arxiv.org/abs/2407.01725)) was the first benchmark to formalize the task of *data-driven scientific discovery*: not just data analysis or code generation, but the full process of taking a dataset and discovering a meaningful insight from it. This distinction matters: writing code to compute a correlation is data analysis; realizing that the correlation reveals an unexpected biological mechanism is data-driven discovery.
+
+The benchmark comprises **264 real-world tasks** drawn from six disciplines (sociology, economics, biology, chemistry, psychology, and engineering), plus **903 synthetic tasks** generated to provide more controlled evaluation. Each real task was extracted from a published paper: the authors identified the key insight reported in the paper, the dataset used to produce it, and a natural language specification of the discovery task ("Using this dataset, discover the relationship between X and Y, controlling for Z").
+
+DiscoveryBench introduced a novel **facet-based evaluation** that decomposes each discovery into constituent "facets": individual claims or findings that together constitute the overall insight. For example, the discovery that "drug response varies by genetic subtype, with subtype A showing 3x higher sensitivity" has two facets: (1) drug response varies by genetic subtype, and (2) subtype A shows 3x higher sensitivity. The agent receives credit for each facet it correctly identifies, enabling partial credit and diagnostic analysis of *which aspects* of discovery the agent handles well versus poorly.
+
+**The headline result: the best agent solved only 25% of tasks.** This was with GPT-4o and an agentic pipeline that included data exploration, hypothesis generation, code execution, and result interpretation. The performance varied dramatically across domains, with some domains (simple statistical relationships) achieving higher accuracy and others (complex multi-variable interactions requiring domain-specific reasoning) near zero.
+
+The facet analysis revealed informative failure patterns. Agents were reasonably good at identifying *that* a relationship exists (e.g., "variable X correlates with variable Y") but poor at characterizing the *nature* of the relationship (e.g., "the relationship is quadratic with an inflection point at X=7"). They struggled with tasks requiring **multi-step reasoning**, where discovering the insight required first transforming the data, then identifying a pattern in the transformed data. And they were particularly bad at tasks requiring **domain-specific knowledge**: understanding that a specific statistical pattern has a particular scientific meaning required knowledge that the LLM's pre-training provided only spottily.
+
+### ScienceAgentBench: Code Generation for Scientific Tasks
+
+**ScienceAgentBench** ([Chen et al., 2024](https://arxiv.org/abs/2410.05080)) approached the evaluation problem differently: instead of testing discovery insight, it tested the ability to write *correct code* for specific scientific tasks. The benchmark drew **102 tasks from 44 peer-reviewed papers** across four disciplines (bioinformatics, computational chemistry, geographical information science, and psychology), requiring agents to produce executable Python code that reproduces specific analyses or visualizations from those papers.
+
+Each task was expert-validated: a domain expert confirmed that the task specification was clear, the expected output was well-defined, and the evaluation metrics were appropriate. The benchmark measured three key metrics:
+
+- **Valid Execution Rate (VER):** Does the generated code run without errors?
+- **Success Rate:** Does the code produce the correct result?
+- **CodeBERTScore:** How similar is the generated code to the reference implementation (a measure of approach quality, not just output correctness)?
+
+**The best-performing setup (OpenAI's o1-preview model with Self-Debug) achieved 42.2% success rate** on execution and 34.3% on generating fully correct solutions. These results revealed several important patterns:
+
+First, **inference-time compute helps but does not solve the problem.** The o1-preview model (which uses chain-of-thought reasoning at inference time) outperformed standard GPT-4o (which does not), scoring 42.2% vs. lower rates. This suggests that extended reasoning improves scientific code generation, but the improvement is incremental rather than transformative.
+
+Second, **the Self-Debug framework outperformed CodeAct/OpenHands.** Self-Debug, which generates code, runs it, reads any error messages, and generates corrected code, achieved better results than the more complex OpenHands agent framework. This somewhat surprising finding suggests that for scientific coding tasks, *simplicity wins*: a focused code-debug loop outperforms a general-purpose agent with many available actions (file browsing, web searching, terminal commands).
+
+Third, **providing expert background knowledge improved performance,** confirming that domain-specific context is critical. When agents were given descriptions of the relevant scientific methods and libraries (information that a domain expert would know but a general-purpose agent would need to discover), their success rates improved significantly. This reinforces the pattern we have seen throughout: domain-specific knowledge injection consistently beats generic prompting.
+
+### BLADE: Measuring Analysis Depth
+
+**BLADE** (Benchmarking Language Model Agents for Data-Driven Science, [Gu et al., EMNLP 2024](https://arxiv.org/abs/2408.09667)) addressed a subtler question: not whether agents can produce correct code, but whether they can produce *insightful* analyses, the kind of analysis that reveals something non-obvious about the data, rather than simply computing descriptive statistics.
+
+The benchmark comprised **12 datasets with expert-collected ground truth**: each dataset was analyzed by professional data scientists who documented not just the basic analyses (means, distributions, correlations) but also the deeper insights they discovered (non-linear relationships, interaction effects, confounding variables, unexpected patterns). The agent's output was then compared against this expert analysis.
+
+The key finding was stark: **LLMs are "capable of performing basic analyses but limited in their ability to provide deeper insights."** Agents consistently identified surface-level patterns (distributions, obvious correlations, basic group comparisons) but missed the non-obvious findings that characterized expert analyses (complex interactions, confounded relationships, and patterns that only emerge after appropriate data transformations).
+
+This result has direct implications for Maya's drug repurposing work. An AI agent could correctly compute binding affinities and produce distribution plots, but it would likely miss the subtle signals that a domain expert would catch: that a particular subset of drugs shows an unexpected relationship when analyzed by chemical family rather than individually, or that a confounding variable (the drugs' different solubility profiles) explains an apparent efficacy difference. The value of AI analysis lies in automating the routine computations so that the human expert can focus on the deeper interpretive work.
+
+::: {.callout-note title="Think Hard: Why might an agent perform well on synthetic benchmark tasks but poorly on real-world scientific problems?"}
+Synthetic benchmark tasks are, by design, *self-contained*: all the information needed to solve the task is provided in the task specification. Real scientific problems are *context-dependent*: the researcher needs background knowledge about the field, familiarity with common methodological pitfalls, understanding of how to interpret domain-specific results, and judgment about which findings are scientifically interesting versus statistically accidental. An agent might achieve 80% accuracy on synthetic tasks that test individual analytical skills (can you compute a regression? can you make a scatter plot?) while achieving only 20% on real tasks that require *composing* those skills with domain knowledge and scientific judgment. This gap is structural, not merely a matter of model size or training data. It reflects the difference between *capability* (the agent can perform each step) and *competence* (the agent can orchestrate the right steps in the right order for the right reasons). DiscoveryBench's real-world tasks expose this gap more clearly than any synthetic benchmark could.
+:::
+
+### ML Research Benchmarks: Can AI Agents Do Novel ML Research?
+
+Two benchmarks specifically targeted the question of whether AI agents can perform machine learning *research*: not just apply existing ML methods to data, but design new approaches, identify novel architectures, and generate genuine scientific insights about learning.
+
+**MLAgentBench** ([Huang et al., Stanford, 2023](https://arxiv.org/abs/2310.03302)) was the seminal contribution in this space. It defined **13 ML research tasks** (including improving model performance on specific benchmarks, implementing and evaluating novel techniques, and solving open research problems) that required agents to interact with a file system, write code, execute experiments, and analyze results, much as a graduate student working on a research project.
+
+The tasks ranged from relatively structured (improve accuracy on CIFAR-10 by modifying the training procedure) to open-ended (improve the performance of a specific NLP model on a benchmark). The best agent (Claude 3 Opus at the time of publication) achieved a **37.5% success rate**, better than random, but far from reliable. Failure analysis showed that agents struggled most with tasks requiring *multi-step experimental design*: they could write code and run experiments but had difficulty interpreting intermediate results and using those interpretations to design follow-up experiments. This *experiment-interpret-redesign* loop is the core of ML research, and it requires a form of scientific reasoning that current LLMs handle poorly.
+
+**MLGym** ([Meta, 2025](https://arxiv.org/abs/2502.14499)) pushed this evaluation further by creating the **first Gym-style environment** for ML research tasks. Modeled after OpenAI Gym (the standard framework for RL environments), MLGym defines a state space (the research project's current state: code, data, results), an action space (the researcher's possible actions: edit code, run experiments, analyze results, write reports), and reward signals (improvement on the target metric). This framing enables systematic comparison of different agents and strategies within a standardized evaluation framework.
+
+MLGym defined **13 open-ended ML research tasks**, covering areas from low-rank approximation to feature selection to novel optimization algorithms. The tasks were designed to test not just ML engineering skill but *research creativity*: the ability to generate novel hypotheses about how to improve performance.
+
+**The headline finding was sobering:** frontier models (GPT-4, Claude 3.5 Sonnet) could **find better hyperparameters** (outperforming default configurations through systematic search) but **could not generate novel hypotheses, algorithms, architectures, or substantial improvements.** The models excelled at optimization within a known framework (try learning rate 0.001 instead of 0.01, add dropout, adjust batch size) but did not propose structurally different approaches (a new loss function, a novel architectural motif, a creative data augmentation strategy). This finding directly challenges the most ambitious claims in the field: if frontier LLMs cannot generate novel ML research ideas even in a controlled environment with clear feedback signals, the path to AI-driven scientific breakthroughs is longer than the headline demonstrations suggest.
+
+::: {.callout-warning title="Common Misconception: More parameters equals better scientific reasoning"}
+MLGym's results directly contradict the assumption that scaling model size will naturally lead to better scientific reasoning. GPT-4 and Claude 3.5 Sonnet are among the most capable language models in existence, yet they failed to generate novel hypotheses on the ML research tasks. The models that performed best on the *analysis* and *optimization* components (DS-Agent, for example) achieved their advantage through domain-specific knowledge injection (case-based reasoning from Kaggle), not through larger model size. This pattern suggests that scientific reasoning is not simply "general intelligence plus more parameters" but requires *specific capabilities* (creative problem formulation, analogical reasoning across domains, and the ability to recognize surprising results) that current training approaches do not reliably develop. Scaling may eventually produce these capabilities, but the evidence so far suggests that *how* the model is trained (with what knowledge, in what framework) matters more than *how large* it is.
+:::
+
+### The Gap Between Demo and Benchmark
+
+We can now confront the central tension that has run through this chapter: the AI Scientist writes papers for $15, Coscientist autonomously executes chemistry experiments, Robin discovers drug candidates in days, yet the best agents solve only 25-42% of standardized scientific tasks. How do we reconcile these two realities?
+
+**Three factors explain the gap.**
+
+First, **demonstrations are carefully scoped; benchmarks are broadly sampled.** The AI Scientist was demonstrated on topics within the team's area of expertise (diffusion models, grokking), using code templates they designed. Robin was demonstrated on drug repurposing, using databases and tools curated for that specific workflow. These are not arbitrary cherry-picks (they represent legitimate proof-of-concept demonstrations) but they are not representative of the full range of scientific tasks. Benchmarks like DiscoveryBench and ScienceAgentBench deliberately sample *broadly*, including tasks from domains (sociology, economics, psychology) where the agent has less specialized knowledge and fewer pre-built tools.
+
+Second, **demonstrations optimize for impressive outputs; benchmarks optimize for correct outputs.** A generated paper that has a compelling narrative, clean figures, and flowing prose is impressive even if some claims are overstated or some analyses contain subtle errors. A benchmark task that requires computing a specific statistical quantity is either correct or incorrect, with no credit for presentation quality. The AI Scientist's papers are genuinely impressive as *documents*; their accuracy as *science* is more uneven.
+
+Third, **demonstrations benefit from iteration and selection; benchmarks require first-attempt reliability.** When demonstrating a system, researchers typically run many attempts and present the best results. In a benchmark, every task produces a score, including the failures. A system that succeeds spectacularly 30% of the time and fails unremarkably 70% of the time will produce dazzling demos and mediocre benchmark scores, which is roughly what we observe.
+
+Understanding this gap is essential for making informed decisions about when to deploy AI research agents. If you need a system that works *reliably* on arbitrary scientific tasks, the benchmark results (25-42% success) are the relevant measure, and current systems are not ready for unsupervised deployment. If you need a system that works *sometimes* on *specific* tasks within a well-defined domain, with human oversight to catch failures, the demonstrations suggest genuine utility, especially for accelerating specific workflow stages (literature review, code generation, visualization) rather than automating the entire research process.
+
+| Benchmark | Year | Tasks | Domains | Best Agent | Score | Key Finding |
+|-----------|------|-------|---------|------------|-------|-------------|
+| MLAgentBench | 2023 | 13 | ML | Claude 3 Opus | 37.5% | Multi-step experimental design is the bottleneck |
+| DiscoveryBench | 2024 | 264 (real) | 6 | GPT-4o pipeline | 25% | Agents miss complex relationships; domain knowledge critical |
+| BLADE | 2024 | 12 | General | Various | Basic only | Agents do basic analyses but miss deeper insights |
+| ScienceAgentBench | 2024 | 102 | 4 | o1-preview + Self-Debug | 34.3% | Inference-time compute helps; simplicity beats complexity |
+| MLGym | 2025 | 13 | ML | GPT-4 / Claude 3.5 | Better params only | Frontier models cannot generate novel hypotheses |
+
+::: {.callout-note title="Think Hard: The best agents solve only 25-42% of benchmark tasks. Is this glass half-full or half-empty?"}
+The answer depends on your frame of reference. **Half-full perspective:** These benchmarks are extremely challenging. They ask agents to perform tasks that took human researchers months of work, often requiring deep domain expertise and creative reasoning. Solving 25-42% of such tasks *at all*, with no domain-specific training, is striking. The rate of improvement has been rapid (MLAgentBench's best score rose from ~20% to 37.5% in under a year), and if this trajectory continues, practically useful accuracy levels (>70%) might be achievable within a few years. **Half-empty perspective:** At 25-42% accuracy, these systems fail more often than they succeed, and their failures can be difficult to detect (the output *looks* plausible even when incorrect). For high-stakes scientific applications (drug discovery, clinical biomarker identification, materials design) a system that is wrong 60-75% of the time is dangerous if used without expert oversight. The honest assessment lies between these perspectives: AI research agents are useful **augmentation tools** today (accelerating specific tasks, generating candidates for human review) but not reliable **automation tools** (replacing human judgment on the complete research process). The gap will narrow, but the rate of narrowing depends more on architectural innovations (better knowledge integration, improved compositional reasoning) than on scaling model size.
+:::
+
+**Where Maya stands at the end of the chapter.** Maya now has a comprehensive, realistic picture of the field. She knows that PaperQA2 can accelerate her literature review to superhuman speed. She knows that DS-Agent can help with data analysis, and that LIDA can generate visualizations. She knows that Agent Laboratory can reduce her overall research costs by 84%. But she also knows that even the best agents solve only 25-42% of realistic scientific tasks, that their analyses tend toward the superficial, and that their most impressive demonstrations may not generalize to her specific domain. Her conclusion, and the chapter's conclusion, is that the right approach is *selective augmentation*: deploy AI agents where they are demonstrably reliable (literature search, routine coding, visualization), maintain human oversight where they are not (hypothesis evaluation, result interpretation, scientific judgment), and watch the benchmarks closely for signs that the reliability frontier is advancing. The AI will not write her next paper for fifteen dollars. But it might save her six months of literature review, and that is transformative enough to be getting on with.
+
+::: {.callout-note title="Self-Explanation Prompt"}
+Why might an agent perform well on synthetic benchmark tasks but poorly on real-world scientific problems? The best agents solve only 25-42% of benchmark tasks: is this glass half-full or half-empty? What rate of improvement would be needed for these systems to be practically useful for your own research workflow?
+:::

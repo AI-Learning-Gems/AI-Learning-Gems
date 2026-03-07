@@ -1,0 +1,103 @@
+## The Full-Cycle AI Scientist: End-to-End Research Automation {#sec-full-cycle}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [The AI Scientist v1 (Lu et al., Aug 2024)](https://arxiv.org/abs/2408.06292) | Full pipeline: idea → code → experiments → paper → review, <$15/paper |
+| 2 | [The AI Scientist v2 (Yamada et al., Feb 2025)](https://sakana.ai/ai-scientist-v2/) | Template-free progressive tree search; first accepted AI paper |
+| 3 | [Agent Laboratory (Schmidgall et al., Jan 2025)](https://arxiv.org/abs/2501.04227) | Human-in-the-loop three-stage pipeline; 84% cost reduction |
+| 4 | [Robin (FutureHouse, May 2025)](https://www.futurehouse.org/research-announcements/robin) | Multi-agent drug repurposing; dAMD discovery validation |
+| 5 | [Google AI Co-Scientist (Gottweis et al., Feb 2025)](https://research.google/blog/accelerating-scientific-breakthroughs-with-an-ai-co-scientist/) | AML drug target validation in vitro |
+
+:::
+
+### The Audacious Vision: AI Scientist v1
+
+In August 2024, researchers at Sakana AI, in collaboration with the University of British Columbia, published a paper that pushed the boundaries of what anyone had demonstrated an LLM-based system could do. **The AI Scientist** ([Lu et al., 2024](https://arxiv.org/abs/2408.06292)) was not an agent for one stage of research. It was a system that attempted the entire scientific process, from brainstorming a research idea to producing a finished, formatted research paper, without any human involvement in between. And it did so for a total cost of less than fifteen dollars per paper.
+
+To understand why this was striking, consider what the full research process normally requires. A human researcher needs to: (1) identify a promising research direction by reading existing literature, (2) formulate a specific, testable hypothesis, (3) design an experiment to test it, (4) write the code to implement the experiment, (5) run the experiments and collect results, (6) create figures and tables to present the results, (7) write a paper explaining the motivation, methods, results, and conclusions, and (8) revise the paper based on peer feedback. Each of these steps requires different skills: creativity, domain expertise, programming ability, statistical reasoning, clear writing. The AI Scientist attempted all of them.
+
+The system operated in five sequential phases:
+
+**Phase 1: Idea Generation.** Given a research topic area (e.g., "diffusion model training dynamics"), the system used an LLM to brainstorm a list of potential research questions. Each idea was evaluated for novelty (has this been done before?), feasibility (can it be tested with available resources?), and significance (would the result be interesting if found?). Ideas that passed the filter were ranked, and the top candidate was selected for investigation.
+
+**Phase 2: Experiment Implementation.** The selected idea was translated into code. Here was the critical constraint of v1: the system started from a **human-authored code template**, a working baseline implementation of a related experiment, written by the paper's authors. The AI Scientist modified this template to implement the new idea: changing model architectures, modifying training procedures, adding new evaluation metrics. This was not writing code from scratch; it was adapting an existing codebase, which is closer to how graduate students often work (forking a professor's code and modifying it) but raises questions about how much credit the system deserves for its experimental designs.
+
+**Phase 3: Experiment Execution and Analysis.** The modified code was run, producing training logs, metrics, and raw results. The system executed multiple runs with different hyperparameters, analyzed the results for statistical significance, and identified the key findings. It generated publication-quality figures (training curves, comparison tables, ablation studies) using matplotlib.
+
+**Phase 4: Paper Writing.** Using the experimental results, the system wrote a complete paper in LaTeX: abstract, introduction (including motivation and relation to prior work), methods, results, discussion, and conclusion. The system used Semantic Scholar's API to search for relevant prior work and generate a literature review, producing citations to real papers.
+
+**Phase 5: Automated Peer Review.** In perhaps the most meta aspect of the entire system, the AI Scientist also played the role of *reviewer*: it evaluated the finished paper using a structured rubric (similar to those used by ML conferences like NeurIPS and ICML), scoring the paper on novelty, significance, soundness, and clarity. This automated review served as both a quality filter and a signal for which papers were worth improving through additional revision cycles.
+
+### What Fifteen Dollars Buys You
+
+The outputs of the AI Scientist were, by any measure, a mixed bag. Honestly examining both the successes and failures is more informative than celebrating the headline.
+
+**The successes were genuine.** The system produced papers on topics like "Adaptive Dual-Scale Denoising" (a modification to diffusion model training) and "Learning Rate Grokking" (an investigation of how different learning rate schedules affect the sudden-generalization phenomenon known as grokking). These papers had coherent arguments, real experimental results, and conclusions that followed from the data. The ideas, while not earth-shattering, represented plausible incremental contributions of the kind that populate many workshop papers and conference submissions. The automated reviewer achieved *near-human accuracy* at predicting paper quality: its ratings correlated well with human reviewer ratings, suggesting that LLMs are genuinely competent at evaluating research quality, even if their research *generation* is more uneven.
+
+**The failures were equally genuine, and instructive.** The literature reviews were often superficial, citing real papers but not engaging deeply with their findings or correctly positioning the new work relative to them. The experiment execution sometimes produced buggy results that the system failed to detect: numerical errors, incorrect baselines, or results that looked plausible but were artifacts of implementation mistakes. Most seriously, the system occasionally made claims in the paper that were not fully supported by the experimental evidence, the kind of overstatement that human peer reviewers routinely catch but that requires deep reading and domain knowledge to identify. Several generated papers contained "the notorious numerical hallucination problem," where specific numbers that appeared in the text did not match the numbers in the accompanying figures or tables.
+
+These failure modes are not crippling, but they are structurally important. They reveal that the *format* of scientific communication (the flow of a paper, the structure of an argument, the visual design of figures) is something LLMs can reproduce competently, while the *substance* of scientific reasoning (ensuring claims are supported, identifying subtle errors, positioning contributions accurately in the intellectual landscape) is something they handle unevenly at best.
+
+::: {.callout-note title="Think Hard: Why does the AI Scientist's automated reviewer achieve near-human performance while the paper generation has significant shortcomings?"}
+This asymmetry (good evaluation, mediocre generation) is not accidental. It reflects a well-understood principle in both AI and human cognition: *evaluation is easier than generation.* To evaluate a paper, the reviewer can check specific, concrete properties: Are the claims supported by the evidence? Are the baselines appropriate? Is the writing clear? Each of these checks is a focused, answerable question. To *generate* a paper, the system must simultaneously satisfy all of these properties while constructing a novel argument from scratch, a much harder combinatorial challenge. This is the same reason that chess engines could evaluate positions effectively long before they could play at a master level, and why human readers can identify flawed arguments much more easily than they can construct sound ones. For the AI Scientist, this means the automated reviewer is genuinely useful as a quality filter, even though the paper generator needs significant improvement. In a practical workflow, this asymmetry could be leveraged: use AI to generate *draft* papers rapidly and cheaply, then use AI review (combined with human review) to identify and fix the drafts' shortcomings.
+:::
+
+### From Templates to Agentic Search: AI Scientist v2
+
+The most fundamental limitation of AI Scientist v1 was its dependence on human-authored code templates. The system could modify and extend existing code, but it could not start from a blank slate. This meant that the set of possible experiments was constrained by what the template-writers had anticipated: the system could explore variations within a pre-defined space but could not venture into truly novel experimental designs that required fundamentally different code architectures.
+
+**AI Scientist v2** ([Yamada et al., Sakana AI, 2025](https://sakana.ai/ai-scientist-v2/)) addressed this limitation through a technique called **progressive agentic tree search.** Instead of starting from a monolithic code template, v2 builds experiments incrementally through a tree-structured exploration process:
+
+1. The system starts with a *minimal* codebase (just enough infrastructure to load data and define a basic training loop) rather than a fully implemented experiment.
+2. It generates multiple possible *next steps* (add a specific architectural component, implement a particular loss function, introduce a data augmentation technique), each representing a branch in the tree.
+3. Each branch is executed and evaluated, and the most promising branches are expanded further, while unpromising ones are pruned.
+4. This process continues until the system has built a complete, functioning experiment, not by modifying a template but by incrementally constructing one from components.
+
+This progressive construction approach has two advantages over the template-based approach. First, it enables a much wider range of experimental designs, because the system is not constrained by the template-writer's assumptions. Second, the tree-search structure provides a natural mechanism for handling failures: if a particular code addition causes bugs or degrades performance, the system can backtrack to a previous checkpoint and try a different branch, rather than trying to debug the broken extension.
+
+The milestone achievement of v2 was that a paper generated entirely by the system, with no human-authored code template and minimal human involvement, was **accepted at a peer-reviewed venue** after standard peer review. This was, to the best of public knowledge, the first time an AI-generated scientific paper passed standard peer review. The significance of this achievement is genuine but contested: it demonstrates that AI systems can produce work of publishable quality, but it also raises questions about the quality threshold of the specific venue, the review rigor applied, and whether the paper represents genuine scientific contribution or sophisticated imitation of the form.
+
+::: {.callout-warning title="Common Misconception: The AI Scientist can replace human researchers"}
+The headline ("AI system writes scientific papers for $15 that pass peer review") invites a straightforward conclusion: human researchers are about to be replaced. But the benchmark data tells a different story. When AI Scientist and similar systems are evaluated on standardized scientific task benchmarks (DiscoveryBench, ScienceAgentBench), they solve only 25-42% of tasks. The papers they produce pass review at some venues but would likely be rejected at top-tier conferences that apply more rigorous evaluation criteria. Their literature reviews are shallow, their experimental designs are conventional, and their claims sometimes overstate the evidence. What The AI Scientist demonstrates is not that human researchers are replaceable, but that the *mechanical* aspects of research (writing code, running experiments, formatting papers) can be automated, freeing human researchers to focus on the *intellectual* aspects: choosing important problems, designing creative experiments, interpreting results in context, and identifying genuinely novel contributions. The "$15 per paper" is real, but the intellectual value of a paper cannot be measured in dollars.
+:::
+
+### The Human-in-the-Loop Alternative: Agent Laboratory
+
+If The AI Scientist represents the "full autonomy" philosophy (remove the human entirely and let the AI drive the process end-to-end), then **Agent Laboratory** ([Schmidgall et al., 2025](https://arxiv.org/abs/2501.04227)) represents the "augmented researcher" philosophy: keep the human in the loop at strategic decision points and let the AI handle the time-consuming mechanical work.
+
+We covered Agent Laboratory's three-stage architecture in @sec-experimentation, but its relevance here is in the *comparison* with The AI Scientist. Both systems aim to produce research outputs; they differ in *where the human sits.*
+
+| Aspect | AI Scientist (v1/v2) | Agent Laboratory |
+|--------|---------------------|-----------------|
+| **Human involvement** | None (fully autonomous) | Feedback at each stage gate |
+| **Starting point** | Code template (v1) or minimal infrastructure (v2) | Research topic |
+| **Output** | Complete paper | Research report |
+| **Cost reduction** | ~$15/paper (from ~$100k human cost) | 84% reduction vs. human baseline |
+| **Quality assurance** | Automated peer review | Human feedback + automated checks |
+| **Success on benchmarks** | 25-34% (DiscoveryBench/ScienceAgentBench) | Higher quality per output (human-reviewed) |
+| **Key advantage** | Speed, cost, scale | Quality, reliability, trust |
+| **Key limitation** | Unreliable quality, hallucination risk | Requires human time at each gate |
+
+The "84% cost reduction" finding is significant because it quantifies the practical value proposition of the augmentation approach. If a fully autonomous system produces outputs that require extensive human review and correction afterward (effectively undoing much of the automation), the net time savings may be less than a system that incorporates human feedback during the process and produces higher-quality outputs from the start. Agent Laboratory's finding that "human feedback significantly improves quality" is both unsurprising and important: it confirms that the most productive near-term configuration is not "AI replaces human" but "AI and human collaborate, with each contributing their comparative advantage."
+
+### Real-World Validation: From Hypothesis to Experiment
+
+The most compelling evidence for AI agents' potential in science comes not from papers about AI writing papers, but from cases where AI-generated hypotheses were validated through real-world experiments by human researchers.
+
+**FutureHouse's Robin** autonomously discovered a drug repurposing candidate for dry age-related macular degeneration (dAMD). The system searched thousands of ophthalmology and pharmacology papers (via Crow), identified potential targets in the complement cascade and inflammatory pathways implicated in dAMD, proposed specific existing drugs that might modulate these targets, and designed computational analyses (via Finch) to evaluate the drug-target interactions. The resulting candidates were judged by domain experts as scientifically sound and worthy of experimental follow-up. The entire process, from research question to ranked candidate list, completed in days, a timeline that would require months of human effort.
+
+**Google's AI Co-Scientist** went one step further: its hypotheses were not just proposed but *validated in vitro.* For acute myeloid leukemia (AML), the system's "generate, debate, evolve" framework proposed specific drug targets: existing drugs that might be repurposed for AML treatment. Collaborating biologists then tested these predictions in laboratory cell cultures, and the AI's predictions were confirmed. This is not a computational result; it is a biological result that was *inspired by* computational prediction. The AI did not run the experiments; human biologists did. But the hypothesis, the crucial intellectual contribution, originated from the AI system.
+
+These validations are important because they cross the boundary from *in silico* (in the computer) to *in vitro* (in the laboratory). A paper written by an AI can be assessed for its formatting and argumentation, but a hypothesis validated in the lab can be assessed for its *scientific truth.* The dAMD and AML results demonstrate that AI systems can generate hypotheses that are not just plausible-sounding but *experimentally correct:* the outputs correspond to physical reality.
+
+::: {.callout-note title="Think Hard: If AI Scientist v2 can produce papers that pass peer review, does this reveal more about the AI's capability or about the limitations of peer review?"}
+This is a genuinely important question, and the honest answer is "both." On the AI side, the fact that a system can produce a paper with a coherent argument, real experimental results, and a correct format is a genuine capability achievement. On the peer review side, the result highlights well-documented limitations of the review process: reviewers are often overstretched (reading 5-10 papers in a few weeks alongside their own research), reviews are sometimes superficial (checking that the paper "looks right" rather than deeply verifying claims), and the review criteria at many venues emphasize novelty and presentation over rigorous verification. A paper that has a correct structure, plausible experiments, and incremental results can pass review even if its literature review is shallow, its claims slightly overstated, or its code contains subtle bugs, especially at workshops and lower-tier venues. This does not make the AI Scientist's achievement meaningless, but it contextualizes it: the system has learned to clear the *minimum quality bar* of published research, which is not the same as producing research of the highest quality. The practical implication is that AI-generated papers should be treated like papers from any other source: read critically, with claims verified against the evidence and methods examined for soundness, regardless of whether the author is human or artificial.
+:::
+
+**Where Maya stands after this section.** Maya can now see the full spectrum of approaches. At one extreme, The AI Scientist offers complete autonomy: she could feed in her drug repurposing topic and potentially receive a draft paper, but she would need to extensively verify every claim, check every analysis, and validate every citation. At the other extreme, Agent Laboratory offers structured augmentation: the AI would accelerate her literature review, help design and run computational experiments, and draft sections of her report, but she would provide feedback at each stage, maintaining quality control. In between, Robin and Google's AI co-scientist offer targeted autonomy in hypothesis generation. They might identify drug repurposing candidates that she would not have found through manual literature review, but she would still need to validate them through her own computational and experimental work. Given the stakes of her research (false positives waste months of wet-lab effort), Maya would likely choose the Agent Laboratory approach for her next project, supplementing her literature review with PaperQA2 or Robin to surface AI-generated candidates that she evaluates herself.
+
+::: {.callout-note title="Self-Explanation Prompt"}
+What role does human feedback play in Agent Laboratory, and at what point (if ever) might this become unnecessary? Consider what types of human judgments are most valuable (problem selection? methodology review? interpretation of results?) and how you would measure whether an AI system had become reliable enough at each type to remove the human from the loop.
+:::
