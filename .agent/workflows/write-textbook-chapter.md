@@ -314,7 +314,17 @@ The hook must be **immediately understandable** to educated people in ANY countr
 
 **3. Notation table** (table)
 - WHY: Pre-teaching notation reduces extraneous cognitive load (scaffolding research).
-- HOW: Define ALL mathematical notation upfront. Include symbol, meaning, and example.
+- HOW: Define ALL mathematical notation upfront. The table MUST have four columns:
+
+| Column | What to include |
+|---|---|
+| **Symbol** | The LaTeX symbol: `$\theta_i$`, `$\sigma(z)$`, etc. |
+| **Definition** | One-line description. For functions, show the signature: `$\sigma\colon \mathbb{R} \to (0,1)$` |
+| **Valid Values** | The mathematical domain/range: `$\theta_i \in (0, \infty)$`, `$w_{ij} \in \{0,1,2,\ldots\}$`, `$\beta > 0$` |
+| **Example** | A concrete instance from the running example: `$\theta_{\text{Clarity}} = 4.48$`, `$\sigma(1.0) \approx 0.73$` |
+
+The "Valid Values" column is critical because it tells the reader the *space* the symbol lives in (integers? positive reals? all reals? a probability?). Without it, readers must guess whether $\theta_i$ is an integer, a probability, or a real number. The "Example" column grounds the abstraction in the running example, so the reader can immediately connect symbol to story.
+
 - **IMPORTANT:** The notation table is in the TEXTBOOK-PLAN.md — use it and extend as needed.
 
 **4. Chapter Introduction — The Narrative Advance Organizer** (8-16 paragraphs)

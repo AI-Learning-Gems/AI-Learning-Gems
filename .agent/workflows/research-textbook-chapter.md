@@ -558,7 +558,7 @@ The writing agent should copy these to `{Chapter}/images/` and embed them in the
 
 ## Cross-Cutting Concerns
 
-**Notation table:** [List all mathematical symbols that will be used across sections]
+**Notation table:** [List all mathematical symbols that will be used across sections. For each symbol, provide four columns: **Symbol**, **Definition** (for functions, show signature like $f\colon A \to B$), **Valid Values** (the domain: integers, positive reals, all reals, etc.), and **Example** (a concrete value from the running example).]
 
 **Concept map design:** [Describe the D2 concept map: nodes, connections, semantic classes]
 
@@ -587,7 +587,7 @@ Before finalizing the plan, verify:
 - [ ] Visualizations are planned for each section
 - [ ] **Source Image Catalog is present** with concrete file paths, captions, and section assignments
 - [ ] Each section lists which source images to embed (under "Source images to embed")
-- [ ] Notation table covers all symbols across all sections
+- [ ] Notation table covers all symbols across all sections, with four columns: Symbol, Definition, Valid Values, Example
 - [ ] Misconceptions and difficult questions are captured
 - [ ] Math Background assessment is present (either lists prerequisite concepts for appendix, or notes "not needed")
 - [ ] Closing section includes all required elements

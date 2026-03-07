@@ -49,6 +49,7 @@ You are editing **prose quality only**. Think of yourself as a copy editor, not 
 - Source headers (the collapsible source tables at the top of each section)
 - The A-G instructional structure (example → explanation → visual → example → prompt → practice → transition)
 - Factual claims, numbers
+- Notation tables — do not change symbols, valid values, or examples. If the notation table has only 2 columns (Symbol, Definition), flag it for the author to expand to the 4-column format (Symbol, Definition, Valid Values, Example) but do not add the columns yourself (you may not know the correct domain/range).
 - Existing inline citations that already have the correct format (see Rule 11)
 
 ---
