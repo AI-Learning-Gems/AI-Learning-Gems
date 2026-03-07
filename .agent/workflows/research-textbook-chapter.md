@@ -567,6 +567,8 @@ The writing agent should copy these to `{Chapter}/images/` and embed them in the
 **Common Misconceptions:** [List 3-5 common misconceptions discovered during research (or propose your own), which are common points of misunderstanding about the topic. One example is where the approach differs from previous approaches]
 
 **Think Hard questions:** [List 3-5 deeper questions the chapter should help answer about the topic]
+
+**Math Background assessment:** [Assess whether this chapter needs a Math Background appendix. List the mathematical concepts used across sections that are above 10th-grade math level (e.g., MLE, Bayesian posteriors, KL divergence, Fisher Information, variance-covariance matrices). For each, note which section(s) use it and whether the concept is derived from scratch in the chapter or assumed as prior knowledge. If 3+ concepts are assumed as prior knowledge and are above undergraduate intro-stats level, recommend adding a `_98-math-background.qmd` appendix. If the chapter is not heavily mathematical, note "Math Background appendix: not needed."]
 ```
 
 ---
@@ -587,6 +589,7 @@ Before finalizing the plan, verify:
 - [ ] Each section lists which source images to embed (under "Source images to embed")
 - [ ] Notation table covers all symbols across all sections
 - [ ] Misconceptions and difficult questions are captured
+- [ ] Math Background assessment is present (either lists prerequisite concepts for appendix, or notes "not needed")
 - [ ] Closing section includes all required elements
 
 ---

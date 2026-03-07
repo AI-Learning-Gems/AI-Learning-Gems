@@ -235,6 +235,7 @@ This editing pass should ONLY improve prose — never flatten good instructional
 - Transitions between sections ("Now that we understand X, the next question is Y")
 - Running example callbacks ("Returning to our visual search engine...")
 - Advance organizers and concept maps
+- Math Background appendix (`_98-math-background.qmd`) — edit prose inside it, but preserve all formulas, cross-references, and the subsection structure. The same editing rules (Rules 1-11) apply to Math Background prose.
 
 **DO NOT merge** short paragraphs into long ones just to reduce paragraph count. Short paragraphs that each contain one idea are correct.
 
@@ -354,7 +355,8 @@ After all sections are edited:
 2. **Check figure/equation reference style:** Ensure consistent phrasing
 3. **Check transition quality:** Each section's closing paragraph should connect to the next section's topic
 4. **Check inline citations:** Ensure every named work has a linked citation on first mention per section (Rule 11). Cross-check against the source table at the top of each section.
-5. Chat: "Consistency pass complete"
+5. **Check Math Background references:** If the chapter has a `_98-math-background.qmd` appendix, verify that body sections contain `(see @sec-math-background ...)` forward-references at the first mention of each prerequisite concept covered in the appendix.
+6. Chat: "Consistency pass complete"
 
 ---
 

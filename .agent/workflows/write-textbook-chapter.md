@@ -58,6 +58,7 @@ Statistics/
     ├── _02-the-bayesian-framework.qmd       ← Section 2
     ├── _03-computing-credible-intervals.qmd ← Section 3
     ├── _04-examples.qmd                     ← Section 4
+    ├── _98-math-background.qmd              ← Math Background appendix (if needed)
     ├── _99-closing.qmd                      ← Summary, questions, resources
     └── sources/                             ← Symlink or note pointing to AI-Learning-Gems/sources/
 ```
@@ -486,6 +487,43 @@ These address deep "why" and "how" questions that a curious reader would natural
 **4. Common mistakes to avoid** — List typical errors, why they happen, and how to avoid them.
 
 **5. Curated resources** — List of 5-10 verified URLs with descriptions.
+
+---
+
+### MATH BACKGROUND APPENDIX (Conditional — Only for Mathematical Chapters)
+
+**Not every chapter needs this.** Skip it if the chapter has no equations, or if the equations are simple enough that any technically literate reader would follow them (e.g., simple averages, basic probability). Add it when the chapter uses math above a 10th-grade level and that math is load-bearing for the core argument: MLE derivations, Bayesian posteriors, KL divergence, Fisher Information, variance-covariance matrices, and similar.
+
+**When to include it:** After writing all body sections and the closing, review the chapter and ask: "Does this chapter assume knowledge of mathematical concepts that a smart reader with an undergraduate CS/ML background might be rusty on?" If yes, add a `_98-math-background.qmd` appendix.
+
+**File:** `_98-math-background.qmd` (numbered `_98-` so it sorts between the last body section and `_99-closing.qmd`). Add the corresponding `{{< include >}}` to the index file, between the last body section and the closing.
+
+**What to include (chapter-backwards design):**
+
+1. **Audit the chapter for prerequisite math.** Scan all body sections for mathematical concepts that are *used* but not *derived from scratch*. Examples: the logistic sigmoid, MLE, Bayes' theorem, covariance matrices, KL divergence, softmax, gradient descent, Fisher Information.
+
+2. **Filter by difficulty.** Only include concepts above 10th-grade math. Do not explain what a "mean" or "probability" is. Do explain MLE, Bayesian posteriors, the variance of a difference, KL divergence, etc. The threshold: would an upper-division undergraduate ML student need a quick refresher?
+
+3. **Search for existing material.** Before writing from scratch, check the `AI-Learning-Gems/` folder for existing notes on the topic (e.g., `Probability/An Introduction to Bayesian Inference.md`, `Statistics/Estimation/*.md`, `Deep-Learning/KL Divergence vs Cross Entropy.md`). Also search the high-quality blogs registry (`.cursor/rules/high-quality-blogs.mdc`) for excellent treatments. Use these as source material, not as content to copy verbatim.
+
+4. **Write brief, intuitive subsections.** Each prerequisite concept gets one subsection (### heading). Each subsection should:
+   - Be 150-300 words (brief, not a full tutorial)
+   - Start with what the concept *does* and *why it matters for this chapter* (connect it to specific sections via `@sec-*` cross-references)
+   - Give the key formula with a one-sentence plain-language explanation of each symbol
+   - Include one concrete numerical example if the formula is non-obvious
+   - End with a forward-pointer: "This is the mathematical basis for [specific thing] in @sec-X"
+
+5. **Match the chapter's writing quality standards.** The Math Background section must be conversational, engaging, and precise, just like the body sections. No dry textbook definitions. Explain concepts as if to a smart friend who last saw this material two years ago and needs their memory jogged.
+
+6. **Add forward-references from body sections.** In each body section where a prerequisite concept first appears, add a parenthetical pointer: "(see @sec-math-background for a review of [concept])". Place these at the *first mention* only, not every time the concept appears.
+
+**What NOT to include:**
+- Full derivations of the prerequisite concepts (that is a different chapter)
+- Concepts below 10th-grade math (simple averages, basic probability, what a function is)
+- Concepts that are already explained in the body sections themselves
+- General ML background (what is a neural network, what is gradient descent) unless the chapter's math specifically depends on it
+
+**Section heading:** `## Mathematical Background {#sec-math-background}`
 
 ---
 
@@ -1213,6 +1251,23 @@ Write `_99-closing.qmd` with:
 5. **Curated Resource List** (verified URLs from research)
 
 Chat: "✓ Closing section complete: `_99-closing.qmd`"
+
+---
+
+## STEP 3.5: Math Background Appendix (Conditional)
+
+**Skip this step** if the chapter has no equations above 10th-grade math. Proceed directly to Step 4.
+
+**If the chapter is mathematical** (derivations, MLE, Bayesian inference, information-theoretic quantities, variance-covariance matrices, etc.):
+
+1. **Audit:** Scan all body sections and list every mathematical concept that is *used* but not *derived from scratch* in the chapter.
+2. **Filter:** Keep only concepts above 10th-grade math that an upper-division undergraduate ML student might need refreshed (e.g., MLE, Bayesian posteriors, KL divergence, Fisher Information). Drop basics (averages, simple probability).
+3. **Search for existing material:** Look in `AI-Learning-Gems/` for existing notes on each prerequisite topic. Also check the high-quality blogs registry (`.cursor/rules/high-quality-blogs.mdc`).
+4. **Write `_98-math-background.qmd`** with one ### subsection per prerequisite concept (150-300 words each). Each subsection: what it does, why it matters *for this chapter*, key formula, brief numerical example, forward-pointer to the relevant body section.
+5. **Update the index file:** Add `{{< include "[Topic Name]/_98-math-background.qmd" >}}` between the last body section and the closing.
+6. **Add forward-references** in body sections: at the first mention of each prerequisite concept, add "(see @sec-math-background for a review of [concept])".
+
+Chat: "✓ Math Background appendix complete: `_98-math-background.qmd` ([N] concepts covered)" or "✓ Math Background: skipped (chapter is not heavily mathematical)"
 
 ---
 
