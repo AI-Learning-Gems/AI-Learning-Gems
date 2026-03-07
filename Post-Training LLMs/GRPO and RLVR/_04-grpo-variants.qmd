@@ -22,7 +22,7 @@ Let us examine each bias through the lens of GRPO's objective (@eq-grpo-objectiv
 
 **Bias 3: Entropy collapse.** This is not a bias in the mathematical sense but an emergent pathology. PPO's symmetric clipping ($1 - \epsilon$ to $1 + \epsilon$, where $\epsilon$ is typically 0.2) constrains how much any token's probability can change in a single update. When a "good" token already has high probability (say 0.9), the upper clip allows it to go to $0.9 \times 1.2 = 1.08$ (clipped to 1.0 in practice), a near-unlimited increase. But when an "exploration" token has low probability (say 0.01), the upper clip only allows it to go to $0.01 \times 1.2 = 0.012$, a negligibly small increase. Symmetric clipping systematically favors high-probability tokens and prevents low-probability tokens from gaining traction. Over many training steps, the model collapses to a deterministic policy that always generates the same output for a given question.
 
-![GRPO's two biases illustrated. The std normalization reweights questions by difficulty (the size of blue circles), and the length normalization reweights outputs by length (the brightness of orange arrows). Together, they create a biased optimization landscape. Source: Liu et al. (2025), Figure 3.](images/grpo-bias-illustration.png){#fig-bias-illustration}
+![GRPO's two biases illustrated. The std normalization reweights questions by difficulty (the size of blue circles), and the length normalization reweights outputs by length (the brightness of orange arrows). Together, they create a biased optimization landscape. Source: Liu et al. (2025), Figure 3.](GRPO and RLVR/images/grpo-bias-illustration.png){#fig-bias-illustration}
 
 Let us now see how three variants address these issues, each with a different philosophy.
 
@@ -48,7 +48,7 @@ The difference is exactly one line of code, but the impact is significant. Dr. G
 2. **Reduces token consumption** by preventing the model from generating excessively long incorrect responses
 3. **Maintains reasoning performance** on benchmarks like AIME and MATH500
 
-![Dr. GRPO vs. GRPO training dynamics. Top row: training metrics (reward and length over steps). Bottom row: evaluation results. Dr. GRPO achieves similar accuracy with substantially shorter incorrect responses, demonstrating better token efficiency. Source: Liu et al. (2025), Figure 6.](images/dr-grpo-training-dynamics.png){#fig-dr-grpo-dynamics}
+![Dr. GRPO vs. GRPO training dynamics. Top row: training metrics (reward and length over steps). Bottom row: evaluation results. Dr. GRPO achieves similar accuracy with substantially shorter incorrect responses, demonstrating better token efficiency. Source: Liu et al. (2025), Figure 6.](GRPO and RLVR/images/dr-grpo-training-dynamics.png){#fig-dr-grpo-dynamics}
 
 A surprising finding from the Dr. GRPO paper was that the "emergence of long chain-of-thought" during R1-Zero-like training may be partially an artifact of GRPO's length bias rather than a genuine capability improvement. When the bias is removed, the model still develops reasoning chains, but they are shorter and more efficient. This is a cautionary tale for the field: **not all emergent behaviors during RL training are genuine capabilities; some are optimization artifacts**.
 
@@ -82,7 +82,7 @@ $$ {#eq-dapo-overlong}
 
 This creates a "soft wall" that gradually discourages the model from generating overly long outputs without abruptly penalizing good reasoning chains that happen to be long.
 
-![DAPO's entropy and accuracy curves compared to GRPO baselines. The Clip-Higher strategy maintains higher entropy throughout training, preventing the collapse that limits exploration in vanilla GRPO. Source: Yu et al. (2025).](images/dapo-entropy.png){#fig-dapo-entropy}
+![DAPO's entropy and accuracy curves compared to GRPO baselines. The Clip-Higher strategy maintains higher entropy throughout training, preventing the collapse that limits exploration in vanilla GRPO. Source: Yu et al. (2025).](GRPO and RLVR/images/dapo-entropy.png){#fig-dapo-entropy}
 
 ### REINFORCE++: Back to Basics with Better Normalization
 
@@ -90,7 +90,7 @@ REINFORCE++ (Hu et al., 2025) takes yet another approach. Instead of fixing GRPO
 
 REINFORCE++ normalizes advantages across the *entire batch* rather than per-question. This means the baseline is the average reward across all questions in the batch, not just the group of outputs for a single question. This eliminates the difficulty bias (since there is no per-group std normalization) but introduces a different trade-off: the baseline is less question-specific, potentially increasing variance for individual questions.
 
-![The REINFORCE++ architecture. Unlike GRPO, it uses a global baseline across the batch rather than per-question group statistics. Source: Hu et al. (2025).](images/reinforce-plus-plus-architecture.png){#fig-reinforce-pp}
+![The REINFORCE++ architecture. Unlike GRPO, it uses a global baseline across the batch rather than per-question group statistics. Source: Hu et al. (2025).](GRPO and RLVR/images/reinforce-plus-plus-architecture.png){#fig-reinforce-pp}
 
 ### Comparing the Variants: When to Use What
 

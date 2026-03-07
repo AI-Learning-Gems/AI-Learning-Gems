@@ -1,7 +1,7 @@
 ---
 title: "Datasets & Benchmarks Papers — What They Are, Why They Matter, and How to Write Them"
 filters:
-  - ../../_extensions/pandoc-ext/diagram/diagram.lua
+  - ../_extensions/pandoc-ext/diagram/diagram.lua
 ---
 
 {{< include "Dataset and Benchmark Papers/_01-introduction.qmd" >}}

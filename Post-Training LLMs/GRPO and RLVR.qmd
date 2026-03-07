@@ -1,7 +1,7 @@
 ---
 title: "GRPO and RLVR"
 filters:
-  - ../../_extensions/pandoc-ext/diagram/diagram.lua
+  - ../_extensions/pandoc-ext/diagram/diagram.lua
 ---
 
 {{< include "GRPO and RLVR/_01-introduction.qmd" >}}

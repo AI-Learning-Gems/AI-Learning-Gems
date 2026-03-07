@@ -45,7 +45,7 @@ The R1-Zero results are impressive, but the claim that reasoning emerged "from s
 
 DeepSeek-R1 (the production model, not R1-Zero) used a sophisticated multi-stage pipeline that combined pure RL with SFT in a carefully orchestrated sequence:
 
-![The DeepSeek-R1 training pipeline. Stage 1 applies cold-start SFT, Stage 2 uses RL with reasoning rewards, Stage 3 performs rejection sampling to create new SFT data, and Stage 4 applies final RL for alignment. Source: Guo et al. (2025).](images/r1-pipeline.png){#fig-r1-pipeline}
+![The DeepSeek-R1 training pipeline. Stage 1 applies cold-start SFT, Stage 2 uses RL with reasoning rewards, Stage 3 performs rejection sampling to create new SFT data, and Stage 4 applies final RL for alignment. Source: Guo et al. (2025).](GRPO and RLVR/images/r1-pipeline.png){#fig-r1-pipeline}
 
 1. **Cold-start SFT**: Though R1-Zero showed RL can start from a base model, the intermediate training was unstable. DeepSeek-R1 first performed SFT on a small set of long chain-of-thought examples to give the model a foundation for structured reasoning.
 

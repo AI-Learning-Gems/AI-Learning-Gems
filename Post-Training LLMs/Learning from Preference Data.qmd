@@ -1,7 +1,7 @@
 ---
 title: "Learning from Preference Data"
 filters:
-  - ../../_extensions/pandoc-ext/diagram/diagram.lua
+  - ../_extensions/pandoc-ext/diagram/diagram.lua
 ---
 
 {{< include "Learning from Preference Data/_01-introduction.qmd" >}}

@@ -34,7 +34,7 @@ Every GRPO training setup has four core components. Understanding their interact
 
 **4. The data pipeline (prompt management).** Manages the training prompts, ensures diversity, and handles batch construction. For DAPO's dynamic sampling, the data pipeline must support over-sampling and filtering.
 
-![The RL infrastructure for DeepSeek-R1 training, showing the interaction between sampling (inference), reward computation, and policy update stages. Source: Guo et al. (2025), Figure 5.](images/rl-infra.png){#fig-rl-infra}
+![The RL infrastructure for DeepSeek-R1 training, showing the interaction between sampling (inference), reward computation, and policy update stages. Source: Guo et al. (2025), Figure 5.](GRPO and RLVR/images/rl-infra.png){#fig-rl-infra}
 
 ### Hyperparameter Guide
 

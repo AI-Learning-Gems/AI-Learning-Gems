@@ -71,7 +71,7 @@ $$ {#eq-kl-estimator}
 
 This KL estimator (from Schulman, 2020) is guaranteed to be non-negative. Unlike PPO, which adds the KL penalty inside the reward signal, GRPO adds it directly to the loss. This separation keeps the advantage calculation clean: $\hat{A}_{i,t}$ reflects only the task reward, not the KL penalty.
 
-![Comparison of the PPO and GRPO training pipelines. PPO requires a policy model, a value model (critic), a reference model, and a reward model. GRPO eliminates the value model by using group-relative advantages. Source: Shao et al. (2024).](images/ppo-vs-grpo.png){#fig-ppo-vs-grpo}
+![Comparison of the PPO and GRPO training pipelines. PPO requires a policy model, a value model (critic), a reference model, and a reward model. GRPO eliminates the value model by using group-relative advantages. Source: Shao et al. (2024).](GRPO and RLVR/images/ppo-vs-grpo.png){#fig-ppo-vs-grpo}
 
 ### Outcome Supervision vs. Process Supervision
 

@@ -24,7 +24,7 @@ What if, instead of showing the model more examples of correct SQL, Ava could le
 
 The result? When researchers at DeepSeek applied this approach to mathematical reasoning, their 7B model improved from 46.8% to 51.7% on the competition-level MATH benchmark, surpassing models 10 times its size. When teams combined GRPO with SQL-specific reward signals, models trained with RL outperformed those trained with SFT alone, sometimes by double-digit margins, and they kept improving even after SFT accuracy had plateaued.
 
-![The GRPO pipeline generates multiple outputs per question, scores them, uses the group's statistics as a baseline for advantage estimation, and updates the policy without requiring a separate critic model. This is the core mechanism that makes RL practical for LLM training. Source: Shao et al. (2024), Figure 4.](images/grpo-pipeline.png){#fig-grpo-hook}
+![The GRPO pipeline generates multiple outputs per question, scores them, uses the group's statistics as a baseline for advantage estimation, and updates the policy without requiring a separate critic model. This is the core mechanism that makes RL practical for LLM training. Source: Shao et al. (2024), Figure 4.](GRPO and RLVR/images/grpo-pipeline.png){#fig-grpo-hook}
 
 ### Learning Objectives
 
