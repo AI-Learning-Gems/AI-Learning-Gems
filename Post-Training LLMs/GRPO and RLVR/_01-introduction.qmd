@@ -40,24 +40,26 @@ After completing this chapter, you will be able to:
 
 ### Notation
 
-| Symbol | Meaning |
-|---|---|
-| $\pi_\theta$ | Current policy model (the LLM being trained) |
-| $\pi_{\theta_{old}}$ | Old policy (snapshot before the current update step) |
-| $\pi_{ref}$ | Reference policy (usually the initial SFT model, used for KL regularization) |
-| $q$ | Input prompt or question |
-| $o, o_i$ | Generated output; the $i$-th output in a group |
-| $o_{i,t}$ | The $t$-th token of the $i$-th output |
-| $G$ | Group size (number of outputs sampled per prompt in GRPO) |
-| $r_i, R_i$ | Reward for the $i$-th output |
-| $\mathbf{r}, \mathbf{R}$ | Vector of all rewards in a group: $\{r_1, r_2, \ldots, r_G\}$ |
-| $\hat{A}_{i,t}$ | Estimated advantage for token $t$ of output $i$ |
-| $r_{i,t}(\theta)$ | Importance sampling ratio: $\frac{\pi_\theta(o_{i,t} \mid q, o_{i,<t})}{\pi_{\theta_{old}}(o_{i,t} \mid q, o_{i,<t})}$ |
-| $\epsilon$ | Clipping parameter for the PPO/GRPO surrogate objective |
-| $\beta$ | KL divergence coefficient (controls deviation from reference policy) |
-| $D_{KL}$ | KL divergence between the current policy and the reference policy |
-| $R(q, o)$ | Return: total reward for a question-output pair |
-| $V_\psi$ | Value function (critic network) used in PPO |
+The following notation is used throughout this chapter. All symbols are defined on first use in the text, but this table serves as a reference.
+
+| Symbol | Definition | Valid Values | Example |
+|---|---|---|---|
+| $\pi_\theta$ | Current policy model (the LLM being trained) | Distribution over token sequences | Ava's 7B SQL model |
+| $\pi_{\theta_{old}}$ | Old policy (snapshot before the current update step) | Distribution over token sequences | Policy from previous GRPO iteration |
+| $\pi_{ref}$ | Reference policy (the initial SFT model, used for KL regularization) | Distribution over token sequences | The original SFT-trained SQL model |
+| $q$ | Input prompt or question | Text string | "Top-selling headphones in Northwest last quarter?" |
+| $o, o_i$ | Generated output; the $i$-th output in a group | Token sequence | `SELECT region, SUM(amount) FROM orders JOIN ...` |
+| $o_{i,t}$ | The $t$-th token of the $i$-th output | Single token from vocabulary | `SELECT` (token 1 of output $o_3$) |
+| $G$ | Group size (number of outputs sampled per prompt) | $G \in \{2, 4, 8, 16, 32, 64, \ldots\}$ | $G = 16$ |
+| $r_i, R_i$ | Reward for the $i$-th output | $r_i \in [0, 1]$ for binary; $r_i \in \mathbb{R}$ for continuous | $r_3 = 1$ (correct SQL), $r_4 = 0$ (wrong SQL) |
+| $\mathbf{r}, \mathbf{R}$ | Vector of all rewards in a group: $\{r_1, r_2, \ldots, r_G\}$ | $\mathbf{r} \in \mathbb{R}^G$ | $\mathbf{r} = \{1, 0, 1, 0, 1, 0, 0, 1\}$ |
+| $\hat{A}_{i,t}$ | Estimated advantage for token $t$ of output $i$ | $\hat{A}_{i,t} \in \mathbb{R}$ | $\hat{A}_{3,t} = +0.935$ (correct output) |
+| $r_{i,t}(\theta)$ | Importance sampling ratio: $\frac{\pi_\theta(o_{i,t} \mid q, o_{i,<t})}{\pi_{\theta_{old}}(o_{i,t} \mid q, o_{i,<t})}$ | $r_{i,t} > 0$; typically near 1.0 | $r_{3,5}(\theta) = 1.05$ |
+| $\epsilon$ | Clipping parameter for the PPO/GRPO surrogate objective | $\epsilon > 0$; typically $\epsilon \in [0.1, 0.3]$ | $\epsilon = 0.2$ (symmetric); $\epsilon_{low}=0.1, \epsilon_{high}=0.28$ (DAPO) |
+| $\beta$ | KL divergence coefficient (controls deviation from reference policy) | $\beta \geq 0$ | $\beta = 0.04$ (DeepSeekMath); $\beta = 0$ (RLVR) |
+| $D_{KL}$ | KL divergence between current and reference policy | $D_{KL} \geq 0$ | $D_{KL}[\pi_\theta \| \pi_{ref}] = 3.2$ nats |
+| $R(q, o)$ | Return: total reward for a question-output pair | $R \in \mathbb{R}$ | $R(q, o_3) = 1$ (SQL returned correct results) |
+| $V_\psi$ | Value function (critic network) used in PPO | $V_\psi\colon q \to \mathbb{R}$ | $V_\psi(q) = 0.5$ (expected reward for this question) |
 
 ### Chapter Overview
 

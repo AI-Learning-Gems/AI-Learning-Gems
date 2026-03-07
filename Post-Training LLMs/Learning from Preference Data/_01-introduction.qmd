@@ -52,25 +52,25 @@ After reading this chapter, you will be able to:
 
 The following notation is used throughout this chapter. All symbols are defined on first use in the text, but this table serves as a reference.
 
-| Symbol | Definition |
-|---|---|
-| $C$ | Total number of items to be ranked |
-| $\theta_i$ | BT strength parameter; $\theta_i \in (0, \infty)$ |
-| $\lambda_i$ | Log-ability: $\lambda_i = \log(\theta_i)$; $\lambda_i \in \mathbb{R}$ |
-| $\sigma(z)$ | Logistic sigmoid: $1/(1+e^{-z})$ |
-| $w_{ij}$ | Number of times item $i$ was preferred over item $j$ |
-| $n_{ij}$ | Total comparisons between $i$ and $j$: $n_{ij} = w_{ij} + w_{ji}$ |
-| $W_i$ | Total wins for item $i$: $W_i = \sum_{j \neq i} w_{ij}$ |
-| $\mu_i, \sigma_i^2$ | TrueSkill/Glicko skill mean and variance |
-| $\beta^2$ | TrueSkill performance variance |
-| $R_i, K$ | Elo rating and K-factor |
-| $RD_i$ | Glicko rating deviation |
-| $x$ | Prompt or input context |
-| $y, y_w, y_l$ | Response; preferred response; dispreferred response |
-| $R_\theta(x,y)$ | Neural reward model (parameterized by $\theta$) |
-| $\pi_\theta, \pi_{ref}$ | Policy model; reference policy |
-| $\beta$ (RLHF context) | KL-penalty coefficient |
-| $Z(x)$ | Partition function (normalizing constant) |
+| Symbol | Definition | Valid Values | Example |
+|---|---|---|---|
+| $C$ | Total number of items to be ranked | $C \in \{2, 3, \ldots\}$ | $C = 20$ TTS engines |
+| $\theta_i$ | BT strength parameter for item $i$ | $\theta_i \in (0, \infty)$ | $\theta_{\text{Clarity}} = 4.48$ |
+| $\lambda_i$ | Log-ability: $\lambda_i = \log(\theta_i)$ | $\lambda_i \in \mathbb{R}$ | $\lambda_{\text{Clarity}} = 0.493$ |
+| $\sigma(z)$ | Logistic sigmoid: $\sigma\colon \mathbb{R} \to (0,1)$ | Output in $(0, 1)$ | $\sigma(1.0) \approx 0.73$ |
+| $w_{ij}$ | Times item $i$ was preferred over $j$ | $w_{ij} \in \{0, 1, 2, \ldots\}$ | $w_{CB} = 70$ |
+| $n_{ij}$ | Total comparisons between $i$ and $j$ | $n_{ij} = w_{ij} + w_{ji}$ | $n_{CB} = 100$ |
+| $W_i$ | Total wins for item $i$ | $W_i = \sum_{j \neq i} w_{ij}$ | $W_C = 130$ |
+| $\mu_i, \sigma_i^2$ | TrueSkill/Glicko skill mean and variance | $\mu_i \in \mathbb{R}$, $\sigma_i^2 > 0$ | $\mu = 25$, $\sigma = 8.33$ |
+| $\beta^2$ | TrueSkill performance variance | $\beta^2 > 0$ | $\beta = 25/6 \approx 4.17$ |
+| $R_i, K$ | Elo rating and K-factor | $R_i \in \mathbb{R}$, $K > 0$ | $R = 1500$, $K = 32$ |
+| $RD_i$ | Glicko rating deviation | $RD_i > 0$ | $RD = 350$ (new player) |
+| $x$ | Prompt or input context | Text string | "Read this news article aloud" |
+| $y, y_w, y_l$ | Response; preferred; dispreferred | Text or audio | $y_w$ = Clarity's output |
+| $R_\theta(x,y)$ | Neural reward model: $R_\theta\colon (x,y) \to \mathbb{R}$ | $R_\theta \in \mathbb{R}$ | $R_\theta(x, y_w) = 2.1$ |
+| $\pi_\theta, \pi_{ref}$ | Policy; reference policy: $\pi\colon x \to \Delta(y)$ | Distributions over $y$ | $\pi_\theta(y \mid x)$ |
+| $\beta$ (RLHF) | KL-penalty coefficient | $\beta > 0$ | $\beta = 0.1$ |
+| $Z(x)$ | Partition function: $Z\colon x \to (0, \infty)$ | $Z(x) > 0$ | Normalizing constant |
 
 ### A Century of the Same Equation
 

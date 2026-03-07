@@ -1,4 +1,4 @@
-## The Bradley-Terry Model: A Mathematical Foundation for Preference {#sec-bradley-terry}
+## The Bradley-Terry Model: A Mathematical Model of Preference {#sec-bradley-terry}
 
 ::: {.callout-note collapse="true" title="Sources for this section"}
 
@@ -29,15 +29,39 @@ What we need is a model that assigns each engine a **quantitative skill score**,
 
 ### The Core Assumption: A Ratio Model of Preference
 
-The BT model assigns each item $i$ a positive real-valued **strength parameter** $\theta_i > 0$. The fundamental assumption is that the probability of $i$ being preferred over $j$ in a single pairwise comparison is the ratio of their strengths:
+The BT model's central idea is to assign each item a single number that captures how "good" it is. This number is the **strength parameter** $\theta_i \in (0, \infty)$: a positive real number (not an integer, not a percentage, just a point somewhere on the positive number line). You can think of it as a measure of that item's overall quality on an abstract, continuous scale.
+
+What does $\theta_i$ represent concretely? For our TTS engines, $\theta_{\text{Clarity}}$ is a single real number that summarizes how natural Clarity sounds, aggregated across all listeners and all input texts. A higher $\theta$ means a stronger engine. If $\theta_{\text{Clarity}} = 4.48$ and $\theta_{\text{Brio}} = 1.12$, the model is saying Clarity is four times "stronger" than Brio in the preference sense ($4.48 / 1.12 = 4.0$): when the two are compared head-to-head, Clarity's quality advantage makes it much more likely to be preferred.
+
+The same idea applies far beyond TTS. In chess, $\theta_i$ would be a player's latent skill. In a taste test of coffees, it would be each blend's perceived quality. In LLM evaluation, it would be a model's helpfulness as judged by humans. The interpretation is always the same: $\theta_i$ is a latent quality score that determines how often item $i$ wins pairwise comparisons.
+
+Crucially, $\theta_i$ is not directly observable. Nobody hands you a number and says "Clarity's strength is 4.48." Instead, you observe the *outcomes* of comparisons (who won each head-to-head matchup) and work backwards to infer the $\theta$ values that best explain those outcomes. This is the estimation problem we solve with maximum likelihood later in this section.
+
+With this intuition in place, the BT model's core assumption becomes natural. The probability of $i$ being preferred over $j$ in a single pairwise comparison is the ratio of their strengths:
 
 $$
 P(i \succ j) = \frac{\theta_i}{\theta_i + \theta_j}
 $$ {#eq-bt-core}
 
-This formula has a clean interpretation: $i$'s probability of winning is its "share" of the total strength in the matchup.
+Read this formula as: "$i$'s probability of winning is its share of the total strength in the matchup." If Clarity has strength 4.48 and Brio has strength 1.12, the total strength in their matchup is $4.48 + 1.12 = 5.60$. Clarity's share is $4.48/5.60 = 0.80$. So the model predicts Clarity wins 80% of the time.
 
-If both engines are equally good ($\theta_i = \theta_j$), the probability is 50%. If Clarity is four times stronger than Brio ($\theta_C = 4, \theta_B = 1$), then $P(C \succ B) = 4/5 = 0.80$. The probabilities always sum to one: $P(i \succ j) + P(j \succ i) = \theta_i/(\theta_i + \theta_j) + \theta_j/(\theta_i + \theta_j) = 1$.
+::: {.callout-note title="Connection to odds and log-odds"}
+If you have seen odds before (e.g., in betting or logistic regression), the BT formula will look familiar. Rearranging @eq-bt-core, the **odds** of $i$ beating $j$ are simply the ratio of their strengths:
+
+$$
+\text{odds}(i \succ j) = \frac{P(i \succ j)}{P(j \succ i)} = \frac{\theta_i / (\theta_i + \theta_j)}{\theta_j / (\theta_i + \theta_j)} = \frac{\theta_i}{\theta_j}
+$$
+
+For Clarity vs. Brio: $4.48 / 1.12 = 4.0$, so the odds are "4 to 1 in Clarity's favor." Taking the logarithm gives the **log-odds**: $\log(\theta_i / \theta_j) = \log \theta_i - \log \theta_j$. For Clarity vs. Brio, $\log(4.0) \approx 1.39$. A log-odds of 0 means even odds; positive means $i$ is favored; negative means $j$ is favored. In the next subsection, we will define $\lambda_i = \log(\theta_i)$, at which point the log-odds becomes simply $\lambda_i - \lambda_j$: a clean difference of two parameters.
+:::
+
+Here are a few more examples to build intuition:
+
+- If both engines are equally good ($\theta_i = \theta_j = 2.75$), the probability is $2.75 / (2.75 + 2.75) = 0.5$. A coin flip. This makes sense: there is no reason to prefer one over the other.
+- If Clarity is twice as strong as Sonus ($\theta_C = 5.34, \theta_S = 2.67$), then $P(C \succ S) = 5.34/8.01 = 0.667$. Clarity wins about two-thirds of the time.
+- If one engine is overwhelmingly better ($\theta_C = 87.3, \theta_B = 0.91$), then $P(C \succ B) = 87.3/88.21 \approx 0.99$. Nearly certain.
+
+Notice that the probabilities always sum to one: $P(i \succ j) + P(j \succ i) = \theta_i/(\theta_i + \theta_j) + \theta_j/(\theta_i + \theta_j) = 1$. Every comparison has a winner (we will handle ties in @sec-practical-extensions).
 
 An important property is **scale indeterminacy**. Multiplying all parameters by a constant $k > 0$ leaves the probabilities unchanged:
 
@@ -45,7 +69,7 @@ $$
 \frac{k\theta_i}{k\theta_i + k\theta_j} = \frac{\theta_i}{\theta_i + \theta_j}
 $$
 
-This means the absolute values of $\theta_i$ are meaningless; only their **ratios** carry information. The model $(\theta_C, \theta_B, \theta_S) = (4, 1, 3)$ produces exactly the same predictions as $(8, 2, 6)$. To get a unique set of parameters, we must impose a **constraint**: either fix one parameter as a reference (e.g., $\theta_S = 1$), require the parameters to sum to a constant, or (as we will see) require the log-parameters to sum to zero.
+This means the absolute values of $\theta_i$ are meaningless; only their **ratios** carry information. The model $(\theta_C, \theta_B, \theta_S) = (4.48, 1.12, 3.36)$ produces exactly the same predictions as $(8.96, 2.24, 6.72)$ (every value doubled). To get a unique set of parameters, we must impose a **constraint**: either fix one parameter as a reference (e.g., $\theta_S = 1$), require the parameters to sum to a constant, or (as we will see) require the log-parameters to sum to zero.
 
 ::: {.callout-tip title="Self-Explanation Prompt"}
 If you multiply all $\theta$ parameters by 10, what happens to the predicted probabilities? What does this tell you about interpreting the absolute magnitude of a $\theta$ value?
@@ -73,28 +97,150 @@ $$
 P(i \succ j) = \sigma(\lambda_i - \lambda_j)
 $$ {#eq-bt-logistic}
 
-This is a profound result. It says the probability of $i$ beating $j$ is a logistic function of the *difference* in their log-abilities. The entire BT model reduces to: preference is determined by skill differences, passed through a sigmoid. This is exactly logistic regression.
+This is a profound result. It says the probability of $i$ beating $j$ is a logistic function of the *difference* in their log-abilities. The entire BT model reduces to: preference is determined by skill differences, passed through a sigmoid. 
 
-Here is why this connection matters so much in practice. A single pairwise comparison "Clarity vs. Brio, outcome: Clarity wins" can be encoded as a logistic regression data point. The feature vector has $+1$ at Clarity's position and $-1$ at Brio's position (and zero elsewhere), so the dot product with the parameter vector $\Lambda = (\lambda_C, \lambda_B, \lambda_S)$ equals $\lambda_C - \lambda_B$. The outcome is $y = 1$ (Clarity won). That is exactly logistic regression with no intercept.
+A BT model is thus actually a logistic regression model. Recall that in standard logistic regression, the predicted probability is $P(y=1|\mathbf{x}) = \sigma(\mathbf{w}^T \mathbf{x})$, where $\mathbf{w} \in \mathbb{R}^d$ is the weight vector and $\mathbf{x} \in \mathbb{R}^d$ is the input vector. 
 
-For our three-engine example:
+In the BT model:
 
-- 70 data points with $x = [+1, -1, 0]$, $y = 1$ (Clarity beats Brio)
-- 30 data points with $x = [+1, -1, 0]$, $y = 0$ (Brio beats Clarity)
-- 60 data points with $x = [+1, 0, -1]$, $y = 1$ (Clarity beats Sonus)
-- 40 data points with $x = [+1, 0, -1]$, $y = 0$ (Sonus beats Clarity)
-- 45 data points with $x = [0, +1, -1]$, $y = 1$ (Brio beats Sonus)
-- 55 data points with $x = [0, +1, -1]$, $y = 0$ (Sonus beats Brio)
+- The **weight vector** $\mathbf{w} = \Lambda = [\lambda_1, \lambda_2, \ldots, \lambda_C]$ contains the log-abilities of all $C$ items. These are the parameters we train.
+- The **input vector** $\mathbf{x}$ for a comparison "$i \succ j$" has $+1$ at position $i$, $-1$ at position $j$, and $0$ everywhere else.
+- The **dot product** $\mathbf{w}^T \mathbf{x} = \lambda_i \cdot (+1) + \lambda_j \cdot (-1) = \lambda_i - \lambda_j$.
+- The **predicted probability that i beats j** is $P(i \succ j) = P(y=1|\mathbf{x}) = \sigma(\mathbf{w}^T \mathbf{x}) = \sigma(\lambda_i - \lambda_j)$.
+- The **predicted probability that j beats i** is $P(j \succ i) = P(y=0|\mathbf{x}) = 1 - P(y=1|\mathbf{x}) = 1 - \sigma(\lambda_i - \lambda_j) = \sigma(\lambda_j - \lambda_i)$.
 
-Feed these 300 data points into any logistic regression solver (with no intercept), and it will find the $\lambda_C, \lambda_B, \lambda_S$ that maximize the BT log-likelihood. This is the standard method for fitting BT models.
+For example, the comparison "Clarity beats Brio" becomes the training example $\mathbf{x} = [+1, -1, 0]$ (Clarity's position gets $+1$, Brio's gets $-1$, Sonus's gets $0$) with label $y = 1$. 
+
+The full training set for our three-engine example is:
+
+- 70 data points with $\mathbf{x} = [+1, -1, 0]$, $y = 1$ (Clarity beats Brio)
+- 30 data points with $\mathbf{x} = [+1, -1, 0]$, $y = 0$ (Brio beats Clarity)
+- 60 data points with $\mathbf{x} = [+1, 0, -1]$, $y = 1$ (Clarity beats Sonus)
+- 40 data points with $\mathbf{x} = [+1, 0, -1]$, $y = 0$ (Sonus beats Clarity)
+- 45 data points with $\mathbf{x} = [0, +1, -1]$, $y = 1$ (Brio beats Sonus)
+- 55 data points with $\mathbf{x} = [0, +1, -1]$, $y = 0$ (Sonus beats Brio)
+
+Feed these 300 training examples into any logistic regression package (with no intercept), and it will return the **trained weights $\hat{\lambda}$** that best explain the observed outcomes. (We will derive exactly what "best explain" means when we cover maximum likelihood estimation). The original strength parameters $\theta_i$ are not trained directly, but are recovered via $\theta_i = e^{\lambda_i}$. 
+
+That is the entire BT model. Train a logistic regression (with no intercept), with the comparison $i \succ j$ encoded as a $+1/-1/0$ input vector and output as $y=1$ for rows where we observed $i$ beats $j$, and $y=0$ for rows where $j$ beats $i$. Predict $P(i \succ j) = \sigma(\lambda_i - \lambda_j)$ for any $i$ and $j$, creating the input vector appropriately.
+
+Also, because logistic regression is one of the most thoroughly engineered statistical methods in existence, most logistic regression packages return not just the trained weights but also standard errors, the variance-covariance matrix, and predicted probabilities. In later subsections, we will see exactly how these quantities are useful to us for preference modeling.
 
 ::: {.callout-warning title="Common Misconception: BT and logistic regression are merely 'similar'"}
-They are not similar. They are mathematically identical. The BT log-likelihood is *exactly* the logistic regression log-likelihood when you encode each comparison as a row with $+1$ for the winner's column and $-1$ for the loser's column. You can use `statsmodels.GLM`, `sklearn.LogisticRegression`, or any GLM solver with a binomial family and logit link to fit a BT model. There is no approximation involved.
+They are not similar. They are mathematically identical. The BT log-likelihood is *exactly* the logistic regression log-likelihood when you encode each comparison as a row with $+1$ for the winner's column and $-1$ for the loser's column. 
+You can use `statsmodels.GLM`, `sklearn.LogisticRegression`, or any GLM package with a binomial family and logit capabilities to train a BT model. The model is always BT; logistic regression is just how you train it.
 :::
+
+To summarize, every BT concept maps directly to a logistic regression counterpart.
+
+| BT concept | Logistic regression counterpart |
+|---|---|
+| Pairwise comparison "$i$ beats $j$" | Training example with $\mathbf{x} = [+1_i, -1_j]$ (all others zero), $y = 1$ |
+| Pairwise comparison "$j$ beats $i$" | Training example with $\mathbf{x} = [+1_i, -1_j]$ (all others zero), $y = 0$ |
+| Log-abilities $\lambda_1, \ldots, \lambda_C$ | **Trained weights/coefficients** $\mathbf{w}$ |
+| Strength parameters $\theta_i = e^{\lambda_i}$ | Derived from trained weights (not trained directly) |
+| BT prediction: $P(i \succ j) = \sigma(\lambda_i - \lambda_j)$ | Logistic regression prediction: $\sigma(\mathbf{w}^T \mathbf{x})$ |
+| Standard errors of $\hat{\lambda}$ | Standard errors of regression coefficients |
+| Variance-covariance matrix | Inverse Fisher Information Matrix |
+
+
+**A note on terminology.** For the rest of this chapter, we use three core terms:
+
+- **"The BT model"** refers to the probability formula: $P(i \succ j) = \sigma(\lambda_i - \lambda_j)$.
+- **"Training a BT model"** means fitting a logistic regression model on $+1/-1/0$ encoded comparison data to find the trained weights $\hat{\lambda}$, their standard errors, and predicted probabilities. Several existing solvers can do this (e.g. `statsmodels.GLM` or `sklearn.LogisticRegression`); we call these "logistic regression trainers" indiscriminately. 
+- **"BT prediction"** means plugging the trained $\hat{\lambda}$ values into the BT formula to predict $P(i \succ j)$.
+
+
+### Training a BT Model in Python
+
+Here is what training a BT model looks like concretely. We use `statsmodels.GLM` with a binomial family. The key implementation detail: pass the data as a 2-column `[successes, failures]` array to the `endog` argument, and build the design matrix with $+1/-1$ encoding. Train without an intercept (which `sm.GLM` does by default when you don't call `sm.add_constant`).
+
+```python
+import numpy as np
+import statsmodels.api as sm
+
+W = np.array([[0, 70, 60],
+              [30, 0, 45],
+              [40, 55, 0]])
+
+model_names = ["Clarity", "Brio", "Sonus"]
+C = len(model_names)
+
+## Flatten wins matrix into X (input matrix) and y (binary output vector):
+X_rows, y_rows = [], []
+for i in range(C):
+    for j in range(i+1, C):
+        if W[i,j] + W[j,i] == 0:
+            continue
+        x = np.zeros(C - 1)
+        if i == 0:
+            x[j - 1] = 1
+            y_rows.append([W[j, i], W[i, j]])
+        else:
+            x[i - 1] = 1
+            x[j - 1] = -1
+            y_rows.append([W[i, j], W[j, i]])
+        X_rows.append(x)
+
+X = np.array(X_rows)
+y = np.array(y_rows)
+
+## Fit the model:
+glm = sm.GLM(y, X, family=sm.families.Binomial())
+results = glm.fit()
+print(results.summary())
+```
+
+The trained weights from this regression are the $\hat{\lambda}$ values **relative to a reference item (Clarity, in this encoding)**. To convert to the sum-to-zero constraint, subtract the mean of all weights (including the reference's zero). 
+
+The `results` object also contains the standard errors, variance-covariance matrix, and predicted probabilities, which we use in the numerical example and confidence intervals below.
+
+### Solved Numerical Example: Training and Prediction {#sec-bt-numerical-example}
+
+Before we derive the mathematics of *how* the weights are trained, let us see *what training a BT model produces*, i.e. the `results` object. This makes the abstract notation concrete and gives you a target to keep in mind as we work through the derivation.
+
+We train the BT model on our three-engine win matrix using a logistic regression trainer (e.g. `statsmodels.GLM` using binomial family with no intercept, and the constraint $\sum \lambda_i = 0$). 
+
+Training returns three things for **each engine**:
+
+1. **A trained weight** $\hat{\lambda}_i$: this is the best-fit value for engine $i$'s log-ability. The "hat" ($\hat{\phantom{x}}$) tells you this is an *estimate* from data, not the true (unknowable) parameter. Positive means "better than average," negative means "worse than average" (since the constraint forces the $\hat{\lambda}$ values to sum to zero).
+
+2. **A standard error** $\text{SE}(\hat{\lambda}_i)$: this measures how *uncertain* the trained weight is. A small SE means we have estimated the weight to a high degree of precision; a large SE means the calculated weight value could easily change if you collected more data. Roughly, SE scales as $1/\sqrt{N}$, where $N$ is the number of relevant comparisons: more data means smaller SE. We will see exactly where this quantity comes from when we discuss confidence intervals later.
+
+3. **Predicted probabilities** for each matchup (BT prediction): these come directly from plugging the trained $\hat{\lambda}$ values into the BT formula $P(i \succ j) = \sigma(\hat{\lambda}_i - \hat{\lambda}_j)$ and iterating over all $i$ and $j$ pairs.
+
+For our TTS data, suppose training produces the following `results` object:
+
+| Engine | Rank | $\hat{\lambda}_i$ | $\text{SE}(\hat{\lambda}_i)$ | $\hat{\theta}_i = e^{\hat{\lambda}_i}$ |
+|---|---|---|---|---|
+| Clarity | 1 | $+0.493$ | $0.176$ | $1.64$ |
+| Sonus | 2 | $+0.099$ | $0.170$ | $1.10$ |
+| Brio | 3 | $-0.592$ | $0.178$ | $0.55$ |
+
+
+- Checking the constraint: $0.493 + 0.099 + (-0.592) = 0$. It holds. 
+- Clarity and Sonus are both above average (positive $\hat{\lambda}$); Brio is below average (negative $\hat{\lambda}$). 
+- On the $\theta$ scale, Clarity is about 3 times stronger than Brio ($1.64 / 0.55 \approx 2.96$).
+
+**Goodness of fit:Predicted probabilities vs. observed frequencies:**
+
+| Matchup | $\hat{\lambda}_i - \hat{\lambda}_j$ | Predicted $P(i \succ j)$ | Observed frequency |
+|---|---|---|---|
+| Clarity $\succ$ Brio | $0.493 - (-0.592) = 1.085$ | $\sigma(1.085) \approx 0.747$ | $70/100 = 0.70$ |
+| Clarity $\succ$ Sonus | $0.493 - 0.099 = 0.394$ | $\sigma(0.394) \approx 0.597$ | $60/100 = 0.60$ |
+| Brio $\succ$ Sonus | $-0.592 - 0.099 = -0.691$ | $\sigma(-0.691) \approx 0.334$ | $45/100 = 0.45$ |
+
+We see the fit of the model to the TTS data is decent **but not perfect**. 
+- The biggest discrepancy is for Brio vs. Sonus. The table shows $P(B \succ S) \approx 0.334$, which means the trained BT model predicts *Sonus* wins $1 - 0.334 = 0.666$, or 66.6% of the time. 
+- The observed rate is $55/100 = 55\%$, a gap of over 11 percentage points! This happens because the BT model enforces **global consistency**: it finds a single set of strength parameters that best explains *all* matchups simultaneously, which means individual matchup predictions may deviate from observed frequencies.
+
+So far, we have seen the output of a training process. Now we need to understand **how** the weights are trained, i.e. the mathematical principle that defines "best fit". That is the subject of the next two subsections: what objective function is being minimized/maximized? Concretely, we derive the **maximum likelihood estimation (MLE)** objective, and then we show the elegant interpretation that "Observed Wins = Expected Wins".
 
 ### Maximum Likelihood Estimation: The Derivation
 
-Now let us derive the MLE objective formally (for a review of maximum likelihood estimation, see @sec-math-background). We observe pairwise comparison data: $w_{ij}$ wins for $i$ over $j$, out of $n_{ij}$ total comparisons. Each comparison pair $(i, j)$ follows a Binomial distribution with probability $P(i \succ j) = \theta_i / (\theta_i + \theta_j)$.
+The BT model defines the *form* of the probability: $P(i \succ j) = \theta_i / (\theta_i + \theta_j)$. **Maximum likelihood estimation (MLE)** is the principle that tells us *which* parameter values to choose. The idea: find the $\Theta = (\theta_1, \ldots, \theta_C)$ that make the observed data most probable (for a review, see @sec-math-background).
+
+We observe pairwise comparison data: $w_{ij}$ wins for $i$ over $j$, out of $n_{ij}$ total comparisons. Each comparison pair $(i, j)$ follows a Binomial distribution with success probability $P(i \succ j) = \theta_i / (\theta_i + \theta_j)$.
 
 The likelihood of the full dataset is:
 
@@ -102,7 +248,7 @@ $$
 \mathcal{L}(\Theta) = \prod_{i < j} \binom{n_{ij}}{w_{ij}} \left(\frac{\theta_i}{\theta_i + \theta_j}\right)^{w_{ij}} \left(\frac{\theta_j}{\theta_i + \theta_j}\right)^{w_{ji}}
 $$
 
-Taking the log and dropping the constant binomial coefficient (which does not depend on $\Theta$):
+Taking the log-likelihood and dropping the constant binomial coefficient (which does not depend on $\Theta$):
 
 $$
 \ell(\Theta) = \sum_{i < j} \left[ w_{ij} \log \theta_i + w_{ji} \log \theta_j - n_{ij} \log(\theta_i + \theta_j) \right]
@@ -118,7 +264,9 @@ where $W_i = \sum_{j \neq i} w_{ij}$ is the total wins for item $i$. This is the
 
 ### The "Observed Wins = Expected Wins" Interpretation
 
-The log-likelihood @eq-bt-loglik is what a solver optimizes numerically. But it has a deeply intuitive interpretation that [Hunter (2004)](https://projecteuclid.org/journals/annals-of-statistics/volume-32/issue-1/MM-algorithms-for-generalized-Bradley-Terry-models/10.1214/aos/1079120141.full) highlighted. Taking the partial derivative of $\ell$ with respect to $\theta_i$ and setting it to zero, after some algebra we arrive at:
+The log-likelihood @eq-bt-loglik is the objective function that training maximizes. But it has a deeply intuitive interpretation that [Hunter (2004)](https://projecteuclid.org/journals/annals-of-statistics/volume-32/issue-1/MM-algorithms-for-generalized-Bradley-Terry-models/10.1214/aos/1079120141.full) highlighted. 
+
+Taking the partial derivative of $\ell$ with respect to $\theta_i$ and setting it to zero, after some algebra we arrive at:
 
 $$
 W_i = \sum_{j \neq i} n_{ij} \cdot P(i \succ j)
@@ -126,15 +274,21 @@ $$ {#eq-bt-balance}
 
 The left side is the **observed total wins** for item $i$. The right side is the **expected total wins**: the sum over all opponents $j$ of (number of games against $j$) times (probability of beating $j$ under the model). At the MLE solution, these must be equal for every item simultaneously.
 
-This is the key intuition: **the BT model finds parameters where each item wins exactly as often as the model predicts it should**. If an item is winning more than expected, the solver increases its $\theta_i$; if it is winning less, the solver decreases it. The MLE solution is the unique fixed point of this balance condition.
+This is the key intuition: **the BT formulation implies that the Maximum Likelihood Estimate occurs when the parameters are such that each item wins exactly as often as the model predicts it should**. If an item is winning more than the current parameters predict, the MLE increases its $\theta_i$ (equivalently, its $\lambda_i$); if it is winning less, the MLE decreases it. The solution is the unique fixed point where observed and expected wins balance for every item simultaneously.
+
+You can verify this against the numerical example above. Clarity's observed wins were $W_C = 130$. Its expected wins under the trained $\hat{\lambda}$ values are $100 \times 0.747 + 100 \times 0.597 \approx 134.4$; not exactly 130, but close (the small discrepancy comes from rounding in our display of $\hat{\lambda}$). At the exact MLE solution, observed and expected wins match perfectly for all three engines simultaneously.
 
 ::: {.callout-note title="Think Hard: Why can't we just solve @eq-bt-balance directly?"}
-The balance equation $W_i = \sum_{j \neq i} n_{ij} P(i \succ j)$ looks like $C$ equations in $C$ unknowns, which you might expect to solve in closed form. But notice that $P(i \succ j) = \theta_i / (\theta_i + \theta_j)$ is a nonlinear function of the parameters. This system has no closed-form solution in general. We need iterative methods: the **MM algorithm** (Hunter, 2004), Newton-Raphson, or (most commonly in practice) the standard iteratively reweighted least squares (IRLS) solver inside any logistic regression package. The logistic regression connection means we never have to implement these solvers ourselves.
+The balance equation $W_i = \sum_{j \neq i} n_{ij} P(i \succ j)$ looks like $C$ equations in $C$ unknowns, which you might expect to solve in closed form, making it unnecessary to train using logistic regression. 
+
+However, notice that $P(i \succ j) = \theta_i / (\theta_i + \theta_j)$ is a nonlinear function of the parameters. This system has no closed-form solution in general. 
+
+We thus need iterative methods to solve this system: the **MM algorithm** (Hunter, 2004), Newton-Raphson, or (most commonly in practice) the standard iteratively reweighted least squares (IRLS) solver inside any logistic regression package.
 :::
 
 ### Convergence: When Does the Model Work?
 
-Before fitting a BT model, you need to check whether your data can produce a unique solution. The key concept is **graph connectivity**.
+Before training a BT model, you need to check whether your data can produce a unique solution. The key concept is **graph connectivity**.
 
 Represent each item as a node. Draw an undirected edge between $i$ and $j$ if they were compared at least once ($n_{ij} > 0$). This is the **comparison graph**.
 
@@ -215,39 +369,28 @@ Disconnected: {
 }
 ```
 
-### Solved Numerical Example: The TTS Evaluation
-
-Let us work through the full solution for our three-engine example. We fit the BT model as a logistic regression (using `statsmodels.GLM` with a binomial family, no intercept, constraint $\sum \lambda_i = 0$). The MLE estimates are:
-
-- $\hat{\lambda}_C = 0.493$, $\text{SE} = 0.176$
-- $\hat{\lambda}_S = 0.099$, $\text{SE} = 0.170$
-- $\hat{\lambda}_B = -0.592$, $\text{SE} = 0.178$
-
-Check: $0.493 + 0.099 + (-0.592) = 0$. The constraint holds.
-
-**Ranking:** Clarity ($0.493$) > Sonus ($0.099$) > Brio ($-0.592$).
-
-**Predicted probabilities:**
-
-- $P(C \succ B) = \sigma(0.493 - (-0.592)) = \sigma(1.085) \approx 0.747$. Observed: $70/100 = 0.70$.
-- $P(C \succ S) = \sigma(0.493 - 0.099) = \sigma(0.394) \approx 0.597$. Observed: $60/100 = 0.60$.
-- $P(B \succ S) = \sigma(-0.592 - 0.099) = \sigma(-0.691) \approx 0.334$. Observed: $45/100 = 0.45$.
-
-The model fits well but not perfectly. The biggest discrepancy is for Brio vs. Sonus: the model predicts Sonus wins 66.6% of the time, but the observed rate is 55%. This happens because the BT model enforces **global consistency**: it finds a single set of skill parameters that best explains *all* matchups simultaneously, which means individual matchup predictions may deviate from observed frequencies.
-
-**Strength ratios:** Converting back to $\theta = e^\lambda$: $\hat{\theta}_C = e^{0.493} \approx 1.64$, $\hat{\theta}_S = e^{0.099} \approx 1.10$, $\hat{\theta}_B = e^{-0.592} \approx 0.55$. Clarity is about 3 times stronger than Brio ($1.64 / 0.55 \approx 2.96$).
-
 ### Confidence Intervals: Can We Distinguish Clarity from Sonus?
 
-Because BT is a logistic regression, the solver provides a **variance-covariance matrix** $\mathcal{I}(\hat{\Lambda})^{-1}$ (the inverse of the Fisher Information Matrix; see @sec-math-background for background on what this matrix means). The standard errors above come from the diagonal of this matrix.
+With the MLE derivation, its intuitive interpretation, and the convergence conditions in hand, we can return to the concrete numbers from our TTS example. We saw the trained weights and their standard errors in @sec-bt-numerical-example. 
 
-**95% CI for Clarity:** $0.493 \pm 1.96 \times 0.176 = [0.148, 0.838]$. This interval is entirely above zero, so Clarity is statistically above average.
+But the question remains: how **confident** should we be in those estimates? The standard errors from the previous example tell us something is uncertain, but to make a formal statement we need **confidence intervals**. 
 
-**95% CI for Sonus:** $0.099 \pm 1.96 \times 0.170 = [-0.234, 0.432]$. This interval contains zero, so we cannot be confident Sonus is above average.
+Since the SE comes from the **variance-covariance matrix** of the MLE (the inverse of the Fisher Information Matrix; see @sec-math-background), we can construct a **95% confidence interval** for each $\hat{\lambda}_i$ using the standard formula: 
 
-**95% CI for Brio:** $-0.592 \pm 1.96 \times 0.178 = [-0.941, -0.243]$. Entirely below zero. Brio is clearly worst.
+$$
+CI_{\hat{\lambda}_i} = [\hat{\lambda}_i - 1.96 \cdot \text{SE}(\hat{\lambda}_i), \hat{\lambda}_i + 1.96 \cdot \text{SE}(\hat{\lambda}_i)]
+$$
 
-But the real question is: **is Clarity significantly better than Sonus?** We need the CI for the difference $\hat{\lambda}_C - \hat{\lambda}_S$:
+The 1.96 comes from the normal distribution, as the MLE is approximately normally distributed for large samples; see the Think Hard callout below for why. 
+
+Thus:
+- **95% CI for Clarity:** $0.493 \pm 1.96 \times 0.176 = [0.148, 0.838]$. This interval is entirely above zero, so Clarity is statistically above average.
+- **95% CI for Sonus:** $0.099 \pm 1.96 \times 0.170 = [-0.234, 0.432]$. This interval contains zero, so we cannot be confident Sonus is above average.
+- **95% CI for Brio:** $-0.592 \pm 1.96 \times 0.178 = [-0.941, -0.243]$. Entirely below zero. Brio is clearly worst.
+
+We thus have the 95% CIs for each engine's log-ability. 
+
+But if we think carefully, we don't actually care about the individual CIs. The important question is: **is Clarity significantly better than Sonus?**. To determine this, we need the **95% CI for the skill-difference** $\hat{\lambda}_C - \hat{\lambda}_S$:
 
 $$
 \text{Var}(\hat{\lambda}_C - \hat{\lambda}_S) = \text{Var}(\hat{\lambda}_C) + \text{Var}(\hat{\lambda}_S) - 2\text{Cov}(\hat{\lambda}_C, \hat{\lambda}_S)
@@ -263,78 +406,44 @@ $$
 \text{SE}(\hat{\lambda}_C - \hat{\lambda}_S) = \sqrt{0.044} \approx 0.210
 $$
 
-The 95% CI for the difference is:
+The 95% CI for Sonus $\succ$ Clarity is thus:
 
 $$
 0.394 \pm 1.96 \times 0.210 = [-0.018, \; 0.806]
 $$
 
-This interval *just barely crosses zero*. We **cannot conclude at the 95% level that Clarity is better than Sonus**. Despite Clarity's higher point estimate, the difference is not statistically significant. Our conclusion: "Brio is clearly worst. Clarity and Sonus are in a statistical tie for first. We need more data to distinguish them."
+This interval *just barely crosses zero*. We thus **cannot conclude at the 95% level that Clarity is better than Sonus**, despite Clarity's higher point estimate, the difference is not statistically significant. Our conclusion: "Brio is clearly worst. Clarity and Sonus are in a statistical tie for first. We need more data to distinguish them."
 
-This is enormously useful for practical decision-making. Without confidence intervals, we might have prematurely chosen Clarity. The BT model, via its logistic regression connection, gives us the statistical tools to know when we need more evidence.
+This is enormously useful for practical decision-making. Without confidence intervals, we might have prematurely chosen Clarity. And because training a BT model is just a form of logistic regression, we get these statistical tools automatically.
 
 ::: {.callout-tip title="Self-Explanation Prompt"}
-You ran a BT model on 20 TTS engines. The top two have scores $\hat{\lambda}_1 = 2.1$ and $\hat{\lambda}_2 = 1.9$ with standard errors of 0.3 each. Can you conclude engine 1 is better? What additional quantity do you need from the variance-covariance matrix to answer this?
+You ran a BT model on 20 TTS engines. The top two have scores $\hat{\lambda}_A = 2.1$ and $\hat{\lambda}_B = 1.9$ with standard errors of 0.3 each. 
+
+Can you conclude engine A is better? What additional quantity do you need from the variance-covariance matrix to answer this?
 :::
 
-::: {.callout-warning title="Common Misconception: Overlapping individual CIs mean the difference is not significant"}
-This is a widespread error. Two items can have overlapping individual confidence intervals but a *significant* difference. The correct test uses the variance of the difference (@eq-var-diff), which accounts for the covariance between the two estimates. If the covariance is positive (as it often is in BT models where all parameters are estimated jointly), the variance of the difference is *smaller* than the sum of the individual variances, and the difference may be significant even when individual CIs overlap. Always test the difference directly.
+::: {.callout-warning title="Common Misconception: Overlapping individual CIs mean the skill-difference cannot be significant"}
+This is a widespread misconception. Two items can have overlapping individual confidence intervals and still have a *statistically significant* difference. 
+
+The correct way is to check the variance of the skill-difference (@eq-var-diff), which accounts for the covariance between the two estimates. If the covariance is positive (as it often is in BT models where all parameters are estimated jointly), the variance of the skill-difference is *smaller* than the sum of the individual variances, and the skill-difference may be significant even when individual CIs overlap. Always check the skill-difference directly.
 :::
 
 ::: {.callout-note title="Think Hard: Why are we allowed to use $\hat{\lambda} \pm 1.96 \times \text{SE}$ for confidence intervals?"}
 The 95% CI formula $\hat{\lambda}_i \pm 1.96 \times \text{SE}(\hat{\lambda}_i)$ assumes the MLE is approximately normally distributed. Why should that be true for a nonlinear logistic model?
 
-The answer comes from a deep result in statistical theory: **the asymptotic normality of maximum likelihood estimators**. Under regularity conditions (smooth log-likelihood, identifiable parameters, connected comparison graph), the MLE $\hat{\Lambda}$ converges in distribution to a multivariate Gaussian centered at the true parameter $\Lambda$, with covariance equal to the inverse **Fisher Information Matrix** $\mathcal{I}(\Lambda)^{-1}$. The Fisher Information measures how much "curvature" the log-likelihood has at the MLE: high curvature means the data strongly constrain the parameter, producing a small standard error (for a rigorous treatment, see Gundersen's posts on [Fisher Information](https://gregorygundersen.com/blog/2019/11/21/fisher-information/) and [asymptotic normality](https://gregorygundersen.com/blog/2019/11/28/asymptotic-normality-mle/)).
+The answer comes from a deep result in statistical theory: **the asymptotic normality of maximum likelihood estimators**. Under regularity conditions (smooth log-likelihood, identifiable parameters, connected comparison graph), the MLE $\hat{\Lambda}$ converges in distribution to a multivariate Gaussian centered at the true parameter $\Lambda$, with covariance equal to the inverse **Fisher Information Matrix** $\mathcal{I}(\Lambda)^{-1}$. 
 
-For the BT model specifically, the Fisher Information Matrix has entries that depend on the number of comparisons $n_{ij}$ and the predicted probabilities $P(i \succ j)$. More comparisons and more "uncertain" matchups (where $P(i \succ j) \approx 0.5$) contribute more information, producing tighter CIs. This is why adaptive pair selection (@sec-data-collection) focuses on uncertain pairs: they are the comparisons that reduce standard errors the most per annotation dollar.
+The Fisher Information measures how much "curvature" the log-likelihood has at the MLE: high curvature means the data strongly constrain the parameter, producing a small standard error (for a rigorous treatment, see Gundersen's posts on [Fisher Information](https://gregorygundersen.com/blog/2019/11/21/fisher-information/) and [asymptotic normality](https://gregorygundersen.com/blog/2019/11/28/asymptotic-normality-mle/)).
+
+For the BT model specifically, the Fisher Information Matrix has entries that depend on the number of comparisons $n_{ij}$ and the predicted probabilities $P(i \succ j)$. More comparisons and more "uncertain" matchups (where $P(i \succ j) \approx 0.5$) contribute more information, producing tighter CIs. This is why adaptive pair selection (@sec-data-collection) focuses on **uncertain pairs**: they are the comparisons that reduce standard errors the most.
 :::
-
-### The Logistic Regression Implementation
-
-For completeness, here is how you would fit this model in Python. We use `statsmodels.GLM` with a binomial family. The key implementation detail: pass the data as a 2-column `[successes, failures]` array to the `endog` argument, and build the design matrix with $+1/-1$ encoding. Fit without an intercept (which `sm.GLM` does by default when you don't call `sm.add_constant`).
-
-```python
-import numpy as np
-import statsmodels.api as sm
-
-W = np.array([[0, 70, 60],
-              [30, 0, 45],
-              [40, 55, 0]])
-
-model_names = ["Clarity", "Brio", "Sonus"]
-C = len(model_names)
-
-X_rows, y_rows = [], []
-for i in range(C):
-    for j in range(i+1, C):
-        if W[i,j] + W[j,i] == 0:
-            continue
-        x = np.zeros(C - 1)
-        if i == 0:
-            x[j - 1] = 1
-            y_rows.append([W[j, i], W[i, j]])
-        else:
-            x[i - 1] = 1
-            x[j - 1] = -1
-            y_rows.append([W[i, j], W[j, i]])
-        X_rows.append(x)
-
-X = np.array(X_rows)
-y = np.array(y_rows)
-
-glm = sm.GLM(y, X, family=sm.families.Binomial())
-results = glm.fit()
-print(results.summary())
-```
-
-The coefficients from this regression are the $\hat{\lambda}$ values relative to the reference model (Clarity, in this encoding). To convert to the sum-to-zero constraint, subtract the mean of all parameters (including the reference's zero).
 
 ### Transition: From Point Estimates to Distributions
 
 The BT model gives us a powerful, elegant framework for converting pairwise preferences into a global ranking with confidence intervals. But it has two limitations:
 
-1. **No uncertainty tracking over time.** BT gives a single point estimate for each item. It does not distinguish between "we are very confident this engine is good" and "we have barely tested this engine." Both produce a single $\hat{\lambda}$ value.
+1. **No uncertainty tracking over time.** Training produces a single point estimate for each item. It does not distinguish between "we are very confident this engine is good" and "we have barely tested this engine." Both produce a single $\hat{\lambda}$ value.
 
-2. **No online updates.** BT requires all data to be available before fitting. If you have 10 annotators working in parallel and want to select the next batch of pairs intelligently, BT offers no mechanism for incremental updates.
+2. **No online updates.** Training a BT model requires all data to be available upfront. If you have 10 annotators working in parallel and want to select the next batch of pairs intelligently, BT offers no mechanism for incremental updates. Usually re-training a BT model from scratch is quite fast, but this can be a problem if you are collecting huge amounts of preference data in real-time, such as in Tinder or Hinge.
 
 Both limitations point to the same solution: model skill not as a point estimate, but as a **probability distribution**. This is the Bayesian approach, and it leads us to TrueSkill, Glicko, and the Elo system in the next section.
