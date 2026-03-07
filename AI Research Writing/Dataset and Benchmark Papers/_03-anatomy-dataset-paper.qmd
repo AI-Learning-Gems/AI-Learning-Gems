@@ -1,0 +1,150 @@
+## Anatomy of a Dataset Paper {#sec-anatomy-dataset}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [PRISM Alignment Dataset (NeurIPS 2024 D&B Best Paper)](https://arxiv.org/abs/2404.16019) | 75-country participatory dataset for multicultural RLHF; exemplary dataset paper structure |
+| 2 | [ClimSim (NeurIPS 2023 D&B Best Paper)](https://arxiv.org/abs/2306.08754) | 5.7B multivariate pairs for climate emulation; cross-disciplinary dataset documentation |
+| 3 | [LAION-5B (NeurIPS 2022 D&B Best Paper)](https://arxiv.org/abs/2210.08402) | 5.85B image-text pairs; large-scale dataset paper structure |
+| 4 | [Datasheets for Datasets (arXiv:1803.09010)](https://arxiv.org/abs/1803.09010) | Gebru et al.; standardized dataset documentation framework |
+| 5 | [Data Statements for NLP (TACL 2018)](https://direct.mit.edu/tacl/article/doi/10.1162/tacl_a_00041/43452/) | Bender & Friedman; schema for documenting NLP datasets |
+| 6 | [NeurIPS 2025 Blog: Raising the Bar](https://blog.neurips.cc/2025/03/10/neurips-datasets-benchmarks-raising-the-bar-for-dataset-submissions/) | Croissant requirement, dataset hosting mandate, documentation standards |
+| 7 | [Croissant: ML Commons Dataset Format](https://mlcommons.org/working-groups/data/croissant/) | Machine-readable metadata format required by NeurIPS 2025 |
+| 8 | [Building Better Datasets: Seven Recommendations (DMLR 2024)](https://dmlr.ai/) | Evidence-based recommendations for dataset creators |
+
+:::
+
+### The Canonical Structure
+
+By analyzing best-paper winners and accepted papers from the NeurIPS D&B track across 2021–2024, a clear structural pattern emerges. Dataset papers are not formless descriptions of data dumps. They follow a recognizable template: one that maps to specific reviewer expectations and allocates page budget in a characteristic way. If you understand this template, you can write to it. And if you deviate from it, you do so deliberately, not accidentally.
+
+Here is the canonical structure of a strong dataset paper, along with the typical page budget for a 9-page NeurIPS D&B submission:
+
+| Section | Typical Pages | Purpose |
+|---|---|---|
+| **Introduction** | ~1.5 pages | Motivate the gap → state the contribution → preview the dataset |
+| **Related Work / Existing Datasets** | ~0.5–1 page | Position your dataset in the landscape of alternatives |
+| **Data Collection & Curation** | ~2.5–3 pages | The heart of the paper: how data was collected, annotated, validated |
+| **Dataset Statistics & Analysis** | ~1–1.5 pages | Quantitative profile: size, distribution, diversity, quality metrics |
+| **Baseline Experiments** | ~1–1.5 pages | Run existing methods on your dataset; establish benchmarks |
+| **Limitations & Ethics** | ~0.5 page | Biases, gaps, privacy, consent, potential harms |
+| **Conclusion & Data Availability** | ~0.25 page | Summary + permanent hosting link + maintenance plan |
+
+**Notice what is missing:** there is no "Methods" section in the traditional sense (no new algorithm), no "Hypothesis," no "Theoretical Analysis." This is because the dataset paper's intellectual contribution *is* the data artifact and the methodology used to create it, not a new model or theory. The "Methods" equivalent is the Data Collection section. But it describes *how the data was built*, not how a model was trained.
+
+Let us walk through each section and understand what makes it strong or weak.
+
+### The Introduction: Articulating the Gap
+
+A dataset paper introduction has a specific rhetorical job: it must convince the reader that *this dataset needs to exist*. This is fundamentally different from a research paper introduction, which argues that *this algorithm solves a problem better than predecessors*. The dataset paper introduction argues that *the research community lacks a resource that is preventing progress*, and this paper fills that gap.
+
+The strongest dataset paper introductions follow a four-part structure:
+
+1. **The capability gap:** "Models are being deployed for X, but there is no reliable way to evaluate X." or "Research on X is limited because no large-scale dataset covers Y." PRISM ([Kirk et al., NeurIPS 2024](https://arxiv.org/abs/2404.16019)) opens by noting that existing RLHF data reflects "predominantly Western, English-speaking perspectives." This gap limits the cultural robustness of aligned LLMs. ClimSim ([Yu et al., NeurIPS 2023](https://arxiv.org/abs/2306.08754)) opens by noting that climate models are computationally expensive. Hybrid physics-ML approaches are promising but lack training data at the right resolution and scale.
+
+2. **Why existing datasets don't suffice:** This is not a literature review. It is a *gap analysis*. Name the existing datasets, acknowledge their value, and then precisely articulate what they lack. PRISM notes that existing alignment datasets were collected from English-speaking populations in a few Western countries. LAION-5B ([Schuhmann et al., NeurIPS 2022](https://arxiv.org/abs/2210.08402)) notes that previous public image-text datasets were three orders of magnitude smaller than what was needed for training competitive vision-language models.
+
+3. **The contribution statement:** "We introduce [DATASET NAME], a [scale] dataset of [description] that addresses [gap] by [innovation]." This should be specific and quantitative. PRISM: "We introduce PRISM, a participatory alignment dataset compiled by engaging 1,500 diverse participants from 75 countries." ClimSim: "We present ClimSim, a dataset of 5.7 billion multivariate input-output pairs."
+
+4. **The impact preview:** What will this dataset enable? "Our dataset enables researchers to [evaluate/train/analyze] [capability] for the first time." or "We demonstrate through baseline experiments that [surprising finding], suggesting [research direction]."
+
+::: {.callout-warning title="Common Misconception: 'Dataset papers don't need experiments'"}
+A recurring rejection reason for dataset papers is "no baseline experiments." Some authors assume that describing the data and its collection methodology is sufficient for a D&B submission. It is not. Every best-paper winner at NeurIPS D&B includes baseline experiments. This means running existing models or methods on the new dataset to establish a performance floor, demonstrate the dataset's difficulty, and show that the dataset enables meaningful research. PRISM runs existing reward models and shows they perform inconsistently across cultures. DecodingTrust ([Wang et al., NeurIPS 2023](https://arxiv.org/abs/2306.11698)) runs GPT-3.5 and GPT-4 across its trustworthiness dimensions. ClimSim runs physics-informed ML models and reveals performance gaps across climate variables. Baseline experiments *prove the utility* of your dataset. A dataset without baselines is like a new telescope without any photographs of what it can see: technically impressive, but unmoving.
+:::
+
+
+### Data Collection & Curation: The Heart of the Paper
+
+The Data Collection section is to a dataset paper what the Methods section is to a research paper. It is the core intellectual contribution. This is where you demonstrate that your data was created with rigor, care, and purpose. A reviewer who reads this section should come away convinced that the data is trustworthy, that the collection process is reproducible, and that quality was actively controlled.
+
+The following elements are expected in a strong Data Collection section:
+
+**Source and provenance.** Where does the raw data come from? Web scraping, manual creation, crowd-sourcing, partnership with domain experts, existing databases? Be specific. LAION-5B describes its pipeline: starting from Common Crawl, filtering image-text pairs using CLIP similarity scores, deduplicating across the full corpus. PRISM describes its participatory framework: participants from 75 countries were recruited through diverse channels, compensated fairly, and engaged in structured preference tasks.
+
+**Annotation process.** If humans are involved in labeling, describe the annotation scheme, the guidelines given to annotators, the training process, the quality control mechanisms (gold-standard examples, consensus requirements, spot checks), and the annotator demographics. This is where inter-annotator agreement metrics become essential. Report Cohen's κ (for two annotators), Fleiss' κ (for multiple annotators), or Krippendorff's α (for any number of annotators with missing data). These metrics give reviewers a calibration point for data quality:
+
+| Metric Range | Interpretation |
+|---|---|
+| κ or α < 0.40 | Poor agreement: annotation scheme may be flawed |
+| 0.40 ≤ κ or α < 0.60 | Moderate agreement: acceptable with caveats |
+| 0.60 ≤ κ or α < 0.80 | Substantial agreement: good quality |
+| κ or α ≥ 0.80 | Near-perfect agreement: excellent quality |
+
+If your inter-annotator agreement is below 0.60, you need to either refine the annotation scheme or explain why the task is inherently ambiguous (some tasks, like sentiment analysis of sarcastic text, have legitimately lower IAA). Lora Aroyo's work on "truth by disagreement" provides a framework for cases where annotator disagreement is *informative* rather than problematic. The disagreement itself reveals cultural differences, subjective interpretations, or genuine ambiguity in the data.
+
+**Quality control pipeline.** Beyond IAA, how did you ensure quality at scale? Common strategies include: inserting gold-standard items (examples with known correct answers) to calibrate annotators, requiring consensus from multiple annotators before accepting a label, using automated heuristics to flag outliers, and conducting manual spot-checking of random samples. Describe the pipeline with enough detail that a reader could implement it.
+
+**Data processing and filtering.** If you applied any automated filtering (removing low-quality examples, deduplicating, language detection, toxicity filtering), describe the pipeline, the tools used, and the impact on dataset size and composition. LAION-5B describes its CLIP-based filtering threshold and shows how different thresholds affect dataset quality. Be transparent about what was removed and why. Saying "we filtered 40% of initial candidates due to low CLIP similarity scores" is more trustworthy than saying "we curated a high-quality dataset."
+
+
+### Documentation Requirements: The Rising Bar
+
+The NeurIPS 2025 guidelines have formalized what was previously informal. Three documentation frameworks now shape what reviewers expect, and understanding them is essential for writing a competitive paper.
+
+| Framework | Introduced | Key Questions | Required By |
+|---|---|---|---|
+| **Datasheets for Datasets** ([Gebru et al., arXiv 2018](https://arxiv.org/abs/1803.09010)) | 2018 | Motivation, Composition, Collection process, Preprocessing, Uses, Distribution, Maintenance | NeurIPS D&B (recommended) |
+| **Data Statements for NLP** ([Bender & Friedman, TACL 2018](https://direct.mit.edu/tacl/article/doi/10.1162/tacl_a_00041/43452/)) | 2018 | Speaker demographics, Annotator demographics, Language variety, Text characteristics | ACL/EMNLP (recommended) |
+| **Croissant Metadata** (MLCommons, 2024) | 2024 | Machine-readable dataset description: structure, fields, splits, formats | NeurIPS D&B 2025 (**required**) |
+
+**Datasheets for Datasets** is the most comprehensive framework. Inspired by datasheets in the electronics industry, it proposes that every dataset be accompanied by a structured document answering questions across seven categories: *Motivation* (why was the dataset created?), *Composition* (what's in it?), *Collection Process* (how was it gathered?), *Preprocessing/Cleaning* (what processing was applied?), *Uses* (what is the dataset intended for? what should it NOT be used for?), *Distribution* (how will it be shared?), and *Maintenance* (who is responsible for updates? how long will it be supported?). The NeurIPS D&B guidelines explicitly reference this framework and encourage (though do not yet require) authors to include a datasheet.
+
+**Croissant metadata** is the newest requirement and the one most likely to trip up first-time D&B submitters. Developed by MLCommons, Croissant provides a machine-readable JSON-LD format for describing datasets: their structure, fields, data types, splits, and loading instructions. It is already supported by HuggingFace, Kaggle, OpenML, and Dataverse. Starting in 2025, NeurIPS D&B submissions must include a Croissant metadata file, and non-compliance may result in desk rejection. Practically, this means that when you host your dataset on HuggingFace, you need to create a Croissant descriptor (HuggingFace's dataset card system can generate a basic one automatically, but you should review and customize it).
+
+**Data Statements for NLP** is specifically designed for language datasets and focuses on the demographic and sociolinguistic characteristics of the data: who produced the language data (speaker demographics), who annotated it (annotator demographics), what variety of language is represented (dialect, register, domain), and what characteristics the text has (formality, topic, genre). If you are creating an NLP dataset, especially one submitted to *CL venues, including a data statement is strongly recommended and signals methodological rigor to reviewers.
+
+
+### The Five Pillars of a Strong Dataset Contribution
+
+After analyzing best-paper winners and common rejection reasons across NeurIPS D&B 2021–2024, five qualities consistently distinguish strong dataset papers from weak ones:
+
+**1. Scale or novelty.** Your dataset must offer something that existing alternatives do not. This can be *scale* (LAION-5B: first billion-scale public image-text dataset, three orders of magnitude larger than alternatives), *coverage* (PRISM: first alignment dataset spanning 75 countries, whereas previous datasets covered 2–3 countries), *domain* (ClimSim: first large-scale dataset for hybrid physics-ML climate emulation, an entirely new research direction), or *task* (first dataset for a newly defined capability). "We collected more data for an existing task" is usually not enough unless the scale increase is transformative.
+
+**2. Quality.** Size without quality is noise. Strong dataset papers demonstrate quality through multiple signals: high inter-annotator agreement (κ ≥ 0.70), rigorous quality control pipelines, expert validation, and transparent documentation of known limitations. If your dataset was crowd-sourced, describe how you vetted annotators, calibrated them with gold-standard examples, and resolved disagreements.
+
+**3. Documentation.** Comprehensive, structured documentation following established frameworks. Every field in the Datasheets for Datasets framework should be addressed. Metadata should be machine-readable (Croissant). The collection methodology should be reproducible from the paper's description alone. Reviewers will specifically check whether you have documented potential biases, demographic characteristics of annotators/data subjects, and intended (and explicitly warned-against) use cases.
+
+**4. Accessibility.** The data must be easy to download, use, and understand. This means: hosted on a permanent platform (HuggingFace, Kaggle, OpenML, Dataverse), provided in standard formats (CSV, JSON, Parquet), accompanied by loading scripts or code, and organized with clear split definitions (train/validation/test). A beautifully documented dataset that requires emailing the authors for access will be penalized or rejected.
+
+**5. Demonstrated utility.** Baseline experiments show that the dataset *enables meaningful research*. Run existing state-of-the-art models on your dataset. Report the results. Analyze the error patterns. Show where models succeed and fail. This serves two purposes. First, it proves that the dataset is appropriate for research (models can be trained and evaluated on it). Second, it provides a benchmark for future work (researchers now have a baseline to beat). PRISM runs existing reward models across cultures and shows dramatic performance variation. ClimSim runs physics-informed ML models and reveals which climate variables are hardest to emulate.
+
+
+### Common Weaknesses and Rejection Reasons
+
+Based on reviewer feedback patterns from NeurIPS D&B submissions, the following weaknesses most frequently lead to rejection:
+
+::: {.callout-caution title="Top 5 Rejection Reasons for Dataset Papers"}
+
+1. **"The dataset is just a recombination of existing datasets without clear added value."** Merging three existing datasets into one is not a contribution unless the combination creates something genuinely new: a new task, a new evaluation framework, or a new scale that changes what's possible.
+
+2. **"Annotation quality is unclear: no inter-annotator agreement reported."** If humans annotated your data and you do not report IAA, reviewers will assume the quality is poor. Always report κ or α.
+
+3. **"The paper lacks baseline experiments."** As discussed above, baselines are mandatory. Run at least three models: a random baseline (lower bound), a strong existing model (calibration), and a frontier model (upper bound).
+
+4. **"The dataset is not accessible."** If the review form asks "Did you access the dataset?" and the reviewer writes "No: the link was broken / required login / required emailing the authors," the paper is effectively dead. Test your download link. Multiple times. From different networks.
+
+5. **"Ethical considerations are superficial."** Writing "We considered ethical implications" without specifics will not pass review. Discuss: What personal data is included? How was consent obtained? What biases might be present? What harmful uses should be warned against? What populations might be underrepresented? Be concrete and honest.
+
+:::
+
+::: {.callout-note title="Think Hard: What makes a dataset paper's contribution 'intellectual' rather than just 'labor'?"}
+Critics of the D&B track sometimes argue that building a dataset is "just labor" and that anyone with enough time and money could do it. This critique misunderstands the nature of the contribution. A strong dataset paper demonstrates intellectual contribution in at least three ways. First, **task design**: choosing *what* to annotate, how to define the task categories, and how to structure the evaluation protocol requires deep domain expertise and creative problem-solving. PRISM's contribution is not just "we collected preferences from many countries." It is the careful design of a participatory framework that surfaces cultural variation in alignment preferences. Second, **quality methodology**: designing and implementing quality control at scale involves genuine methodological innovation. How do you calibrate 500 crowd-workers to apply consistent annotation guidelines across 40 languages? The methodology *is* the innovation. Third, **analysis and insight**: strong dataset papers don't just present data; they analyze it and reveal surprising patterns. ClimSim's analysis shows that certain climate variables are dramatically harder to emulate than others, guiding future research priorities. This analysis is a scientific contribution in its own right.
+:::
+
+
+### Worked Example: Dr. Chen's Dataset Paper Outline
+
+Let us see how Dr. Chen allocates her 9-page budget for the multilingual reasoning benchmark:
+
+| Section | Pages | What Dr. Chen Includes |
+|---|---|---|
+| **Introduction** | 1.5 | Gap: no multilingual reasoning benchmark at this scale/coverage. Existing benchmarks cover 5–8 languages. Hers covers 40. Contribution statement with numbers. |
+| **Related Work** | 0.75 | Comparison table: MGSM, XWinograd, XCOPA, etc. (showing language coverage gaps and task type limitations) |
+| **Data Collection** | 2.5 | Annotation scheme design (reasoning categories), annotator recruitment across 18 countries, annotation interface (brief), quality control pipeline, adversarial filtering |
+| **Dataset Statistics** | 1.25 | Distribution across languages, difficulty levels, reasoning types. IAA metrics (κ = 0.79 overall, per-language breakdown). Example items. |
+| **Baseline Experiments** | 1.5 | GPT-4, Claude 3, Gemini Pro, Llama 3 70B, Qwen 2 72B. Results table by language. Analysis: performance drops sharply for low-resource languages. |
+| **Limitations & Ethics** | 0.5 | Cultural bias in question design, consent procedures for annotators, compensation details, potential for benchmark gaming. |
+| **Conclusion & Availability** | 0.25 | HuggingFace link, Croissant metadata, GitHub repo with evaluation scripts, maintenance commitment (annual updates). |
+
+The remaining unlimited appendix space includes the full Datasheets for Datasets document, per-language IAA breakdowns, additional example items, annotator demographic profiles, and a data statement following the Bender & Friedman framework. This is a complete, reviewable submission package that addresses every dimension reviewers will evaluate.

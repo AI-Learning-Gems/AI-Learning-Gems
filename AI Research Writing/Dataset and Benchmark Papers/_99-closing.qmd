@@ -1,0 +1,53 @@
+## Key Takeaways {#sec-key-takeaways}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | All sources from preceding sections | Synthesis of chapter content |
+
+:::
+
+### Summary of Key Insights
+
+This chapter has covered the full landscape of Datasets & Benchmarks papers: from what they are, to how they differ from other paper types, to how to write a competitive submission. Here are the core insights, distilled:
+
+1. **D&B papers contribute data artifacts and evaluation infrastructure, not algorithms.** The primary contribution of a D&B paper is the dataset, benchmark, evaluation tool, or data curation methodology itself. This is a distinct type of research contribution, and since 2021 it has been recognized as "first-class work on par with algorithms work" by the ML community.
+
+2. **Track selection depends on your *primary* contribution.** If the main value is a new algorithm → Research track. If the main value is a new dataset or benchmark → D&B track. If the main value is a working software system → System Demo track. Many papers touch all three, but the primary contribution determines the right venue. Splitting multi-component work into targeted submissions to appropriate tracks increases both publication count and impact.
+
+3. **Strong dataset papers need five things.** Scale or novelty (something that existing datasets don't offer), quality (rigorous annotation with IAA metrics), documentation (Datasheets for Datasets, Croissant metadata), accessibility (hosted on a permanent platform), and demonstrated utility (baseline experiments showing the dataset enables meaningful research).
+
+4. **Strong benchmark papers need three properties.** Following Ofir Press's framework: Natural (tasks reflect real-world needs), Automatically Evaluatable (objective, automated scoring), and Challenging (0.1–9% top accuracy at launch). Additionally: human baselines, a formal evaluation protocol, and a strategy for contamination resistance.
+
+5. **D&B work is becoming more critical, not less.** The LLM era has produced an evaluation crisis: benchmark saturation, training data contamination, expanding capability breadth, and urgent safety evaluation needs. Agentic AI demands fundamentally new evaluation paradigms: environment-based benchmarks, multi-step evaluation, and safety compliance testing. The community's institutional response (NeurIPS D&B, KDD D&B, DMLR journal, Croissant standard) confirms that data-centric research is a permanent feature of the landscape.
+
+6. **Document, host, baseline, reflect.** The practical requirements are non-negotiable: use the Datasheets framework, provide Croissant metadata, host your data on a permanent platform (HuggingFace, Kaggle, OpenML), run comprehensive baselines (≥3 models + human), and write an honest ethics section that addresses specific risks and limitations.
+
+7. **Datasets define research agendas.** ImageNet defined image recognition research for a decade. SQuAD defined reading comprehension. SWE-bench defined AI-for-coding. The most-cited papers in ML are often datasets, not algorithms. When you create a dataset or benchmark, you are not just releasing data. You are shaping what the community works on next.
+
+
+### If You Remember Nothing Else
+
+- **The litmus test:** "Is the main value of my work the data or evaluation infrastructure itself?" → If yes, D&B track.
+- **The documentation minimum:** Use the Datasheets for Datasets framework. Fill out every field. Provide Croissant metadata.
+- **The hosting mandate:** Host on HuggingFace, Kaggle, OpenML, or Dataverse. Test the download link. Provide a backup.
+- **The baseline imperative:** A dataset without baselines is just cloud storage. Run at least three models and a human baseline.
+- **The introduction formula:** Write your opening as a gap statement. "Capability X cannot be evaluated because no benchmark/dataset exists for Y. We introduce Z, which fills this gap by..."
+- **The three-property check:** For benchmarks, verify: Natural? Automatically evaluatable? Challenging enough (0.1–9% top accuracy at launch)?
+
+
+### Dr. Chen's Epilogue
+
+Dr. Mei Chen submitted her multilingual reasoning benchmark to the NeurIPS 2025 D&B track. Her scoring algorithm went to EMNLP main track. She is generalizing her annotation tool for a potential ACL 2026 System Demo submission. Each paper stands on its own merits, evaluated by the right reviewers, using the right criteria. Her labmate Aditya, who suggested "just put it in the appendix," is now reading this chapter.
+
+
+### Cross-Reference: The Companion Chapter
+
+This chapter complements the companion chapter on **Writing System Demonstration Papers at *CL Venues**. Together, the two chapters provide comprehensive guidance for submitting to all three major conference tracks:
+
+- **Research track**: Algorithmic/theoretical contributions (standard conference submissions)
+- **D&B track**: Dataset and benchmark contributions (**this chapter**)
+- **System Demo track**: Software system contributions (**companion chapter**)
+
+If your work spans multiple tracks (as Dr. Chen's does), you now have guidance for each component. The key insight, reinforced across both chapters, is that matching your contribution type to the right track is not just a strategic decision. It is a prerequisite for fair review. A dataset paper reviewed as if it were a research paper will be judged by the wrong criteria. A system demo paper reviewed as if it were a D&B paper will face irrelevant questions. Choosing the right track ensures that your work is seen clearly and valued fully.

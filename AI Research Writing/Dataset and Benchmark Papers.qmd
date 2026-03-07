@@ -1,0 +1,19 @@
+---
+title: "Datasets & Benchmarks Papers — What They Are, Why They Matter, and How to Write Them"
+filters:
+  - ../../_extensions/pandoc-ext/diagram/diagram.lua
+---
+
+{{< include "Dataset and Benchmark Papers/_01-introduction.qmd" >}}
+
+{{< include "Dataset and Benchmark Papers/_02-track-comparison.qmd" >}}
+
+{{< include "Dataset and Benchmark Papers/_03-anatomy-dataset-paper.qmd" >}}
+
+{{< include "Dataset and Benchmark Papers/_04-anatomy-benchmark-paper.qmd" >}}
+
+{{< include "Dataset and Benchmark Papers/_05-why-db-matters.qmd" >}}
+
+{{< include "Dataset and Benchmark Papers/_06-how-to-write-db-paper.qmd" >}}
+
+{{< include "Dataset and Benchmark Papers/_99-closing.qmd" >}}

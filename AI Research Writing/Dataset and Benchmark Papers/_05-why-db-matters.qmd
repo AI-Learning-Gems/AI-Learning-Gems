@@ -1,0 +1,99 @@
+## Why D&B Papers Matter More Than Ever: The LLM and Agentic Era {#sec-why-db-matters}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Andrew Ng: Data-Centric AI (YouTube, 2021)](https://www.youtube.com/watch?v=06-AZXmwHjo) | Data quality > model complexity; shift from model-centric to data-centric AI |
+| 2 | [Lora Aroyo: NeurIPS 2023 Invited Talk](https://neurips.cc/virtual/2023/invited-talk/73987) | "Truth by disagreement": annotator disagreement as signal, not noise |
+| 3 | [Benchmark Data Contamination survey (arXiv:2406.04244)](https://arxiv.org/abs/2406.04244) | Up to 13pp accuracy inflation from contamination |
+| 4 | [SWE-bench (ICLR 2024)](https://arxiv.org/abs/2310.06770) | Real-world software engineering benchmark; 1.96% → ~50% in 2 years |
+| 5 | [GAIA (arXiv:2311.12983)](https://arxiv.org/abs/2311.12983) | General AI assistants benchmark; humans 92% vs GPT-4 15% |
+| 6 | [WebArena (ICLR 2024)](https://arxiv.org/abs/2307.13854) | Web environment benchmark; GPT-4 ~14% vs humans ~78% |
+| 7 | [NeurIPS 2025 Blog: Raising the Bar](https://blog.neurips.cc/2025/03/10/neurips-datasets-benchmarks-raising-the-bar-for-dataset-submissions/) | "Progress depends just as much on data quality" |
+| 8 | [LAION-5B (NeurIPS 2022)](https://arxiv.org/abs/2210.08402) | Dataset that enabled Stable Diffusion |
+
+:::
+
+### The Data-Centric AI Paradigm Shift
+
+For most of the deep learning era — roughly 2012 through 2022 — the dominant philosophy in machine learning research could be summarized in five words: *build a better model*. The research community's collective energy was overwhelmingly focused on architectures (ResNets, Transformers, GPT, BERT), training procedures (dropout, batch normalization, learning rate schedules, RLHF), and scaling laws (more parameters, more compute, more data). The dataset was a constant: a fixed backdrop against which models competed. You didn't write papers about ImageNet; you wrote papers about models that performed well *on* ImageNet. The dataset was infrastructure, taken for granted like the electricity that powered the GPUs.
+
+Andrew Ng's 2021 talk on data-centric AI ([Ng, 2021](https://www.youtube.com/watch?v=06-AZXmwHjo)) argued that this philosophy was fundamentally incomplete. His central claim was provocative and simple: for most practical ML problems, improving the *data* yields larger gains than improving the *model*. He presented a compelling example from manufacturing defect detection: a team spent months trying to improve their model's accuracy from 76% to 80%, trying different architectures, hyperparameters, and training tricks. Then they spent a week cleaning their dataset — removing mislabeled examples, improving annotation consistency, adding examples of under-represented defect types — and accuracy jumped to 93%. The data, not the model, was the bottleneck.
+
+This argument struck a nerve because it mapped onto a widespread but rarely articulated experience: many ML practitioners had found that data quality interventions (fixing labels, balancing classes, removing duplicates, improving annotation guidelines) produced larger improvements than model-level interventions (tuning hyperparameters, trying new architectures, adding layers). The problem was that the academic incentive structure didn't reward data work. You could not publish a paper at NeurIPS saying "we cleaned the dataset and accuracy went up 17 points." Reviewers would ask, "Where is the algorithmic novelty?" The data-centric AI framing gave this work a name, a philosophy, and eventually, a venue.
+
+The creation of the NeurIPS D&B track in 2021 was, in hindsight, a direct institutional response to this paradigm shift. It recognized that if data quality is the bottleneck for ML progress, then data work deserves its own publication venue with its own review criteria. The track's growth (from 484 submissions in 2021 to 1,820 in 2024) validates the demand. Researchers had been doing data work all along; they just didn't have a place to publish it.
+
+
+### The Evaluation Crisis in the LLM Era
+
+The need for D&B work has not just grown. It has transformed qualitatively. The rise of large language models since 2022 has created what can only be described as an *evaluation crisis*: a situation where the research community's ability to build capable models has outpaced its ability to measure what those models can do. Four interconnected problems define this crisis.
+
+**Problem 1: Benchmark saturation.** Existing benchmarks are being solved faster than new ones are created. GSM8K, a benchmark of grade-school math word problems, went from 35% accuracy (GPT-3) to over 99% (frontier models) in roughly four years. MMLU, once a challenging multi-task benchmark, now sees frontier models scoring above 90%. HellaSwag, designed to test common-sense reasoning, is effectively solved. When a benchmark reaches ceiling performance, it can no longer discriminate between models. It tells you that a model is "good enough" but not *how much better* one model is than another. The research community loses its most important measurement tool precisely when it needs it most.
+
+The speed of saturation has accelerated dramatically. Benchmarks that would have remained challenging for years in the pre-LLM era now saturate within months. This creates a treadmill effect: benchmark creators must constantly produce new, harder evaluation suites just to keep up with model improvements. SWE-bench ([Jimenez et al., ICLR 2024](https://arxiv.org/abs/2310.06770)), which launched at 1.96% in late 2023, was at approximately 50% by late 2025. This was a remarkable pace of progress, but also a signal that the benchmark's days as a meaningful discriminator are numbered.
+
+**Problem 2: Benchmark contamination.** The second problem compounds the first. Large language models are trained on massive corpora that include web-scraped text, academic papers, code repositories, and discussion forums. These corpora increasingly contain the *test sets* of popular benchmarks. When a model has "seen" the benchmark questions during training, its performance on those questions is artificially inflated. It is not demonstrating reasoning ability, but rather pattern recall. A 2024 survey ([Golchin et al., arXiv 2024](https://arxiv.org/abs/2406.04244)) found that contamination can inflate accuracy by up to 13 percentage points, a margin that can easily turn a mediocre model into an apparent state-of-the-art system on leaderboards.
+
+The contamination problem is insidious because it undermines the *trust* that the research community places in benchmark scores. When a company announces "our model achieves 95% on Benchmark X," practitioners and researchers can no longer be confident that the number reflects genuine capability. The entire evaluation infrastructure becomes suspect. This has real consequences: companies making deployment decisions based on benchmark scores may be choosing models based on memorization rather than ability.
+
+**Problem 3: Capability breadth.** LLMs are general-purpose systems that can perform thousands of different tasks: translation, coding, reasoning, summarization, conversation, planning, tool use, mathematical proof, creative writing, data analysis. No single benchmark captures more than a sliver of this capability space. MMLU measures factual knowledge across disciplines. GSM8K measures arithmetic reasoning. SWE-bench measures software engineering. But what about persuasion? Strategic planning? Long-horizon task completion? Cultural sensitivity? These capabilities matter for real-world deployment but lack standardized evaluation. The result is that the community can confidently say "GPT-5 is better than GPT-4 at math" but cannot say whether GPT-5 is better at handling ambiguous ethical dilemmas or navigating negotiations — capabilities that matter enormously for deployment.
+
+**Problem 4: Safety and alignment.** Perhaps the most urgent driver of D&B work is the need for safety benchmarks. As LLMs are deployed in high-stakes settings — medical advice, legal analysis, financial recommendations, education — the question shifts from "Can it answer correctly?" to "Can it answer safely?" This requires benchmarks that measure toxicity, bias, privacy preservation, robustness to adversarial inputs, and alignment with diverse human values. DecodingTrust ([Wang et al., NeurIPS 2023](https://arxiv.org/abs/2306.11698)) evaluates GPT models across eight trustworthiness dimensions, revealing that models that excel at accuracy can simultaneously fail at safety. PRISM's ([Kirk et al., NeurIPS 2024](https://arxiv.org/abs/2404.16019)) 75-country dataset reveals that "alignment" is culturally contingent. What counts as a "good" response varies dramatically across cultures. RLHF systems trained on Western, English-speaking preferences may actively misalign for other populations. These are not nice-to-have benchmarks; they are prerequisites for responsible deployment.
+
+::: {.callout-warning title="Common Misconception: 'A good benchmark should be hard forever'"}
+The belief that a benchmark's value depends on it remaining unsolved is a common but misguided intuition. Benchmarks are *measurement instruments*, not eternal unsolved problems. A thermometer that reads 100°C in boiling water is not "broken" because we know the answer. It is functioning as designed, providing a calibration point. Similarly, a benchmark that catalyzes rapid progress and then saturates has *succeeded*: it defined a challenge clearly enough that the community could attack it, and the community responded by building better systems. The failure mode is not saturation but *irrelevance*: a benchmark that nobody uses, rather than one that everybody solves. The challenge is building a pipeline of new benchmarks so that when one saturates, another is ready to take its place.
+:::
+
+
+### The Agentic AI Evaluation Gap
+
+The rise of autonomous AI agents (systems that don't just answer questions but take actions in the world) has created an evaluation challenge that goes far beyond traditional benchmarking. When an agent can browse the web, write and execute code, manage files, send emails, and make decisions over multi-step tasks, the evaluation infrastructure must capture a fundamentally different kind of capability.
+
+**Environment-as-benchmark.** Traditional benchmarks present a question and evaluate the answer. Agent benchmarks present an *environment* and evaluate whether the agent completes a task within that environment. WebArena ([Zhou et al., ICLR 2024](https://arxiv.org/abs/2307.13854)) provides a suite of real websites (an e-commerce site, a forum, a wiki, a project management tool) that agents navigate via browser automation. SWE-bench provides a full software repository that agents must edit, build, and test. MineDojo provides a Minecraft sandbox where agents explore, craft, and complete open-ended goals. The benchmark *is* the world, and evaluation requires running the agent in that world and checking the world's state afterward. This is orders of magnitude more complex than checking whether an answer matches a reference string.
+
+**Multi-step evaluation.** Agent tasks are inherently multi-step. Resolving a GitHub issue in SWE-bench might require reading the issue, searching the codebase, identifying the relevant files, understanding the code, making edits, running tests, and iterating if tests fail. GAIA's ([Mialon et al., arXiv 2023](https://arxiv.org/abs/2311.12983)) three difficulty levels explicitly measure how many tools and steps an agent must use: Level 1 tasks require 1–2 steps with basic tool use; Level 3 tasks require complex planning across many tools and subtasks. Evaluating multi-step behavior is harder than evaluating a single answer because the evaluation system must track the agent's trajectory, not just its final output.
+
+**Safety in autonomous systems.** When an agent can take actions (send emails, modify files, make purchases), safety becomes a first-order concern. ST-WebAgentBench evaluates not just whether an agent completes a web task but whether it *follows organizational policies* while doing so. Does it exceed budget limits? Does it access unauthorized data? Does it share sensitive information? Agent safety benchmarks must evaluate both capability (did it complete the task?) and compliance (did it follow the rules?). This dual evaluation is a new challenge for the D&B community.
+
+**The human-agent gap.** Perhaps the most striking data point motivating agent benchmarks is the gap between human and model performance. On WebArena, humans complete ~78% of tasks while GPT-4 achieves ~14%. On GAIA, humans score 92% while GPT-4 with plugins scores 15%. These are not narrow gaps that will close with the next model update. They represent fundamental capability deficits in planning, error recovery, and real-world interaction. The benchmarks exist to *measure* these gaps and track their closure over time. When the gaps close, it will be because researchers used these benchmarks to identify specific weaknesses and build targeted solutions.
+
+
+### Data as Infrastructure: How Datasets Build Industries
+
+To fully appreciate why D&B work matters, consider the downstream impact of landmark datasets. A dataset is not just a research contribution. It is *infrastructure* on which entire research communities and industries are built.
+
+| Dataset/Benchmark | Year | Downstream Impact |
+|---|---|---|
+| **ImageNet** | 2009 | Catalyzed the deep learning revolution. The AlexNet breakthrough (2012) was literally demonstrated on ImageNet. Every major image recognition advance for a decade was measured on ImageNet. |
+| **SQuAD** | 2016 | Defined the reading comprehension task for NLP. Catalyzed BERT, XLNet, ALBERT, and hundreds of models. The task format (extractive QA) became a standard NLP benchmark category. |
+| **GLUE / SuperGLUE** | 2018/2019 | Unified NLP evaluation into a single leaderboard. Accelerated progress on language understanding. Leaderboard saturation (BERT, then GPT-3 surpassed human baselines) demonstrated the pace of progress. |
+| **LAION-5B** | 2022 | Enabled Stable Diffusion and the entire open-source text-to-image generation ecosystem. One dataset → an industry worth billions of dollars in enterprise value. |
+| **SWE-bench** | 2023 | Kickstarted the AI-for-coding industry. Devin, Cursor, GitHub Copilot Workspace, and dozens of AI coding agents are benchmarked (and implicitly trained/optimized) against SWE-bench tasks. |
+| **WebArena** | 2023 | Defined the evaluation paradigm for autonomous web agents. Spawned a family of related benchmarks (VisualWebArena, AssistantBench) and shaped how web agent companies evaluate their products. |
+
+Notice a pattern: dataset and benchmark papers are often *more cited* and *more impactful* than the algorithm papers that use them. ImageNet (Deng et al., 2009) has more citations than AlexNet (Krizhevsky et al., 2012). SQuAD (Rajpurkar et al., 2016) competes in citation count with BERT (Devlin et al., 2018). These are not coincidences. They reflect the fundamental truth that the people who *define problems* shape research trajectories more than the people who solve the first instance of those problems.
+
+For Dr. Chen, this perspective is galvanizing. Her multilingual reasoning benchmark is not just "a dataset to put in a paper." If it becomes the standard evaluation suite for multilingual reasoning, it will shape how the entire community thinks about multilingual AI, which languages get attention, and which capabilities are prioritized. The benchmark *defines* the research agenda. The algorithm papers that follow will be important, but they will be responses to the agenda her benchmark sets.
+
+
+### The Community's Institutional Response
+
+The arguments above are not just abstract philosophy. They have driven concrete institutional changes across the ML research ecosystem:
+
+**The NeurIPS D&B track (2021–present)** grew from 484 submissions to 1,820 in four years, demonstrating massive and growing demand for D&B publication venues. Best-paper awards have recognized work spanning climate science (ClimSim), LLM safety (DecodingTrust), and multicultural AI alignment (PRISM). This signals that D&B contributions are valued across the full breadth of ML research.
+
+**The KDD D&B track (2025)** represents a second major venue recognizing the importance of data-centric research. KDD's data mining focus makes this a natural home for datasets and benchmarks involving structured data, temporal data, graph data, and recommendation systems.
+
+**DMLR (the Journal of Data-centric Machine Learning Research, 2023–present)** is a new archival journal in the JMLR family, dedicated entirely to data aspects of ML. Its creation signals that the data-centric paradigm is not a trend but a permanent feature of the research landscape. Its inaugural volume included "Building Better Datasets: Seven Recommendations," explicitly codifying quality standards for dataset contributions.
+
+**ACL and EMNLP reviewer guidelines** now explicitly state that "development of datasets is as important as modeling work." While these venues do not have separate D&B tracks, they have adapted their review criteria to ensure that dataset papers are not penalized for lacking algorithmic novelty when submitted to the main track.
+
+**The Croissant metadata standard (2024)** represents industry-wide coordination around dataset documentation. Supported by HuggingFace, Kaggle, OpenML, Google Dataset Search, and Dataverse, Croissant provides a machine-readable format for describing datasets that enables automated discovery, comparison, and loading. Its adoption by NeurIPS as a mandatory requirement in 2025 signals that the community is moving from "encourage good practices" to "require them."
+
+::: {.callout-note title="Think Hard: Culture and disagreement: should benchmarks report disagreement distributions?"}
+Lora Aroyo, NeurIPS D&B Track Chair for 2024–2025, has argued that annotator disagreement is a *signal*, not noise. Her research on "truth by disagreement" ([Aroyo, NeurIPS 2023](https://neurips.cc/virtual/2023/invited-talk/73987)) shows that when annotators disagree, it often reveals genuine ambiguity, cultural differences, or subjective interpretation in the data. This information is lost when we aggregate labels into a single "ground truth." If we take this perspective seriously, it has profound implications for benchmark design. Most benchmarks assume a single correct answer: accuracy is the fraction of questions where the model matches the reference. But what if the reference itself is contested? PRISM embraces this: it reports not just which response a model prefers, but *how response preferences vary across cultures*. A model might be "aligned" with American preferences but "misaligned" with Indian preferences. The benchmark captures this variation explicitly. Future benchmarks may need to move beyond single-number metrics (accuracy, F1) toward *distributions* that capture the full range of legitimate human judgments. This is a research frontier, and D&B papers are where this transition will happen.
+:::
+
+These institutional changes highlight a clear conclusion: the era of treating datasets and benchmarks as supporting infrastructure (important but not worthy of publication credit) is over. D&B work is recognized as first-class research, and the venues, journals, standards, and review criteria now exist to evaluate it on its own terms. For Dr. Chen, and for any researcher with valuable data work, the question is no longer "Can I publish this?" but "Where is the best venue, and how do I write it well?" The next section addresses exactly this point.

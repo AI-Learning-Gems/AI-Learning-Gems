@@ -1,0 +1,123 @@
+## How to Write a Strong D&B Paper: A Practical Guide {#sec-how-to-write}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [NeurIPS 2025 D&B CFP](https://neurips.cc/Conferences/2025/CallForDatasetsBenchmarks) | Submission requirements, page limits, Croissant mandate |
+| 2 | [KDD 2025 D&B CFP](https://kdd2025.kdd.org/call-for-datasets-and-benchmarks-track-papers/) | 8-page limit, max 2 submissions per author |
+| 3 | [NeurIPS 2025 Blog: Raising the Bar](https://blog.neurips.cc/2025/03/10/neurips-datasets-benchmarks-raising-the-bar-for-dataset-submissions/) | Hosting mandate, quality standards, Croissant |
+| 4 | [Building Better Datasets: Seven Recommendations (DMLR 2024)](https://dmlr.ai/) | Evidence-based practical recommendations |
+| 5 | [Ofir Press: How to Build Good Benchmarks](https://ofir.io/How-to-Build-Good-Language-Modeling-Benchmarks/) | Practical benchmark design tips |
+| 6 | [Datasheets for Datasets (arXiv:1803.09010)](https://arxiv.org/abs/1803.09010) | Documentation framework |
+
+:::
+
+### The Value Proposition: How to Frame Your Introduction
+
+In the companion chapter on System Demo papers, we identified four archetypes that successful demo papers use to frame their contribution: the Unifier, the Democratizer, the Gap-Filler, and the Ecosystem Builder. D&B papers use analogous framing patterns. Understanding these archetypes will help you write a compelling introduction that immediately tells reviewers *why your dataset or benchmark matters*.
+
+**The Gap-Filler.** "No benchmark exists for X." This is the most common and arguably the strongest framing for D&B papers. You identify a capability or domain that is important but lacks a standardized evaluation resource, and you build one. SWE-bench ([Jimenez et al., ICLR 2024](https://arxiv.org/abs/2310.06770)) fills the gap of "no benchmark for real-world software engineering." GAIA ([Mialon et al., arXiv 2023](https://arxiv.org/abs/2311.12983)) fills the gap of "no benchmark for general AI assistants that require tool use." ClimSim ([Yu et al., NeurIPS 2023](https://arxiv.org/abs/2306.08754)) fills the gap of "no large-scale dataset for hybrid physics-ML climate emulation." The rhetorical structure is clean: the capability gap is the problem, and your dataset or benchmark is the solution.
+
+To use this framing, your introduction should answer three questions in order: (1) *What capability or domain is important?* (2) *Why can't existing datasets or benchmarks evaluate it adequately?* (3) *What is your contribution, and how does it fill the gap?* The "gap" must be genuine; reviewers will check. If you claim "no benchmark exists for X" but there are three benchmarks for X on the first page of Google Scholar results, your paper will lose credibility immediately. The gap can be in scale (existing benchmarks are too small), coverage (existing benchmarks don't cover certain languages, domains, or difficulty levels), or methodology (existing benchmarks use flawed evaluation protocols).
+
+**The Scale-Breaker.** "Existing datasets are 100× smaller than what's needed." LAION-5B ([Schuhmann et al., NeurIPS 2022](https://arxiv.org/abs/2210.08402)) used this framing: previous public image-text datasets contained tens of millions of pairs; LAION-5B provided 5.85 *billion*. The argument is that scale itself is a qualitative change: things that are impossible with millions of examples become possible with billions. This framing works when the scale increase is transformative (at least an order of magnitude) and enables genuinely new research directions or capabilities.
+
+**The Perspective-Shifter.** "Current benchmarks measure the wrong thing." DecodingTrust ([Wang et al., NeurIPS 2023](https://arxiv.org/abs/2306.11698)) argues that existing LLM evaluations focus on accuracy but ignore trustworthiness (toxicity, bias, privacy, robustness). PRISM ([Kirk et al., NeurIPS 2024](https://arxiv.org/abs/2404.16019)) argues that existing alignment datasets reflect Western cultural norms and cannot assess whether models are aligned with diverse global populations. The perspective-shifter does not just build another benchmark for the same capability; it redefines *what should be measured*. This is typically the most intellectually ambitious framing but also the hardest to execute convincingly. You need to persuade reviewers that the existing evaluation paradigm is fundamentally incomplete.
+
+**The Infrastructure Builder.** "The community needs evaluation infrastructure for a new paradigm." WebArena ([Zhou et al., ICLR 2024](https://arxiv.org/abs/2307.13854)) builds a full web environment for testing autonomous agents: not just questions and answers, but *a world*. MineDojo builds a Minecraft simulation suite with an internet-scale knowledge base for embodied AI research. These papers contribute not just data but *evaluation platforms*. These are complex systems that enable an entirely new type of research. The infrastructure framing works when a new research paradigm (agentic AI, embodied AI, long-horizon planning) has emerged but lacks the evaluation tools to make rigorous research possible.
+
+
+### Submission Logistics: The NeurIPS 2025 Checklist
+
+The NeurIPS 2025 D&B track has the most comprehensive submission requirements of any D&B venue. Meeting these requirements is not optional. Non-compliance on key items can result in desk rejection. Here is the complete checklist:
+
+::: {.callout-important title="NeurIPS 2025 D&B Submission Checklist"}
+
+**Paper requirements:**
+
+- [ ] 9 pages content maximum (unlimited appendices and references beyond)
+- [ ] Single-blind format (author names visible to reviewers)
+- [ ] Clearly stated within paper scope: dataset, benchmark, data-centric AI tool, data curation practice, dataset audit, or competition analysis
+- [ ] NeurIPS formatting template used
+- [ ] No simultaneous submission to D&B and main track (no cross-track transfer after deadline)
+
+**Data and artifact requirements:**
+
+- [ ] Dataset hosted on a permanent platform (HuggingFace, Kaggle, OpenML, Dataverse, or equivalent)
+- [ ] Croissant metadata file included (machine-readable JSON-LD)
+- [ ] Data accessible to reviewers at submission time (tested from multiple networks)
+- [ ] Code documented and executable (GitHub/GitLab with README, dependencies listed)
+- [ ] Evaluation scripts included (for benchmark papers)
+- [ ] License specified for both data and code
+
+**Documentation requirements:**
+
+- [ ] Datasheets for Datasets ([Gebru et al., arXiv 2018](https://arxiv.org/abs/1803.09010)) framework addressed (at minimum in appendix)
+- [ ] Collection methodology described in detail (reproducible)
+- [ ] Inter-annotator agreement reported (if human annotation involved)
+- [ ] Known biases, limitations, and intended uses documented
+- [ ] Ethical considerations addressed concretely (not generically)
+- [ ] Maintenance plan stated (who maintains the dataset, for how long, update frequency)
+
+**Evaluation requirements:**
+
+- [ ] Baseline experiments included (minimum 3 models: lower bound, existing strong model, frontier model)
+- [ ] Human performance baseline included (for benchmark papers)
+- [ ] Results analyzed, not just reported (error analysis, patterns, insights)
+
+:::
+
+**KDD 2025 D&B differences:** KDD has an 8-page content limit (vs. NeurIPS's 9 pages), a maximum of 2 submissions per author in the D&B track, and follows its own formatting requirements. The scope is similar but emphasizes data mining applications: structured data, temporal data, graph data, and recommendation datasets are particularly welcome.
+
+
+### Writing Tips Specific to D&B Papers
+
+Beyond the structural and logistical requirements, certain writing strategies are particularly effective for D&B papers. These tips are distilled from analysis of best-paper winners and common reviewer feedback.
+
+**Don't bury the data.** The most common structural mistake in D&B submissions is spending too many pages on the baseline model and too few on the data itself. Remember: in a D&B paper, the data artifact is the star. A paper that devotes 3 pages to describing a novel model and 1 page to the dataset is a *research paper* that has been submitted to the wrong track. Reverse the allocation: 3 pages on data collection, documentation, and analysis; 1.5 pages on baselines. The baselines exist to *demonstrate the dataset's utility*, not to showcase your model.
+
+**Show you've thought about longevity.** Reviewers are increasingly asking about maintenance. A dataset that becomes inaccessible in two years because the hosting expired or the grad student graduated is a wasted community resource. Address longevity explicitly: Who is responsible for maintaining the dataset? For how long? Is the hosting platform funded? Can others contribute (e.g., through a GitHub repository that accepts pull requests)? LAION-5B's later controversies (temporary removal due to discovered CSAM content) underscore the importance of governance planning. Who decides if the dataset needs to be modified, and how quickly can changes be implemented?
+
+**Human baselines are gold.** For benchmark papers, a human performance baseline gives reviewers a critical calibration point. If GPT-4 scores 35% but humans score 92% (as in GAIA), that tells a clear story: the benchmark tests a real capability that models haven't mastered. If GPT-4 scores 85% and humans score 87%, the story is different: the benchmark may be close to saturation, or the task may not discriminate well between human and model capabilities. Human baselines are expensive (you need to pay people to take the test), but they are among the strongest signals you can include.
+
+**Diversity of baselines.** Don't only evaluate GPT-4. Run a range of models: open-source models (Llama, Mistral, Qwen), closed-source models (GPT-4, Claude, Gemini), smaller models (7B, 13B parameters), and if applicable, non-LLM baselines (traditional ML approaches, retrieval-based methods). This serves two purposes: it demonstrates that the benchmark is model-agnostic (not designed to favor one model family), and it creates a richer landscape of results that helps the community understand performance patterns. A result table with 8–12 models is far more informative than one with two.
+
+**Anticipate the "so what?" question.** Every D&B paper must answer: "Why should 100 researchers download this dataset next year?" If you cannot answer this crisply, the contribution may not be strong enough. The answer should be concrete and specific: "Because no other resource enables evaluation of multilingual reasoning in 40 languages" or "Because this is the first dataset that captures cultural variation in AI alignment preferences across 75 countries." Vague answers ("this will be useful for the community") are unconvincing.
+
+::: {.callout-warning title="Common Misconception: 'D&B papers are just data dumps — no intellectual contribution'"}
+This is perhaps the most damaging misconception about D&B work, and it sometimes surfaces in reviewer comments. The truth is that strong D&B papers require substantial intellectual contribution in multiple dimensions. **Task design** requires deep domain expertise to identify what should be measured and how. **Annotation methodology** requires solving genuine methodological challenges at scale (how do you get consistent labels from 500 annotators across 18 countries?). **Quality control** requires engineering rigorous pipelines that ensure data reliability. **Analysis** requires extracting insights from the data that shape the research agenda. The NeurIPS 2021 announcement was explicit: D&B work is "first-class work on par with algorithms work." If a reviewer fails to see the intellectual contribution in your paper, the problem is usually in how you've *presented* it, not in the work itself. Make the intellectual contribution visible: explain the design decisions, justify the methodology, highlight the insights.
+:::
+
+
+### Common Rejection Reasons and How to Avoid Them
+
+The following rejection reasons appear repeatedly in D&B reviews across NeurIPS and KDD. For each, we provide the typical reviewer comment and the corresponding fix.
+
+| Rejection Reason | Typical Reviewer Comment | What to Do |
+|---|---|---|
+| **Insufficient novelty** | "This is just a recombination of existing datasets without clear added value" | Clearly articulate what is NEW: new coverage, new scale, new task design, new annotation methodology. If combining existing data, the combination must enable something impossible with the parts alone. |
+| **Poor documentation** | "The collection methodology is unclear / I couldn't reproduce this" | Use Datasheets for Datasets framework. Describe every step. Include annotator guidelines in appendix. Provide Croissant metadata. |
+| **No baselines** | "How do I know this dataset is useful? No models have been evaluated on it" | Run ≥3 baselines. Include human performance. Analyze errors. Show the benchmark is both informative and challenging. |
+| **Inaccessible data** | "I couldn't access the dataset: broken link / required login / paywalled" | Host on HuggingFace or equivalent. Test the link before submission. Test from a different network. Include a backup hosting link. |
+| **Superficial ethics** | "The ethics section is generic ('we considered ethical implications')" | Be specific: What personal data? How was consent obtained? What biases? What harmful uses? What populations are underrepresented? |
+| **Overlapping scope** | "This contribution is more appropriate for the main track / demo track" | Front-load the data contribution. If reviewers think your paper is about the algorithm, you've spent too many pages on the algorithm and too few on the data. |
+
+
+### Dr. Chen's Final Submission Package
+
+Let us follow Dr. Chen through her final submission preparation for the NeurIPS 2025 D&B track, tracing how she addresses every requirement in the checklist.
+
+**The paper (9 pages + appendix).** Following the page allocation from @sec-anatomy-dataset, her paper opens with a gap-filler introduction ("Current multilingual reasoning benchmarks cover at most 8 languages, leaving 80% of the world's LLM users unevaluated"). The Data Collection section describes her annotation framework across 18 countries: recruited annotators with verified language proficiency, provided detailed annotation guidelines with training examples, implemented gold-standard calibration items, and monitored IAA in real time. Her Dataset Statistics section reports κ = 0.79 overall (substantial agreement), with per-language breakdowns ranging from 0.68 (Swahili, harder due to limited annotator pool) to 0.87 (English, largest pool). Her Baseline Experiments section runs GPT-4 (62%), Claude 3 (58%), Gemini Pro (54%), Llama 3 70B (48%), Qwen 2 72B (51%), and Mistral Large (46%), along with a human baseline (89%). The results table breaks down by language and difficulty level, revealing that performance drops sharply for low-resource languages (20–35%) and for Level 3 reasoning tasks (30–40% across all models). Her Limitations section discusses cultural bias in question design (questions sourced from educational systems that may not represent all cultural contexts), annotator recruitment challenges in certain regions, and the risk that her benchmark could inadvertently prioritize languages with more internet resources. Her appendix includes the complete Datasheets for Datasets document, per-language IAA tables, example items, annotator demographics, and a data statement following Bender & Friedman.
+
+**The HuggingFace dataset card.** She created a comprehensive dataset card on HuggingFace including: dataset description, intended uses and limitations, data splits (train: 10,000 / dev: 2,500 / test: 2,500), per-language statistics, loading code (`datasets.load_dataset("meichen/MultiLingReason")`), citation information, and license (CC-BY-4.0).
+
+**The Croissant metadata.** She generated a Croissant JSON-LD file describing the dataset's structure: fields (question, choices, answer, language, difficulty_level, reasoning_type), data types, splits, and format (Parquet files). She tested the Croissant file using the MLCommons Croissant validator and included the validation report in her supplementary materials.
+
+**The GitHub repository.** Her repository contains: evaluation scripts (`evaluate.py` with clear CLI interface), baseline reproduction scripts (one script per model, with instructions for API keys), data loading utilities, documentation (README with quickstart guide), and a requirements.txt for dependencies. She ran the evaluation scripts on a fresh machine to verify reproducibility.
+
+**The submission.** She uploads the paper, the HuggingFace link, the GitHub link, and the Croissant metadata to the NeurIPS 2025 D&B OpenReview portal. She has tested every link. She has verified the dataset is downloadable. She has run the evaluation scripts to confirm they produce the reported results. Her submission package is complete.
+
+::: {.callout-note title="Think Hard: The LAION-5B paradox: scale vs. safety"}
+LAION-5B won the NeurIPS 2022 Outstanding D&B Paper award. It was later discovered to contain child sexual abuse material (CSAM) and was temporarily taken down. This raises uncomfortable questions that every D&B researcher must grapple with. At massive scale (billions of web-scraped images), manual review of every item is impossible. Automated filtering catches known violations but misses novel ones. The dataset's documentation was thorough by the standards of the time, but it did not (and arguably could not) guarantee the absence of harmful content at web scale. What does this mean for D&B research? First, it means that documentation standards must evolve: future dataset papers should include explicit discussion of content moderation methodology, the limits of automated filtering, mechanisms for reporting and removing harmful content post-publication, and governance structures for responding to discovered issues. Second, it means that the community needs to develop norms around *versioned datasets*. These are datasets that can be updated to remove problematic content without invalidating all prior research that cited them. Third, it means that the D&B track's single-blind review policy may not be sufficient. Reviewers can check that data is *accessible*, but they cannot feasibly audit billions of examples for harmful content. The LAION-5B case is not an argument against large-scale dataset research. It is an argument for more rigorous governance, moderation, and post-publication responsibility.
+:::

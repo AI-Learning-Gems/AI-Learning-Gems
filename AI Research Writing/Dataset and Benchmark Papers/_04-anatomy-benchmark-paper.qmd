@@ -1,0 +1,141 @@
+## Anatomy of a Benchmark Paper {#sec-anatomy-benchmark}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Ofir Press: How to Build Good Language Modeling Benchmarks](https://ofir.io/How-to-Build-Good-Language-Modeling-Benchmarks/) | Three properties: natural, automatically evaluatable, challenging (0.1–9% accuracy at launch) |
+| 2 | [DecodingTrust (NeurIPS 2023 D&B Best Paper)](https://arxiv.org/abs/2306.11698) | Multi-dimensional trustworthiness benchmark for GPT models |
+| 3 | [SWE-bench (ICLR 2024)](https://arxiv.org/abs/2310.06770) | Real-world software engineering benchmark from GitHub issues; 1.96% top accuracy at launch |
+| 4 | [GAIA: General AI Assistants Benchmark](https://arxiv.org/abs/2311.12983) | Multi-level difficulty; humans 92% vs GPT-4 with plugins 15% |
+| 5 | [WebArena (ICLR 2024)](https://arxiv.org/abs/2307.13854) | Realistic web environment benchmark; GPT-4 ~14% vs humans ~78% |
+| 6 | [LiveBench](https://arxiv.org/abs/2406.19314) | Contamination-resistant benchmark with frequently updated questions |
+| 7 | [MineDojo (NeurIPS 2022 D&B Best Paper)](https://arxiv.org/abs/2206.08853) | Open-ended embodied AI benchmark using Minecraft |
+| 8 | [Benchmark Data Contamination survey (arXiv:2406.04244)](https://arxiv.org/abs/2406.04244) | Mechanisms and impact of benchmark contamination in LLMs |
+
+:::
+
+### How Benchmark Papers Differ from Dataset Papers
+
+A dataset and a benchmark are related but distinct concepts, and confusing them is one of the most common mistakes in D&B submissions. Understanding the difference is essential for knowing what your paper needs to contain.
+
+A **dataset** is a collection of data (e.g., images, text passages, question-answer pairs, sensor readings) organized for some purpose. The dataset paper's contribution is the data itself: its scale, quality, coverage, and documentation. When you publish a dataset, you are saying: "Here is valuable data. Use it for training, evaluation, analysis, or whatever purpose you see fit."
+
+A **benchmark** is a dataset plus an evaluation framework. It includes: (1) a **task definition** (a precise specification of what a system must do), (2) an **evaluation metric** (how performance is measured), (3) a **test set with ground truth** (labeled examples against which systems are scored), and (4) a **reporting protocol** (how results should be presented for comparability). When you publish a benchmark, you are saying: "Here is a challenge. Compete on it. Here is exactly how to measure success."
+
+The distinction matters because it changes what the paper must contain and what reviewers evaluate. A dataset paper needs documentation and baselines. A benchmark paper needs all of that *plus* a formal evaluation protocol, a justification of the metric, a human performance baseline, and an argument for why this benchmark tests something meaningful that existing benchmarks do not.
+
+Many papers are hybrids. PRISM ([Kirk et al., NeurIPS 2024](https://arxiv.org/abs/2404.16019)) provides both a dataset (the preference data from 75 countries, which can be used for training alignment models) and a benchmark (specific evaluation tasks with defined metrics for measuring cultural alignment). ClimSim ([Yu et al., NeurIPS 2023](https://arxiv.org/abs/2306.08754)) is primarily a dataset (training data for climate emulators) with benchmark elements (standard evaluation splits and metrics). DecodingTrust ([Wang et al., NeurIPS 2023](https://arxiv.org/abs/2306.11698)) is primarily a benchmark (eight evaluation dimensions with defined metrics and scoring protocols) built on top of carefully curated datasets. The emphasis tells you what kind of paper to write. If your primary contribution is "here is data, use it as you like," write a dataset paper (@sec-anatomy-dataset). If your primary contribution is "here is a challenge, compete on it," write a benchmark paper.
+
+For Dr. Chen, the distinction is important. Her 15,000 multilingual reasoning questions are a *dataset*, but her formal evaluation protocol (the task definition, the metric, the splits, and the leaderboard structure) makes it a *benchmark*. Her paper is a benchmark paper that contains a dataset, and the evaluation framework design is a central intellectual contribution.
+
+
+### The Three Properties of a Good Benchmark
+
+Ofir Press, the creator of SWE-bench, published a blog post in August 2024 titled ["How to Build Good Language Modeling Benchmarks"](https://ofir.io/How-to-Build-Good-Language-Modeling-Benchmarks/) that has become an influential reference for benchmark design. He argues that a strong benchmark should satisfy three properties simultaneously: **natural**, **automatically evaluatable**, and **challenging**. Each deserves careful examination.
+
+**Property 1: Natural — Tasks should reflect real-world needs.** A benchmark question should correspond to something that a human would actually want a system to do. SWE-bench ([Jimenez et al., ICLR 2024](https://arxiv.org/abs/2310.06770)) exemplifies this: its task is to resolve real GitHub issues. These are actual bugs and feature requests filed by real developers on real open-source projects. A system that solves SWE-bench tasks is directly useful. WebArena ([Zhou et al., ICLR 2024](https://arxiv.org/abs/2307.13854)) follows the same philosophy: its tasks involve navigating real websites (shopping, forums, wikis) to complete goals that a real user would have ("Find the cheapest product matching these criteria and add it to my cart"). GAIA ([Mialon et al., arXiv 2023](https://arxiv.org/abs/2311.12983)) asks questions that require real-world knowledge collection and synthesis, such as finding specific information by combining web searches, reading documents, and performing calculations.
+
+The opposite of a "natural" benchmark is a synthetic puzzle — contrived tasks that test an abstract capability but don't correspond to anything anyone actually needs. Pattern completion tests ("What number comes next: 2, 6, 12, 20, ...?"), logical deduction puzzles, or artificially constructed grammar exercises might measure intelligence in some abstract sense, but a system that excels at them isn't necessarily useful for any real-world application. Press argues that the "usefulness criterion" is the best filter: would a system that scored 100% on this benchmark be useful to someone? If yes, the benchmark is natural. If the answer is "useful for passing tests but not for anything else," the benchmark design needs rethinking.
+
+**Property 2: Automatically Evaluatable — Scoring must be objective and automated.** For a benchmark to be widely adopted, researchers need to be able to evaluate their models without human judges. This means the evaluation metric must be computable from the model's output and the ground truth alone, without subjective interpretation. SWE-bench achieves this through unit tests. Each task has a test suite, and the model either passes all tests (success) or does not (failure). HumanEval uses the same approach for code generation: the model generates a function, and a battery of test cases verifies correctness. WebArena checks whether the final state of the web page matches the goal state (e.g., is the correct item in the cart?).
+
+This property sounds obvious but is surprisingly constraining. It effectively rules out benchmarks for open-ended generation (creative writing, open-ended dialogue), summarization (human judgment of summary quality), and other tasks where "correct" is subjective. Press acknowledges this: summarization is hard to benchmark precisely because evaluation is hard. Some benchmarks handle this by decomposing subjective tasks into objective sub-components. For example, factual accuracy can be checked automatically even if style cannot. However, truly open-ended tasks remain the frontier challenge for benchmark design.
+
+::: {.callout-warning title="Common Misconception: 'Any dataset with a leaderboard is a benchmark'"}
+A leaderboard (a ranked list of model scores) is not a benchmark. A benchmark requires a formally defined task, a specified evaluation metric with precise computation rules, ground truth labels, and a reproducible evaluation protocol. You can create a leaderboard for anything (rank models by their perplexity on random web text), but that does not make it a benchmark unless you have also defined what the leaderboard is measuring, why it matters, and how scores should be computed and reported. The distinction matters for D&B submissions: putting your dataset on a leaderboard website does not transform it into a benchmark paper. You need the formal evaluation framework.
+:::
+
+**Property 3: Challenging — Top accuracy should be 0.1–9% at launch.** This is the most counterintuitive property. Press argues that a benchmark should be *hard enough that the best model at launch barely makes a dent*. His updated guidance (January 2025) suggests that maximum accuracy at launch should be between 0.1% and 9%. SWE-bench launched with a top accuracy of 1.96%. GAIA launched with GPT-4+plugins at 15% on easy questions (and much lower on hard ones). Humanity's Last Exam was designed to be at near-0% accuracy.
+
+The reasoning is pragmatic. If a benchmark launches and GPT-4 scores 80%, it will become *saturated* within a year as models improve. A saturated benchmark is meaningless as a discriminator. But if it launches at 2%, it will remain challenging and informative for years, providing a long runway for measuring progress. The benchmark becomes *more valuable as a research tool* precisely because it is hard.
+
+There is, however, a danger at the other extreme. If a benchmark is so hard that accuracy is essentially zero for all models (no meaningful variation in scores), researchers may disengage. There is no traction, no incremental progress to report, and no papers to write. The "sweet spot" of 0.1–9% provides enough variation to be informative (some models do better than others) while being far enough from ceiling to resist saturation.
+
+
+### Benchmark Paper Structure
+
+The structural template for a benchmark paper differs from a dataset paper in important ways. The following page budget is based on analysis of accepted benchmark papers at NeurIPS D&B and related venues:
+
+| Section | Typical Pages | Purpose |
+|---|---|---|
+| **Introduction** | ~1.5 pages | Motivate the capability gap → define the task → preview the benchmark |
+| **Task Design** | ~1–1.5 pages | Formal task definition, evaluation protocol, difficulty levels, answer format |
+| **Data Collection / Construction** | ~1–1.5 pages | How tasks were created: source material, curation, filtering, validation |
+| **Evaluation Framework** | ~1–1.5 pages | Metrics, execution environment, human baseline, automated scoring |
+| **Experiments / Initial Results** | ~1.5–2 pages | Run frontier models, present results, analyze error patterns |
+| **Limitations & Ethics** | ~0.5 pages | Difficulty calibration limits, contamination risks, demographic biases |
+
+**Notice the difference from dataset papers:** benchmark papers have a **Task Design** section that dataset papers typically don't need (the task is implicit in the data), and the **Evaluation Framework** section is much more detailed (it specifies exactly how any future system should be evaluated, rather than just saying "we ran baselines").
+
+The Task Design section is a critical intellectual contribution. Consider how different benchmarks define their tasks:
+
+- **SWE-bench:** Given a GitHub issue description and the repository at the point the issue was filed, produce a patch that resolves the issue. Evaluated by running the repository's test suite before and after the patch. Three difficulty levels (Lite, Verified, Full) created by filtering for tasks with higher-quality test cases.
+
+- **GAIA:** Given a question that requires web browsing, file reading, and/or calculation, produce a concise answer. Three levels: Level 1 (few steps, minimal tool use), Level 2 (5+ steps, multiple tools), Level 3 (complex planning, many tools). Evaluated by exact match or semantic equivalence to a reference answer verified by human annotators.
+
+- **DecodingTrust:** Given a language model, evaluate it across eight trustworthiness dimensions: toxicity, stereotype bias, adversarial robustness, out-of-distribution robustness, privacy, machine ethics, fairness, and hallucination. Each dimension has its own dataset, metric, and evaluation protocol. A comprehensive radar chart shows multi-dimensional performance.
+
+Each of these task designs reflects genuine creative problem-solving. The intellectual contribution is not "we collected questions." It is "we designed an evaluation framework that measures a capability nobody could measure before."
+
+
+### The Benchmark Lifecycle: Saturation, Contamination, and Retirement
+
+Benchmarks are not permanent. They have a lifecycle, and understanding that lifecycle is essential for both benchmark creators and benchmark users.
+
+**Phase 1: Launch and Adoption.** The benchmark is introduced. Initial results show that existing models struggle. Researchers begin optimizing for the benchmark. Papers appear that propose methods specifically designed to improve performance.
+
+**Phase 2: Rapid Progress.** The benchmark becomes a standard evaluation point. Model scores improve rapidly. The benchmark appears in the evaluation tables of almost every relevant paper. This is the benchmark's period of maximum impact.
+
+**Phase 3: Saturation.** Performance approaches the ceiling (human-level accuracy or 100%). The benchmark loses its ability to discriminate between models. Everyone scores 95% or higher. GSM8K (grade school math) went from 35% accuracy with GPT-3 to over 99% with GPT-5-class models in roughly four years. MMLU scores above 80% have "lost predictive power" for distinguishing model quality. At this point, the benchmark is still useful as a *sanity check* (if your model doesn't pass GSM8K, something is wrong) but not as a *progress metric*.
+
+**Phase 4: Retirement or Renewal.** The saturated benchmark is either retired (dropped from standard evaluation suites) or renewed (harder versions are created: MMLU-Pro, GSM-Hard, SWE-bench Verified).
+
+::: {.callout-note title="Think Hard: If your benchmark saturates in 6 months, was it a failure?"}
+Counterintuitively, fast saturation can be a sign of *success*, not failure. If a benchmark catalyzes rapid progress in a research area by spurring dozens of papers, new methods, and improved models, it has done its job exactly. SWE-bench launched at 1.96% and reached ~50% within two years, driving an entire subfield of AI-for-coding. It would be strange to call that a failure just because models improved quickly. The benchmark *caused* the improvement by defining the challenge clearly enough that researchers could attack it systematically. The issue is not whether benchmarks saturate (they all do), but whether there is a pipeline of *new benchmarks* ready to take over when saturation occurs. This is why benchmark creation is not a one-time effort but an ongoing research program.
+:::
+
+**The contamination problem** adds urgency to the lifecycle. As LLMs are trained on increasingly large swaths of the internet, the probability that benchmark test sets appear in training data increases. This is benchmark data contamination, and its effects are documented and severe. A 2024 survey ([arXiv:2406.04244](https://arxiv.org/abs/2406.04244)) found that contamination can inflate reported accuracy by up to 13 percentage points. The mechanisms include:
+
+- **Direct contamination:** The benchmark's test set appears verbatim in the training corpus (e.g., via web scraping of benchmark hosting sites or papers that reproduce examples)
+- **Soft contamination:** The training corpus contains semantically similar content (paraphrased versions, solutions to the same problems)
+- **Instruction-tuning contamination:** Even if the base model was not contaminated, fine-tuning datasets may include benchmark questions as training examples for instruction following
+
+This creates a vicious cycle: the more popular a benchmark becomes, the more likely it is to leak into training data, and the less reliable it becomes as an evaluation tool. Solutions are emerging:
+
+- **Dynamic benchmarks** like LiveBench ([White et al., arXiv 2024](https://arxiv.org/abs/2406.19314)) update their questions frequently (monthly), so any leaked questions quickly become outdated
+- **Contamination-resistant designs** construct questions that are provably post-training-cutoff (LiveCodeBench uses programming problems published after the model's training data cutoff date)
+- **Private test sets** keep the test questions hidden from the public (only submission-based evaluation is available)
+- **Constructed difficulty** like Humanity's Last Exam creates questions so novel and difficult that they are unlikely to appear in any existing corpus
+
+
+### Types of Benchmark Contributions
+
+Not all benchmarks are "answer 100 questions." The D&B track accepts a rich variety of benchmark designs, and understanding the taxonomy helps you identify where your work fits:
+
+| Type | What It Is | Examples |
+|---|---|---|
+| **Task benchmarks** | Static set of questions/tasks with ground-truth answers | MMLU, HELM, SuperGLUE |
+| **Agent/environment benchmarks** | The benchmark IS an interactive environment that agents operate in | SWE-bench, WebArena, MineDojo, OSWorld |
+| **Safety/trustworthiness benchmarks** | Measure non-functional properties: toxicity, bias, privacy, robustness | DecodingTrust, PRISM, ST-WebAgentBench |
+| **Domain-specific benchmarks** | Targeted at specific professional/scientific fields | MedCalc-Bench (clinical), ChaosBench (climate), CTIBench (cybersecurity) |
+| **Meta-benchmarks** | Aggregate across many tasks into a unified evaluation suite | HELM, BIG-bench, Open LLM Leaderboard |
+
+**Agent/environment benchmarks** deserve special attention because they represent a fundamentally different benchmark design. In a traditional task benchmark, the model reads a question and produces an answer. It is stateless and non-interactive. In an environment benchmark, the model *acts* in a simulated world, observes consequences, and takes further actions. SWE-bench provides a full repository that the agent must edit and test. WebArena provides a suite of real websites (e-commerce, forums, wikis) that the agent navigates via browser automation. MineDojo ([Fan et al., NeurIPS 2022](https://arxiv.org/abs/2206.08853)) provides a Minecraft environment that the agent explores and manipulates. These are not just "harder questions." They require fundamentally different evaluation infrastructure: sandboxed execution environments, state tracking, multi-step evaluation, and safety guardrails.
+
+::: {.callout-note title="Think Hard: The contamination paradox — how do you break the cycle?"}
+The more popular a benchmark becomes, the more likely it is to end up in LLM training data, and the less useful it becomes. But unpopular benchmarks are useless by definition (nobody evaluates against them). This creates a fundamental tension. Dynamic benchmarks (frequently updated) address the temporal dimension but are expensive to maintain. Private test sets prevent leakage but reduce transparency and reproducibility. Some researchers propose "contamination-adjusted scores" that estimate true performance from observed performance minus estimated contamination, but reliable estimation of contamination rates remains an open problem. The most promising direction may be *execution-based benchmarks* like SWE-bench. Because evaluation requires running code in a sandbox, even if the model has "seen" the problem, it still needs to produce a working solution. This is much harder to fake than memorizing an answer. The contamination paradox remains open, and navigating it is one of the central challenges for benchmark researchers in the LLM era.
+:::
+
+
+### Worked Example: Dr. Chen's Benchmark Design
+
+Dr. Chen applies the three-property test to her multilingual reasoning benchmark:
+
+**Natural?** Yes. Her questions test multilingual reasoning — a capability that matters for deploying LLMs in the 40 languages represented in her dataset. A system that scores well on her benchmark would be genuinely useful for multilingual applications. The questions are derived from real educational content and reasoning tasks used in schools across participating countries, not synthetic puzzles.
+
+**Automatically evaluatable?** Partially. Her multiple-choice questions can be scored by exact match (accuracy). Her free-form reasoning questions are harder — she uses her novel scoring algorithm, but she needs to validate that it correlates with human judgments (which she has, on a subset). She reports both automatic metrics and human evaluation on a 500-question calibration set.
+
+**Challenging?** She checks by running GPT-4, Claude 3, and Gemini Pro. Overall accuracy: 62% (GPT-4), 58% (Claude 3), 54% (Gemini Pro). For low-resource languages, accuracy drops to 20–35%. This is in the right range for a benchmark — not saturated (plenty of room for improvement) but not so low that progress seems impossible. She highlights the low-resource language performance gap as a particularly rich area for future research.
+
+Her task design includes three difficulty levels (following GAIA's model): Level 1 (basic factual reasoning), Level 2 (multi-step reasoning requiring background knowledge), and Level 3 (complex reasoning requiring synthesis across documents). She reports results broken down by level and by language, creating a rich evaluation landscape that researchers can use to identify specific model weaknesses.
