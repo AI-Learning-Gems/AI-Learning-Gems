@@ -26,9 +26,8 @@ AI-Learning-Gems/
 │   ├── mistral_ocr.py           # PDF → MD + images (via Mistral API)
 │   └── .browser-profiles/       # Saved browser sessions (gitignored)
 ├── sources/                     # Downloaded sources (gitignored)
-├── Statistics/                  # Topic chapters (.qmd files)
-├── Transformers/
-├── Prompt-Optimization/
+├── Topic-1/                     # Each topic is a folder with .qmd chapters
+├── Topic-2/
 └── ...
 ```
 

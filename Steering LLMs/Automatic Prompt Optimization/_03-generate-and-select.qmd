@@ -1,0 +1,198 @@
+## Generate-and-Select: The First Wave {#sec-first-wave}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [APE (ICLR 2023)](https://arxiv.org/abs/2211.01910) | Forward/reverse proposal, adaptive filtering |
+| 2 | [OPRO (ICLR 2024)](https://arxiv.org/abs/2309.03409) | Meta-prompt, trajectory, ascending sort |
+| 3 | [InstructZero (ICML 2024)](https://arxiv.org/abs/2306.03082) | Bayesian optimization in soft-prompt space |
+| 4 | [Self-Refine (NeurIPS 2023)](https://arxiv.org/abs/2303.15343) | Iterative output refinement via LLM critique |
+
+:::
+
+### From Manual Search to Automated Proposals
+
+The first generation of prompt optimization algorithms (2022--2023) shared a simple but powerful idea: let the LLM itself propose candidate prompts, then use a scoring function to select the best ones. The progression from APE to OPRO to InstructZero traces a path from one-shot proposal to iterative refinement to surrogate-guided search.
+
+To ground this concretely, imagine applying each algorithm to our support ticket triage system. APE would generate 50 candidate instructions for classifying urgency and pick the one with the highest accuracy. OPRO would start with those candidates, but then iteratively refine them, using a meta-prompt that remembers which triage instructions scored well and which scored poorly. InstructZero would navigate a continuous proxy space to find instructions without ever directly searching over discrete text.
+
+### APE: Prompts as Programs to Be Synthesized
+
+APE ([Zhou et al., ICLR 2023](https://arxiv.org/abs/2211.01910), November 2022) established the foundational framing: treat the task model's instruction as a program to be synthesized by another LLM. The core optimization objective:
+
+$$
+\rho^* = \arg\max_\rho \; f(\rho) = \arg\max_\rho \; \mathbb{E}_{(Q, A)} \left[ f(\rho, Q, A) \right]
+$$ {#eq-ape}
+
+where $\rho$ is the instruction, $Q$ is the input query, $A$ is the expected answer, and $f$ is a per-sample score.
+
+APE generates candidate instructions in two modes:
+
+- **Forward mode**: Present the LLM with input-output demonstrations and ask it to infer the instruction. The model sees examples of $\{(Q_1, A_1), (Q_2, A_2), \ldots\}$ and generates instructions that could have produced these mappings. This samples approximately from $P(\rho \mid \mathcal{D}, f(\rho) \text{ is high})$.
+
+- **Reverse mode**: Use an infilling model (T5, GLM) to fill in a blank instruction positioned within a template. The instruction can be placed anywhere in the prompt, not just at the end.
+
+For scoring, APE offers two functions. **Execution accuracy** is the hard metric: $f(\rho, Q, A) = \mathbb{1}[M([\rho; Q]) = A]$. **Log probability** provides a softer signal: $f(\rho, Q, A) = \log P(A \mid [\rho; Q])$, which gives fine-grained guidance even when the model's top prediction is wrong.
+
+The clever part is **adaptive filtering**: evaluate all candidates cheaply on a small subset, keep the top performers, evaluate survivors on a new subset, repeat. This is tournament selection. Low-quality prompts are eliminated early, saving the expensive full evaluation for the handful of finalists. APE matched human-written prompts on 19--21 of 24 Instruction Induction tasks, and the best APE-generated prompt sometimes surpassed the best human prompt.
+
+For our triage system, APE would take 10--20 examples of (customer message, correct urgency) pairs, ask the LLM to infer what instruction could have produced these classifications, generate 50 candidates, score them, and return the winner. Simple, effective, and entirely one-shot. The limitation: no learning from failures. If the best prompt scores 78%, APE has no mechanism to ask "why did it fail on the other 22%?" and iterate.
+
+### Self-Refine: The Simplest Feedback Loop
+
+Before OPRO introduced iterative *prompt* refinement, Self-Refine ([Madaan et al., NeurIPS 2023](https://arxiv.org/abs/2303.15343)) showed that LLMs can iteratively improve their own *outputs*. The loop is straightforward:
+
+$$
+y_0 = M(p, x), \quad e_0 = M(\text{"Critique"}, y_0), \quad y_1 = M(p, x, y_0, e_0)
+$$
+
+Generate an output, critique it, revise it. The critique is the key innovation: the LLM generates natural language feedback about what is wrong with its own answer, then uses that feedback to produce a better answer.
+
+The distinction matters: Self-Refine improves the *output* while keeping the prompt fixed. The prompt itself never changes. This is output-level optimization, not parameter-level optimization. If our triage prompt consistently misclassifies billing complaints, Self-Refine would fix each individual misclassification at inference time, but it would not fix the prompt to prevent future misclassifications. This is an important conceptual boundary. Every method in the rest of this chapter operates at the prompt level: they change the instruction itself, not just the outputs it produces.
+
+::: {.callout-warning title="Common Misconception: Self-Refine and TextGrad do the same thing"}
+Both use LLM-generated feedback to improve something. But Self-Refine improves the *output* (the answer to a specific question) while keeping the prompt fixed. TextGrad (@sec-textual-gradients) improves the *prompt* (or any variable in a computation graph) by propagating feedback backward. The optimization target is different: output-level vs. parameter-level. Self-Refine is test-time refinement; TextGrad is compile-time optimization.
+:::
+
+### OPRO: The LLM as Its Own Optimizer
+
+OPRO ([Yang et al., ICLR 2024](https://arxiv.org/abs/2309.03409), September 2023) introduced the idea that became the foundation for most subsequent work: use an LLM not just to propose prompts, but to iteratively optimize them by learning from a history of past attempts. The mathematical formulation is the same as @eq-apo-objective:
+
+$$
+p^* = \arg\max_p \; S(p) = \arg\max_p \; \frac{1}{N} \sum_{i=1}^{N} \mathbb{1}\{M_\theta(p, x_i) = y_i\}
+$$
+
+The innovation is in the optimization loop. OPRO constructs a **meta-prompt** with three components:
+
+1. **Meta-instructions** (how to optimize): Text telling the optimizer LLM what to do. Example: "Generate a new instruction that achieves a higher accuracy than all previous instructions."
+
+2. **Optimization trajectory** (what has been tried): A list of past prompts and their scores, sorted in ascending order from worst to best. Example: `("Classify the sentiment": 62.3%)`, `("Determine if positive or negative": 71.5%)`, `("Analyze the emotional tone carefully": 78.1%)`.
+
+3. **Task exemplars** (what the task looks like): 3 randomly sampled input-output examples from the training set, showing the format and expected behavior.
+
+The algorithm repeats: generate 8 candidates from the meta-prompt at temperature 1.0 for diversity, evaluate each on the training set at temperature 0 for determinism, add the new (prompt, score) pairs to the trajectory, and keep only the top 20 entries. After up to 200 steps, return the highest-scoring prompt.
+
+The ascending sort is surprisingly important. OPRO found that sorting from worst-to-best significantly outperforms descending or random ordering. The hypothesis: LLMs exhibit a **recency bias** where tokens closer to the end of the context window have more influence on generation. By placing the best prompts last, the optimizer is more likely to generate variations of high-scoring candidates.
+
+For our triage system, OPRO's meta-prompt might look like:
+
+> *"You are an optimizer. Below are previous triage instructions and their accuracy scores. Generate a new instruction that achieves higher accuracy."*
+>
+> *("Classify urgency": 72.0%)*
+>
+> *("Evaluate ticket urgency based on customer tone": 78.3%)*
+>
+> *("Carefully assess financial impact, emotional distress, and time sensitivity. Classify as low, medium, or high urgency": 84.1%)*
+>
+> *[3 example tickets with correct urgency labels]*
+
+The optimizer LLM reads this trajectory, notices the upward trend, and generates a candidate that tries to push the accuracy higher. It learns, through in-context learning, what kinds of instructions work for this task.
+
+OPRO's most celebrated finding: on GSM8K with PaLM 2-L, it discovered "Take a deep breath and work on this problem step-by-step" (80.2% accuracy, up from the 71.8% baseline of "Let's think step by step"). On BBH, OPRO outperformed the baseline by over 5% on 19 of 23 tasks.
+
+::: {.callout-note title="Think Hard: Why ascending order? What does this reveal about LLM optimization?"}
+OPRO's ascending sort exploits the recency bias of autoregressive LLMs: tokens near the end of the prompt have outsized influence on generation. By placing the best solutions last, OPRO steers the optimizer toward generating variations of high-scoring candidates. This is a form of implicit exploitation. But it raises a deeper question: if the optimization algorithm's effectiveness depends on such LLM-specific quirks (recency bias, sensitivity to example ordering), how robust are these methods? GPO later showed that *relevance-based* trajectory retrieval (selecting semantically similar past prompts, regardless of position) outperforms recency by +15%. The ordering trick works, but it is not the deepest solution. The field is gradually shifting from exploiting LLM biases to providing LLMs with genuinely informative optimization context.
+:::
+
+### SPO: Dropping the Ground-Truth Requirement
+
+A significant limitation of APE and OPRO is that they require labeled ground truth for scoring: you need $(x, y)$ pairs where $y$ is the correct answer. SPO (Self-Play Preference Optimization) overcomes this via **pairwise LLM comparison**: given two outputs from two candidate prompts, an LLM judge simply picks the better one. This enables prompt optimization for open-ended tasks (creative writing, summarization, customer service quality) where no single correct answer exists.
+
+This connects to a broader point: the scoring function $F$ in @eq-apo-objective can itself be a **learned reward model** $R_\varphi$ trained on human preferences. Instead of accuracy, we optimize:
+
+$$
+p^* = \arg\max_p \; \mathbb{E}_{y \sim M_T(x; p)} \left[ R_\varphi(p, x, y) \right]
+$$
+
+This links prompt optimization to the RLHF pipeline. **BPO (Black-Box Prompt Optimization)** takes this further by pre-training a lightweight prompt-rewriting model on preference data (pairs of original and human-preferred prompts). Instead of iterative search, BPO learns a *function* from bad prompts to good ones, amortizing the optimization cost. For instance, the user's prompt "Write a story ending with 'Are they really happy?'" gets automatically rewritten by BPO to add "Ensure the story ends with the question without providing a response."
+
+### InstructZero: Bayesian Optimization in Disguise
+
+InstructZero ([Chen et al., ICML 2024](https://arxiv.org/abs/2306.03082), June 2023) introduced an elegant indirection. Instead of searching directly in the intractable space of discrete instructions, it optimizes a continuous soft prompt $z$ on an open-source LLM, which then generates a discrete instruction $I(z)$ for the black-box target LLM.
+
+The soft prompt $z \in \mathbb{R}^d$ is a continuous vector that can be optimized with Bayesian optimization (BO). At each step, BO selects a promising $z$ based on an acquisition function (Expected Improvement), the open-source LLM converts $z$ into a natural language instruction $I(z)$, and the instruction is evaluated on the black-box LLM. An instruction-coupled kernel captures the relationship between soft prompts and the instructions they produce.
+
+The result: InstructZero achieved the best performance on all 32 BIG-Bench Lite tasks compared to APE and other baselines. The key insight is that BO is extremely sample-efficient (it builds a probabilistic model of the objective function), which makes it well-suited to the expensive-evaluation setting of prompt optimization.
+
+### The Progression
+
+These first-wave methods form a clean progression in the richness of their optimization signal:
+
+```{.d2}
+direction: right
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 13
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+}
+
+APE: "APE\nOne-shot proposal + filter\nNo iteration" {
+  class: [base; input]
+}
+OPRO: "OPRO\nIterative refinement\nScalar trajectory memory" {
+  class: [base; input]
+}
+IZ: "InstructZero\nBayesian surrogate\nContinuous proxy space" {
+  class: [base; process]
+}
+SPO: "SPO / BPO\nNo ground truth needed\nPairwise comparison / learned rewriter" {
+  class: [base; process]
+}
+
+APE -> OPRO: "adds iteration\n+ memory" {
+  style.font-size: 11
+}
+OPRO -> IZ: "adds surrogate\nmodel" {
+  style.font-size: 11
+}
+APE -> SPO: "drops ground\ntruth requirement" {
+  style.font-size: 11
+}
+```
+
+| Method | Search Strategy | Requires Labels? | Iterative? | Key Innovation |
+|---|---|---|---|---|
+| APE | LLM proposal + tournament | Yes | No | Prompts as programs |
+| Self-Refine | LLM critique + revision | No | Yes (outputs) | LLM self-feedback loop |
+| OPRO | Meta-prompt with trajectory | Yes | Yes (prompts) | Ascending sort, trajectory memory |
+| SPO | Pairwise LLM comparison | No | Yes | Reference-free optimization |
+| BPO | Learned rewriting model | Preference data | No (amortized) | Prompt rewriter function |
+| InstructZero | Bayesian optimization | Yes | Yes | Continuous proxy space |
+
+Each represents a progressively richer optimization signal. APE is random search with intelligent initialization. OPRO is hill-climbing with memory. InstructZero is Bayesian surrogate optimization. BPO is amortized learned optimization. The common limitation: all of these methods receive only scalar feedback (a score). They know *how well* a prompt performed, but not *why* it succeeded or failed, and not *which direction* to move. That directional information is what the next section provides.
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+In OPRO, why are past solutions sorted in ascending order (worst to best) in the meta-prompt? What cognitive bias in LLMs does this exploit, and can you think of a scenario where this ordering would backfire?
+:::
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+InstructZero optimizes in a continuous soft-prompt space rather than directly in discrete instruction space. What is the key advantage of this indirection? What information is lost in the translation from soft prompt to discrete instruction?
+:::

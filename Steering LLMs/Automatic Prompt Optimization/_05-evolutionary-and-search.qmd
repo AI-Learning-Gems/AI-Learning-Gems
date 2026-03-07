@@ -1,0 +1,143 @@
+## Evolutionary and Search-Based Optimization {#sec-evolutionary}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [EvoPrompt (ICLR 2024)](https://arxiv.org/abs/2309.08532) | GA and DE operators with LLMs |
+| 2 | [GPO (AAAI 2025)](https://arxiv.org/abs/2402.17564) | Gradient-inspired trajectory retrieval |
+| 3 | [PromptAgent (ICLR 2024)](https://arxiv.org/abs/2310.16427) | MCTS for prompt optimization |
+| 4 | [PromptBreeder (ICML 2024)](https://arxiv.org/abs/2310.03714) | Self-referential prompt evolution |
+
+:::
+
+### Why Populations Beat Single Trajectories
+
+The textual gradient methods of @sec-textual-gradients refine a single prompt along one trajectory: critique, edit, evaluate, repeat. This is powerful but narrow. If the initial prompt is in the wrong "region" of the search space, gradient-inspired refinement may converge to a local optimum that is qualitatively different from the global one. The prompt that excels at catching financial urgency signals might be in a completely different region of prompt space from the one that excels at detecting emotional distress, and no sequence of local edits connects them.
+
+Evolutionary algorithms offer a different strategy: maintain a diverse population of prompts and combine their strengths through crossover and mutation. This explores multiple regions of the search space simultaneously. If one prompt captures financial indicators and another captures emotional cues, crossover can produce an offspring that handles both. The price is computational: evaluating a population of $N$ prompts costs $N$ times as much per generation.
+
+For our triage system, imagine maintaining 10 different triage prompts. Some are accuracy champions. Others are safety specialists. Evolutionary operators combine and mutate them, producing offspring that inherit traits from multiple parents. The population as a whole covers more of the capability space than any single-trajectory optimizer.
+
+### EvoPrompt: LLMs as Evolutionary Operators
+
+EvoPrompt ([Guo et al., ICLR 2024](https://arxiv.org/abs/2309.08532)) demonstrated that LLMs are remarkably effective at performing the crossover and mutation operations that evolution requires. The core loop: maintain a population $P = \{p_1, \ldots, p_N\}$, evaluate fitness $s_i = f(p_i, \mathcal{D})$ for each prompt, select parents, evolve offspring, and replace.
+
+EvoPrompt instantiated two classical evolutionary strategies:
+
+**Genetic Algorithm (GA).** Selection uses roulette wheel sampling with probability proportional to fitness: $P(p_i) = s_i / \sum_{j=1}^{N} s_j$. Crossover asks the LLM: "Here are two prompts. Combine them into a single new prompt that inherits the best qualities of each." Mutation asks: "Alter this prompt slightly, introducing a random variation." The population is merged (old + new), and the top $N$ by fitness survive.
+
+**Differential Evolution (DE).** The standard DE formula $\mathbf{y} = \mathbf{a} + F(\mathbf{b} - \mathbf{c})$ is adapted to natural language through a four-step LLM process:
+
+1. Select two random prompts $b$, $c$. Ask the LLM: "What are the *different parts* between these two prompts?" (Analog of $\mathbf{b} - \mathbf{c}$.)
+2. Ask the LLM: "Mutate these differences." (Analog of $F(\mathbf{b} - \mathbf{c})$.)
+3. Select a base prompt $a$. Ask the LLM: "Incorporate these mutated differences into the base prompt." (Analog of $\mathbf{a} + F(\mathbf{b} - \mathbf{c})$.)
+4. Crossover between the original and generated prompt.
+
+DE uses strict 1-to-1 replacement: offspring $p_i'$ replaces parent $p_i$ only if it scores higher. This is more conservative than GA's population-level selection but ensures monotonic improvement for each lineage.
+
+On BBH (22 tasks with GPT-3.5), DE achieved up to 25% improvement over baselines, averaging 3.5%. GA peaked at 15%, averaging 2.5%. DE generally outperformed GA on challenging tasks, while GA had a slight edge on simpler sentiment classification. Both significantly outperformed APE, OPRO, and manual prompts.
+
+### PromptBreeder: Evolution at the Meta-Level
+
+PromptBreeder ([Fernando et al., ICML 2024](https://arxiv.org/abs/2310.03714)) asked: if we can evolve task prompts, why not also evolve the *mutation prompts* that govern how task prompts change? This is self-referential evolution: the instructions for how to mutate are themselves subject to mutation.
+
+The system maintains two co-evolving populations: task-prompts (the instructions being optimized) and mutation-prompts (the instructions that tell the LLM how to mutate task-prompts). Nine mutation operators range from simple (zero-order estimation: generate a new variant) to meta (hyper-mutation: mutate the mutation prompt using itself).
+
+This is powerful in principle: the mutation operator adapts to the task. For a math reasoning task, the mutation prompt might evolve toward "add explicit step-by-step structure." For a classification task, it might evolve toward "add examples of boundary cases." PromptBreeder outperformed Chain-of-Thought and Plan-and-Solve prompting on arithmetic and commonsense reasoning benchmarks.
+
+::: {.callout-note title="Think Hard: What are the risks of meta-level evolution?"}
+Self-referential evolution is appealing (the system adapts its own optimization strategy), but it introduces risks. The mutation-prompt population could converge to trivial operators ("rewrite the prompt") that provide no guidance, or it could overfit to the specific characteristics of the training data. More fundamentally, the evaluation signal for mutation-prompts is indirect (measured by the fitness of the task-prompts they produce), making the credit assignment noisy. PromptBreeder's nine mutation operators provide diversity, but it is unclear which operators contribute the most. GPO later showed that simpler approaches (trajectory retrieval + cosine decay) can outperform complex evolutionary schemes, suggesting that the field may have over-invested in algorithmic complexity relative to the information-theoretic content of the optimization signal.
+:::
+
+### RLPrompt and the Interpretability-Performance Trade-off
+
+A conceptually distinct approach: treat prompt optimization as reinforcement learning. RLPrompt trains a small policy network (an MLP on top of a frozen DistilGPT-2) to generate discrete prompt tokens. The frozen target LLM is the environment, and task performance is the reward. Training uses soft Q-learning.
+
+The surprising finding: RL-discovered prompts are often ungrammatical gibberish. Strings like "thou WhereasYe WhereasOY" dramatically improve task performance despite being completely uninterpretable. These prompts function as a kind of "machine language" that programs the LLM's behavior through its discrete input interface, exploiting patterns in the model's token-level processing that no human would discover.
+
+These gibberish prompts are surprisingly transferable across model architectures, suggesting they activate general-purpose computational patterns rather than model-specific quirks. This deepens an important trade-off: the most effective prompts may not be human-readable. Soft prompt tuning (continuous embedding vectors) and RLPrompt (discrete but uninterpretable tokens) occupy the high-performance, low-interpretability end of the spectrum. All the other methods in this chapter sacrifice some performance for interpretability.
+
+**Simulated Annealing (Plum)** offers yet another perspective. Plum applies classical SA to prompt optimization with Metropolis-Hastings acceptance: $P(\text{accept}) = \exp(-\Delta E / T)$ where $T$ decreases over iterations, allowing early exploration of worse solutions. SA is a single-trajectory method with stochastic acceptance, often simpler to implement than evolutionary or tree-search methods. It represents the "minimum viable metaheuristic" for prompt optimization.
+
+### GPO: The Systematic Gradient-Optimizer Analogy
+
+GPO ([Tang et al., AAAI 2025](https://arxiv.org/abs/2402.17564)) brought the most rigorous analysis of what actually works in prompt optimization. Rather than proposing a novel algorithm, GPO systematically mapped every component of gradient-based optimization onto prompt optimization and tested each mapping empirically.
+
+The analogy table is instructive:
+
+| Gradient Optimizer Component | Prompt Optimizer Analog | GPO's Choice |
+|---|---|---|
+| **Update direction** (gradient) | Current prompt + performance info | Prompt + performance (no reflection) |
+| **Momentum** (historical gradients) | Trajectory of past attempts | Relevance-based retrieval (BGE embeddings) |
+| **Learning rate** | Edit distance constraint | Cosine decay: $d_\text{max}(t) = d_\text{max} \cdot \cos\left(\frac{\pi t}{2T}\right)$ |
+| **Descent method** (subtraction) | Prompt refinement strategy | Generation (not editing) |
+
+The formal objective is the same as @eq-apo-objective:
+
+$$
+p^* = \arg\max_{p \sim M_O} \; \mathbb{E}_{(x,y) \in \mathcal{D}} \left[ F(M_T(x; p), y) \right]
+$$
+
+But GPO's key contribution is the ablation study that challenges conventional wisdom:
+
+**Reflection hurts.** Adding LLM self-reflection ("Why did this prompt fail? How can it be improved?") to the optimization context actually degraded performance compared to providing just the prompt and its score. The improvement over the initial prompt was +31% without reflection vs. +26% with reflection. LLMs have limited self-reflection capabilities, and their reflections can introduce inaccurate assumptions that mislead the optimization.
+
+**Trajectory retrieval beats recency (+15%).** Instead of showing the optimizer the most recent $k$ past attempts (as OPRO does), GPO retrieves the $k$ most semantically similar past prompts using BGE embedding similarity. This provides contextually relevant demonstrations. The intuition: a triage prompt that worked for financial complaints is more relevant to improving a financial-urgency prompt than a chronologically recent prompt that addressed medical symptoms.
+
+**Generation beats editing (+36%).** When the optimizer receives past prompts as demonstrations and generates a new prompt from scratch (generation), it outperforms being asked to edit the current prompt (editing). Generation explores a wider search space via in-context learning; editing is constrained to local modifications.
+
+**Cosine decay is critical (+10%).** The edit distance constraint follows a cosine schedule that starts large (allowing broad exploration) and gradually tightens (forcing convergence):
+
+$$
+d_\text{max}(t) = d_\text{max} \cdot \cos\left(\frac{\pi t}{2T}\right)
+$$ {#eq-gpo-cosine}
+
+where $t$ is the current step and $T$ is the total number of steps. This reduces to approximately 20% of the maximum edit distance by convergence. Warmup does not help; in prompt optimization, early exploration matters more than in weight optimization.
+
+GPO achieved 56.8% on BBH and 62.6% on MMLU with these design choices combined.
+
+::: {.callout-warning title="Common Misconception: LLM self-reflection always improves optimization"}
+GPO's ablation study is a direct challenge to the intuition that "if the LLM can explain why a prompt failed, it should be able to fix it better." In practice, LLM-generated reflections can be misleading: the model may attribute failure to surface features rather than structural issues, or confabulate plausible-sounding but incorrect explanations. GPO found that trajectory retrieval (showing the optimizer *what worked before* for similar tasks) was more effective than reflection (asking the optimizer *why it failed*). The lesson: showing relevant examples is often more informative than asking for self-analysis. This parallels findings in human psychology, where people's introspective reports about their own reasoning are often unreliable.
+:::
+
+### PromptAgent: Optimization as Planning
+
+PromptAgent ([Wang et al., ICLR 2024](https://arxiv.org/abs/2310.16427)) reframed prompt optimization as a planning problem and applied Monte Carlo Tree Search (MCTS). The MDP formulation:
+
+- **States** $s_t$: prompt versions
+- **Actions** $a_t$: refinements based on error analysis (feedback generated by reflecting on model failures)
+- **Rewards** $r(s_t, a_t)$: task accuracy on a held-out set
+- **Transitions** $p_O(s \mid s_t, a_t)$: the optimizer LLM generates a new prompt from the current one and the error feedback
+
+The UCT (Upper Confidence Bound for Trees) formula balances exploration and exploitation when selecting which branch to expand:
+
+$$
+a^*_t = \arg\max_{a_t'} \left[ \frac{Q(s_t, a_t')}{N(s_t, a_t')} + c \sqrt{\frac{\ln N(s_t)}{N(\text{ch}(s_t, a_t'))}} \right]
+$$ {#eq-promptagent-uct}
+
+where $Q$ is the cumulative reward, $N$ is the visit count, and $c = 2.5$ is the exploration constant. The first term exploits promising paths; the second explores under-visited ones.
+
+![PromptAgent convergence on the BBH causal judgment task, showing how MCTS explores the prompt space. The search concentrates in high-performance regions while maintaining exploratory branches. Source: Wang et al. (2023).](images/promptagent-convergence.png){#fig-promptagent-convergence}
+
+The key advantage over single-trajectory methods: MCTS looks ahead. Before committing to a prompt refinement, it simulates the downstream consequences by expanding the tree further. If adding neurological symptom keywords would help accuracy but hurt conciseness three steps down the line, MCTS can detect this through simulation and choose a different refinement path. PromptAgent achieved 6--9% improvement over baselines across 12 tasks, including an F1 jump from 0.521 to 0.645 on NCBI disease NER along the best MCTS path.
+
+### Comparative Analysis
+
+The evolutionary and search methods split along three axes:
+
+| Method | Search Type | Population? | Key Innovation | Best Result |
+|---|---|---|---|---|
+| EvoPrompt | GA / DE | Yes ($N$ prompts) | LLM as crossover/mutation | +25% on BBH |
+| PromptBreeder | Self-referential EA | Yes (prompts + mutation-prompts) | Co-evolves optimization strategy | Beats CoT on reasoning |
+| RLPrompt | Reinforcement learning | No (single policy) | Discovers uninterpretable prompts | High-performance gibberish |
+| GPO | Gradient-inspired | No (trajectory memory) | Retrieval + cosine decay | 56.8% BBH, 62.6% MMLU |
+| PromptAgent | MCTS | Tree structure | Look-ahead via simulation | +9% on 12 tasks |
+
+The trade-offs are clear. Population-based methods (EvoPrompt, PromptBreeder) explore diverse regions but are computationally expensive (evaluating $N$ prompts per generation). Trajectory-based methods (GPO) are cheaper per step but follow a single path. Tree-search methods (PromptAgent) explore branching paths but the branching factor grows exponentially.
+
+GPO's ablation results suggest a provocative conclusion: the field may have over-indexed on algorithmic sophistication. Simple design choices (trajectory retrieval over recency, generation over editing, cosine decay over fixed step sizes) contribute more than complex evolutionary or planning mechanisms. The next section pushes in the orthogonal direction: instead of optimizing one metric better, what if the real challenge is optimizing *multiple competing metrics simultaneously*?
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+In GPO, why does relevance-based trajectory retrieval outperform recency-based retrieval? What does this tell us about the structure of the prompt optimization landscape? Is it more like a smooth valley (where recent history is informative) or a rugged terrain with distant similarities (where semantic retrieval helps)?
+:::

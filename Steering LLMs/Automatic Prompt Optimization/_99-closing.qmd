@@ -1,0 +1,219 @@
+## Closing {#sec-closing}
+
+### Key Takeaways
+
+- **Prompt optimization is a real optimization problem**: $p^* = \arg\max \mathbb{E}[F(M(x;p), y)]$, but the discrete, non-differentiable nature of the search space makes it fundamentally different from weight optimization. Every algorithm in this chapter is a creative workaround for the missing gradient.
+
+- **Three paradigms address the gradient gap in different ways.** Generate-and-select (APE, OPRO) uses scalar scores and trajectory memory. Textual gradients (ProTeGi, TextGrad, TRACE) use natural language critiques as directional feedback. Evolutionary/search methods (EvoPrompt, GPO, PromptAgent) use population diversity and strategic exploration.
+
+- **Textual gradients are powerful but imperfect.** They provide rich, interpretable feedback but lack the mathematical properties of real gradients (linearity, exact chain rule, precise magnitude). GPO found that LLM self-reflection actually hurts optimization, suggesting that what the optimizer *sees* (demonstrations, traces) matters more than what it is asked to *think about*.
+
+- **GPO's ablation results should inform practice.** Relevance-based trajectory retrieval beats recency (+15%). Generation beats editing (+36%). Cosine-decay edit distance beats fixed constraints (+10%). These simple design choices matter more than algorithmic complexity.
+
+- **Multi-objective optimization is nearly free.** MOPO demonstrated that balancing accuracy, safety, and conciseness costs only 1--2 percentage points per objective compared to single-objective optimization. There is little reason to optimize a single metric when real-world prompts serve multiple masters.
+
+- **GEPA represents the current state of the art.** Reflection on execution traces combined with Pareto-efficient candidate selection achieves +9.6% on Qwen3-8B with 6x fewer rollouts than GRPO. Per-instance Pareto selection roughly doubles optimization effectiveness compared to greedy selection.
+
+- **Credit assignment is the bottleneck for multi-agent systems.** HiveMind's DAG-Shapley identifies which module's prompt to optimize, reducing wasted optimization budget by 80%+. GEPA's `optimize_anything` bypasses the problem by treating the entire system as a single evolvable text artifact.
+
+- **The field is converging toward general-purpose text optimization.** GEPA's `optimize_anything` subsumes prompts, code, agent architectures, and configurations under one API. The question is shifting from "which algorithm?" to "what feedback does the optimizer receive?"
+
+### Concept Map
+
+```{.d2}
+direction: right
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 12
+    }
+  }
+  gen: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  grad: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  evo: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  moo: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  framework: {
+    style: {
+      fill: "#7C3AED"
+      stroke: "#5B21B6"
+      font-color: "white"
+    }
+  }
+  app: {
+    style: {
+      stroke: "#0891B2"
+      fill: "#ECFEFF"
+      font-color: "#155E75"
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 14
+      bold: true
+    }
+  }
+}
+
+# Timeline containers
+era_2022: "2022" {
+  class: [base; container]
+  label.near: top-left
+  APE: "APE" { class: [base; gen] }
+}
+
+era_2023: "2023" {
+  class: [base; container]
+  label.near: top-left
+  OPRO: "OPRO" { class: [base; gen] }
+  ProTeGi: "ProTeGi" { class: [base; grad] }
+  EvoPrompt: "EvoPrompt" { class: [base; evo] }
+  PA: "PromptAgent" { class: [base; evo] }
+  IZ: "InstructZero" { class: [base; gen] }
+  DSPy: "DSPy" { class: [base; framework] }
+}
+
+era_2024: "2024" {
+  class: [base; container]
+  label.near: top-left
+  TextGrad: "TextGrad" { class: [base; grad] }
+  GPO: "GPO" { class: [base; evo] }
+  TRACE: "TRACE" { class: [base; grad] }
+  EMO: "EMO-Prompts" { class: [base; moo] }
+  MORL: "MORL-Prompt" { class: [base; moo] }
+  MIPRO: "MIPROv2" { class: [base; framework] }
+  SAMMO: "SAMMO" { class: [base; framework] }
+}
+
+era_2025: "2024--2025" {
+  class: [base; container]
+  label.near: top-left
+  MOPO: "MOPO" { class: [base; moo] }
+  PP: "ParetoPrompt" { class: [base; moo] }
+  PW: "PromptWizard" { class: [base; framework] }
+}
+
+era_2026: "2025--2026" {
+  class: [base; container]
+  label.near: top-left
+  GEPA: "GEPA" { class: [base; moo] }
+  HM: "HiveMind" { class: [base; app] }
+  BLPO: "BLPO" { class: [base; app] }
+  MPO: "MPO" { class: [base; app] }
+}
+
+# Key evolutionary relationships
+era_2022.APE -> era_2023.OPRO: "adds memory" { style.font-size: 10 }
+era_2023.OPRO -> era_2024.GPO: "systematic analogy" { style.font-size: 10 }
+era_2023.ProTeGi -> era_2024.TextGrad: "computation graphs" { style.font-size: 10 }
+era_2024.TextGrad -> era_2024.TRACE: "execution traces" { style.font-size: 10 }
+era_2023.EvoPrompt -> era_2025.MOPO: "multi-objective" { style.font-size: 10 }
+era_2024.MORL -> era_2025.PP: "RL on Pareto" { style.font-size: 10 }
+era_2024.TRACE -> era_2026.GEPA: "reflection + Pareto" { style.font-size: 10 }
+era_2024.GPO -> era_2026.GEPA: "evolution + Pareto" { style.font-size: 10 }
+era_2023.DSPy -> era_2024.MIPRO: "Bayesian opt" { style.font-size: 10 }
+era_2024.MIPRO -> era_2026.GEPA: "DSPy integration" { style.font-size: 10 }
+```
+
+### Retrieval Practice Questions
+
+::: {.callout-note collapse="true" title="Questions and Answers"}
+
+**Q1: Explain the three components of OPRO's meta-prompt and why solutions are sorted in ascending order.**
+
+The meta-prompt contains: (1) meta-instructions telling the optimizer what to do, (2) an optimization trajectory of past (prompt, score) pairs sorted ascending (worst to best), and (3) task exemplars showing the format. Ascending sort exploits LLMs' recency bias: tokens near the end of the context have more influence, so placing the best prompts last steers the optimizer toward generating variations of high-scoring candidates.
+
+**Q2: Write out TextGrad's chain rule for a two-step computation graph and explain how it differs from numerical backpropagation.**
+
+For $x \xrightarrow{\text{LLM}} y \xrightarrow{\text{LLM}} \mathcal{L}$: $\partial\mathcal{L}/\partial y = \nabla_\text{LLM}(\text{Prediction}, \text{Evaluation})$, then $\partial\mathcal{L}/\partial x = \nabla_\text{LLM}(x, y, \partial\mathcal{L}/\partial y)$. The key differences: numerical chain rule multiplies matrices (exact, composable); textual chain rule asks an LLM to propagate critiques (approximate, potentially lossy). Textual gradients lack linearity and carry no magnitude information.
+
+**Q3: What is "objective collapse" in multi-objective prompt optimization, and which methods address it?**
+
+Objective collapse occurs when one objective dominates while others are sacrificed (e.g., style accuracy reaches 79% while content drops to 19%). Caused by naive averaging of reward signals. Solutions: MORL-Prompt's product-of-rewards (penalizes any near-zero objective), HVI as reward signal, MGDA (finds direction improving all objectives), NSGA-II selection (MOPO, EMO-Prompts), and Pareto-based selection (GEPA, ParetoPrompt).
+
+**Q4: Compare GPO's relevance-based trajectory retrieval with OPRO's full-history approach.**
+
+OPRO shows the optimizer the full history (top 20 prompts) sorted by recency and score. GPO selects the $k$ most semantically similar past prompts using BGE embeddings, regardless of when they were generated. GPO's approach provides contextually relevant demonstrations (a financial-urgency prompt is shown other financial-urgency prompts, not just the most recent ones), achieving +15% improvement over no-trajectory baselines.
+
+**Q5: Explain GEPA's Pareto-based candidate selection. Why frequency-weighted stochastic sampling?**
+
+For each validation instance $i$, GEPA finds the best-scoring candidates. It collects all unique best-per-instance candidates, removes dominated ones, then samples with probability proportional to $f[\Phi]$ (number of instances where $\Phi$ is best). Frequency weighting ensures broadly effective candidates get more optimization budget while specialists are preserved. Stochastic sampling (vs. deterministic) maintains exploration and prevents premature convergence.
+
+**Q6: When would you choose DSPy/MIPROv2 over TextGrad?**
+
+DSPy/MIPROv2 for compile-time optimization of multi-stage pipelines with 200+ training examples. It optimizes both instructions and demonstrations across all modules jointly. TextGrad for test-time refinement of individual hard cases (a misclassified LeetCode problem, a bad molecule design) where you want to iteratively improve one specific output. DSPy optimizes the system; TextGrad optimizes individual outputs.
+
+**Q7: Design a multi-objective setup for a customer service chatbot balancing helpfulness, brand voice, and response length.**
+
+Define three objectives: $f_1$ = helpfulness (LLM judge score or human rating), $f_2$ = brand voice consistency (embedding similarity to reference brand texts), $f_3$ = $-$response length (negative because we minimize). Use MOPO's three-layer architecture with NSGA-II selection, or GEPA with scores in ASI. The Pareto front gives a menu of prompts trading off these criteria: one concise but slightly off-brand, another perfectly on-brand but verbose, etc.
+
+**Q8: Why is Shapley-based credit assignment preferred over per-module evaluation in multi-agent systems?**
+
+Per-module evaluation (testing each module independently) misses interaction effects: a verbose retriever paired with a concise reasoner may outperform a concise retriever with a verbose reasoner, even if both retrievers score equally in isolation. Shapley values measure marginal contributions across all coalitions, capturing these interactions. The Shapley value of module $i$ reflects not just its standalone performance but how much it *adds* to every possible combination of other modules.
+
+:::
+
+### Common Mistakes to Avoid
+
+- **"One metric is enough."** Real-world prompts balance competing objectives. Optimizing accuracy alone often degrades safety, conciseness, or cost. Multi-objective optimization costs only 1--2 percentage points per metric.
+
+- **"More iterations always help."** OPRO's best prompt came at step 107 of 200. ProTeGi's curves peaked at ~3 steps. Over-optimization leads to overfitting to the training distribution or reward hacking.
+
+- **"TextGrad computes actual mathematical gradients."** Textual gradients are natural language critiques. They provide qualitative directional information but lack the mathematical properties (linearity, exact chain rule, magnitude) of numerical gradients.
+
+- **"GEPA is a multi-objective optimizer."** GEPA uses Pareto selection for per-instance diversity, but its primary mode is single-metric optimization. True multi-objective (competing metrics) requires MOPO, ParetoPrompt, or GEPA with explicit multi-metric ASI.
+
+- **"Prompt optimization makes manual prompt engineering obsolete."** These algorithms automate the *search* but not the *problem formulation*. You still need to define the right objectives, provide training data, and understand the task.
+
+- **"The LLM-as-Optimizer just asks the model to write a better prompt."** OPRO, GPO, and GEPA use structured meta-prompts with trajectory history, systematic exploration (trajectory retrieval, cosine decay), and principled selection (Pareto, UCB). GPO's ablation shows each component contributes measurable improvement.
+
+### Curated Resources
+
+- **Best intuitive introduction**: [OPRO paper](https://arxiv.org/abs/2309.03409) (clear writing, simple algorithm, "Take a deep breath")
+- **Best mathematical depth**: [TextGrad paper](https://arxiv.org/abs/2406.07496) (rigorous PyTorch analogy, full computation graph formalism)
+- **Best survey**: [Ramnath et al. (EMNLP 2025)](https://arxiv.org/abs/2502.16923) (5-part taxonomy covering the entire field)
+- **Best for practitioners**: [DSPy documentation](https://dspy.ai/learn/optimization/optimizers/) (optimizer selection guide, code examples)
+- **Best for multi-objective**: [MORL-Prompt](https://arxiv.org/abs/2402.11711) (clearest exposition of objective collapse and solutions)
+- **State of the art**: [GEPA paper](https://arxiv.org/abs/2507.19457) and [optimize_anything blog](https://gepa-ai.github.io/gepa/blog/2026/02/18/introducing-optimize-anything/)
+- **Best ablation study**: [GPO paper](https://arxiv.org/abs/2402.17564) (systematic analysis of what actually works)
+- **Multi-agent prompt optimization**: [HiveMind (AAAI 2026)](https://arxiv.org/abs/2512.06432) (Shapley credit assignment for agent pipelines)
+- **Vision-language prompting**: [CoOp/CoCoOp](https://arxiv.org/abs/2109.01134) (foundational soft prompt tuning for VLMs)
+- **Structure-aware optimization**: [SAMMO (Microsoft)](https://arxiv.org/abs/2404.02319) (symbolic prompt programs with structural mutations)

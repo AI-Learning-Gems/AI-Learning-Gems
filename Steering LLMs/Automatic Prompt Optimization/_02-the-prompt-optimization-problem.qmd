@@ -1,0 +1,142 @@
+## The Prompt Optimization Problem {#sec-problem}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [APO Survey (EMNLP 2025)](https://arxiv.org/abs/2502.16923) | Formal APO definition, 5-part taxonomy |
+| 2 | [OPRO (ICLR 2024)](https://arxiv.org/abs/2309.03409) | Mathematical formulation, sensitivity examples |
+| 3 | [GPO (AAAI 2025)](https://arxiv.org/abs/2402.17564) | Formal optimization objective with expectation |
+
+:::
+
+### Why Prompts Need Algorithms
+
+Consider our support ticket triage system. You write the prompt: "Read the following customer message and classify its urgency as low, medium, or high." It achieves 72% accuracy on your test set. You revise it: "Carefully evaluate the emotional tone, financial impact, and time sensitivity of this customer message. Consider whether the customer has contacted us before. Assign an urgency level: low, medium, or high." Accuracy jumps to 84%. You are pleased, but then you realize the new prompt misses 6 safety-critical tickets that the old one caught. And when you switch from GPT-4 to a cheaper model, accuracy drops back to 69%.
+
+This sensitivity to surface form is not an artifact of your specific task. OPRO ([Yang et al., ICLR 2024](https://arxiv.org/abs/2309.03409)) found that on the GSM8K math benchmark, "Let's think step by step" achieved 71.8% accuracy with PaLM 2-L, while "Take a deep breath and work on this problem step-by-step" reached 80.2%. An empty string scored 34.0%. The relationship between prompt wording and model performance is highly non-linear, model-dependent, and difficult for humans to predict.
+
+The question is: can we formalize this and automate the search?
+
+### The Formal Problem
+
+In standard machine learning, we optimize a model's parameters $\theta \in \mathbb{R}^n$ by minimizing a differentiable loss function:
+
+$$
+\theta^* = \arg\min_{\theta \in \mathbb{R}^n} \; \mathbb{E}_{(x,y) \sim \mathcal{D}} \left[ \mathcal{L}(f_\theta(x), y) \right]
+$$
+
+The gradient $\nabla_\theta \mathcal{L}$ tells us exactly which direction to move in parameter space. Each update $\theta \leftarrow \theta - \alpha \nabla_\theta \mathcal{L}$ reduces the loss. This works because $\theta$ is continuous, $\mathcal{L}$ is differentiable almost everywhere, and the gradient provides dense directional information.
+
+Prompt optimization looks deceptively similar but differs in every important way:
+
+$$
+p^* = \arg\max_{p \in \mathcal{P}} \; \mathbb{E}_{(x,y) \sim \mathcal{D}} \left[ F(M_T(x; p), \; y) \right]
+$$ {#eq-apo-objective}
+
+Here $p$ is a natural language prompt drawn from the prompt space $\mathcal{P}$, $M_T$ is the task model (the LLM performing the task), and $F$ is a scoring function that measures how well the model's output matches the ground truth $y$ on input $x$. We maximize rather than minimize because $F$ is typically an accuracy or quality metric.
+
+The formulation is clean. The execution is hard for five reasons:
+
+1. **Discrete search space.** The prompt $p$ is a sequence of tokens from a finite vocabulary, making $\mathcal{P}$ discrete and combinatorial. For a vocabulary of 50,000 tokens and a prompt length of 100 tokens, the search space contains $50{,}000^{100}$ candidates. There is no continuous manifold to walk along.
+
+2. **Non-differentiable objectives.** The scoring function $F$ is typically accuracy, $S(p) = \frac{1}{N} \sum_{i=1}^{N} \mathbb{1}\{M_T(p, x_i) = y_i\}$, which is a step function with zero gradient almost everywhere. Even softer metrics like BLEU or F1 are not differentiable with respect to the discrete prompt.
+
+3. **Sensitivity to surface form.** Small perturbations in $p$ (adding a word, reordering a sentence) can cause large, unpredictable changes in $F$. The optimization landscape is rugged rather than smooth.
+
+4. **Expensive evaluation.** Each candidate prompt requires running $M_T$ on a set of examples. With LLM inference costs at scale, evaluating thousands of candidates is a serious budget constraint.
+
+5. **Prompt-model coupling.** The optimal prompt $p^*$ depends on the specific model $M_T$. A prompt optimized for GPT-4 may perform poorly on Llama 3 or Claude, and vice versa.
+
+There is a sixth challenge, more subtle than the others: **the blindfolded optimizer problem.** Without directional feedback, a prompt optimizer must explore at random. It can try a prompt and learn that it scored 78%, but not learn *which parts* of the prompt contributed to success and *which parts* caused failures. This is the limitation that the textual gradient methods of @sec-textual-gradients address.
+
+::: {.callout-warning title="Common Misconception: Prompt optimization is just asking an LLM to write a better prompt"}
+This is the most common simplification. While the final step of many algorithms does involve an LLM generating a new prompt, the algorithms surrounding that step are what matter. OPRO ([Yang et al., ICLR 2024](https://arxiv.org/abs/2309.03409)) maintains a sorted trajectory history and uses ascending-order placement to exploit recency bias. GPO ([Tang et al., AAAI 2025](https://arxiv.org/abs/2402.17564)) retrieves semantically similar past prompts as demonstrations using embedding models. GEPA ([Agrawal et al., ICLR 2026](https://arxiv.org/abs/2507.19457)) runs per-instance Pareto selection to maintain diversity. The LLM is a powerful subroutine, but the optimization logic wrapping it is what turns "write a better prompt" into a principled search algorithm. GPO's ablation study makes this concrete: removing trajectory retrieval degrades performance by 15%, and removing the edit distance schedule costs another 10%.
+:::
+
+### Two Key Distinctions
+
+Two distinctions will be important throughout this chapter. First, prompt optimization algorithms typically involve two models:
+
+- The **task model** $M_T$: the LLM performing the actual task (e.g., classifying ticket urgency)
+- The **optimizer model** $M_O$: the LLM proposing prompt improvements (e.g., generating new prompt candidates)
+
+These can be the same model or different models. Using a stronger model as $M_O$ to optimize prompts for a weaker $M_T$ is common in practice.
+
+Second, the feedback function $F$ can provide information at different levels of richness:
+
+- **Scalar feedback**: a single number (accuracy = 0.78). Used by APE, OPRO, EvoPrompt.
+- **Natural language feedback**: a critique ("the prompt failed on stroke cases because it lacks neurological symptom keywords"). Used by ProTeGi, TextGrad, TRACE.
+- **Structured diagnostics**: execution traces, compiler errors, profiler output. Used by TRACE and GEPA's Actionable Side Information (ASI).
+
+The richness of feedback is a key differentiator among methods. Richer feedback enables more sample-efficient optimization, as we will see.
+
+### The Search Space Taxonomy
+
+Not all prompt optimization operates in the same space. Three families have emerged:
+
+- **Discrete prompt optimization** (DPO): The prompt $p$ is a natural language string. The optimizer searches over human-readable instructions. This is the setting for most methods in this chapter (APE, OPRO, TextGrad, EvoPrompt, GPO, GEPA).
+
+- **Continuous prompt optimization** (CPO): The "prompt" $\mathbf{c} \in \mathbb{R}^{d \times L}$ is a sequence of $L$ learnable embedding vectors, each of dimension $d$, prepended to the input. Standard gradient descent applies because $\mathbf{c}$ is continuous. But the resulting prompts are uninterpretable and require model weight access. This is the setting for CoOp/CoCoOp (covered in @sec-applications).
+
+- **Hybrid prompt optimization** (HPO): Combines discrete knowledge descriptions with continuous context vectors. KAPT, for instance, uses Wikipedia-sourced text descriptions alongside learnable embedding vectors.
+
+This chapter focuses primarily on discrete prompt optimization, with continuous methods covered in @sec-applications.
+
+### The APO Taxonomy: A Roadmap
+
+The EMNLP 2025 survey by [Ramnath et al.](https://arxiv.org/abs/2502.16923) organizes the entire field into a five-part anatomy. Every algorithm we will study fits into this framework:
+
+1. **Seed initialization.** How do you get your first candidate prompts? Options range from manual crafting to LLM-generated proposals (APE) to empty strings.
+
+2. **Candidate generation.** How do you produce new prompt candidates from existing ones? By LLM editing (ProTeGi), by evolutionary crossover and mutation (EvoPrompt), by Bayesian surrogate optimization (InstructZero, MIPRO), or by meta-prompt-guided generation (OPRO).
+
+3. **Inference and feedback.** How do you evaluate candidates and what feedback do you collect? Scalar scores (accuracy), natural language critiques (textual gradients), execution traces (TRACE), or structured diagnostics (GEPA's ASI).
+
+4. **Iteration depth.** How many optimization rounds? Fixed (APE: 1 round) or variable with convergence checking (OPRO: up to 200 steps).
+
+5. **Filter and retain.** How do you select which candidates survive? Top-$k$ greedy, UCB bandits (ProTeGi), Pareto-based selection (GEPA), or Bayesian expected improvement (InstructZero).
+
+The formal objective across all these methods remains @eq-apo-objective, but each makes different choices along these five dimensions.
+
+### Four Paradigms, One Progression
+
+The methods in this chapter form a natural progression from less to more sophisticated feedback:
+
+| Paradigm | Feedback Type | Key Methods | Section |
+|---|---|---|---|
+| Generate-and-Select | Scalar (accuracy) | APE, OPRO, InstructZero | @sec-first-wave |
+| Textual Gradients | Natural language critiques | ProTeGi, TextGrad, TRACE | @sec-textual-gradients |
+| Evolutionary / Search | Scalar + population diversity | EvoPrompt, GPO, PromptAgent | @sec-evolutionary |
+| Multi-Objective | Multiple competing scores + Pareto | MOPO, MORL-Prompt, ParetoPrompt, GEPA | @sec-multi-objective |
+
+The progression from APE to GEPA is a progression from "no feedback" (propose and score) to "scalar feedback" (OPRO's trajectory) to "directional feedback" (TextGrad's critiques) to "population-based exploration with rich diagnostics" (GEPA's execution traces and Pareto selection). Each paradigm addresses a limitation of the previous one.
+
+There is also a convergence happening across paradigms. All of them increasingly use LLMs as the core subroutine: the LLM proposes candidates (APE), the LLM provides feedback (TextGrad), the LLM performs crossover and mutation (EvoPrompt), the LLM reflects on execution traces (GEPA). The differentiating question is shifting from "which algorithm?" to "what information does the optimizer LLM receive, and how is its search guided?"
+
+| Year | Method | Venue | Paradigm | Key Result |
+|---|---|---|---|---|
+| 2022 | APE | ICLR 2023 | Generate-Select | Matches human prompts on 19--21/24 tasks |
+| 2023 | OPRO | ICLR 2024 | Generate-Select | +8% on GSM8K ("Take a deep breath") |
+| 2023 | ProTeGi | EMNLP 2023 | Textual Gradient | +31% on Jailbreak detection |
+| 2023 | EvoPrompt | ICLR 2024 | Evolutionary | +25% on BBH |
+| 2023 | PromptAgent | ICLR 2024 | MCTS Search | +9% over baselines on 12 tasks |
+| 2023 | InstructZero | ICML 2024 | Bayesian | Best on all 32 BIG-Bench tasks |
+| 2024 | TextGrad | NeurIPS 2024 | Textual Gradient | GPQA 51%$\to$55%, LeetCode 26%$\to$36% |
+| 2024 | GPO | AAAI 2025 | Gradient-Inspired | +56.8% on BBH, +62.6% on MMLU |
+| 2024 | EMO-Prompts | -- | Multi-Objective | HVI up to 0.45 |
+| 2024 | MORL-Prompt | EMNLP 2024 | Multi-Objective RL | Identifies objective collapse |
+| 2024 | MOPO | COLING 2025 | Multi-Objective Evo | +34pp improvement, 1--2pp trade-off |
+| 2024 | MIPRO/MIPROv2 | -- | Bayesian Pipeline | +13% on multi-stage pipelines |
+| 2024 | TRACE | NeurIPS 2024 | Execution Trace | Generalizes backprop to workflows |
+| 2025 | ParetoPrompt | ICLR 2025 | Multi-Objective RL | RL on Pareto front, no scalarization |
+| 2025 | GEPA | ICLR 2026 Oral | Pareto Evolution | +9.6% on Qwen3-8B, 6$\times$ fewer rollouts than GRPO |
+| 2025 | HiveMind | AAAI 2026 | Multi-Agent | Shapley credit, 80%+ fewer LLM calls |
+
+::: {.callout-note title="Think Hard: Is there a fundamental limit to prompt optimization?"}
+Is there a "Bayes-optimal" prompt for a given task and model? In principle, yes: for a fixed model $M_T$, dataset $\mathcal{D}$, and metric $F$, the prompt $p^*$ that maximizes @eq-apo-objective exists (assuming $\mathcal{P}$ is finite, which it is for bounded-length prompts). But finding it is computationally intractable (the space is combinatorial), and the optimal prompt changes with the model, the data distribution, and the evaluation metric. Moreover, as models become more capable, the "headroom" for prompt optimization may shrink. SAMMO ([Ribeiro et al., 2024](https://arxiv.org/abs/2404.02319)) found weak correlation between optimal prompts across different LLMs, suggesting that $p^*$ is highly model-specific. The practical implication: prompt optimization is not a one-time cost but an ongoing engineering investment that must be re-run when any component changes.
+:::
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+Why can't we simply use gradient descent to optimize prompts? Write down two specific properties of the prompt optimization problem that break the assumptions of standard gradient-based optimization.
+:::

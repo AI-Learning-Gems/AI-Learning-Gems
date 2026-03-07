@@ -1,0 +1,286 @@
+## Introduction {#sec-introduction}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [APO Survey (EMNLP 2025)](https://arxiv.org/abs/2502.16923) | 5-part APO taxonomy, formal definition |
+| 2 | [OPRO (ICLR 2024)](https://arxiv.org/abs/2309.03409) | Meta-prompt structure, "Take a deep breath" |
+| 3 | [GPO (AAAI 2025)](https://arxiv.org/abs/2402.17564) | Formal optimization objective |
+| 4 | [APE (ICLR 2023)](https://arxiv.org/abs/2211.01910) | Foundational LLM-as-prompt-engineer |
+| 5 | [ProTeGi (EMNLP 2023)](https://arxiv.org/abs/2305.03495) | First textual gradient method |
+| 6 | [TextGrad (NeurIPS 2024)](https://arxiv.org/abs/2406.07496) | PyTorch-like textual backpropagation |
+| 7 | [GEPA (ICLR 2026)](https://arxiv.org/abs/2507.19457) | Pareto-based prompt evolution |
+| 8 | [EvoPrompt (ICLR 2024)](https://arxiv.org/abs/2309.08532) | Evolutionary algorithms for prompts |
+| 9 | [MOPO (COLING 2025)](https://arxiv.org/abs/2412.12948) | Multi-objective prompt optimization |
+| 10 | [MORL-Prompt (EMNLP 2024)](https://arxiv.org/abs/2402.11711) | Multi-objective RL for prompts |
+| 11 | [TRACE (NeurIPS 2024)](https://arxiv.org/abs/2406.16218) | Execution-trace optimization |
+| 12 | [HiveMind (AAAI 2026)](https://arxiv.org/abs/2512.06432) | Multi-agent prompt optimization |
+
+:::
+
+### The Hook: When "Just Write a Better Prompt" Isn't Enough
+
+You are an ML engineer building a chatbot that sorts customer support tickets by urgency. A customer writes: "My account has been charged twice and I need a refund immediately." Your LLM reads the message, classifies it as "medium urgency," and moves on. But this customer has been waiting three days, is threatening to cancel, and has already called twice. The urgency should be "high." You rewrite the prompt, adding a line about repeated contacts. Now it catches that case, but it starts flagging every billing question as high urgency, burying truly critical tickets. You try again. And again.
+
+After two weeks and 47 prompt variants, you've stumbled onto a frustrating pattern. Some prompts nail accuracy but produce responses so long they overwhelm the support agents reading them. Others are concise but miss safety-critical edge cases (the customer who mentions chest pain while asking about health insurance). One prompt works beautifully with GPT-4 but falls apart when you switch to the cheaper model your budget demands for production. You start keeping a spreadsheet: prompt text, accuracy on your test set, average response length, number of missed critical cases. The rows multiply. The relationships between these columns make no sense. Improving accuracy from 78% to 84% cost you six missed safety cases and doubled the response length.
+
+Here is the thing nobody tells you about prompt engineering: you are solving an optimization problem. A real one, with an objective function, a search space, and trade-offs. And like most optimization problems worth solving, it is too big and too subtle for manual search. The space of possible English instructions is effectively infinite. Small changes in wording cause large swings in performance. OPRO ([Yang et al., ICLR 2024](https://arxiv.org/abs/2309.03409)) found that changing "Let's think step by step" to "Take a deep breath and work on this problem step-by-step" improved math accuracy from 71.8% to 80.2%. Improving one quality (accuracy) often degrades another (safety, conciseness). This is not a problem you can brute-force with intuition and a spreadsheet.
+
+![The landscape of automatic prompt optimization, organized by the EMNLP 2025 survey's five-part taxonomy. Every algorithm in this chapter fits somewhere in this tree: from how it initializes seed prompts, to how it generates candidates, collects feedback, iterates, and selects the best. Source: Ramnath et al. (2025), Figure 1.](images/apo-taxonomy.png){#fig-apo-taxonomy}
+
+Over the past four years (2022--2026), researchers have developed increasingly sophisticated algorithms that treat prompts as parameters to be optimized, feedback as gradients, and LLMs themselves as both the system being tuned and the optimizer doing the tuning. This chapter traces the full arc of that story.
+
+### Learning Objectives
+
+After completing this chapter, you will be able to:
+
+- Formalize prompt optimization as a mathematical optimization problem and explain why classical gradient descent does not apply
+- Describe the generate-and-select paradigm (APE, OPRO, InstructZero) and explain the role of the meta-prompt in iterative optimization
+- Explain how "textual gradients" work in ProTeGi, TextGrad, and TRACE, and how they relate (and don't relate) to numerical gradients
+- Compare evolutionary approaches (EvoPrompt, GPO, PromptAgent) and articulate the trade-offs between population-based exploration and single-trajectory refinement
+- Define Pareto dominance, hypervolume indicator, and NSGA-II, and apply them to multi-objective prompt optimization problems (MOPO, MORL-Prompt, ParetoPrompt, GEPA)
+- Explain credit assignment in multi-agent prompt optimization (HiveMind), judge prompt optimization (BLPO), and vision-language prompt tuning (CoOp, MPO)
+- Select the right prompt optimization framework (DSPy, TextGrad, TRACE, GEPA) for a given use case
+
+### Notation
+
+| Symbol | Meaning |
+|---|---|
+| $p$, $\rho$ | Prompt / instruction (text string) |
+| $\mathcal{P}$ | Prompt space (set of all possible prompts) |
+| $p^*$ | Optimal prompt |
+| $M_T$ | Task model (the LLM performing the task) |
+| $M_O$ | Optimizer model (the LLM proposing prompt improvements) |
+| $F$, $f$, $\mu$ | Metric / scoring function |
+| $S(p)$ | Accuracy score of prompt $p$ |
+| $\mathcal{D}$, $\mathcal{D}_\text{train}$, $\mathcal{D}_\text{val}$ | Dataset, training set, validation set |
+| $(x, y)$ | Input-output example pair |
+| $\partial \mathcal{L} / \partial v$ | Textual gradient of loss $\mathcal{L}$ with respect to variable $v$ |
+| $\nabla_f$ | Textual gradient operator for function $f$ |
+| $\Phi$ | Compound AI system |
+| $\pi_i$ | Prompt for module $i$ in a multi-module system |
+| $f_i$ | $i$-th objective function (in multi-objective setting) |
+| $a \succ b$ | Solution $a$ Pareto-dominates solution $b$ |
+| $H(S)$ | Hypervolume indicator of solution set $S$ |
+| $B$ | Optimization budget (number of LLM calls) |
+| $\text{ASI}$ | Actionable Side Information (diagnostic feedback) |
+| $\phi_i$ | Shapley value for agent/module $i$ |
+| $\mathbf{c} \in \mathbb{R}^{d \times L}$ | Continuous soft prompt ($L$ vectors of dimension $d$) |
+| $R_\varphi(P, x, y)$ | Reward model score (learned from human preferences) |
+| $W$ | Beam width (in beam search) |
+| $\cos(\varphi_{ij})$ | Gradient cosine similarity between objectives $i$ and $j$ |
+
+### The Story of Prompt Optimization
+
+To understand where the field stands today, it helps to understand the problem it grew out of. The rise of large language models in 2020--2022 created a new kind of engineering bottleneck. These models could do remarkable things, but their performance was exquisitely sensitive to how you asked. The instruction was the interface, and the interface was fragile.
+
+Researchers noticed this fragility early. On the GSM8K math benchmark, the prompt "Let's think step by step" achieved 71.8% accuracy with PaLM 2-L. A seemingly minor rephrasing to "Take a deep breath and work on this problem step-by-step" jumped to 80.2%. That is an 8.4 percentage point swing from what a human would consider a trivial edit. For our support ticket system, imagine that rephrasing "Assess the urgency of this ticket" to "Carefully evaluate the emotional tone and practical impact of this message, then assign an urgency level" changes your accuracy from 72% to 84%. The words matter, and we cannot predict which words will matter, or why.
+
+This observation motivated a question: if the choice of prompt has such a large impact on performance, and if humans are poor at predicting which prompts work best, can we automate the search? The answer, developed across dozens of papers from 2022 to 2026, is yes, and the methods are surprisingly elegant.
+
+The first insight came from APE ([Zhou et al., ICLR 2023](https://arxiv.org/abs/2211.01910), November 2022) and was beautifully simple: ask the LLM itself to propose instructions, then score each one and keep the best. This framing (prompts as programs to be synthesized) unlocked the entire field. But it was a one-shot process with no iterative refinement. OPRO ([Yang et al., ICLR 2024](https://arxiv.org/abs/2309.03409), September 2023) added memory: a "meta-prompt" containing the history of previous attempts and their scores, allowing the optimizer to learn from its own trajectory. The results were striking, but the feedback was limited to a scalar score. The optimizer knew a prompt scored 78%, but not why.
+
+The next wave asked: can we give the optimizer richer, directional feedback, analogous to the gradients that guide neural network training? ProTeGi ([Pryzant et al., EMNLP 2023](https://arxiv.org/abs/2305.03495)) introduced "textual gradients": an LLM examines cases where the prompt fails, generates a natural language critique ("the prompt failed to catch this stroke presentation because it lacks neurological symptom keywords"), and then rewrites the prompt to address the critique. TextGrad ([Yuksekgonul et al., NeurIPS 2024](https://arxiv.org/abs/2406.07496)) generalized this into a full backpropagation framework, complete with computation graphs, chain rules, and an optimizer that updates text variables the way Adam updates weights. TRACE ([Nie et al., NeurIPS 2024](https://arxiv.org/abs/2406.16218)) pushed further, using execution traces to propagate feedback through arbitrary computational workflows.
+
+In parallel, a different branch of the field drew on evolutionary computation. EvoPrompt ([Guo et al., ICLR 2024](https://arxiv.org/abs/2309.08532), September 2023) maintained populations of prompts and used LLMs as crossover and mutation operators. GPO ([Tang et al., AAAI 2025](https://arxiv.org/abs/2402.17564)) introduced a systematic gradient-optimizer analogy, with semantic trajectory retrieval and cosine-decay edit distance constraints. PromptAgent ([Wang et al., ICLR 2024](https://arxiv.org/abs/2310.16427)) framed the problem as planning, using Monte Carlo Tree Search to look ahead and avoid local optima.
+
+But all of these methods optimized a single metric. Real-world prompts must balance competing objectives. Our support ticket system needs to be accurate and safe and concise, and these goals conflict. The multi-objective branch of prompt optimization, which arrived in force in 2024, applied established tools from multi-objective optimization (Pareto dominance, NSGA-II, hypervolume indicators) to the prompt setting. MORL-Prompt ([Shi et al., EMNLP 2024](https://arxiv.org/abs/2402.11711)) identified "objective collapse" (one metric dominates while others are sacrificed) and proposed solutions. MOPO ([Tong et al., COLING 2025](https://arxiv.org/abs/2412.12948)) built a three-layer evolutionary architecture that lost only 1--2 percentage points per objective compared to single-objective optimization. GEPA ([Agrawal et al., ICLR 2026 Oral](https://arxiv.org/abs/2507.19457)) unified reflection on execution traces with Pareto-based candidate selection, outperforming both reinforcement learning (GRPO) and prior prompt optimizers (MIPROv2) with dramatically fewer rollouts.
+
+The story has two more dimensions. First, prompt optimization has expanded beyond single prompts to multi-module systems (agent pipelines where credit assignment becomes the bottleneck), evaluation rubrics (optimizing the judge, not just the examinee), and vision-language models (where prompts live in continuous embedding space). Second, production frameworks (DSPy, TextGrad, TRACE, GEPA's `optimize_anything`) now package these algorithms for real-world deployment, each built around a different programming abstraction.
+
+### What to Expect
+
+This chapter is organized as a progression from simpler to more sophisticated methods, mirroring the historical development of the field. @sec-problem formalizes the optimization problem and introduces the APO taxonomy as a roadmap. @sec-first-wave covers the first generation of generate-and-select methods (APE, OPRO, InstructZero). @sec-textual-gradients traces the development of textual gradients from ProTeGi through TextGrad to TRACE. @sec-evolutionary covers evolutionary and search-based approaches (EvoPrompt, GPO, PromptAgent). @sec-multi-objective is a dedicated deep-dive into multi-objective prompt optimization (NSGA-II, MOPO, MORL-Prompt, ParetoPrompt, GEPA). @sec-applications explores frontier applications: multi-agent systems, LLM-as-a-Judge, and multimodal prompt tuning. @sec-frameworks surveys the production frameworks and provides a decision guide for practitioners.
+
+Each section revisits our support ticket triage system. By the end, you will see it evolve from a single fragile prompt into a multi-module pipeline with multi-objective optimization, credit assignment across modules, and production-ready deployment. The mathematics scales with the ambition, from simple argmax formulations to Pareto fronts and Shapley values.
+
+A few things will be challenging. The textual gradient analogy (@sec-textual-gradients) sounds elegant but breaks down under scrutiny; we will be honest about where and why. Multi-objective optimization (@sec-multi-objective) requires comfort with Pareto dominance and hypervolume indicators, which we will build from first principles. The most common misconception to watch for: "textual gradients are actual mathematical gradients." They are not. They are natural language critiques that serve an analogous function (providing directional improvement information) but operate in a fundamentally different space. We will return to this distinction repeatedly.
+
+```{.d2}
+# =========================================================================
+# CONCEPT MAP: Prompt Optimization Landscape
+# =========================================================================
+direction: right
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 13
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 16
+      bold: true
+    }
+  }
+}
+
+# =========================================================================
+# PARADIGM CONTAINERS
+# =========================================================================
+
+Generate: "Generate & Select\n(§2)" {
+  class: [base; container]
+  label.near: top-left
+
+  APE: "    APE (2022)    " {
+    class: [base; input]
+  }
+  OPRO: "    OPRO (2023)    " {
+    class: [base; input]
+  }
+  IZ: "InstructZero (2023)" {
+    class: [base; input]
+  }
+}
+
+Gradient: "Textual Gradients\n(§3)" {
+  class: [base; container]
+  label.near: top-left
+
+  ProTeGi: "  ProTeGi (2023)  " {
+    class: [base; process]
+  }
+  TextGrad: "  TextGrad (2024)  " {
+    class: [base; process]
+  }
+  TRACE: "   TRACE (2024)   " {
+    class: [base; process]
+  }
+}
+
+Evo: "Evolutionary & Search\n(§4)" {
+  class: [base; container]
+  label.near: top-left
+
+  EvoPrompt: " EvoPrompt (2023) " {
+    class: [base; decision]
+  }
+  GPO: "   GPO (2024)   " {
+    class: [base; decision]
+  }
+  PA: "PromptAgent (2023)" {
+    class: [base; decision]
+  }
+}
+
+MOO: "Multi-Objective\n(§5)" {
+  class: [base; container]
+  label.near: top-left
+
+  MOPO: "  MOPO (2024)  " {
+    class: [base; highlight]
+  }
+  MORL: "MORL-Prompt (2024)" {
+    class: [base; highlight]
+  }
+  PP: "ParetoPrompt (2025)" {
+    class: [base; highlight]
+  }
+  GEPA: "  GEPA (2025)  " {
+    class: [base; output]
+  }
+}
+
+# =========================================================================
+# EDGES (evolutionary relationships)
+# =========================================================================
+
+Generate.APE -> Generate.OPRO: "adds memory" {
+  style.stroke: "#6366F1"
+  style.font-size: 11
+}
+Generate.OPRO -> Gradient.ProTeGi: "adds\ndirectional\nfeedback" {
+  style.stroke: "#10B981"
+  style.font-size: 11
+}
+Gradient.ProTeGi -> Gradient.TextGrad: "generalizes to\ncomputation graphs" {
+  style.stroke: "#10B981"
+  style.font-size: 11
+}
+Gradient.TextGrad -> Gradient.TRACE: "adds execution\ntraces" {
+  style.stroke: "#10B981"
+  style.font-size: 11
+}
+Generate.APE -> Evo.EvoPrompt: "adds populations" {
+  style.stroke: "#F59E0B"
+  style.font-size: 11
+}
+Evo.EvoPrompt -> Evo.GPO: "adds trajectory\nretrieval" {
+  style.stroke: "#F59E0B"
+  style.font-size: 11
+}
+Evo.EvoPrompt -> MOO.MOPO: "adds Pareto\nselection" {
+  style.stroke: "#F43F5E"
+  style.font-size: 11
+}
+MOO.MORL -> MOO.PP: "RL on Pareto front" {
+  style.stroke: "#F43F5E"
+  style.font-size: 11
+}
+Gradient.TRACE -> MOO.GEPA: "adds reflection\n+ Pareto" {
+  style.stroke: "#1D4ED8"
+  style.font-size: 11
+  style.stroke-width: 2
+}
+Evo.GPO -> MOO.GEPA: "adds evolution\n+ Pareto" {
+  style.stroke: "#1D4ED8"
+  style.font-size: 11
+  style.stroke-width: 2
+}
+```
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+Before reading on, consider: if the prompt space is discrete and infinite, and the scoring function is non-differentiable, what approaches from classical optimization might still apply? Think about methods that do not require gradients.
+:::

@@ -1,0 +1,140 @@
+## Applications: Agents, Judges, and Multimodal Prompt Tuning {#sec-applications}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [HiveMind (AAAI 2026)](https://arxiv.org/abs/2512.06432) | DAG-Shapley credit, multi-agent optimization |
+| 2 | [BLPO (Feb 2026)](https://arxiv.org/abs/2602.11340) | Bi-level optimization for multimodal judges |
+| 3 | [MPO (ICLR 2026 sub)](https://arxiv.org/abs/2510.09201) | Multimodal prompt optimization |
+| 4 | [GEPA (ICLR 2026)](https://arxiv.org/abs/2507.19457) | Agent architecture evolution |
+| 5 | [TRACE (NeurIPS 2024)](https://arxiv.org/abs/2406.16218) | Heterogeneous workflow optimization |
+| 6 | [MIPRO (2024)](https://arxiv.org/abs/2406.11695) | Multi-stage pipeline optimization |
+| 7 | [TextGrad (NeurIPS 2024)](https://arxiv.org/abs/2406.07496) | Non-NLP applications |
+
+:::
+
+### From Single Prompts to Compound Systems
+
+Everything up to this point optimized a single prompt $p^*$ for a single model $M_T$. Real-world AI systems are rarely so simple. Our support ticket triage system has grown into a pipeline with four modules: a symptom extractor, a triage classifier, a safety checker, and a physician-facing explanation generator. Each has its own prompt $\pi_i$. The compound optimization problem becomes:
+
+$$
+\langle \pi_1^*, \ldots, \pi_k^* \rangle = \arg\max_{\pi_1, \ldots, \pi_k} \; \mathbb{E}_{(x,m) \sim \mathcal{T}} \left[ \mu(\Phi(x; \pi_1, \ldots, \pi_k), m) \right]
+$$ {#eq-multi-prompt}
+
+where $\Phi$ is the compound system with modules $M_1, \ldots, M_k$ each parameterized by prompt $\pi_i$, and $\mu$ is the end-to-end evaluation metric. This is fundamentally harder than single-prompt optimization for three reasons: (a) the search space is the product of per-module prompt spaces (exponentially larger), (b) prompts interact non-linearly (a good extraction prompt may require a specific classifier prompt to work well), and (c) credit assignment is ambiguous (when the system misclassifies a ticket, is the extractor, classifier, or safety checker at fault?).
+
+This section explores three frontier applications that each pose distinct challenges extending the standard formulation: multi-agent systems with credit assignment, LLM-as-a-Judge evaluation, and vision-language prompt tuning.
+
+### Multi-Agent Systems: Credit Assignment
+
+When agents interact in non-sequential DAG structures (a retriever feeds a reasoner which feeds a checker), optimizing all prompts jointly is intractable. The key question: when the system fails, which module's prompt should be blamed and improved?
+
+**The MIPRO/DSPy approach** treats each module's prompt as an independent variable and uses Bayesian optimization (Tree-structured Parzen Estimator) to search the joint space. This works for small pipelines (2--5 modules) but scales poorly with the number of modules because it ignores inter-module dependencies.
+
+**The TRACE approach** provides per-module feedback through execution traces. When the system fails, TRACE's minimal subgraph propagator identifies which module's output caused the failure by tracing backward through the DAG. The optimizer reads the trace as pseudo-code and proposes targeted updates.
+
+![HiveMind: multi-agent prompt optimization with DAG-Shapley credit assignment. Instead of optimizing all agents' prompts equally, HiveMind quantifies each agent's marginal contribution using Shapley values, then targets optimization budget at underperforming modules. Source: Wang et al. (2025).](images/hivemind-architecture.png){#fig-hivemind}
+
+**The HiveMind approach ([Wang et al., AAAI 2026](https://arxiv.org/abs/2512.06432))** uses Shapley values to quantify each agent's marginal contribution:
+
+$$
+\phi_i(v) = \sum_{S \subseteq N \setminus \{i\}} \frac{|S|!(|N|-|S|-1)!}{|N|!} \cdot \left[v(S \cup \{i\}) - v(S)\right]
+$$ {#eq-shapley}
+
+where $v(S)$ is the coalition value (system performance when only agents in $S$ are active). The Shapley value $\phi_i$ measures how much agent $i$ contributes on average across all possible subsets. Agents with low Shapley values are identified as bottlenecks and receive targeted prompt refinement.
+
+Computing exact Shapley values requires evaluating $2^{|N|}$ coalitions, which is exponential. HiveMind's **DAG-Shapley** exploits the DAG structure to prune non-viable coalitions (an agent whose predecessor is excluded cannot contribute), reducing LLM calls by 80%+. The CG-OPO (Contribution-Guided Online Prompt Optimization) algorithm then allocates optimization budget proportionally to each agent's contribution gap.
+
+**GEPA's optimize_anything** takes the most radical approach: treat the entire agent system (code + prompts + control flow) as a single text artifact to be evolved. On the ARC-AGI challenge, GEPA evolved a 10-line stub into a 300+ line agent achieving 89.5% accuracy (vs. 32.5% baseline). This is architecture search, not just prompt optimization: the algorithm discovers not just what the prompt should say, but how the agent should be structured.
+
+::: {.callout-note title="Think Hard: Credit assignment in agents vs. neural networks"}
+The credit assignment problem in multi-agent systems (which module's prompt to blame) is structurally analogous to the credit assignment problem in multi-layer neural networks (which layer's weights to blame). Backpropagation solves the latter by computing exact gradients through the computation graph. Textual backpropagation (TextGrad, TRACE) attempts the same for agent DAGs. But the analogy breaks down: neural network layers compose through differentiable operations, while agent modules compose through discrete text generation. The textual chain rule (@eq-textgrad-chain) accumulates approximation errors at each step, and the "gradient" at module 1 in a 4-module pipeline has been filtered through three rounds of LLM interpretation. HiveMind's Shapley approach sidesteps this by measuring marginal contributions directly (ablation-based), at the cost of exponentially many evaluations. The ideal solution may combine both: use Shapley values to identify *which* module to optimize, then use textual gradients to determine *how* to optimize it.
+:::
+
+### LLM-as-a-Judge: Optimizing the Evaluator
+
+LLM-as-a-Judge uses an LLM to evaluate the quality of other LLMs' outputs. The judge prompt is itself a prompt optimization target:
+
+$$
+p_\text{judge}^* = \arg\max_p \; \sum_i \text{Corr}(\text{Judge}(p, x_i), \text{Human}(x_i))
+$$
+
+The objective is alignment with human judgment, not task accuracy. This changes the optimization problem in three ways: (a) the "ground truth" is noisy human preferences, not deterministic labels, (b) judges must generalize across domains and models, and (c) multi-criteria evaluation (helpfulness, safety, style) is inherently multi-objective.
+
+**BLPO ([Feb 2026](https://arxiv.org/abs/2602.11340))** addresses a challenge specific to multimodal judges. When evaluating vision-language model outputs, the judge must process both text and images. Context window limits force a two-stage pipeline: first convert the image to text (via an image-to-text prompt $p_\text{i2t}$), then evaluate the output (via a judge prompt $p_\text{judge}$). BLPO jointly optimizes both prompts through bi-level optimization:
+
+$$
+\min_{p_\text{judge}} \; \mathcal{L}_\text{outer}(p_\text{judge}, p_\text{i2t}^*(p_\text{judge})) \quad \text{s.t.} \quad p_\text{i2t}^*(p_\text{judge}) = \arg\min_{p_\text{i2t}} \; \mathcal{L}_\text{inner}(p_\text{judge}, p_\text{i2t})
+$$ {#eq-blpo}
+
+The outer level optimizes the judge prompt given the best image-to-text prompt; the inner level finds the best image-to-text prompt for a given judge prompt. This nesting captures the dependency: the optimal way to describe an image depends on what the judge is looking for.
+
+**SedarEval** takes a different approach: instead of a single generic rubric, it generates self-adaptive rubrics customized per question, mimicking how human examiners create question-specific grading criteria.
+
+The connection to multi-objective optimization (@sec-multi-objective) is direct: a judge evaluating helpfulness, safety, and style is optimizing three objectives simultaneously. The MOPO/ParetoPrompt framework applies directly, with each evaluation criterion as an objective and the Pareto front giving rubric configurations that trade off criteria.
+
+::: {.callout-warning title="Common Misconception: Optimizing a judge prompt is the same as optimizing a task prompt"}
+The objectives are fundamentally different. A task prompt optimization targets accuracy: "did the model get the right answer?" A judge prompt optimization targets alignment: "does the judge's evaluation match human judgment?" This means the optimization problem is different (noisier, since human judgments vary), the feedback signal is different (agreement with humans, not correctness), and the generalization requirement is different (judges must work across tasks and models, not just one). Over-optimizing a judge prompt can lead to a judge that perfectly predicts *one annotator's* preferences but fails to generalize. This is the judge-optimization version of overfitting.
+:::
+
+### Vision-Language Prompt Tuning
+
+The extension from text-only to multimodal optimization introduces new mathematical structure. Two paradigms have emerged:
+
+**Soft/continuous prompt tuning (CoOp, CoCoOp, VPT)** optimizes continuous embedding vectors prepended to the input of a vision-language model:
+
+$$
+\mathbf{c}^* = \arg\min_{\mathbf{c} \in \mathbb{R}^{d \times L}} \; \mathbb{E}_{(x,y)} \left[ \ell(f(x; \mathbf{c}), y) \right]
+$$ {#eq-coop}
+
+where $\mathbf{c}$ is a sequence of $L$ learnable $d$-dimensional vectors. Standard gradient descent applies because $\mathbf{c}$ is continuous. CoCoOp extends this by making prompts instance-conditional: $\mathbf{c}_i = \mathbf{c} + h_\theta(x_i)$, where a small network $h_\theta$ generates per-input adjustments. Multi-modal prompt tuning optimizes *both* textual and visual soft prompts simultaneously, addressing the **modality gap** (the structural disparity between vision and text embeddings in the shared CLIP-like space).
+
+**The Base-to-New Trade-off (BNT)** is a defining multi-objective problem in VLM prompt tuning. When a model like CLIP is adapted via prompt tuning on "base" classes (16 examples each of 10 flower species), the learned prompts overfit to these classes. Performance on unseen "new" classes (birds, cars) degrades. This creates a Pareto conflict:
+
+$$
+\max \; \text{Accuracy}_\text{base}(\mathbf{c}) \quad \text{vs.} \quad \max \; \text{Accuracy}_\text{new}(\mathbf{c})
+$$
+
+Three solution families have emerged:
+
+- *Ensembling general + specific*: Treat hand-crafted prompts ("a photo of a [CLASS]") and learned soft prompts as two "views," optimizing their combination.
+- *Regularization*: Add a consistency loss anchoring learned prompts to the frozen pre-trained encoder: $\mathcal{L}_\text{total} = \mathcal{L}_\text{task}(\mathbf{c}) + \lambda \cdot D(f_\text{prompted}(x; \mathbf{c}), f_\text{frozen}(x))$. This is the prompt-optimization analogue of weight decay.
+- *Architectural decoupling (DPC)*: Clone the learnable prompt into two copies (one for base, one for generalization) with separate gradient flows.
+
+A subtle failure mode: **RPO (Read-only Prompt Optimization)** discovered that standard prompt tuning corrupts the frozen VLM's pre-trained representations. Learned prompt tokens interact with original tokens via self-attention, degrading the model's general capabilities. RPO's fix: masked attention where prompts can *read from* original tokens but original tokens *cannot attend to* prompts. This one-way information flow preserves the model's pre-trained knowledge while allowing task adaptation.
+
+**Discrete/hard prompt optimization for MLLMs** (MPO, [Zhu et al., ICLR 2026 submission](https://arxiv.org/abs/2510.09201)) extends discrete prompt optimization to multimodal inputs, optimizing text prompts and visual prompts jointly across images, videos, and molecular data.
+
+| Approach | Optimization Space | Model Access | Interpretable? | Key Trade-off |
+|---|---|---|---|---|
+| Soft prompts (CoOp) | Continuous $\mathbb{R}^{d \times L}$ | Full (weight access) | No | Best optimization, uninterpretable |
+| Discrete APO (OPRO, TextGrad) | Discrete text | Black-box (API) | Yes | Combinatorial search, human-readable |
+| Hybrid (KAPT) | Continuous + discrete text | Partial | Partially | Combines both paradigms |
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+Soft prompt tuning (CoOp) uses real gradients while TextGrad uses textual "gradients." Under what conditions would you prefer each approach? Consider model access, interpretability requirements, budget, and the nature of the task. What are the fundamental trade-offs?
+:::
+
+### Other Application Domains
+
+Prompt optimization has demonstrated impact well beyond classification and text generation:
+
+- **Code generation**: TextGrad achieves 20% relative improvement on LeetCode-Hard. GEPA's `optimize_anything` generates CUDA kernels matching or beating baselines on 87% of KernelBench problems.
+- **Scientific discovery**: TextGrad designs drug-like molecules with competitive binding affinity and optimizes radiotherapy treatment plans surpassing clinician-designed plans.
+- **RAG systems**: DSPy/MIPROv2 optimizes multi-stage retrieval-augmented pipelines. SAMMO compresses and restructures prompts, achieving 40% cost reduction while maintaining accuracy.
+- **Mathematical reasoning**: GEPA improves GPT-4.1-mini from 46.67% to 60% on AIME 2025 through pure prompt optimization.
+
+![GEPA-optimized prompt for NPU kernel generation, demonstrating prompt optimization applied to code generation tasks. The optimized prompt achieves significant performance gains on specialized hardware programming. Source: GEPA (2025).](images/gepa-npu-prompt.png){#fig-gepa-npu}
+
+The common thread: each domain provides domain-specific evaluation signals (compiler errors for code, docking scores for molecules, retrieval relevance for RAG) that serve as richer feedback than generic accuracy. This explains why trace-aware methods (TRACE, GEPA with ASI) excel in these settings. The richer the diagnostic feedback, the fewer rollouts needed for effective optimization.
+
+| Domain | Optimization Target | Feedback Signal | Best Methods | Key Result |
+|---|---|---|---|---|
+| Agents / pipelines | Multiple module prompts | End-to-end performance + traces | MIPRO, TRACE, HiveMind, GEPA | ARC-AGI 32.5%$\to$89.5% |
+| LLM-as-a-Judge | Judge rubric prompt | Human agreement | BLPO, SedarEval | Improved alignment |
+| Vision-language | Soft/hard prompts | Classification accuracy | CoOp, CoCoOp, MPO | BNT trade-off resolution |
+| Code generation | System/task prompts | Compiler errors, test results | TextGrad, GEPA | LeetCode +20%, CUDA 87% |
+| Scientific discovery | Solution prompts | Docking scores, physical simulations | TextGrad | Drug molecules, radiotherapy |
+| RAG systems | Retriever + reader prompts | Retrieval relevance + answer quality | DSPy/MIPRO, SAMMO | 40% cost reduction |
+| Math reasoning | Chain-of-thought prompts | Answer correctness | OPRO, GEPA | AIME 46.67%$\to$60% |

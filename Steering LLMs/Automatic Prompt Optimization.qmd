@@ -1,0 +1,23 @@
+---
+title: "LLM Prompt Optimization — From Textual Gradients to Multi-Objective Evolution"
+filters:
+  - ../_extensions/pandoc-ext/diagram/diagram.lua
+---
+
+{{< include "Automatic Prompt Optimization/_01-introduction.qmd" >}}
+
+{{< include "Automatic Prompt Optimization/_02-the-prompt-optimization-problem.qmd" >}}
+
+{{< include "Automatic Prompt Optimization/_03-generate-and-select.qmd" >}}
+
+{{< include "Automatic Prompt Optimization/_04-textual-gradients.qmd" >}}
+
+{{< include "Automatic Prompt Optimization/_05-evolutionary-and-search.qmd" >}}
+
+{{< include "Automatic Prompt Optimization/_06-multi-objective-prompt-optimization.qmd" >}}
+
+{{< include "Automatic Prompt Optimization/_07-applications.qmd" >}}
+
+{{< include "Automatic Prompt Optimization/_08-frameworks-and-state-of-art.qmd" >}}
+
+{{< include "Automatic Prompt Optimization/_99-closing.qmd" >}}
