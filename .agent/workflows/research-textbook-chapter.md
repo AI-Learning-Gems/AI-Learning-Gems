@@ -193,10 +193,11 @@ Use the centralized `AI-Learning-Gems/sources/` directory. Refer to `.agent/rule
 | Source Type | Command (Run ONLY if folder is NEW) |
 |-------------|---------|
 | **arXiv papers** | `mkdir -p "sources/arxiv-{ID}" && cd "sources/arxiv-{ID}" && curl -sL "https://arxiv.org/src/{ID}" -o source.tar.gz && tar -xzf source.tar.gz && rm source.tar.gz` |
-| **d2l.ai chapters** | `mkdir -p "sources/d2l.ai/{chapter-path}" && curl -sL "https://raw.githubusercontent.com/d2l-ai/d2l-en/master/{path}.md" -o "sources/d2l.ai/{chapter-path}/content.md"` |
-| **Blog posts** | `mkdir -p "sources/{domain}/{path}" && trafilatura -u "URL" -of markdown > "sources/{domain}/{path}/content.md"` |
-| **HuggingFace docs** | `read_url_content(url)` + `view_content_chunk(doc_id, position)`, save to `sources/huggingface.co/{path}/content.md` |
-| **Static pages** | `read_url_content` or `curl`, save to `sources/{domain}/{path}/content.md` |
+| **GitHub repos/gists** | `git clone --depth 1 "https://github.com/OWNER/REPO.git" "sources/github.com/OWNER/REPO"` (or `git clone "https://gist.github.com/GIST_ID.git" "sources/gist.github.com/GIST_ID"`) |
+| **Blog posts, Substack, Medium, JS-heavy pages** | `conda activate ai-learning-gems && python scripts/authenticated_extract.py "URL"` (auto-derives output path; add `--profile substack` or `--profile medium` for login-gated sites) |
+| **d2l.ai chapters** | `conda activate ai-learning-gems && python scripts/authenticated_extract.py "https://d2l.ai/{chapter}/{section}.html" -s ".document"` |
+| **Static HTML pages (fast fallback, no JS)** | `conda activate ai-learning-gems && python scripts/webpage_to_md.py "URL" -o "sources/{domain}/{path}/"` |
+| **Single raw file from GitHub** | `mkdir -p "sources/github.com/OWNER/REPO/DIR" && curl -sL "https://raw.githubusercontent.com/OWNER/REPO/BRANCH/PATH" -o "sources/github.com/OWNER/REPO/PATH"` |
 
 **STEP 4: Convert PDF Figures to PNG**
 

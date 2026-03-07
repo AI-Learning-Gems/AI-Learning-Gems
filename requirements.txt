@@ -39,7 +39,6 @@ crawl4ai>=0.8.0
 
 # Optional: Install separately if needed
 # marker-pdf  # Local PDF→MD: pip install marker-pdf
-# trafilatura  # Web content extraction: pip install trafilatura
 
 # Chat Extensions Backend
 fastapi>=0.109.2

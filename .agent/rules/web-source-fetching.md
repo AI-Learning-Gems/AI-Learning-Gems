@@ -41,21 +41,15 @@ Is it an arXiv paper?
    ├─ Is it a DOCX file?
    │  ├─ YES → pandoc input.docx -o output.md (works well)
    │  └─ NO
-   ├─ Is it GitHub-hosted? (tutorials, HuggingFace notebooks — NOT d2l.ai, see site-specific)
-   │  ├─ YES → curl raw.githubusercontent.com/OWNER/REPO/BRANCH/PATH
+   ├─ Is it a GitHub repo, gist, or file?
+   │  ├─ Repo/gist → git clone into sources/ (see GitHub section below)
+   │  ├─ Single file → curl raw.githubusercontent.com/OWNER/REPO/BRANCH/PATH
    │  └─ NO
-   │     ├─ Does it require login / cookies / JS rendering?
-   │     │  ├─ YES → python scripts/authenticated_extract.py URL --profile PROFILE
-   │     │  │        (Substack, Medium, or any login-gated / JS-heavy page)
-   │     │  └─ NO
-   │     │     ├─ Is it a known site with special handling? (see lookup table below)
-   │     │     │  ├─ YES → Follow site-specific instructions
-   │     │     │  └─ NO
-   │     │     │     ├─ Is it a static HTML page?
-   │     │     │     │  ├─ YES → webpage_to_md.py OR read_url_content (preferred)
-   │     │     │     │  │        NOTE: pandoc HTML→MD often produces messy output
-   │     │     │     │  └─ MAYBE → Try read_url_content first
-   │     │     │     │     └─ If fails → authenticated_extract.py (without --profile)
+   │     ├─ Is it ANY web page (blog, docs, tutorial, login-gated, JS-heavy)?
+   │     │  ├─ YES → python scripts/authenticated_extract.py "URL" (DEFAULT for all web content)
+   │     │  │        Add --profile NAME for login-gated sites (Substack, Medium)
+   │     │  │        Add -s "article" for unknown sites if full-page extraction is noisy
+   │     │  └─ Fallback: python scripts/webpage_to_md.py "URL" -o output/ (faster, no JS)
 ```
 
 ---
@@ -120,6 +114,38 @@ view_content_chunk(document_id=URL, position=N)
 ```
 
 **NEVER**: Download the PDF when LaTeX source is available.
+
+---
+
+### GitHub Repos & Gists (github.com)
+
+**Best approach**: Clone the repo/gist into `sources/` (preserves full history, code, and assets).
+
+```bash
+# Full repo (shallow clone to save space)
+git clone --depth 1 "https://github.com/OWNER/REPO.git" "sources/github.com/OWNER/REPO"
+
+# Gist
+git clone "https://gist.github.com/GIST_ID.git" "sources/gist.github.com/GIST_ID"
+
+# Single file (when you don't need the full repo)
+mkdir -p "sources/github.com/OWNER/REPO/PATH_DIR"
+curl -sL "https://raw.githubusercontent.com/OWNER/REPO/BRANCH/PATH" -o "sources/github.com/OWNER/REPO/PATH"
+```
+
+**Folder naming convention:**
+
+| Source | Folder |
+|--------|--------|
+| `github.com/rasbt/LLMs-from-scratch` | `sources/github.com/rasbt/LLMs-from-scratch/` |
+| `gist.github.com/abc123` | `sources/gist.github.com/abc123/` |
+| Single file from repo | `sources/github.com/OWNER/REPO/path/to/file` |
+
+**When to clone vs single-file download:**
+- Clone if: you need multiple files, the repo IS the source (e.g., a tutorial repo, code reference)
+- Single file if: you only need one notebook or script from a large repo
+
+**Don't use**: `authenticated_extract.py` on GitHub pages — raw source is always better than rendered HTML.
 
 ---
 
@@ -268,30 +294,27 @@ read_url_content(url="https://pytorch.org/docs/stable/{module}.html")
 
 ### Static Tutorial Sites / Blogs
 
-**Best approach for web content WITH images**: `webpage_to_md.py` (downloads images locally + clean MD)
+**Best approach**: `authenticated_extract.py` (handles JS rendering, downloads images locally, auto-derives output path)
 
 ```bash
-# Single page with all images downloaded locally
-python scripts/webpage_to_md.py "https://example.com/article" -o sources/article/
+# Any web page — auto-derives output to sources/{domain}/{path}/
+conda activate ai-learning-gems && python scripts/authenticated_extract.py "https://example.com/article"
 
-# With custom CSS selector for content area
-python scripts/webpage_to_md.py "https://d2l.ai/chapter_.../section.html" -o sources/section/ -s ".document"
+# Custom CSS selector for content area
+conda activate ai-learning-gems && python scripts/authenticated_extract.py "https://example.com/article" -s "article"
 ```
 
-**Text-only (no images needed)**: `trafilatura` (boilerplate removal + MD output, but does NOT download images)
+**Faster fallback for known-static pages** (no browser, no JS): `webpage_to_md.py`
 
 ```bash
-pip install trafilatura
-trafilatura -u "https://example.com/article" -of markdown > article.md
+conda activate ai-learning-gems && python scripts/webpage_to_md.py "https://example.com/article" -o "sources/example.com/article/"
 ```
 
-**Alternative**: `read_url_content` + `view_content_chunk` (for quick reading without local file)
+**Quick reading without local file** (for discovery, not archival):
 
 ```
 read_url_content(url="https://example.com/article")
 view_content_chunk(document_id="https://example.com/article", position=0)
-view_content_chunk(document_id="https://example.com/article", position=1)
-# ... read all relevant chunks
 ```
 
 ---
@@ -304,41 +327,26 @@ view_content_chunk(document_id="https://example.com/article", position=1)
 
 | Tool | Install | Speed | Image Download | LaTeX Handling | Best For |
 |------|---------|-------|----------------|----------------|----------|
-| **authenticated_extract.py** | Already installed | Medium | ✅ Downloads locally | Pass-through | **Login-gated / JS-heavy pages** |
-| **webpage_to_md.py** | Already installed | Fast | ✅ Downloads locally | Pass-through | **Static web pages with images** |
-| **trafilatura** | `pip install trafilatura` | Fast | ❌ URLs only | Pass-through | Text-only, boilerplate removal |
-| **Pandoc** | `conda install -c conda-forge pandoc` | Medium | ✅ (`--extract-media`) | ✅ Best | Complex documents, accuracy |
-| **html-to-markdown** | `pip install html-to-markdown` | ⚡ Fastest | ❌ | Custom handler | High-volume, inline images |
-| **markdownify** | `pip install markdownify` | Medium | ❌ | Custom handler | Simple conversion |
-| **Jina Reader** | API: `r.jina.ai/URL` | Fast | ❌ | Depends on source | LLM pipelines |
+| **authenticated_extract.py** | Already installed | ~15s | ✅ Downloads locally | Pass-through | **DEFAULT for all web content** |
+| **webpage_to_md.py** | Already installed | ~3s | ✅ Downloads locally | Pass-through | Fast fallback for static pages |
+| **Pandoc** | `brew install pandoc` | ~1s | ✅ (`--extract-media`) | ✅ Best | Complex documents, LaTeX accuracy |
+| **Jina Reader** | API: `r.jina.ai/URL` | Fast | ❌ | Depends on source | Quick LLM input (no local save) |
 
 #### Recommended Workflows
 
-**For web articles WITH images (recommended):**
+**For any web page (DEFAULT — handles JS, login, images):**
 ```bash
-python scripts/webpage_to_md.py "URL" -o output_dir/
+conda activate ai-learning-gems && python scripts/authenticated_extract.py "URL"
 ```
 
-**For web articles text-only (removes ads/nav):**
+**For static pages when speed matters (no JS rendering):**
 ```bash
-trafilatura -u "URL" -of markdown > output.md
+conda activate ai-learning-gems && python scripts/webpage_to_md.py "URL" -o "sources/{domain}/{path}/"
 ```
 
 **For accuracy-critical with LaTeX:**
 ```bash
-# Best if source has raw $...$ or $$...$$ syntax
 pandoc input.html -f html+tex_math_dollars -t markdown -o output.md
-```
-
-**For bulk processing:**
-```python
-from html_to_markdown import convert
-markdown = convert(html_content)
-```
-
-**For LLM input (via API):**
-```bash
-curl "https://r.jina.ai/https://example.com/article"
 ```
 
 #### LaTeX/MathJax Handling
@@ -389,7 +397,7 @@ for i, url in enumerate(urls):
 Path('output.md').write_text(md)
 ```
 
-> **NOTE**: `trafilatura --images` does NOT download images — it only lists image URLs in XML/TEI output.
+> **NOTE**: `webpage_to_md.py` is a faster fallback for static pages but does not handle JS rendering. Use `authenticated_extract.py` as the default.
 
 ---
 
@@ -496,13 +504,18 @@ AI-Learning-Gems/
 │   │   │   ├── figure1.pdf
 │   │   │   └── figure1.png                          # converted
 │   │   └── references.bib
-│   ├── d2l.ai/chapter_attention-mechanisms-and-transformers/vision-transformer/
-│   │   ├── vision-transformer.md                     # webpage_to_md.py download
-│   │   └── images/                                   # Downloaded SVG/PNG figures
-│   ├── lilianweng.github.io/posts/2022-06-09-vlm/
-│   │   └── content.md                               # Blog post
-│   ├── huggingface.co/docs/transformers/model_doc/vit/
-│   │   └── content.md                               # Documentation
+│   ├── github.com/rasbt/LLMs-from-scratch/          ← GitHub repos (git clone)
+│   │   ├── ch05/
+│   │   └── ...
+│   ├── substack.com/home/post/p-189051354/          ← authenticated_extract.py
+│   │   ├── content.md
+│   │   └── images/
+│   ├── lilianweng.github.io/posts/2024-11-28-.../   ← authenticated_extract.py
+│   │   ├── content.md
+│   │   └── images/
+│   ├── d2l.ai/chapter_attention.../vision-transformer/
+│   │   ├── content.md
+│   │   └── images/
 │   └── source_index.yaml                            # Optional: global metadata
 ```
 
@@ -511,7 +524,10 @@ AI-Learning-Gems/
 | Source Type | Folder Pattern | Example |
 |-------------|---------------|---------|
 | **ArXiv papers** | `sources/arxiv-{PAPER_ID}` | `sources/arxiv-2010.11929/` |
-| **Blogs/sites** | `sources/{domain}/{path}/` | `sources/lilianweng.github.io/posts/2022-06-09-vlm/` |
+| **GitHub repos** | `sources/github.com/{OWNER}/{REPO}/` | `sources/github.com/rasbt/LLMs-from-scratch/` |
+| **GitHub gists** | `sources/gist.github.com/{GIST_ID}/` | `sources/gist.github.com/abc123/` |
+| **Blogs/sites** | `sources/{domain}/{path}/` | `sources/lilianweng.github.io/posts/2024-11-28-reward-hacking/` |
+| **Substack** | `sources/substack.com/{path}/` | `sources/substack.com/home/post/p-189051354/` |
 | **d2l.ai** | `sources/d2l.ai/{chapter-path}/` | `sources/d2l.ai/chapter_attention.../vision-transformer/` |
 | **HuggingFace** | `sources/huggingface.co/{path}/` | `sources/huggingface.co/docs/transformers/model_doc/vit/` |
 
@@ -551,7 +567,7 @@ For each downloaded source, record metadata:
   type: blog
   local_path: sources/lilianweng.github.io/posts/2022-06-09-vlm/content.md
   title: "Vision Language Models"
-  extraction_method: trafilatura
+  extraction_method: authenticated_extract.py
 ```
 
 ---
@@ -596,15 +612,14 @@ Download directly with `curl -O` and store locally.
 
 | Tool | Best For | Speed |
 |------|----------|-------|
-| `run_command` + `curl` | Direct file downloads | <1 sec |
-| `read_url_content` | Static web pages | ~2 sec |
-| `view_content_chunk` | Reading fetched pages | <1 sec |
-| `scripts/authenticated_extract.py` | **Login-gated / JS-heavy pages + images** | ~15-30 sec |
-| `scripts/webpage_to_md.py` | **Static web pages + images** | ~5-10 sec |
-| `scripts/mistral_ocr.py` | PDF→Markdown + images | ~30 sec/page |
+| `scripts/authenticated_extract.py` | **DEFAULT for all web content** (JS, login, images) | ~15s |
+| `scripts/webpage_to_md.py` | Fast fallback for static pages + images | ~3s |
+| `scripts/mistral_ocr.py` | PDF→Markdown + images | ~30s/page |
+| `git clone` | GitHub repos and gists | ~5s |
+| `curl` | Single raw files, arXiv LaTeX source | <1s |
+| `pandoc` | HTML→MD, DOCX→MD conversion | ~1s |
+| `read_url_content` | Quick reading without local save | ~2s |
 | `browser_subagent` | Complex multi-step navigation (last resort) | ~2 min |
-| `pandoc` (via run_command) | HTML→MD, DOCX→MD conversion | ~1 sec |
-| `sips` (macOS) | PDF→PNG conversion | <1 sec |
 
 ---
 

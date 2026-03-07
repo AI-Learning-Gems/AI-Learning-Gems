@@ -179,10 +179,15 @@ Keep chat messages brief. Example:
 While writing a section, you may discover that the downloaded sources from the research phase are insufficient. When this happens:
 
 1. **Search for additional sources** using `search_web`
-2. **Download to the centralized `AI-Learning-Gems/sources/`** following `.agent/rules/web-source-fetching.md` and the naming conventions:
-   - arXiv: `sources/arxiv-{PAPER_ID}/`
-   - Blogs: `sources/{domain}/{path}/`
-   - Other: `sources/{domain}/{path}/`
+2. **Download to the centralized `AI-Learning-Gems/sources/`** using the `authenticated_extract.py` tool (preferred) or methods from `.agent/rules/web-source-fetching.md`:
+   ```bash
+   # For blog posts, Substack, Medium, JS-heavy pages (preferred — handles JS, downloads images):
+   conda activate ai-learning-gems && python scripts/authenticated_extract.py "URL"
+   # For login-gated pages, add the profile:
+   conda activate ai-learning-gems && python scripts/authenticated_extract.py "URL" --profile substack
+   # For simple static pages (faster, no browser):
+   conda activate ai-learning-gems && python scripts/webpage_to_md.py "URL" -o "sources/{domain}/{path}/"
+   ```
 3. **Update the section's source header** with the new source
 4. **Continue writing** with the new material
 5. Chat: "✓ Additional source downloaded: `sources/{path}` (needed for [reason])"
