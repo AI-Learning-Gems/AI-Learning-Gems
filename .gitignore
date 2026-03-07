@@ -1,9 +1,45 @@
+# Quarto cache and temporary files
 /.quarto/
 **/.quarto/
-_extensions/
+
+# Rendered output (regenerated on build)
+_book/
+_site/
+
+# Local HTML preview files (should not be committed)
+**/*_files/
+**/*.html
+
+# IDE / Editor
 .obsidian/
+.vscode/
+.idea/
 
-
+# Environment variables
 .env
 
-sources/
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*/.jupyter_cache/
+.jupyter_cache/
+_freeze/
+
+# Downloaded sources (large, user-specific)
+sources/*
+!sources/.gitkeep
+
+# Browser profiles for authenticated extraction (contain session cookies)
+scripts/.browser-profiles/
+
+# NOTE: _freeze/ is intentionally NOT ignored.
+# It stores cached computation results and should be committed
+# for reproducible builds in CI.
+
+# NOTE: _extensions/ is intentionally NOT ignored.
+# It contains Quarto extensions needed for rendering.

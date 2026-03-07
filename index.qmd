@@ -1,0 +1,23 @@
+---
+title: "AI Learning Gems"
+subtitle: "A Curated Collection of Technical Deep Dives"
+---
+
+# Welcome {.unnumbered}
+
+This book contains detailed explorations of AI, machine learning, and mathematical concepts.
+Each chapter is designed to be a self-contained "gem" that provides thorough understanding of a specific topic, written in a textbook style with rigorous notation, worked examples, and intuitive explanations.
+
+## How to Use This Book {.unnumbered}
+
+- Use the **sidebar** on the left to navigate between topics
+- Use the **search** function (top of sidebar) to find specific concepts
+- **Code examples** are foldable — click "Show code" to expand
+- **LaTeX equations** are rendered with MathJax for clarity
+
+## Topics Covered {.unnumbered}
+
+- **Deep Learning**: Gradient derivations, activation functions, and architectures
+- **Optimization**: Linear programming, integer programming, and constraint optimization
+- **Statistics**: Bayesian inference, credible intervals, and probabilistic modeling
+- **Transformers**: Vision Transformers, attention mechanisms, and modern architectures

@@ -1,3 +1,9 @@
+---
+description: "Downloading web sources for writing textbook chapters"
+globs:
+  - "**/*.qmd"
+alwaysApply: true
+---
 
 # Web Source Fetching Strategies
 

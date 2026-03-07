@@ -1,0 +1,30 @@
+---
+description: "Ensure all Python/pip commands use the ai-learning-gems conda env"
+alwaysApply: true
+---
+
+# Python Environment
+
+This project uses a **conda environment** named `ai-learning-gems`.
+
+## Terminal Commands
+
+When running Python or pip commands in the terminal, always activate the conda env first:
+
+```bash
+conda activate ai-learning-gems
+```
+
+Alternatively, use the full path to the Python executable:
+
+```
+$(conda info --base)/envs/ai-learning-gems/bin/python
+```
+
+## Rules
+
+- **ALWAYS** prefix terminal commands with `conda activate ai-learning-gems &&` when running Python, pip, or any script from `scripts/`.
+- **NEVER** use bare `python` or `pip` without activating the env first.
+- **NEVER** use the base conda env or system Python.
+- When installing packages, use `uv pip install` (after activating the env) for speed.
+- **ALWAYS** double-quote file paths in `rm` commands to prevent word-splitting on spaces, e.g. `rm -rf "/path/to/folder/"`.

@@ -1,16 +1,51 @@
 project:
-  type: default
-  # Don't auto-render anything - we always specify files explicitly
-  render: []
+  type: website
+  output-dir: _book
+  render:
+    - "**/*.qmd"
+  post-render:
+    - scripts/clean-render-artifacts.sh
+  preview:
+    port: 4200
 
-jupyter: ai-math-book
+website:
+  title: "AI Learning Gems"
+  search: true
+  page-navigation: true
+  sidebar: false
+    # style: "docked"
+    # search: true
+    # contents: auto
+
+jupyter: ai-learning-gems
+
+number-sections: true
 
 format:
   html:
+    theme:
+      - cosmo
+      - custom.scss
+    grid:
+      sidebar-width: 275px
+      gutter-width: 3.5em
     toc: true
     toc-depth: 3
-    number-sections: true
+    toc-location: left
     code-fold: true
+    code-summary: "Show code"
+    html-math-method: mathjax
+    include-after-body:
+      - _extensions/chatbot/include-after.html
+      - _extensions/chatbot/assets/chat-script-loader.html
+    css: _extensions/chatbot/assets/chat.css
+    out-width: "95%"
 
 execute:
-  error: true
+  freeze: auto      # Only re-execute when source changes
+  error: true       # Continue rendering on code errors
+  cache: true       # Cell-level caching (requires jupyter-cache)
+
+filters:
+  - pandoc-ext/diagram
+  - chatbot

@@ -34,6 +34,15 @@ tqdm==4.67.2
 mistralai==1.11.1
 python-dotenv==1.2.1
 
+# Authenticated Web Extraction (JS-heavy / login-gated pages)
+crawl4ai>=0.8.0
+
 # Optional: Install separately if needed
 # marker-pdf  # Local PDF→MD: pip install marker-pdf
 # trafilatura  # Web content extraction: pip install trafilatura
+
+# Chat Extensions Backend
+fastapi>=0.109.2
+uvicorn>=0.27.1
+openai>=1.55.0
+litellm>=1.53.1
