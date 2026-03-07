@@ -1,0 +1,384 @@
+## Introduction {#sec-introduction}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [An Image is Worth 16x16 Words (ViT)](https://arxiv.org/abs/2010.11929) | Original ViT paper: motivation, patch embedding, inductive bias |
+| 2 | [D2L.ai: Transformers for Vision](https://d2l.ai/chapter_attention-mechanisms-and-transformers/vision-transformer.html) | Pedagogical ViT introduction |
+| 3 | [D2L.ai: Convolutions for Images](https://d2l.ai/chapter_convolutional-neural-networks/conv-layer.html) | Cross-correlation operation diagram, CNN-vs-self-attention comparison |
+| 4 | [D2L.ai: The Transformer Architecture](https://d2l.ai/chapter_attention-mechanisms-and-transformers/transformer.html) | Transformer encoder-decoder architecture diagram |
+
+:::
+
+### The Puzzle of Seeing with Sequences {#sec-hook}
+
+Imagine you are an AI researcher at a startup, and your team has just landed a contract to build a visual search engine for an online retail platform. The platform hosts millions of product images (shoes, electronics, furniture, clothing) and customers want to search by uploading a photo of something they saw in real life and finding matching products. Your team has built a solid convolutional neural network (CNN) that extracts features from images and matches them against the catalog. It works. But there is a catch: the system needs to do more than just match images. Customers also type natural-language queries like "red sneakers with white soles" or "mid-century modern desk lamp." Your system needs to understand *both* images and language, and somehow connect them.
+
+You try bolting a text model onto your CNN. You train a separate text encoder, project both image and text features into a shared space, and hope for the best. The results are mediocre. The CNN extracts features that are great for visual similarity (texture, color, shape) but they do not align naturally with the semantic structure of language. When a customer uploads a photo of a minimalist white desk lamp, the CNN picks up on "white" and "cylindrical" but has no concept of "minimalist" or "desk lamp." The CNN sees pixels; the text model sees meaning. And no amount of projection layers seems to fully bridge that gap.
+
+Then you read a paper that changes your perspective entirely. The paper's title is provocative: *"An Image is Worth 16x16 Words."* The core idea is deceptively simple. What if, instead of sliding convolutional filters across an image, you chopped the image into a grid of patches (say, 16 pixels by 16 pixels each), flattened each patch into a vector, and fed that sequence of vectors into the *exact same Transformer architecture* that powers GPT and BERT? No convolutions. No pooling layers. No feature pyramids. Just patches treated as tokens, processed by self-attention.
+
+Your first reaction is skepticism. Convolutions are purpose-built for images. They exploit local structure, share weights across spatial positions, and build up features hierarchically from edges to textures to objects. A Transformer has none of this built in. It treats every token as potentially related to every other token, with no prior knowledge that neighboring patches share visual structure. Surely this naive approach would waste enormous capacity re-learning things that CNNs get for free?
+
+But the results in the paper are startling. When trained on enough data, this patch-based Transformer, called a **Vision Transformer** or **ViT**, not only matches CNNs but *surpasses* them. And here is the truly remarkable part: because a ViT processes images using the *same architecture* as a language model, connecting vision and language becomes natural rather than forced. The gap that your CNN-plus-text-model system struggled to bridge? A Vision Transformer bridges it almost by default, because images and text are both just sequences of tokens flowing through the same kind of attention mechanism.
+
+The following figure shows the complete idea. An image is split into a grid of patches, each patch is flattened and projected into a vector (just like a word embedding), a special classification token is prepended, and the whole sequence is fed through a standard Transformer encoder. That is the entire architecture. Every component you see here (patch embedding, CLS token, positional encoding, Transformer encoder blocks) will be explained in full mathematical detail in the sections ahead. For now, just notice the simplicity: the same attention mechanism that reads sentences can "read" images.
+
+![The Vision Transformer at a glance. An image is split into fixed-size patches, each treated as a token — exactly like words in a sentence. A `<cls>` token aggregates information from all patches through self-attention, and the Transformer encoder processes the sequence to produce an image representation. This is the architecture behind the "visual search engine upgrade" described above. We will dissect every component in @sec-vit-architecture. Source: d2l.ai, Figure 11.8.1.](Vision Transformers and VLMs/images/d2l-vit-architecture.svg){#fig-hook-vit-preview}
+
+This chapter traces the arc from that initial insight to the sophisticated **Vision-Language Models (VLMs)** that can look at an image and hold a conversation about it. We will start where the story starts: with the anatomy of a Vision Transformer and the surprisingly deep math behind "chopping an image into patches." We will then peer inside trained ViTs to see *what* they actually learn, and discover that their internal representations are fundamentally different from CNNs in ways that matter. Next, we tackle the practical question of how to train these data-hungry models when you don't have 300 million labeled images, exploring self-supervised techniques like MAE and DINO that learn powerful visual features without any labels at all. With that foundation, we turn to CLIP and contrastive learning, the approach that aligns vision and language in a shared space. Finally, we arrive at the full VLM architecture zoo: Flamingo, BLIP-2, LLaVA, and their descendants. These are systems that connect a vision encoder to a large language model so that AI can truly *see and speak*.
+
+By the end, you will understand not just the architectures but the *design decisions* behind them, and you will be equipped to make informed choices when building your own vision-language systems.
+
+
+### Learning Objectives {#sec-learning-objectives}
+
+After completing this chapter, you will be able to:
+
+- **Derive the ViT architecture mathematically:** Write the patch embedding equation, explain the role of the CLS token and positional embeddings, and trace a concrete image through the full forward pass with exact tensor shapes
+- **Compare ViT and CNN representations:** Articulate the five key differences in how ViTs and CNNs build internal representations, including early global aggregation and uniform layer similarity
+- **Explain self-supervised ViT pretraining:** Describe the MAE, DINO, and DeiT training paradigms, explain *why* each one works (masking ratio, self-distillation, knowledge distillation), and recommend which to use for a given dataset size
+- **Derive the CLIP contrastive loss:** Write the InfoNCE and SigLIP loss functions, explain the role of temperature and batch size, and mechanically walk through zero-shot classification
+- **Evaluate VLM architectures:** Compare cross-attention (Flamingo), Q-Former (BLIP-2), and MLP projection (LLaVA) connectors, identify the key design trade-offs, and cite the empirical evidence for what actually matters
+- **Make informed design choices:** Given a real-world scenario (data budget, compute budget, task requirements), select an appropriate vision encoder, pretraining strategy, and VLM architecture
+
+
+### Notation {#sec-notation}
+
+We will use the following notation consistently throughout this chapter. Refer back to this table whenever you encounter an unfamiliar symbol.
+
+| Symbol | Meaning |
+|---|---|
+| $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$ | Input image (height $\times$ width $\times$ channels) |
+| $\mathbf{x}_p \in \mathbb{R}^{N \times (P^2 \cdot C)}$ | Flattened image patches |
+| $N = HW/P^2$ | Number of patches |
+| $P$ | Patch size (typically 14 or 16 pixels) |
+| $D$ | Transformer hidden dimension |
+| $L$ | Number of Transformer layers |
+| $\mathbf{E} \in \mathbb{R}^{(P^2 \cdot C) \times D}$ | Patch embedding projection matrix |
+| $\mathbf{E}_{pos} \in \mathbb{R}^{(N+1) \times D}$ | Positional embedding matrix (includes CLS position) |
+| $\mathbf{x}_\text{class}$ | Learnable CLS token embedding |
+| $\mathbf{z}_\ell$ | Hidden state at Transformer layer $\ell$ |
+| $\text{MSA}(\cdot)$ | Multi-head self-attention |
+| $\text{LN}(\cdot)$ | Layer normalization |
+| $Q, K, V$ | Query, key, and value matrices in attention |
+| $d_k$ | Dimension of each attention head ($= D / \text{num\_heads}$) |
+| $\tau$ | Temperature parameter (in contrastive learning) |
+| $\text{sim}(\cdot, \cdot)$ | Cosine similarity between two vectors |
+| $\mathbf{I}_i, \mathbf{T}_i$ | Image and text embeddings for the $i$-th pair |
+| $\sigma(\cdot)$ | Sigmoid function |
+| $\mathcal{M}$ | Set of masked patch indices (in MAE) |
+| $\mathbf{Q}_\text{learned}$ | Learned query tokens (in Q-Former / Perceiver Resampler) |
+
+
+### From Convolutions to Attention — How We Got Here {#sec-chapter-intro}
+
+To understand why Vision Transformers matter, you need to appreciate what came before them and why the field was ready for a paradigm shift. This section provides the conceptual scaffolding you will need for the rest of the chapter. Think of it as a "first pass" through the entire terrain, giving you the big picture before we dive into the technical details.
+
+#### The CNN Paradigm: Powerful but Constrained
+
+For nearly a decade, from AlexNet in 2012 through EfficientNet in 2019, convolutional neural networks dominated computer vision. The core operation is beautifully simple: a small filter (called a **kernel**) slides across the image, and at each position, you multiply the overlapping elements of the kernel and the image patch, then sum them up to produce a single output value. Mathematically, for a 2D input $\mathbf{x}$ and a kernel $\mathbf{K}$:
+
+$$
+y_{i,j} = \sum_{m,n} K_{m,n} \cdot x_{i+m, j+n}
+$$ {#eq-convolution}
+
+This is technically a **cross-correlation** operation (true convolution flips the kernel first), but deep learning universally calls it "convolution" since the kernel is learned anyway. The following figure from d2l.ai makes the mechanics concrete. Watch how the $2 \times 2$ kernel slides across the $3 \times 3$ input, producing a $2 \times 2$ output:
+
+![Two-dimensional cross-correlation (convolution) operation. The shaded portions show the first output element: the kernel overlaps the top-left $2 \times 2$ region of the input, and the element-wise products are summed: $0 \times 0 + 1 \times 1 + 3 \times 2 + 4 \times 3 = 19$. The kernel then slides right and down to compute the remaining outputs. Source: d2l.ai, Figure 7.2.1.](Vision Transformers and VLMs/images/d2l-cross-correlation-operation.svg){#fig-cross-correlation}
+
+To make this concrete, let us walk through the example. The $3 \times 3$ input is:
+
+$$
+\mathbf{x} = \begin{bmatrix} 0 & 1 & 2 \\ 3 & 4 & 5 \\ 6 & 7 & 8 \end{bmatrix}, \quad \mathbf{K} = \begin{bmatrix} 0 & 1 \\ 2 & 3 \end{bmatrix}
+$$
+
+The kernel slides to four positions, producing four outputs:
+
+$$
+\begin{aligned}
+y_{0,0} &= 0 \times 0 + 1 \times 1 + 3 \times 2 + 4 \times 3 = 19 \\
+y_{0,1} &= 1 \times 0 + 2 \times 1 + 4 \times 2 + 5 \times 3 = 25 \\
+y_{1,0} &= 3 \times 0 + 4 \times 1 + 6 \times 2 + 7 \times 3 = 37 \\
+y_{1,1} &= 4 \times 0 + 5 \times 1 + 7 \times 2 + 8 \times 3 = 43
+\end{aligned}
+$$
+
+Notice two things. First, each output depends only on a *local* $2 \times 2$ patch of the input; $y_{0,0}$ has no knowledge of the bottom-right corner. Second, the *same* kernel $\mathbf{K}$ is applied at every position. Whatever feature this kernel detects (in a real CNN, it might be a diagonal edge or a color gradient), it will detect that feature regardless of where it appears. These two properties, locality and weight sharing, are the core of what makes CNNs work.
+
+This convolution operation encodes three powerful *inductive biases*, that is, assumptions about the structure of visual data that are hardwired into the architecture:
+
+- **Locality:** Each output pixel depends only on a small neighborhood of input pixels. This makes sense for images, where nearby pixels are usually related (they are part of the same edge, texture, or object).
+- **Weight sharing:** The same filter is applied at every spatial position. This means the network automatically learns to detect the same feature (say, a vertical edge) regardless of where it appears in the image.
+- **Translation equivariance:** If you shift the input image, the output feature map shifts by the same amount. A cat in the upper-left produces the same activations as a cat in the lower-right, just at different spatial positions.
+
+These biases are a tremendous advantage when data is scarce. A CNN does not need to *learn* that nearby pixels are related or that features should be position-independent; these facts are architecturally guaranteed. But these same biases become constraints when data is abundant. A convolution can only see a small local window at each layer. To capture long-range relationships (say, the relationship between a product's label and its packaging in a full product photo), a CNN must stack many layers, each expanding the "receptive field" incrementally. By the time the network can relate distant regions, the features have passed through so many nonlinearities and pooling operations that fine spatial information is lost.
+
+![Comparing CNN, RNN, and self-attention architectures. In a CNN (left), each output position depends only on a local window of the input — global information requires stacking many layers. In self-attention (right), every position can attend to every other position in a single layer, providing a global receptive field immediately. Source: d2l.ai, Figure 11.6.1.](Vision Transformers and VLMs/images/d2l-cnn-rnn-self-attention.svg){#fig-cnn-vs-selfattn}
+
+#### The Transformer Paradigm: Flexible but Data-Hungry
+
+Meanwhile, in natural language processing, a very different architecture had taken over. The Transformer, introduced in 2017, processes sequences using **self-attention**: a mechanism where every token computes a weighted sum over *all* other tokens in the sequence:
+
+$$
+\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^\top}{\sqrt{d_k}}\right)V
+$$ {#eq-attention}
+
+Here, $Q$ (queries), $K$ (keys), and $V$ (values) are linear projections of the input, and $d_k$ is the dimension of each attention head. The softmax over $QK^\top$ produces an attention matrix where entry $(i, j)$ represents how much token $i$ attends to token $j$. Crucially, *every token can attend to every other token*; there is no locality constraint. The first token can attend to the last token just as easily as to its neighbor.
+
+The full Transformer architecture stacks multiple layers of self-attention and feed-forward networks, each with residual connections and layer normalization, into an encoder-decoder structure as shown in the following figure:
+
+![The Transformer architecture. The encoder (left) processes the input through stacked layers of multi-head self-attention and positionwise feed-forward networks, each with residual connections and layer normalization ("Add & Norm"). The decoder (right) adds encoder-decoder cross-attention. For ViTs, only the encoder half is used. Source: d2l.ai, Figure 11.7.1.](Vision Transformers and VLMs/images/d2l-transformer-architecture.svg){#fig-transformer-architecture}
+
+This global receptive field from layer one is what makes Transformers so powerful for language: understanding a sentence often requires connecting words that are far apart. Consider: "The cat that the dog chased *ran* away." To parse this, you must connect "cat" to "ran" across several intervening words. Self-attention does this in a single step. **Multi-head attention** extends the idea by running several attention operations in parallel, each with its own learned $Q$, $K$, $V$ projections. Different heads can specialize: one might track syntactic structure while another tracks semantic similarity. We will see the mechanics of multi-head attention in detail in @sec-vit-encoder, with a full diagram (@fig-d2l-multi-head-attention).
+
+But Transformers pay a price: they have almost no inductive bias about the structure of their input. A Transformer does not "know" that tokens have spatial relationships, that nearby tokens are more likely to be related, or that certain patterns should be translation-invariant. It must learn all of this from data. In NLP, this turned out to be fine; there is enough text on the internet to learn the structure of language from scratch. But would the same be true for images?
+
+#### The Key Insight: Images as Token Sequences
+
+Here is the conceptual leap that launched the ViT revolution. An image of $H \times W$ pixels can be divided into a grid of non-overlapping patches, each of size $P \times P$. Each patch is flattened into a vector and linearly projected to produce a token embedding, exactly like a word embedding in NLP. The resulting sequence of $N = HW/P^2$ tokens is fed into a standard Transformer encoder.
+
+That is it. No convolutions. No pooling. No feature pyramids. The Vision Transformer applies the standard Transformer to images with "the fewest possible modifications," as the original paper puts it. A 224 $\times$ 224 image with patch size 16 yields $14 \times 14 = 196$ patches, a sequence length comparable to a paragraph of text. Each patch is a "visual word," and the Transformer must learn to read these visual words, figure out how they relate to each other, and build up a representation of the entire image.
+
+The initial results confirmed the skeptics' fears, at least partially. When trained on ImageNet alone (1.3 million images), ViTs underperformed well-tuned CNNs. The lack of inductive bias meant ViTs needed more data to learn what CNNs got for free. But when pretrained on larger datasets (JFT-300M with 300 million images), ViTs surpassed the best CNNs, achieving 88.55% top-1 accuracy on ImageNet. The paper's most provocative conclusion: **"large scale training trumps inductive bias."**
+
+This result had profound implications. If Transformers could match or beat CNNs on vision tasks, then a single architecture could process *both* images and text. The architectural barrier between computer vision and NLP (the fact that CNNs and Transformers were fundamentally different) simply vanished. And this, as we will see, opened the door to Vision-Language Models.
+
+#### The Training Bottleneck and the Self-Supervised Revolution
+
+But there was a catch. ViTs needed hundreds of millions of labeled images to reach their full potential, and most practitioners did not have access to datasets like JFT-300M (which was internal to Google). This launched a race to find ways to train ViTs effectively with less data.
+
+The solutions came in three flavors.
+
+First, **knowledge distillation** (DeiT): train a ViT student to mimic the outputs of a well-trained CNN teacher, effectively transferring the CNN's inductive biases into the ViT through the training signal rather than the architecture.
+
+Second, **masked image modeling** (MAE): mask 75% of the image patches and train the ViT to reconstruct them, learning rich visual features without any labels. This is a direct analog of BERT's masked language modeling, but with a much higher masking ratio because images have far more spatial redundancy than text.
+
+Third, **self-distillation** (DINO): train two copies of the same ViT (student and teacher) where the teacher is a moving average of the student, and the student learns to match the teacher's outputs for different views of the same image. DINO produced a remarkable emergent property: the attention maps of self-supervised ViTs contained clear semantic segmentation boundaries, without ever seeing a single segmentation label.
+
+These methods meant that, by 2023, you could train a ViT that rivaled or exceeded supervised ImageNet models using *zero* labeled images. The data bottleneck was broken.
+
+#### From Seeing to Understanding: CLIP and Contrastive Learning
+
+Even with excellent visual features, there remained a fundamental gap: a ViT trained on images alone has no connection to language. It can classify an image into one of 1,000 ImageNet categories, but it cannot understand the description "a golden retriever playing fetch on a beach at sunset."
+
+CLIP (Contrastive Language-Image Pre-training) bridged this gap with a simple but powerful idea. Take a dataset of 400 million image-text pairs scraped from the internet. Train two encoders, one for images (a ViT) and one for text (a Transformer), with a single objective: make the embeddings of matching image-text pairs similar and the embeddings of non-matching pairs dissimilar. This contrastive objective is far more efficient than training a model to *generate* captions word by word, because it only requires computing a similarity score rather than autoregressively decoding an entire sentence.
+
+The result was a model that understood both vision and language. Given an image, CLIP could perform **zero-shot classification**: you describe each class in natural language ("a photo of a dog," "a photo of a cat"), compute text embeddings, and classify the image by finding the most similar text. No training examples needed. CLIP matched a supervised ResNet-50 on ImageNet using *zero* labeled examples from ImageNet.
+
+SigLIP refined this further by replacing the softmax-based contrastive loss with a simpler sigmoid loss that treats each image-text pair independently, removing the need for global batch communication and enabling better scaling.
+
+#### The VLM Blueprint: Vision Encoder → Connector → LLM
+
+With CLIP providing a vision encoder that "speaks the language of language models," the final piece fell into place. The remaining challenge was connecting a vision encoder to a large language model (LLM) to build a system that can look at an image and have a conversation about it.
+
+The canonical VLM architecture has three components:
+
+1. **Vision encoder**: typically a CLIP or SigLIP ViT, frozen or lightly fine-tuned, which converts an image into a sequence of visual tokens.
+2. **Connector**: a module that transforms visual tokens into a format the LLM can process. This is where the architectural creativity lives. Flamingo uses a Perceiver Resampler and gated cross-attention; BLIP-2 uses a Q-Former; LLaVA uses a simple 2-layer MLP.
+3. **Large Language Model**: a pre-trained text model (like LLaMA or Vicuna) that processes the visual tokens alongside text tokens and generates natural-language responses.
+
+The connector is the crux of the design. It must translate between two representational worlds: the dense spatial features of a vision encoder and the sequential token space of a language model. And it must do this while preserving enough visual information for the LLM to reason about the image. As we will see, the surprising lesson from recent research is that simpler connectors (like a plain MLP) can be just as effective as sophisticated ones (like a Q-Former), provided the training data and recipe are right.
+
+#### What Lies Ahead
+
+This chapter is organized to follow the natural progression of ideas, with each section building on the previous one:
+
+- **@sec-vit-architecture** takes you through the full ViT architecture, equation by equation. You will trace a concrete image through the forward pass, understand the CLS token and positional embeddings, and see how the Swin Transformer introduced hierarchical attention for efficiency.
+- **@sec-vit-internals** peers inside trained ViTs to reveal how they build representations differently from CNNs, including the striking finding that ViTs aggregate global information from the very first layer.
+- **@sec-training-vits** tackles the training problem: how DeiT, MAE, and DINO each overcome ViT's data hunger in fundamentally different ways, and what scaling laws tell us about efficient ViT design.
+- **@sec-clip** introduces contrastive vision-language learning through CLIP and SigLIP, derives the InfoNCE loss, and explains how zero-shot transfer works mechanically.
+- **@sec-vlm-zoo** surveys the VLM architecture zoo (Flamingo, BLIP-2, LLaVA, Llama 3.2 Vision) and distills the lessons from systematic ablation studies about what actually matters when building a VLM.
+
+Some of this will be challenging. The contrastive loss derivations in @sec-clip and the connector design comparisons in @sec-vlm-zoo require careful attention. Some of it will be surprising: the discovery in @sec-vit-internals that self-supervised ViTs learn semantic segmentation without labels, or the finding in @sec-vlm-zoo that a simple MLP can match a sophisticated Q-Former. All of it is aimed at building genuine understanding, not just familiarity.
+
+::: {.callout-tip title="Before reading on..."}
+Here is a question to prime your thinking: *if you wanted to apply a Transformer to images, what challenges would you anticipate?* Think about sequence length (a 224×224 image has 50,176 pixels), computational cost (self-attention is $O(n^2)$), and the lack of spatial inductive biases. How would you address these? Hold your answers in mind as we dive in. You may be surprised by which of your concerns turn out to matter and which do not.
+:::
+
+
+### Concept Map {#sec-concept-map}
+
+The following diagram shows how the major ideas in this chapter connect. Each section builds on the previous one, and you can trace the progression from basic CNNs all the way to modern VLMs that see and speak.
+
+```{.d2}
+# =========================================================================
+# 1. LAYOUT CONFIGURATION
+# =========================================================================
+direction: down
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+# =========================================================================
+# 2. DESIGN SYSTEM (6 Semantic Classes)
+# =========================================================================
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 14
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 16
+      bold: true
+    }
+  }
+}
+
+# =========================================================================
+# 3. CONTENT
+# =========================================================================
+
+foundations: "Foundations" {
+  class: [base; container]
+  label.near: top-left
+
+  cnn: {
+    class: [base; input]
+    label: "  CNNs  \n  Local filters, feature hierarchies  \n  Translation equivariance  "
+  }
+  transformer: {
+    class: [base; input]
+    label: "  Transformers  \n  Self-attention, global receptive field  \n  Minimal inductive bias  "
+  }
+}
+
+vit: {
+  class: [base; highlight]
+  label: "  Vision Transformer (ViT)  \n  §1: Patch embedding → Transformer encoder → CLS  \n  Images as sequences of tokens  "
+}
+
+internals: {
+  class: [base; process]
+  label: "  What ViTs Learn  \n  §2: Uniform representations, early global  \n  aggregation, attention ≠ importance  "
+}
+
+training: "Self-Supervised Training" {
+  class: [base; container]
+  label.near: top-left
+
+  deit: {
+    class: [base; process]
+    label: "  DeiT  \n  CNN teacher distillation  "
+  }
+  mae: {
+    class: [base; process]
+    label: "  MAE  \n  75% patch masking  \n  Reconstruct pixels  "
+  }
+  dino: {
+    class: [base; process]
+    label: "  DINO / DINOv2  \n  Self-distillation  \n  Emergent segmentation  "
+  }
+}
+
+clip_block: "Vision-Language Alignment" {
+  class: [base; container]
+  label.near: top-left
+
+  clip: {
+    class: [base; decision]
+    label: "  CLIP  \n  Contrastive image-text  \n  InfoNCE loss  "
+  }
+  siglip: {
+    class: [base; decision]
+    label: "  SigLIP / SigLIP 2  \n  Pairwise sigmoid loss  \n  Better scaling  "
+  }
+}
+
+vlm_block: "Vision-Language Models" {
+  class: [base; container]
+  label.near: top-left
+
+  flamingo: {
+    class: [base; output]
+    label: "  Flamingo  \n  Perceiver + Cross-Attn  "
+  }
+  blip2: {
+    class: [base; output]
+    label: "  BLIP-2  \n  Q-Former bridge  "
+  }
+  llava: {
+    class: [base; output]
+    label: "  LLaVA  \n  MLP projection  "
+  }
+  modern: {
+    class: [base; output]
+    label: "  Llama 3.2 Vision  \n  Cambrian-1 / Idefics2  "
+  }
+}
+
+# =========================================================================
+# 4. CONNECTIONS
+# =========================================================================
+foundations.cnn -> vit: "Replace convolutions\nwith self-attention" {
+  style.stroke: "#6366F1"
+}
+foundations.transformer -> vit: "Apply to\nimage patches" {
+  style.stroke: "#6366F1"
+}
+vit -> internals: "What do they\nactually learn?" {
+  style.stroke: "#10B981"
+}
+vit -> training: "How to train\nwithout massive data?" {
+  style.stroke: "#10B981"
+}
+training -> clip_block: "Pretrained ViT\nbecomes vision encoder" {
+  style.stroke: "#F59E0B"
+}
+internals -> clip_block: "Understanding features\nguides encoder choice" {
+  style.stroke: "#F59E0B"
+  style.stroke-dash: 4
+}
+clip_block -> vlm_block: "Aligned vision encoder\n+ LLM backbone" {
+  style.stroke: "#1D4ED8"
+}
+```

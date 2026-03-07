@@ -1,0 +1,222 @@
+## Training ViTs — From Data Hunger to Self-Supervision {#sec-training-vits}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [DeiT: Training Data-Efficient Image Transformers](https://arxiv.org/abs/2012.12877) | Distillation token, hard vs soft distillation, training recipe |
+| 2 | [MAE: Masked Autoencoders Are Scalable Vision Learners](https://arxiv.org/abs/2111.06377) | Asymmetric encoder-decoder, 75% masking, pixel reconstruction |
+| 3 | [DINO: Emerging Properties in Self-Supervised ViTs](https://arxiv.org/abs/2104.14294) | Self-distillation, multi-crop, centering + sharpening |
+| 4 | [DINOv2: Learning Robust Visual Features](https://arxiv.org/abs/2304.07193) | Curated data pipeline, 1B param teacher, foundation model |
+| 5 | [ViT-22B: Scaling Vision Transformers](https://arxiv.org/abs/2302.05442) | Training stability at scale, QK-norm, parallel layers |
+| 6 | [An Image is Worth 16x16 Words (ViT)](https://arxiv.org/abs/2010.11929) | Data requirements: performance vs pre-training dataset size |
+
+:::
+
+Let us return to our visual search engine. Your ViT-based system is working well on standard product categories, but your company has just acquired a niche marketplace for vintage furniture, and you have only 5,000 labeled images of antique chairs, tables, and cabinets. You try fine-tuning your ImageNet-pretrained ViT on this small dataset, but the results are mediocre: the model overfits within a few epochs, and accuracy plateaus at 71%. Meanwhile, your colleague points out that the marketplace has 200,000 *unlabeled* product photos. Customers upload images daily, but nobody has categorized most of them. Can you somehow use these unlabeled images to improve your model?
+
+This is the data hunger problem that dominated ViT research from 2020 to 2023. Three fundamentally different strategies solved it: distillation from a CNN teacher (DeiT), masked image modeling (MAE), and self-distillation (DINO). Each addresses the problem from a different angle, and understanding *why* each works gives you the knowledge to choose the right approach for your own data constraints.
+
+### The Data Hunger Problem {#sec-data-hunger}
+
+The original ViT paper laid bare the relationship between data scale and performance. When trained from scratch on ImageNet-1K (1.3 million images), ViT-Base achieved about 79% top-1 accuracy, roughly matching but not exceeding a well-tuned ResNet-50. The model simply did not have enough data to learn the spatial structure that CNNs get for free through their inductive biases.
+
+But when pretrained on progressively larger datasets, ViT's accuracy scaled dramatically:
+
+- **ImageNet-1K** (1.3M images): ViT-B ≈ 79%, ResNet-50 ≈ 80%. CNN wins.
+- **ImageNet-21K** (14M images): ViT-B ≈ 84%, ViT-L ≈ 85%. ViTs start pulling ahead.
+- **JFT-300M** (300M images): ViT-L ≈ 87.8%. ViTs dominate.
+
+The following figure from the ViT paper shows this relationship clearly. Notice how the ResNet curves flatten much earlier than the ViT curves. CNNs reach their "ceiling" sooner because their inductive biases constrain what they can learn, even with more data.
+
+![Few-shot ImageNet accuracy vs. pre-training dataset size. ViTs underperform ResNets when pretrained on small datasets, but surpass them on larger datasets. The gap widens with data scale, confirming that large-scale training trumps inductive bias. Source: Dosovitskiy et al. (2020), Figure 3.](Vision Transformers and VLMs/images/vit-performance-vs-dataset-size.png){#fig-data-scaling}
+
+This posed a practical problem: JFT-300M was internal to Google, and most researchers and practitioners did not have access to 300 million labeled images. Three independent lines of work solved this problem.
+
+::: {.callout-warning title="Common Misconception: You need hundreds of millions of labeled images to train a ViT"}
+The early ViT results created a widespread impression that ViTs are impractical without Google-scale data. This was true in 2020 but is emphatically false today. DeiT (2020) matched JFT-pretrained ViTs using only ImageNet-1K and distillation. MAE (2021) achieved 87.8% on ImageNet using *zero* labels for pretraining. DINO (2021) learned features that rival supervised training using *zero* labels. DINOv2 (2023) provides off-the-shelf features that work directly without fine-tuning. If you can train a ResNet on your dataset, you can train a ViT on the same dataset. You just need the right training recipe (strong augmentation, distillation, or self-supervised pretraining). The data hunger problem is solved.
+:::
+
+### DeiT: Learning from a CNN Teacher {#sec-deit}
+
+The first solution is clever in its simplicity. It came from Facebook AI Research (now Meta AI) with **DeiT** (Data-efficient Image Transformers). The core insight: if the problem is that ViTs lack inductive bias, why not *transfer* the inductive bias from a well-trained CNN through knowledge distillation?
+
+DeiT introduces a **distillation token**: a new learnable embedding added to the input sequence alongside the CLS token and patch tokens. Just like the CLS token is trained to predict the ground-truth label, the distillation token is trained to match the output of a CNN teacher model. The total loss is:
+
+$$
+\mathcal{L}_\text{DeiT}^{\text{hard}} = \frac{1}{2}\, \mathcal{L}_\text{CE}(\psi(Z_s), y) + \frac{1}{2}\, \mathcal{L}_\text{CE}(\psi(Z_s), y_t)
+$$ {#eq-deit-hard}
+
+where $Z_s$ are the student (ViT) logits from the distillation token, $y$ is the ground-truth label, $y_t = \arg\max_c Z_t(c)$ is the *hard decision* of the teacher (e.g., RegNetY-16GF), and $\psi$ is the softmax function. This is the **hard distillation** variant, which surprisingly outperforms the more traditional soft distillation that matches the full probability distribution via KL divergence:
+
+$$
+\mathcal{L}_\text{DeiT}^{\text{soft}} = (1 - \lambda)\, \mathcal{L}_\text{CE}(\psi(Z_s), y) + \lambda \, \tau^2 \, \text{KL}(\psi(Z_s / \tau),\, \psi(Z_t / \tau))
+$$ {#eq-deit-soft}
+
+The hard distillation approach is both simpler and more effective. DeiT-B with hard distillation reaches 83.4% on ImageNet at 224px, and 85.2% at 384px after extended training. That surpasses the original ViT-B pretrained on JFT-300M (84.15%), while using only ImageNet-1K data. A ViT trained on 1.3 million images with distillation outperforms a ViT trained on 300 million images without it.
+
+Why does a CNN teacher help a ViT student so much? The teacher provides an implicit locality bias through its training signal. When the CNN teacher says "this is a golden retriever," it is making that prediction based on local features (fur texture, ear shape, nose structure) that were processed through hierarchical convolutions. The ViT student, learning to match these predictions, is forced to extract similar local features. It effectively inherits the CNN's inductive biases through the training signal rather than the architecture.
+
+::: {.callout-note title="Think Hard: Why does distilling from a CNN teacher into a ViT student work so well?"}
+The CNN teacher provides an inductive bias *through the training labels* rather than through the architecture. Hard distillation labels vary with data augmentation: for each augmented view of an image, the CNN teacher produces a potentially different hard label. This forces the ViT student to learn augmentation-invariant features that are grounded in the local, hierarchical features the CNN naturally extracts. In effect, the student learns to build its own version of a feature hierarchy (through self-attention) that reproduces the CNN's understanding of the image.
+
+Interestingly, the DeiT paper found that **ConvNet teachers are better than Transformer teachers.** Using a ViT teacher produces weaker students than using a RegNetY teacher, presumably because the Transformer teacher does not provide the complementary inductive bias that the student lacks.
+:::
+
+Beyond distillation, DeiT's training recipe itself is crucial. The original ViT trained with minimal augmentation; DeiT showed that strong data augmentation can partially compensate for the lack of inductive bias:
+
+| Technique | Effect if Removed |
+|---|---|
+| RandAugment + Mixup + CutMix | Drop to 75.8% (from 81.8%) |
+| Repeated Augmentation | Drop to 76.5% |
+| Stochastic Depth | Training fails (3.4%) |
+| Random Erasing | Training fails (4.3%) |
+
+Stochastic depth and random erasing are not just helpful; they are *essential* for training ViTs on ImageNet-1K. Without them, training collapses entirely.
+
+### MAE: Learning by Predicting Masked Patches {#sec-mae}
+
+The second solution takes an entirely different, and arguably more elegant, approach. **Masked Autoencoders (MAE)** train a ViT to reconstruct images from which a large fraction of patches has been removed. This is a self-supervised objective that requires *zero* labels.
+
+The idea is straightforward. Randomly mask a fraction of the image patches, pass the visible patches through a ViT encoder, then use a lightweight decoder to reconstruct the masked patches from the encoded representation. The loss is mean squared error between the predicted and actual pixel values of the masked patches:
+
+$$
+\mathcal{L}_\text{MAE} = \frac{1}{|\mathcal{M}|} \sum_{i \in \mathcal{M}} \| \hat{\mathbf{x}}_i - \mathbf{x}_i \|^2
+$$ {#eq-mae-loss}
+
+where $\mathcal{M}$ is the set of masked patch indices, $\hat{\mathbf{x}}_i$ is the predicted pixel values for patch $i$, and $\mathbf{x}_i$ is the ground truth. The loss is computed *only on masked patches*. The model does not need to reconstruct visible patches, which would provide a trivially easy signal.
+
+But the real insight is in the **asymmetric architecture** and the **masking ratio**.
+
+![MAE architecture. During pre-training, a random subset of image patches are masked (75%). The encoder operates only on visible patches — mask tokens are never processed by the encoder. A lightweight decoder reconstructs the full image from encoded visible patches plus mask tokens. Source: He et al. (2021), Figure 1.](Vision Transformers and VLMs/images/mae-architecture.png){#fig-mae-architecture}
+
+**Asymmetric encoder-decoder.** The encoder is a full ViT (e.g., ViT-Large with 24 blocks, 1024 hidden dimension), but it processes *only the visible patches*. Mask tokens (learnable vectors indicating "a patch was here but you cannot see it") are *not* fed to the encoder. They are only introduced at the decoder stage. The decoder is lightweight: 8 blocks with 512 hidden dimension, roughly 9% of the encoder's compute per token.
+
+This asymmetry is not just an implementation detail; it is essential for performance. When mask tokens are included in the encoder (as in some earlier methods), linear probing accuracy drops catastrophically from 73.5% to 59.6%. The reason is that during downstream use, the encoder only sees real patches, so including mask tokens during pretraining creates a distribution mismatch between pretraining and fine-tuning.
+
+**The 75% masking ratio.** This is the most surprising aspect of MAE. BERT masks only 15% of tokens; most vision methods before MAE used 20-50% masking. MAE uses 75%, removing three-quarters of the image. Why?
+
+![Example masked images at 75% masking ratio. Despite seeing only 25% of the image, the model must learn to reconstruct coherent objects, textures, and structures — requiring holistic scene understanding. Source: He et al. (2021), Figure 4.](Vision Transformers and VLMs/images/mae-masking-examples.png){#fig-mae-masking}
+
+The answer lies in the **information density** difference between language and images. In text, each token carries significant semantic information. Masking "The cat sat on the ___" eliminates a word that could be many things ("mat," "roof," "chair"). In images, neighboring patches are highly correlated. If you can see patch (5, 3), you can predict patch (5, 4) almost perfectly from pixel interpolation alone. At low masking ratios (20-40%), the reconstruction task is too easy: the model can fill in missing patches from their neighbors without understanding the scene at a semantic level. At 75%, the visible patches are so sparse that the model *must* learn holistic understanding. It cannot rely on local interpolation.
+
+The results speak for themselves:
+
+| Model | MAE Pre-training | Fine-tune Accuracy |
+|---|---|---|
+| ViT-B/16 | 1600 epochs | 83.6% |
+| ViT-L/16 | 1600 epochs | 85.9% |
+| ViT-H/14 | 1600 epochs | 86.9% |
+| ViT-H/14 @448px | 1600 epochs | **87.8%** |
+
+ViT-H/14 at 448px achieves 87.8% on ImageNet-1K, the highest accuracy using only ImageNet data, matching ViT-Large pretrained on JFT-300M. And because the encoder only processes 25% of the patches during pretraining, MAE is remarkably efficient: ViT-L pretraining takes 31 hours on 128 TPUv3 cores for 1600 epochs.
+
+::: {.callout-warning title="Common Misconception: MAE is just BERT for images — same idea, different modality"}
+The analogy between MAE and BERT is useful but dangerously misleading if taken too far. Yes, both mask part of the input and train the model to reconstruct it. But the two methods differ in almost every detail that matters. BERT masks 15% of tokens; MAE masks 75%, a 5$\times$ difference that reflects the fundamental gap in information density between text and images. BERT includes mask tokens in the encoder; MAE deliberately excludes them. Processing only visible patches yields a 4$\times$ compute savings and prevents distribution mismatch at fine-tuning time. BERT reconstructs discrete token IDs via a classification head over a vocabulary; MAE reconstructs continuous pixel values via regression. BERT uses an encoder-only architecture for both pretraining and downstream tasks; MAE uses an asymmetric encoder-decoder for pretraining but discards the decoder entirely for downstream tasks. The shared "masking" narrative obscures these critical design choices. Understanding *why* they differ is the key to understanding why visual self-supervision requires fundamentally different approaches than language self-supervision.
+:::
+
+::: {.callout-note title="Think Hard: Why reconstruct pixels instead of learned tokens?"}
+BEiT (Bao et al., 2021) proposed reconstructing discrete visual tokens (from a pretrained dVAE tokenizer) instead of raw pixels, arguing that discrete tokens provide a better learning signal. MAE showed this is unnecessary. Pixel reconstruction with per-patch normalization (mean-centering and scaling each patch independently) works just as well or better, and is simpler: no need for a separate pretrained tokenizer. The per-patch normalization is key: it enhances local contrast and emphasizes high-frequency structure, making the reconstruction target more informative than raw pixel values.
+:::
+
+::: {.callout-tip title="Self-explanation prompt"}
+Why does MAE use 75% masking while BERT uses only 15%? What does this tell us about the information density of images vs. text? If you increased BERT's masking to 75%, what would happen and why?
+:::
+
+
+### DINO and DINOv2: Self-Distillation and Emerging Properties {#sec-dino}
+
+The third approach is the most conceptually elegant. **DINO** (Self-DIstillation with NO labels) trains two copies of the same network, a student and a teacher. The teacher is a slowly updated copy of the student, and the student learns to match the teacher's output for different views of the same image.
+
+**The framework.** Both student $g_{\theta_s}$ and teacher $g_{\theta_t}$ share the same ViT architecture. Given an image, we generate multiple views: 2 global views (224 $\times$ 224 crops covering >50% of the image) and several local views (96 $\times$ 96 crops covering <50%). All views pass through the student; **only the global views** pass through the teacher. The student must match the teacher's output for the global views by learning from *all* views, including the local crops. This forces the student to learn "local-to-global" correspondences: it must predict the global representation of the entire scene from seeing only a small local crop.
+
+The training loss is:
+
+$$
+\mathcal{L}_\text{DINO} = \sum_{x \in \{x_1^g, x_2^g\}} \sum_{\substack{x' \in V \\ x' \neq x}} H(P_t(x), P_s(x'))
+$$ {#eq-dino-loss}
+
+where $P_t$ and $P_s$ are probability distributions over a learned $K$-dimensional output space, computed by applying a temperature-scaled softmax to the network outputs:
+
+$$
+P_s(x)^{(i)} = \frac{\exp(g_{\theta_s}(x)^{(i)} / \tau_s)}{\sum_{k=1}^K \exp(g_{\theta_s}(x)^{(k)} / \tau_s)}
+$$
+
+and $H(a, b) = -a \log b$ is the cross-entropy loss. The teacher uses a lower temperature $\tau_t$ than the student temperature $\tau_s$, producing sharper (more peaked) output distributions. This is a form of **sharpening**.
+
+**The teacher update.** The teacher is *not* trained by gradient descent. Instead, its parameters are an exponential moving average (EMA) of the student:
+
+$$
+\theta_t \leftarrow \lambda \theta_t + (1 - \lambda) \theta_s
+$$
+
+where $\lambda$ follows a cosine schedule from 0.996 to 1 during training. This EMA acts as a form of model ensembling. The teacher is a smoothed version of the student's trajectory through weight space, and it consistently produces better representations than the student at any given point during training. This property is remarkable: the teacher outperforms the student *throughout* training, even though it is derived entirely from the student.
+
+**Preventing collapse.** Without careful design, the student and teacher can collapse to a trivial solution: both output the same constant vector for all inputs. DINO prevents this with two complementary mechanisms:
+
+- **Centering:** Subtract the mean teacher output $c$ (computed as an EMA across batches) from the teacher before the softmax. This prevents one dimension from dominating.
+- **Sharpening:** Use a low teacher temperature $\tau_t$ (0.04, warmed to 0.07). This prevents the output from becoming uniform.
+
+Centering alone would encourage uniform collapse; sharpening alone would encourage one-dimension dominance. Together, they maintain informative, non-degenerate distributions.
+
+The DINO ablation results show how critical each component is:
+
+| Component | k-NN Accuracy |
+|---|---|
+| Full DINO (momentum + multi-crop + CE loss) | **72.8%** |
+| Without momentum teacher | 0.1% (total collapse) |
+| Without multi-crop | 67.9% |
+| MSE loss instead of cross-entropy | 52.6% |
+
+Momentum is the single most essential ingredient. Without it, training fails completely. Multi-crop contributes about 5 points, and cross-entropy loss is dramatically better than MSE.
+
+**The remarkable finding: emergent segmentation.** When DINO is applied to ViTs (as opposed to CNNs), the self-attention maps of the CLS token in the last layer produce clean semantic segmentation masks, clearly delineating object boundaries without any pixel-level supervision. This property does not emerge with supervised training, and it appears specific to the combination of self-distillation and the ViT architecture.
+
+::: {.callout-note title="Think Hard: Why do DINO attention maps look like segmentation masks?"}
+The self-distillation objective with multi-crop training creates a specific learning pressure. The teacher sees a global view of an image containing (say) a dog on grass. The student sees a local crop that might contain only the dog's ear. For the student to match the teacher's output from this local crop, it needs to recognize *which object* is present in its crop. That requires knowing where objects begin and end. Object boundaries are the features most invariant across different crops of the same scene, so the self-distillation objective naturally encourages the model to represent them explicitly. The ViT architecture, with its global self-attention from layer 1, is uniquely suited to learn these boundary-aware representations.
+:::
+
+**DINOv2** (2023) scaled this approach to a foundation model with a curated data pipeline. Three key improvements stand out. First, automatic curation of a diverse 142 million-image dataset (LVD-142M) from uncurated web data, using deduplication and retrieval-based rebalancing. Second, training a 1 billion-parameter ViT-g teacher, then distilling it to smaller models (ViT-S, ViT-B, ViT-L). Third, combining DINO's self-distillation with a masked image modeling objective (iBOT) for richer feature learning. The result: DINOv2 features can be used *without fine-tuning* for classification, segmentation, depth estimation, and surface normal prediction. These are truly general-purpose visual features.
+
+
+### Scaling Laws and Training Stability {#sec-scaling-laws}
+
+As ViTs scaled from 86M (ViT-Base) to 22B parameters (ViT-22B), researchers discovered that *how* you scale matters as much as *how much* you scale.
+
+**Shape optimization.** The "Getting ViT in Shape" (SoViT) work showed that the standard ViT scaling recipe (which proportionally scales depth, width, and MLP dimension) is suboptimal. Shape-optimized ViTs, with wider architectures and shallower depth, can match models 2$\times$ their size. The optimal scaling recipe per 10$\times$ compute increase: width $\times$ 1.5, depth $\times$ 2.0, MLP ratio $\times$ 2.6. In other words, **width should scale faster than depth**.
+
+**ViT-22B: training at extreme scale.** Training a 22 billion-parameter dense ViT required several stability innovations:
+
+- **QK-normalization**: apply LayerNorm to the query and key vectors *before* computing attention scores. Without this, attention logits can grow unboundedly, causing training instabilities.
+- **Parallel attention and FFN**: compute the attention and FFN sub-layers in parallel rather than sequentially, reducing per-layer latency. The formulation $\mathbf{z}_\ell = \mathbf{z}_{\ell-1} + \text{MSA}(\text{LN}(\mathbf{z}_{\ell-1})) + \text{MLP}(\text{LN}(\mathbf{z}_{\ell-1}))$ was found to be equivalent to sequential computation at scale, while enabling better hardware utilization.
+- **Adafactor optimizer**: used instead of Adam to reduce memory requirements at scale.
+
+ViT-22B achieved 89.5% linear probe accuracy on ImageNet. A simple linear classifier on frozen ViT-22B features matches or exceeds most fine-tuned models.
+
+::: {.callout-tip title="Self-explanation prompt"}
+If you only had 5,000 unlabeled images of vintage furniture (and no labels at all), which pretraining strategy would you choose: MAE, DINO, or DeiT with a CNN teacher? Consider: DeiT requires labeled data for the teacher; MAE needs enough images for the reconstruction task to be meaningful; DINO needs enough diversity for multi-crop training. What are the trade-offs?
+:::
+
+
+### Choosing a Training Strategy: A Decision Framework {#sec-training-decision}
+
+Here is a practical summary to help you choose:
+
+| Strategy | Labels Needed? | Minimum Data | Best For | Key Strength |
+|---|---|---|---|---|
+| DeiT | Yes (+ teacher) | ~1M labeled | Limited compute, need quick results | Uses CNN knowledge; trains on 4 GPUs |
+| MAE | No | ~50K unlabeled | Large unlabeled datasets | Fast pretraining (3$\times$ speedup); great transfer |
+| DINO/DINOv2 | No | ~50K unlabeled | Dense features (segmentation, depth) | Emergent segmentation; foundation features |
+| Full supervised | Yes | ~14M labeled | Unlimited labeled data | Simple, well-understood |
+
+For our vintage furniture scenario (200,000 unlabeled images, 5,000 labeled), the best approach would be:
+
+1. **Pretrain with MAE** on all 200,000 unlabeled images (fast, self-supervised, requires no labels)
+2. **Fine-tune** on the 5,000 labeled images
+3. Alternatively, use **DINOv2 pretrained features** directly with a linear probe if you want to avoid any pretraining compute
+
+This combination uses all available data, both labeled and unlabeled, and addresses the data hunger problem without needing JFT-scale datasets.
+
+---
+
+With strong ViT pretraining solved, the next frontier is connecting vision to language. A ViT trained with MAE or DINO produces excellent visual features, but it has no concept of language. It cannot tell you *what* is in the image using words. In @sec-clip, we will see how contrastive learning bridges this gap, aligning visual and textual representations in a shared space.

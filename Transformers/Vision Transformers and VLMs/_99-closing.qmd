@@ -1,0 +1,323 @@
+## Closing {#sec-closing}
+
+### Key Takeaways {#sec-takeaways}
+
+Here are the seven most important insights from this chapter:
+
+- **ViT treats images as sequences of patches**, applying a standard Transformer encoder to vision with minimal modifications. The patch embedding ($\mathbf{z}_0 = [\mathbf{x}_\text{class};\, \mathbf{x}^1_p\mathbf{E};\, \ldots;\, \mathbf{x}^N_p\mathbf{E}] + \mathbf{E}_{pos}$) is mathematically equivalent to a single strided convolution, the *only* convolution-like operation in the entire model.
+
+- **ViTs learn fundamentally different representations than CNNs**: more uniform across layers, with early global information aggregation from layer 1, stronger residual propagation, and better spatial preservation. These are not just "fancier" CNN features; they are qualitatively different.
+
+- **Self-supervised pretraining eliminates the need for massive labeled datasets.** MAE (75% patch masking + reconstruction), DINO (self-distillation with multi-crop), and DeiT (CNN teacher distillation) each solve the data hunger problem from a different angle. DINO's attention maps even produce semantic segmentation without labels.
+
+- **CLIP's contrastive learning connects vision and language** by training image and text encoders to produce similar embeddings for matching pairs and dissimilar embeddings for non-matching pairs. The InfoNCE loss treats each batch as an $N$-way classification problem, and zero-shot classification works by using text embeddings as classifier weights.
+
+- **SigLIP's sigmoid loss removes the need for global batch normalization**, replacing the softmax with pairwise sigmoid classification. This enables better scaling, works with smaller batches, and SigLIP 2's unified multi-loss recipe achieves state-of-the-art across all model sizes.
+
+- **The VLM architecture is a three-part pipeline**: vision encoder $\to$ connector $\to$ LLM. The connector is the key design choice. Flamingo uses cross-attention, BLIP-2 uses a Q-Former, LLaVA uses a simple MLP, and Cambrian-1 uses a Spatial Vision Aggregator for multiple encoders.
+
+- **Training methodology and data quality matter more than raw model size.** SigLIP 2 at 400M parameters outperforms models 15$\times$ larger. LLaVA's simple MLP with high-quality GPT-4-generated data matches sophisticated Q-Former architectures. Idefics2 shows that autoregressive + LoRA beats cross-attention + LoRA. Invest in your training recipe before scaling your architecture.
+
+
+### Completed Concept Map {#sec-completed-concept-map}
+
+The following diagram shows the complete landscape of ideas covered in this chapter, from foundational CNNs and Transformers through to modern VLMs. Each arrow represents a key conceptual or architectural connection.
+
+```{.d2}
+# =========================================================================
+# 1. LAYOUT CONFIGURATION
+# =========================================================================
+direction: down
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+# =========================================================================
+# 2. DESIGN SYSTEM
+# =========================================================================
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 13
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 15
+      bold: true
+    }
+  }
+}
+
+# =========================================================================
+# 3. NODES
+# =========================================================================
+
+foundations: "Foundations (§0)" {
+  class: [base; container]
+  label.near: top-left
+  cnn: {
+    class: [base; input]
+    label: "  CNNs  \n  Locality, weight sharing  \n  Translation equivariance  "
+  }
+  transformer: {
+    class: [base; input]
+    label: "  Transformers  \n  Self-attention  \n  Global receptive field  "
+  }
+}
+
+architecture: "ViT Architecture (§1)" {
+  class: [base; container]
+  label.near: top-left
+  vit: {
+    class: [base; highlight]
+    label: "  ViT  \n  Patch embed → CLS → Transformer  \n  Minimal inductive bias  "
+  }
+  swin: {
+    class: [base; process]
+    label: "  Swin Transformer  \n  Shifted window attention  \n  Hierarchical features  "
+  }
+}
+
+internals: {
+  class: [base; process]
+  label: "  What ViTs Learn (§2)  \n  Uniform representations  \n  Early global aggregation  \n  Spatial info preserved  "
+}
+
+training: "Self-Supervised Training (§3)" {
+  class: [base; container]
+  label.near: top-left
+  deit: {
+    class: [base; process]
+    label: "  DeiT  \n  CNN teacher  \n  Distillation token  "
+  }
+  mae: {
+    class: [base; process]
+    label: "  MAE  \n  75% masking  \n  Pixel reconstruction  "
+  }
+  dino: {
+    class: [base; process]
+    label: "  DINO / DINOv2  \n  Self-distillation  \n  Emergent segmentation  "
+  }
+}
+
+contrastive: "Contrastive V-L Learning (§4)" {
+  class: [base; container]
+  label.near: top-left
+  clip: {
+    class: [base; decision]
+    label: "  CLIP  \n  InfoNCE loss  \n  400M image-text pairs  \n  Zero-shot transfer  "
+  }
+  siglip: {
+    class: [base; decision]
+    label: "  SigLIP / SigLIP 2  \n  Sigmoid loss  \n  Unified multi-loss  "
+  }
+}
+
+vlms: "VLM Architecture Zoo (§5)" {
+  class: [base; container]
+  label.near: top-left
+  flamingo: {
+    class: [base; output]
+    label: "  Flamingo  \n  Perceiver Resampler  \n  Gated cross-attention  "
+  }
+  blip2: {
+    class: [base; output]
+    label: "  BLIP-2  \n  Q-Former  \n  2-stage pretraining  "
+  }
+  llava: {
+    class: [base; output]
+    label: "  LLaVA  \n  MLP projection  \n  Instruction tuning  "
+  }
+  modern: {
+    class: [base; output]
+    label: "  Llama 3.2 Vision  \n  Cambrian-1  \n  Idefics2  "
+  }
+}
+
+# =========================================================================
+# 4. CONNECTIONS
+# =========================================================================
+foundations.cnn -> architecture.vit: "Replace convolutions" {style.stroke: "#6366F1"}
+foundations.transformer -> architecture.vit: "Apply to patches" {style.stroke: "#6366F1"}
+architecture.vit -> architecture.swin: "Add hierarchy" {style.stroke: "#10B981"}
+architecture.vit -> internals: "Analyze" {style.stroke: "#10B981"}
+architecture.vit -> training: "Train efficiently" {style.stroke: "#10B981"}
+training.deit -> contrastive: "Pretrained ViT" {style.stroke: "#F59E0B"}
+training.mae -> contrastive: "Pretrained ViT" {style.stroke: "#F59E0B"}
+training.dino -> contrastive: "Pretrained ViT" {style.stroke: "#F59E0B"}
+contrastive.clip -> vlms: "Vision encoder" {style.stroke: "#1D4ED8"}
+contrastive.siglip -> vlms: "Vision encoder" {style.stroke: "#1D4ED8"}
+training.dino -> vlms: "Complementary encoder" {style.stroke: "#1D4ED8"; style.stroke-dash: 4}
+internals -> contrastive: "Understanding\nguides design" {style.stroke: "#F59E0B"; style.stroke-dash: 4}
+```
+
+
+### Retrieval Practice Questions {#sec-practice-questions}
+
+Test your understanding with these questions, spanning from recall to analysis. Try to answer each one before revealing the solution.
+
+::: {.callout-note collapse="true" title="Q1: Write the ViT patch embedding equation. What are the dimensions of E and E_pos?"}
+**Question:** Write the equation for how ViT converts an image into the initial token sequence $\mathbf{z}_0$. Specify the dimensions of $\mathbf{E}$ and $\mathbf{E}_{pos}$.
+
+**Answer:**
+
+$$
+\mathbf{z}_0 = [\mathbf{x}_\text{class};\, \mathbf{x}^1_p\mathbf{E};\, \ldots;\, \mathbf{x}^N_p\mathbf{E}] + \mathbf{E}_{pos}
+$$
+
+where:
+
+- $\mathbf{E} \in \mathbb{R}^{(P^2 \cdot C) \times D}$: the patch embedding projection matrix. For ViT-Base with $P = 16$ and $C = 3$: $\mathbf{E} \in \mathbb{R}^{768 \times 768}$.
+- $\mathbf{E}_{pos} \in \mathbb{R}^{(N+1) \times D}$: positional embeddings for $N$ patches plus the CLS token. For a 224 $\times$ 224 image: $\mathbf{E}_{pos} \in \mathbb{R}^{197 \times 768}$.
+:::
+
+::: {.callout-note collapse="true" title="Q2: Why does ViT use pre-norm instead of post-norm?"}
+**Question:** Explain why ViT applies LayerNorm *before* the attention and MLP sub-layers (pre-norm) rather than after (post-norm, as in the original Transformer).
+
+**Answer:** Pre-norm provides a "clean" gradient highway through the residual connections. With post-norm, $\text{LN}(\text{MSA}(\mathbf{z}) + \mathbf{z})$, the gradient must pass through LayerNorm at every layer, which can cause gradient magnitude issues in deep networks. With pre-norm, $\text{MSA}(\text{LN}(\mathbf{z})) + \mathbf{z}$, the residual path provides an unmodified gradient flow directly from the loss to earlier layers. This eliminates the need for careful learning rate warmup and enables stable training of very deep models (including ViT-22B at 22 billion parameters).
+:::
+
+::: {.callout-note collapse="true" title="Q3: What is the fundamental difference between MAE and DINO?"}
+**Question:** Both MAE and DINO are self-supervised pretraining methods for ViTs. What is the fundamental difference in their training objectives, and what does each method's objective encourage the model to learn?
+
+**Answer:** **MAE** (Masked Autoencoders) uses a *reconstructive* objective: mask 75% of patches and train the model to predict the missing pixel values. This encourages learning of local texture patterns, spatial coherence, and holistic scene structure, because reconstructing masked patches from sparse visible ones requires understanding the overall composition.
+
+**DINO** (Self-Distillation with No Labels) uses a *contrastive self-distillation* objective: train a student to match a teacher's (EMA of student) output distribution for different augmented views of the same image, including local-to-global correspondences. This encourages learning of semantic invariances, that is, features that are consistent across different crops and views of the same scene. That is why DINO's attention maps produce emergent semantic segmentation.
+
+In short: MAE learns "what does this image look like?" while DINO learns "what is the same across different views of this scene?"
+:::
+
+::: {.callout-note collapse="true" title="Q4: Derive the CLIP InfoNCE loss for a batch of N=4 pairs"}
+**Question:** For a batch of $N = 4$ image-text pairs, write out the full InfoNCE loss. How many positive and negative examples are there?
+
+**Answer:** With $N = 4$, the similarity matrix is $4 \times 4$. There are **4 positive pairs** (diagonal) and **12 negative pairs** (off-diagonal).
+
+The image-to-text loss:
+
+$$
+\mathcal{L}_{I \to T} = -\frac{1}{4} \sum_{i=1}^{4} \log \frac{\exp(S_{ii}/\tau)}{\sum_{j=1}^{4} \exp(S_{ij}/\tau)}
+$$
+
+The text-to-image loss:
+
+$$
+\mathcal{L}_{T \to I} = -\frac{1}{4} \sum_{i=1}^{4} \log \frac{\exp(S_{ii}/\tau)}{\sum_{j=1}^{4} \exp(S_{ji}/\tau)}
+$$
+
+Total: $\mathcal{L}_\text{CLIP} = \frac{1}{2}(\mathcal{L}_{I \to T} + \mathcal{L}_{T \to I})$
+
+Each of the 8 terms (4 for $I \to T$ + 4 for $T \to I$) is a cross-entropy over 4 classes, where 1 class is positive and 3 are negative. The total loss involves all 4 positive pairs evaluated against all 12 negative pairings.
+:::
+
+::: {.callout-note collapse="true" title="Q5: Why does SigLIP not need global batch normalization while CLIP does?"}
+**Question:** Explain why SigLIP's sigmoid loss eliminates the need for all-gather operations in distributed training, while CLIP's InfoNCE loss requires them.
+
+**Answer:** CLIP's InfoNCE loss uses a softmax over the entire batch: $\text{softmax}(S_{i,:}/\tau)$ for each image row. The denominator $\sum_{j=1}^{N} \exp(S_{ij}/\tau)$ requires knowing the similarity between image $i$ and *every* text in the batch, including texts on other GPUs. This forces an all-gather to collect all text embeddings on every GPU.
+
+SigLIP's sigmoid loss classifies each $(i, j)$ pair *independently*: $\sigma(z_{ij} \cdot (-t \cdot S_{ij} + b))$. There is no normalization over the batch. Each pair's loss depends only on the similarity between that specific image and text, not on any other pair. This means each GPU only needs the embeddings it computes locally (plus embeddings exchanged in a round-robin fashion), with no global synchronization.
+:::
+
+::: {.callout-note collapse="true" title="Q6: Compare Q-Former (BLIP-2) and MLP (LLaVA) connectors"}
+**Question:** Compare the Q-Former and MLP connector designs. When would you prefer each?
+
+**Answer:**
+
+| | Q-Former (BLIP-2) | MLP (LLaVA) |
+|---|---|---|
+| **Mechanism** | 32 learned queries cross-attend to visual features | 2-layer MLP projects all patch tokens |
+| **Visual tokens** | 32 (fixed, compressed) | 256–576 (all patches) |
+| **Spatial detail** | Lost in compression | Fully preserved |
+| **LLM compute** | Lower (fewer visual tokens) | Higher (many visual tokens) |
+| **Best for** | Efficient inference, semantic QA | OCR, spatial reasoning, fine-grained tasks |
+| **Trainable params** | 188M (Q-Former is substantial) | ~10M (just an MLP) |
+
+**Prefer Q-Former** when: inference efficiency is critical, the task is primarily semantic (VQA, captioning), and you need to minimize LLM compute.
+
+**Prefer MLP** when: spatial detail matters (OCR, document understanding, referring expressions), you have compute budget for more visual tokens in the LLM, and you want the simplest possible architecture.
+
+The Idefics2 finding that autoregressive + LoRA outperforms cross-attention + LoRA suggests that the MLP approach is generally preferable when you can afford to fine-tune with LoRA.
+:::
+
+::: {.callout-note collapse="true" title="Q7: Explain the Idefics2 finding that autoregressive + LoRA beats cross-attention + LoRA"}
+**Question:** Why might fully autoregressive + LoRA outperform cross-attention + LoRA, despite cross-attention having more trainable parameters?
+
+**Answer:** Cross-attention layers are powerful but specialized. They provide a fixed mechanism for the LM to access visual features at specific architectural insertion points. With frozen backbones, this specialization is an advantage (cross-attention wins by 6.4 points). But with LoRA, the pretrained LM weights themselves are being adapted. The LM can learn to *directly process* visual tokens that have been projected into its embedding space.
+
+In the autoregressive + LoRA setting, the LM's existing self-attention mechanism processes both visual and text tokens in a single unified stream. LoRA adapts the LM's weights to handle this mixed modality input, effectively repurposing the LM's existing capacity. This is more flexible than dedicated cross-attention layers because: (1) visual-language interaction happens at *every* LM layer through self-attention, not just at the layers where cross-attention was inserted, and (2) the LM can learn arbitrary interactions between visual and text tokens, not just the query-key-value patterns that cross-attention allows.
+
+The +12.9 point LoRA boost for autoregressive (vs. +0.6 for cross-attention) suggests that cross-attention was already near-optimal with frozen weights, while the autoregressive approach had much more to gain from backbone adaptation.
+:::
+
+
+### Common Mistakes to Avoid {#sec-common-mistakes}
+
+- **Confusing attention weights with feature importance.** Attention maps show where each head directs its attention, not what contributes to the output. Use gradient-based methods (GradCAM, attention rollout weighted by gradients) for interpretability.
+
+- **Thinking ViTs need massive labeled datasets.** DeiT trains on ImageNet-1K alone (with distillation). MAE and DINO need *zero* labels. DINOv2 provides foundation features that work without any fine-tuning. The data hunger problem is solved.
+
+- **Assuming bigger encoder = better VLM.** SigLIP 2 at 400M parameters outperforms InternViT at 6B parameters. Resolution matters more than size. Training methodology matters most of all.
+
+- **Ignoring resolution when comparing vision encoders.** A 400M model at 384px can match a 5B model at 224px. Always compare at the same resolution, or note the resolution explicitly.
+
+- **Using CLS token features when patch-level features would be better.** For dense tasks (segmentation, detection, VLMs that need spatial grounding), use the full grid of patch token features, not just the CLS token's global representation.
+
+- **Choosing a complex connector when a simple one would suffice.** LLaVA's 2-layer MLP matches the Q-Former on many benchmarks. Start simple, and only add architectural complexity when you have evidence that it helps your specific task.
+
+
+### Curated Resources {#sec-resources}
+
+- [D2L.ai: Transformers for Vision](https://d2l.ai/chapter_attention-mechanisms-and-transformers/vision-transformer.html) — The best code-first ViT introduction with runnable PyTorch implementations
+- [Lilian Weng: Generalized Visual Language Models](https://lilianweng.github.io/posts/2022-06-09-vlm/) — Excellent taxonomy of VLM approaches with clear diagrams
+- [Google big\_vision](https://github.com/google-research/big_vision) — Reference implementations of ViT, SigLIP, and related models in JAX
+- [pytorch-grad-cam](https://github.com/jacobgil/pytorch-grad-cam) — ViT visualization tools including GradCAM, attention rollout, and more
+- [Cambrian-1 GitHub](https://github.com/cambrian-mllm/cambrian) — Multi-encoder VLM framework with SVA implementation
+- [LLaVA GitHub](https://github.com/haotian-liu/LLaVA) — Simple, reproducible VLM training pipeline
+- [DINO / DINOv2 GitHub](https://github.com/facebookresearch/dinov2) — Self-supervised ViT training with foundation model features
+- [Hugging Face Transformers: ViT](https://huggingface.co/docs/transformers/model_doc/vit) — Production-ready ViT implementations with pretrained weights

@@ -1,0 +1,225 @@
+## The VLM Architecture Zoo — Building Multimodal Intelligence {#sec-vlm-zoo}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Flamingo: Visual Language Model for Few-Shot Learning](https://arxiv.org/abs/2204.14198) | Perceiver Resampler, gated cross-attention, interleaved data |
+| 2 | [BLIP-2: Bootstrapping Language-Image Pre-training](https://arxiv.org/abs/2301.12597) | Q-Former, 2-stage pretraining, frozen models |
+| 3 | [LLaVA: Visual Instruction Tuning](https://arxiv.org/abs/2304.08485) | MLP projection, GPT-4 data generation, simplest connector |
+| 4 | [What Matters When Building VLMs? (Idefics2)](https://arxiv.org/abs/2405.02246) | Systematic ablation, autoregressive+LoRA beats cross-attention |
+| 5 | [Cambrian-1: Vision-Centric Exploration](https://arxiv.org/abs/2406.16860) | Multi-encoder, Spatial Vision Aggregator |
+| 6 | [Generalized VLMs (Lilian Weng)](https://lilianweng.github.io/posts/2022-06-09-vlm/) | VLM taxonomy |
+| 7 | [SigLIP 2](https://arxiv.org/abs/2502.14786) | Training methodology > encoder size |
+
+:::
+
+We have arrived at the culmination of this chapter. You have a ViT that produces excellent visual features (@sec-vit-architecture), you understand what it learns internally (@sec-vit-internals), you know how to pretrain it without labels (@sec-training-vits), and you have a CLIP encoder that connects vision to language (@sec-clip). Now the question is: how do you build a system that can *look at an image and have a conversation about it*?
+
+For your visual search engine, the goal is clear. A customer uploads a photo of a vintage credenza they spotted at a flea market, and your system should be able to say "This appears to be a mid-century Danish teak credenza, circa 1960s, with tapered legs and sliding doors. Similar items in our catalog range from $800-$2,400." That requires not just recognizing what is in the image (ViT does that) or matching it to text descriptions (CLIP does that), but *reasoning* about the image and *generating* coherent natural-language responses.
+
+The canonical answer is a **Vision-Language Model (VLM)**, a system with three components:
+
+1. **Vision encoder**: A pretrained ViT (typically CLIP or SigLIP) that converts an image into a sequence of visual tokens
+2. **Connector**: A module that transforms visual tokens into a format the LLM can process
+3. **Large Language Model (LLM)**: A pretrained text model (LLaMA, Vicuna, Gemma, etc.) that processes visual tokens alongside text tokens and generates responses
+
+The connector is where all the architectural creativity lives. Over the past three years, four major approaches have emerged, each with a different philosophy about how to bridge the vision-language gap. Let us examine each one, then synthesize what recent ablation studies tell us about what actually matters.
+
+### The VLM Blueprint {#sec-vlm-blueprint}
+
+![The canonical VLM interface: a vision encoder produces features that are transformed by a connector and fed alongside text tokens to a large language model. Source: Tong et al. (2024), Figure 1.](Vision Transformers and VLMs/images/vlm-interface-blueprint.png){#fig-vlm-blueprint}
+
+Lilian Weng's influential taxonomy identifies four approaches to connecting vision and language:
+
+1. **Joint training**: Train a single model on interleaved image-text data from scratch
+2. **Frozen LM prefix**: Learn a vision module that produces embeddings compatible with a frozen LM
+3. **Cross-attention fusion**: Insert cross-attention layers into the LM to attend to visual features
+4. **No training**: Combine pretrained models without additional training (e.g., use captions as intermediaries)
+
+Modern VLMs use approaches 2 and 3 (or hybrids). The key trade-off is between **simplicity** (approaches that require fewer trainable parameters and simpler training pipelines) and **expressiveness** (approaches that allow richer vision-language interaction). As we will see, recent evidence suggests simplicity often wins.
+
+### Flamingo: Cross-Attention with a Perceiver Resampler {#sec-flamingo}
+
+**Flamingo** (Alayrac et al., 2022) was the first large-scale VLM to demonstrate strong few-shot learning on vision-language tasks. Its two key innovations are a Perceiver Resampler that compresses visual features to a fixed number of tokens, and gated cross-attention layers that let the LM attend to visual information while preserving its pretrained language capabilities.
+
+![Flamingo overview: processing interleaved image-text sequences. A frozen vision encoder produces spatial features, which are compressed by the Perceiver Resampler and fed to gated cross-attention layers interleaved in the frozen LM. Source: Alayrac et al. (2022), Figure 2.](Vision Transformers and VLMs/images/flamingo-architecture.png){#fig-flamingo-architecture}
+
+**The Perceiver Resampler** takes a variable number of visual features from the vision encoder and produces a *fixed* number of output tokens (64 by default). It works by initializing a set of learnable query vectors $\mathbf{Q}_\text{learned} \in \mathbb{R}^{M \times D}$ (where $M = 64$) and using them to cross-attend to the visual features:
+
+$$
+\mathbf{Z} = \text{CrossAttn}(\mathbf{Q}_\text{learned}, \mathbf{K}_\text{visual}, \mathbf{V}_\text{visual})
+$$ {#eq-perceiver-resampler}
+
+where $\mathbf{K}_\text{visual}, \mathbf{V}_\text{visual}$ are linear projections of the vision encoder's spatial features. This compresses, say, 576 patch tokens from a ViT into 64 fixed-size tokens that the LM can process. The key advantage is that the visual token count is independent of the image resolution.
+
+![The Perceiver Resampler produces a fixed number of visual output tokens from a variable number of input features. Source: Alayrac et al. (2022), Figure 3.](Vision Transformers and VLMs/images/flamingo-perceiver-resampler.png){#fig-perceiver-resampler}
+
+**Gated cross-attention dense layers** are the second key innovation. These are fresh cross-attention layers inserted between the frozen LM layers. At each gated cross-attention layer, the text tokens (queries) attend to the Perceiver Resampler output (keys/values):
+
+$$
+\mathbf{y} = \tanh(\alpha) \cdot \text{CrossAttn}(\mathbf{x}_\text{text}, \mathbf{v}_\text{visual}) + \mathbf{x}_\text{text}
+$$ {#eq-gated-xattn}
+
+where $\alpha$ is a learnable scalar **initialized to 0**.
+
+![Gated cross-attention dense layer with tanh gating. The gating scalar $\alpha$ is initialized to 0, so the model initially behaves as the original frozen LM. Source: Alayrac et al. (2022), Figure 4.](Vision Transformers and VLMs/images/flamingo-gated-xattn.png){#fig-gated-xattn}
+
+::: {.callout-note title="Think Hard: Why initialize the gating parameter to 0?"}
+When $\alpha = 0$, $\tanh(\alpha) = 0$, so the cross-attention output is multiplied by zero and the layer reduces to an identity: $\mathbf{y} = 0 + \mathbf{x}_\text{text} = \mathbf{x}_\text{text}$. This means that at initialization, the model's output is *exactly* the output of the frozen pretrained LM — visual information has no effect. This is critical for two reasons: (1) it preserves the LM's language capabilities at the start of VLM training, preventing catastrophic forgetting, and (2) it provides a stable starting point for optimization, since the model starts from a known-good state and gradually learns to incorporate visual information. Without gating, training showed instabilities and 4.2% overall score degradation.
+:::
+
+**Interleaved image-text handling.** Flamingo can process sequences with multiple images interleaved with text (e.g., a webpage with photos and captions). At each text token, the model cross-attends *only* to the visual tokens from the most recently preceding image, not all images. Dependency on earlier images is maintained through the LM's self-attention across text tokens. This enables few-shot learning: show the model 4 examples of image-answer pairs, then a new image, and it generates an answer.
+
+Flamingo's design keeps both the vision encoder (NFNet-F6) and the LM (Chinchilla-70B) **completely frozen**. Only the Perceiver Resampler and cross-attention layers are trained, roughly 1.4B trainable parameters for the 80B model. Flamingo-80B surpassed fine-tuned state-of-the-art on 6 out of 16 benchmarks using only 32 examples per task.
+
+### BLIP-2: Q-Former Bridges Frozen Models {#sec-blip2}
+
+**BLIP-2** (Li et al., 2023) takes a different approach to the same problem. Rather than inserting cross-attention into the LM, it uses a lightweight **Querying Transformer (Q-Former)** to extract the most relevant visual information *before* passing it to the LM. The Q-Former acts as an information bottleneck, forcing the visual features to be compressed into a compact representation that contains only what is linguistically relevant.
+
+![BLIP-2 framework: a Q-Former bootstraps vision-language pre-training from frozen image and language models in two stages. Source: Li et al. (2023), Figure 1.](Vision Transformers and VLMs/images/blip2-overview.png){#fig-blip2-overview}
+
+The Q-Former (188M parameters) has **32 learnable query embeddings** $\mathbf{Q} \in \mathbb{R}^{32 \times 768}$ that interact with the frozen image encoder's features through cross-attention. These queries learn to extract the visual information most relevant for language understanding:
+
+$$
+\mathbf{Z} = \text{Q-Former}(\mathbf{Q}_\text{learned}, \mathbf{F}_\text{visual})
+$$ {#eq-qformer}
+
+The output $\mathbf{Z} \in \mathbb{R}^{32 \times 768}$ is then linearly projected to the LLM's embedding dimension and prepended to the text input as "soft visual prompts."
+
+![Q-Former architecture: learned queries interact with frozen image features through cross-attention, extracting text-relevant visual information. Different self-attention masks control query-text interaction depending on the training task. Source: Li et al. (2023), Figure 2.](Vision Transformers and VLMs/images/blip2-qformer.png){#fig-blip2-qformer}
+
+**Two-stage pretraining.** BLIP-2's training is elegant:
+
+- **Stage 1** (vision-language representation learning): The Q-Former learns to extract visual features relevant to language by optimizing three objectives simultaneously: image-text contrastive learning (ITC), image-grounded text generation (ITG), and image-text matching (ITM). The image encoder is frozen; only the Q-Former is trained.
+- **Stage 2** (vision-to-language generative learning): A linear layer projects Q-Former outputs into the frozen LLM's embedding space. The Q-Former + projector are trained with a language modeling loss, while the LLM stays frozen.
+
+The result: BLIP-2 with ViT-g + FlanT5-XXL achieves state-of-the-art VQA performance while using **54$\times$ fewer trainable parameters** than Flamingo-80B. The entire training takes less than 9 days on a single 16-A100 machine.
+
+### LLaVA: The Surprisingly Effective MLP {#sec-llava}
+
+**LLaVA** (Liu et al., 2023) made the most provocative claim in the connector debate: you do not need a Perceiver Resampler or a Q-Former. A simple **2-layer MLP** is sufficient to connect a vision encoder to an LLM.
+
+![LLaVA architecture: CLIP ViT features are projected through a simple MLP into the LLM's embedding space. No cross-attention, no learned queries — just a linear transformation. Source: Liu et al. (2023), Figure 1.](Vision Transformers and VLMs/images/llava-architecture.png){#fig-llava-architecture}
+
+The architecture is almost trivially simple:
+
+$$
+\mathbf{H}_v = W_2 \cdot \text{GELU}(W_1 \cdot \mathbf{Z}_v)
+$$ {#eq-llava-projection}
+
+where $\mathbf{Z}_v$ is the grid of visual features from CLIP ViT-L/14 (before the final pooling: all 576 patch tokens at 336px resolution), and $W_1, W_2$ are the weights of a 2-layer MLP with GELU activation. The projected visual tokens $\mathbf{H}_v$ are concatenated with the text token embeddings and fed directly to Vicuna-13B as a single sequence.
+
+**Two-stage training:**
+
+1. **Stage 1** (feature alignment): Both the vision encoder and LLM are *frozen*; only the MLP projection is trained on 595K image-caption pairs. The goal: learn a projection that maps visual features into the LLM's embedding space.
+2. **Stage 2** (instruction fine-tuning): The vision encoder stays frozen; both the MLP and the LLM are trained end-to-end on 158K instruction-following samples generated using GPT-4.
+
+LLaVA's data generation pipeline is itself innovative. The authors used text-only GPT-4 to generate instruction-following data from COCO images by encoding images as symbolic representations (captions + bounding boxes). Three types of data were generated: multi-turn conversations, detailed descriptions, and complex reasoning tasks. This approach, generating training data using an LLM, has since become standard practice.
+
+::: {.callout-warning title="Common Misconception: A Q-Former is obviously better than a simple MLP projection"}
+The Q-Former's learned queries, cross-attention, and multi-stage pretraining make it look like a far more sophisticated connector than LLaVA's 2-layer MLP. Surely sophistication means better performance? Not necessarily. LLaVA with a simple MLP achieved competitive or superior results on many VLM benchmarks, and Idefics2's ablation studies confirmed that the *connector architecture* contributes far less to final performance than the *training data quality* and *training recipe*. The Q-Former's main advantage is *compression*: reducing 576 visual tokens to 32, which reduces compute during LLM inference. But this compression can discard fine-grained spatial information needed for tasks like OCR, document understanding, and spatial reasoning. When token budget is not a concern, the simple MLP (which passes all visual tokens to the LLM) often wins because it lets the LLM decide what information to attend to, rather than forcing a bottleneck at the connector.
+:::
+
+::: {.callout-note title="Think Hard: Why does a simple MLP connector work as well as a Q-Former?"}
+The MLP only needs to perform a relatively simple task: align the embedding spaces of two pretrained models. The CLIP vision encoder already produces semantically rich features; the LLM already understands language. The connector just needs to "translate" between these two well-structured spaces, a task well within the capacity of a 2-layer MLP.
+
+The Q-Former does more: it *selects* and *compresses* visual information. With 32 queries, it reduces 576 visual tokens to 32. This compression can lose spatial detail that matters for tasks requiring fine-grained visual understanding (OCR, spatial reasoning). LLaVA preserves all 576 tokens, giving the LLM access to the full spatial resolution.
+
+The deeper lesson is that the bottleneck in VLM performance is usually the *training data and recipe*, not the connector architecture. LLaVA's 158K high-quality instruction-following examples, generated by GPT-4, may contribute more to its performance than any architectural choice.
+:::
+
+### Llama 3.2 Vision: Modern Cross-Attention Adapters {#sec-llama-vision}
+
+Llama 3.2 Vision (Meta, 2024) represents the trend toward building VLMs on top of the strongest available text models. Rather than training a VLM from scratch, it adds **cross-attention adapter layers** to a frozen Llama 3.1 text backbone, bridging a pretrained image encoder to the LLM.
+
+The approach is similar to Flamingo in spirit (cross-attention fusion) but benefits from much stronger base models: Llama 3.1 8B and 70B as the LM, with a CLIP-style vision encoder. Training used 6 billion image-text pairs, followed by supervised fine-tuning (SFT) and RLHF.
+
+The trend is clear: **start with the strongest available pretrained text model, and add vision as a "plugin" rather than training jointly from scratch.** This preserves the LM's language capabilities, which took billions of text tokens to learn, while adding visual understanding.
+
+
+### What Actually Matters: Lessons from Idefics2 and Cambrian-1 {#sec-what-matters}
+
+With four competing architectural paradigms (cross-attention, Q-Former, MLP, adapter), how do you choose? Two systematic studies, Idefics2 (Laurençon et al., 2024) and Cambrian-1 (Tong et al., 2024), provide evidence-based answers.
+
+#### Idefics2: Architecture Ablation at Scale
+
+Idefics2 systematically varied architecture, training method, and data while holding other factors constant. The most important findings:
+
+**Finding 1: Fully autoregressive + LoRA beats cross-attention + LoRA.**
+
+| Architecture | Backbone Training | Avg Score |
+|---|---|---|
+| Fully autoregressive (with Perceiver) | Frozen | 60.3 |
+| Cross-attention | Frozen | 66.7 |
+| Cross-attention | LoRA | 67.3 |
+| **Fully autoregressive** | **LoRA** | **69.5** |
+
+With frozen backbones, cross-attention wins by 6.4 points; it has more trainable parameters and richer vision-language interaction. But with LoRA (low-rank adaptation applied to both vision encoder and LLM), the simpler autoregressive approach surpasses cross-attention by 2.2 points. LoRA gives a massive +12.9 point boost to the autoregressive approach but only +0.6 to cross-attention. This suggests that cross-attention was already extracting most of the available information in the frozen setting.
+
+![Idefics2 architecture comparison. The fully autoregressive design with LoRA outperforms the cross-attention design. Source: Laurençon et al. (2024), Figure 1.](Vision Transformers and VLMs/images/idefics2-architecture.png){#fig-idefics2}
+
+**Finding 2: Resolution matters more than encoder size.**
+
+SigLIP-SO400M (400M parameters, 384px) matched EVA-CLIP-5B (5B parameters, 224px) on VLM benchmarks. For OCR-heavy tasks (TextVQA), the resolution advantage was even larger. This suggests you should scale resolution before scaling encoder parameters.
+
+**Finding 3: Learned pooling with a Perceiver boosts performance by 8.5 points** while *reducing* the number of visual tokens (from 729 to 64). But going beyond 64 tokens provided no further benefit.
+
+#### Cambrian-1: No Single Encoder Is Best
+
+Cambrian-1 evaluated 23 vision encoders from 7 model families (CLIP, DINOv2, MAE, I-JEPA, Stable Diffusion, MiDaS, SAM) and found a striking result: **no single vision encoder is best across all tasks.** Language-supervised encoders (CLIP, SigLIP) excel at semantic tasks. Self-supervised encoders (DINOv2) excel at spatial and structural tasks. Diffusion-based features (Stable Diffusion) capture fine-grained visual detail. These capabilities are *complementary*.
+
+Cambrian-1's **Spatial Vision Aggregator (SVA)** combines features from multiple encoders. Rather than naively concatenating features (which fails because encoders have different spatial resolutions), SVA uses learned queries that cross-attend to spatially corresponding regions from each encoder:
+
+$$
+\mathbf{q}^*_{i,j} = \text{softmax}\left(\frac{\mathbf{q}_{i,j} \cdot [\mathbf{k}_{i,j,1}, \ldots, \mathbf{k}_{i,j,N}]^\top}{\sqrt{C}}\right) [\mathbf{v}_{i,j,1}, \ldots, \mathbf{v}_{i,j,N}]
+$$ {#eq-sva}
+
+where query $\mathbf{q}_{i,j}$ at position $(i,j)$ cross-attends to the corresponding spatial sub-region from each of the $N$ vision encoders.
+
+![Cambrian-1 Spatial Vision Aggregator (SVA). Learnable query tokens cross-attend to spatially corresponding regions from multiple vision encoders, preserving spatial inductive bias while aggregating complementary features. Source: Tong et al. (2024), Figure 5.](Vision Transformers and VLMs/images/cambrian-sva.png){#fig-cambrian-sva}
+
+The best multi-encoder combination (SigLIP + DINOv2 + ConvNeXt + CLIP) achieved 54.7% average score on vision-centric benchmarks, compared to 51-52% for the best single encoder. SVA also massively outperformed a Perceiver Resampler (+28.4 points on OCR/chart tasks), because the Resampler's global cross-attention cannot effectively handle concatenated tokens from encoders with different spatial resolutions.
+
+#### SigLIP 2: Training Methodology > Encoder Size
+
+Perhaps the most impactful finding for practitioners comes from SigLIP 2: **a well-trained 400M parameter model outperforms a poorly trained 6B parameter model.** SigLIP 2 SO400M (with its unified contrastive + captioning + self-supervised recipe) surpassed InternViT-6B on VLM benchmarks, a model 15$\times$ larger. The training recipe matters far more than raw model size.
+
+
+::: {.callout-warning title="Common Misconception: You should pick one vision encoder and scale it up"}
+The Cambrian-1 study found that **no single vision encoder is best across all tasks**. CLIP and SigLIP encoders excel at semantic understanding (recognizing objects, understanding scenes) because they were trained with language alignment. DINOv2 encoders excel at spatial and structural tasks (segmentation, depth estimation) because they were trained with self-supervised objectives that preserve local structure. Diffusion-model features capture fine-grained visual detail. Combining complementary encoders (SigLIP + DINOv2 + ConvNeXt) outperformed scaling any single encoder. Instead of pouring compute into a larger CLIP model, consider using two or three smaller encoders trained with different objectives.
+:::
+
+### The Connector Design Space: A Synthesis {#sec-connector-synthesis}
+
+Let us synthesize what we have learned into a practical framework. VLM connectors fall on a spectrum from **feature-preserving** (pass all visual tokens) to **feature-compressing** (reduce to a fixed count):
+
+| Connector | Type | Visual Tokens | Trainable Params | Key Trade-off |
+|---|---|---|---|---|
+| MLP (LLaVA) | Preserving | All patches (256–576) | ~10M | Full spatial detail, high LLM compute |
+| Q-Former (BLIP-2) | Compressing | 32 (fixed) | 188M | Information bottleneck, efficient LLM |
+| Perceiver (Flamingo) | Compressing | 64 (fixed) | ~100M | Flexible input, fixed output |
+| SVA (Cambrian-1) | Preserving | Configurable | ~50M | Multi-encoder, spatial bias |
+| Cross-attention (Llama 3.2) | Hybrid | Full features (via attention) | ~1–2B | Rich interaction, high params |
+
+The evidence suggests:
+
+1. **With LoRA, simpler is better**: Fully autoregressive + MLP + LoRA outperforms cross-attention + LoRA (Idefics2)
+2. **Resolution > parameters**: A 400M encoder at 384px matches a 5B encoder at 224px (Idefics2, SigLIP 2)
+3. **Training recipe > architecture**: Good data and training matter more than connector sophistication (LLaVA, SigLIP 2)
+4. **Multiple encoders > single encoder**: Complementary features from different training paradigms improve all tasks (Cambrian-1)
+5. **Spatial bias helps**: Connectors that preserve spatial structure (SVA, MLP) outperform those that destroy it (Perceiver) on OCR and spatial tasks
+
+::: {.callout-tip title="Self-explanation prompt"}
+If you were building a VLM today with a limited compute budget, which architecture pattern would you choose? Consider the trade-offs between Flamingo-style cross-attention (expressive but expensive), BLIP-2 Q-Former (efficient but lossy), and LLaVA-style MLP (simple but many visual tokens). What would change if your primary use case is document understanding vs. natural image QA?
+:::
+
+::: {.callout-tip title="Self-explanation prompt"}
+Why might using multiple vision encoders (Cambrian-1) outperform scaling a single encoder? Think about what CLIP, DINOv2, and diffusion models each learn — and what each *fails* to capture.
+:::
+
+---
+
+This completes our tour of the VLM architecture zoo. From the initial insight that images could be treated as sequences of patches (ViT), through the discovery that self-supervised ViTs learn remarkable emergent properties (DINO), to the contrastive alignment of vision and language (CLIP), and finally to the diverse ecosystem of VLMs that connect vision encoders to LLMs, the field has progressed from "can a Transformer process images at all?" to "what is the most efficient way to build a system that sees, understands, and speaks?"
+
+In the closing section, we consolidate everything with key takeaways, practice questions, and a complete concept map.

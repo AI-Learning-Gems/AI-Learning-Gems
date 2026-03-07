@@ -1,0 +1,19 @@
+---
+title: "Vision Transformers (ViTs) and Vision-Language Models (VLMs)"
+filters:
+  - ../_extensions/pandoc-ext/diagram/diagram.lua
+---
+
+{{< include "Vision Transformers and VLMs/_01-introduction.qmd" >}}
+
+{{< include "Vision Transformers and VLMs/_02-vit-architecture.qmd" >}}
+
+{{< include "Vision Transformers and VLMs/_03-what-vits-learn.qmd" >}}
+
+{{< include "Vision Transformers and VLMs/_04-training-vits.qmd" >}}
+
+{{< include "Vision Transformers and VLMs/_05-clip-and-contrastive-learning.qmd" >}}
+
+{{< include "Vision Transformers and VLMs/_06-vlm-architecture-zoo.qmd" >}}
+
+{{< include "Vision Transformers and VLMs/_99-closing.qmd" >}}
