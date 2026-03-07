@@ -1,0 +1,256 @@
+## Tools, Memory, and Grounding {#sec-tools-memory-grounding}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Toolformer (Schick et al., 2023)](https://arxiv.org/abs/2302.04761) | Self-supervised tool-use acquisition |
+| 2 | [Generative Agents (Park et al., 2023)](https://arxiv.org/abs/2304.03442) | Observation-Reflection-Planning memory architecture |
+| 3 | [MemGPT (Packer et al., 2023)](https://arxiv.org/abs/2310.08560) | OS-inspired virtual context management |
+| 4 | [SWE-agent (Yang et al., 2024)](https://arxiv.org/abs/2405.15793) | Agent-Computer Interface design |
+| 5 | [Voyager (Wang et al., 2023)](https://arxiv.org/abs/2305.16291) | Ever-growing skill library as procedural memory |
+| 6 | [Gorilla (Patil et al., 2023)](https://arxiv.org/abs/2305.15334) | Retrieval-aware training for accurate API calls |
+
+:::
+
+### Priya Needs Hands and a Brain
+
+Priya's research assistant can now reason and act in an interleaved loop (ReAct), explore multiple solution paths (Tree of Thoughts), and learn from its own failures (Reflexion). But it still has three crippling limitations.
+
+First, it cannot *do* anything beyond generating text. When it decides "I should search Semantic Scholar for recent RAG papers," it generates a thought about searching, not an actual search. Priya has to manually copy the query, paste it into the API, and feed the results back. The agent reasons well but acts only in her imagination.
+
+Second, it forgets everything between sessions. Every time Priya restarts the script, the agent has no memory of the 30 papers it already reviewed, the code it already wrote, or the dead ends it already explored. The agent is intelligent in the moment but has the long-term memory of a goldfish.
+
+Third, the interface between the agent and its tools is clumsy. When the agent tries to edit a Python file, it generates a complete rewrite of the file rather than a targeted edit. When it reads a long file, it receives the entire content in a single dump with no line numbers, making it impossible to refer to specific locations. The tools exist, but the *interface* between the agent and the tools is not designed for how LLMs actually work.
+
+These three problems correspond to three foundational research directions: tool use, memory architectures, and Agent-Computer Interface design. This is where the rubber meets the road. Reasoning gives agents a mind; tools, memory, and grounding give them hands and a brain.
+
+### Tool Use: From Self-Supervised Learning to the MCP Protocol
+
+The most straightforward way to give an LLM tools is *prompting*: describe the available tools in the system prompt, show a few examples of how to use them, and let the model generate tool calls in a structured format. This is how ChatGPT's function calling works, and it is surprisingly effective. But it raises a deep question: why should a *language model* know how to use tools at all? Tool use was not in the pretraining data (or at least, not in a directly usable form). How do we teach it?
+
+[Toolformer](https://arxiv.org/abs/2302.04761) ([Schick et al., NeurIPS 2023](https://arxiv.org/abs/2302.04761)) provides the most elegant answer. The key insight is that an LLM can teach *itself* to use tools through self-supervised learning, without human demonstrations. The method works in three steps.
+
+**Step 1: Generate candidate API calls.** Given a text dataset, use the LLM with few-shot prompting to annotate each passage with potential API calls. For example, given the text "The Eiffel Tower was completed in 1889," the model might insert a candidate call: "The Eiffel Tower was completed in [QA("When was the Eiffel Tower completed?")] 1889."
+
+**Step 2: Execute and filter.** Execute each candidate API call and compare the language modeling loss on the subsequent tokens with and without the API result. Let $L^+(e_i)$ be the loss when the model has access to the API result, and $L^-(e_i)$ be the loss without it. An API call is kept only if:
+
+$$
+L^-(e_i) - L^+(e_i) > \tau
+$$ {#eq-toolformer-criterion}
+
+where $\tau$ is a threshold. The intuition is simple: the API call is useful only if knowing the result actually helps the model predict what comes next. A calculator call inserted before "2 + 3 = 5" helps (the model is more confident about "5" when it has the calculator result). A calculator call inserted before "the weather was nice" does not.
+
+**Step 3: Fine-tune.** Fine-tune the LLM on the filtered dataset, which now includes correctly-placed API calls. After training, the model can decide for itself when and where to insert tool calls during generation.
+
+![Toolformer's self-supervised approach. Given input text, the model samples candidate API calls, executes them, and filters for calls that reduce prediction loss. The filtered calls are used to fine-tune the model. Source: Schick et al. (2023), Figure 2.](LLM and VLM Agentic Systems/images/toolformer-approach.png){#fig-toolformer-approach}
+
+Toolformer's results are impressive for a 6.7B parameter model. Using five tools (calculator, Q&A system, search engine, translator, calendar), it outperforms the much larger GPT-3 (175B) on several zero-shot benchmarks. The key is that the model learns not just *how* to call tools but *when*: it inserts calculator calls for arithmetic, search calls for factual claims, and translator calls for foreign-language text, all without human supervision.
+
+::: {.callout-note title="Think Hard: Why might a self-supervised approach to tool learning be more scalable than prompt-based function calling?"}
+
+Prompt-based function calling (the approach used by ChatGPT, Claude, and most commercial systems) works by describing tools in the system prompt and relying on the model's in-context learning ability to generate correct calls. This is flexible and requires no fine-tuning, but it has limitations.
+
+First, every tool description consumes context window tokens. With 5 tools, this is fine. With 500 tools (as in enterprise applications), the tool descriptions alone might consume thousands of tokens, leaving less room for the actual task. [Gorilla](https://arxiv.org/abs/2305.15334) ([Patil et al., 2023](https://arxiv.org/abs/2305.15334)) addresses this by retrieving relevant tool descriptions at inference time, but this adds complexity.
+
+Second, prompt-based approaches depend entirely on the model's ability to follow instructions. If the tool's calling convention is unusual or the parameters are complex, the model may generate malformed calls. Toolformer's fine-tuning approach embeds tool-use patterns directly into the weights, making calls more reliable.
+
+Third, and most importantly, Toolformer's self-supervised selection criterion (@eq-toolformer-criterion) ensures that the model only learns to call tools when doing so is *actually helpful*. Prompt-based approaches have no such filter; the model might call tools gratuitously, wasting compute and introducing errors. This is a real problem in practice: agents that over-use tools are slower and more error-prone than agents that use tools judiciously.
+
+The industry has converged on a middle ground: prompt-based function calling with structured output formats (JSON schemas that constrain the model's output to valid tool calls). Anthropic's Model Context Protocol (MCP), introduced in late 2024, standardizes this by defining a protocol for LLMs to discover and call tools, analogous to how USB standardized hardware peripherals. The evolution from Toolformer's self-supervised learning (2023) through prompted function calling (2023-2024) to MCP (2024-2025) traces the field's progression from research proof-of-concept to engineering standard.
+:::
+
+### Memory: The Four Types
+
+Reasoning without memory is like solving a jigsaw puzzle while forgetting the pieces you have already placed. You keep redoing work, losing context, and making the same mistakes. Memory is what gives an agent continuity, coherence, and the ability to build on its own past experience.
+
+The cognitive science literature identifies several types of human memory, and the mapping to LLM agents turns out to be remarkably productive. Following [Weng (2023)](https://lilianweng.github.io/posts/2023-06-23-agent/) and [CoALA](https://arxiv.org/abs/2309.02427) ([Sumers et al., TMLR 2024](https://arxiv.org/abs/2309.02427)), we can distinguish four types:
+
+**Working memory** corresponds to the LLM's context window: the information currently "in mind." It is fast and immediately accessible, but strictly limited in capacity. Even with modern 128K+ token windows, a context window is far too small to hold everything an agent encounters over a multi-day research workflow. Working memory is where the current task state lives: the conversation history, the most recent observations, and the current plan.
+
+**Episodic memory** stores specific past experiences: trajectories, interactions, outcomes. "Last time I tried to install this library, I got a compatibility error with Python 3.12." This is what Reflexion uses: its memory buffer of self-reflections is a form of episodic memory. Episodic memory is typically implemented as a vector database that stores embeddings of past interactions and retrieves relevant ones via semantic similarity.
+
+**Semantic memory** stores factual knowledge and beliefs: "The Toolformer paper uses GPT-J 6.7B." "Semantic Scholar's API requires an API key." This overlaps with the LLM's parametric knowledge (facts learned during pretraining) but also includes knowledge acquired during the agent's operation, stored in an external knowledge base.
+
+**Procedural memory** stores learned skills and routines: "Here is how to search Semantic Scholar," "Here is how to set up a Python virtual environment." [Voyager](https://arxiv.org/abs/2305.16291)'s skill library ([Wang et al., NeurIPS 2023](https://arxiv.org/abs/2305.16291)) is the canonical example: a growing collection of JavaScript functions (for Minecraft) that the agent writes, verifies, and stores for future reuse. Unlike episodic memory (which stores experiences), procedural memory stores *capabilities*.
+
+```{.d2}
+direction: down
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 13
+    }
+  }
+  working: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  episodic: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  semantic: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  procedural: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 16
+      bold: true
+    }
+  }
+}
+
+wm: "Working Memory\n(Context Window)\n\nFast, limited capacity\nCurrent task state" {
+  class: [base; working]
+}
+
+ltm: "Long-Term Memory" {
+  class: [base; container]
+  label.near: top-left
+
+  em: "Episodic Memory\n\nPast experiences,\ntrajectories, reflections\n(Reflexion, Generative Agents)" {
+    class: [base; episodic]
+  }
+  sm: "Semantic Memory\n\nFacts, knowledge,\nbeliefs, documents\n(RAG, vector databases)" {
+    class: [base; semantic]
+  }
+  pm: "Procedural Memory\n\nSkills, routines,\ncode libraries\n(Voyager skill library)" {
+    class: [base; procedural]
+  }
+}
+
+wm -> ltm.em: "store experiences" {
+  style.stroke: "#6366F1"
+}
+wm -> ltm.sm: "store facts" {
+  style.stroke: "#10B981"
+}
+wm -> ltm.pm: "store skills" {
+  style.stroke: "#F59E0B"
+}
+ltm.em -> wm: "retrieve relevant\nexperiences" {
+  style.stroke: "#6366F1"
+  style.stroke-dash: 5
+}
+ltm.sm -> wm: "retrieve relevant\nfacts" {
+  style.stroke: "#10B981"
+  style.stroke-dash: 5
+}
+ltm.pm -> wm: "retrieve relevant\nskills" {
+  style.stroke: "#F59E0B"
+  style.stroke-dash: 5
+}
+```
+
+### Deep Dive: Generative Agents' Memory Architecture
+
+The most sophisticated memory architecture for LLM agents appeared in [Generative Agents](https://arxiv.org/abs/2304.03442) ([Park et al., UIST 2023](https://arxiv.org/abs/2304.03442)), which simulated a virtual town called Smallville populated by 25 AI characters. Each character has its own personality, daily routine, relationships, and goals. The characters wake up, eat breakfast, go to work, have conversations, form opinions, and make plans. The headline result: when the researchers initialized one character, Isabella, with the goal of planning a Valentine's Day party, the agents autonomously spread invitations through word-of-mouth conversations, coordinated on a date and location, and showed up to the party. No orchestration. No script. Pure emergent social behavior from 25 independent agents with good memory.
+
+How did they do it? The memory architecture has three key components.
+
+**Observation streams.** Each agent continuously records observations as natural-language statements with timestamps: "Isabella Rodriguez is organizing a Valentine's Day party at Hobbs Cafe" (February 12, 5:00 PM), "Klaus Mueller is working on his research paper at the library" (February 12, 5:30 PM). These observations accumulate in a memory stream, which can grow to thousands of entries over a simulated day.
+
+**Retrieval.** When the agent needs to act, it retrieves the most relevant memories using a scoring function that combines three factors:
+
+$$
+\text{score}(m, q) = \alpha \cdot \text{recency}(m) + \beta \cdot \text{importance}(m) + \gamma \cdot \text{relevance}(m, q)
+$$ {#eq-generative-agents-retrieval}
+
+*Recency* is an exponential decay: recent observations score higher. *Importance* is rated by the LLM on a 1-10 scale at the time of observation: "Isabella is organizing a Valentine's Day party" rates high; "Isabella ate a sandwich" rates low. *Relevance* is the cosine similarity between the memory embedding and the current query embedding. All three factors are necessary. Recency alone would favor trivial recent events. Importance alone would always retrieve the same "big" memories. Relevance alone would miss temporally important context.
+
+**Reflection.** Periodically (triggered when the sum of importance scores of recent memories exceeds a threshold), the agent generates higher-level *reflections*: abstract summaries of patterns across multiple observations. "Klaus and Isabella have been spending more time together recently" is a reflection derived from many individual observations of their interactions. Reflections are stored in the same memory stream as observations, but at a higher level of abstraction. They enable the agent to reason about long-term trends and relationships, not just immediate events.
+
+![Generative Agents architecture: the memory stream records observations, retrieval uses a three-factor scoring function, reflection generates higher-level insights, and planning produces daily schedules. Source: Park et al. (2023), Figure 2.](LLM and VLM Agentic Systems/images/generative-agents-architecture.png){#fig-generative-agents-arch}
+
+![Reflection tree: individual observations (bottom) are synthesized into higher-level reflections (middle), which feed into even more abstract insights (top). Source: Park et al. (2023), Figure 6.](LLM and VLM Agentic Systems/images/generative-agents-reflection-tree.png){#fig-generative-agents-reflection}
+
+![The Smallville environment: 25 generative agents inhabit this virtual town, going about daily routines that lead to emergent social behaviors including the autonomous organization of a Valentine's Day party. Source: Park et al. (2023), Figure 5.](LLM and VLM Agentic Systems/images/generative-agents-smallville-map.png){#fig-generative-agents-map}
+
+::: {.callout-warning title="Common Misconception: Memory is just a vector database"}
+
+Many practitioners equate "agent memory" with "store embeddings in Pinecone and retrieve via similarity search." This misses three critical design dimensions that Generative Agents gets right.
+
+First, *what* to store matters as much as *how* to store it. Raw observations are often too granular; reflections abstract across multiple observations to create useful higher-level knowledge. An agent that stores "user clicked button A" a thousand times is less useful than one that reflects "user prefers the direct workflow over the guided wizard."
+
+Second, *retrieval scoring* must combine multiple signals. Pure semantic similarity misses temporal context (is this memory recent?) and importance (is this memory consequential?). The three-factor scoring in @eq-generative-agents-retrieval is not arbitrary; ablation studies showed that removing any single factor degraded the agents' behavior quality by 15-30%.
+
+Third, *when* to retrieve and *how much* to retrieve are design decisions that most implementations get wrong. Retrieving too often clutters working memory with irrelevant context. Retrieving too little leaves the agent ignorant of critical past experience. The threshold-based reflection trigger in Generative Agents is a principled approach: reflect when enough important things have happened that a synthesis would be valuable.
+:::
+
+### MemGPT: When the Context Window Is Not Enough
+
+Generative Agents' memory works because each agent's simulation spans hours, not months. But what about Priya's research assistant, which needs to operate across weeks, processing hundreds of papers, thousands of code files, and tens of thousands of interactions? The context window, even at 128K tokens, is nowhere near enough.
+
+[MemGPT](https://arxiv.org/abs/2310.08560) ([Packer et al., ICLR 2024](https://arxiv.org/abs/2310.08560)) addresses this with an operating-systems analogy that is both clever and practical. Just as an operating system provides virtual memory that makes a small, fast physical memory appear larger by paging data to and from disk, MemGPT provides *virtual context management* that makes the LLM's limited context window appear larger by paging information to and from external storage.
+
+The architecture has two tiers. The *main context* (analogous to RAM) is what fits in the LLM's context window: the system prompt, recent conversation history, and currently-active information. The *external context* (analogous to disk) is everything else: older conversations, archived facts, long documents, retrieved passages.
+
+The crucial innovation is that the LLM itself manages the paging. MemGPT gives the agent function-calling access to its own memory management operations: `core_memory_save(text)` writes important information from the main context to persistent storage. `core_memory_search(query)` retrieves relevant information from external storage and loads it into the main context. `conversation_search(query)` searches through archived conversation history. The LLM learns to use these operations proactively: when it detects that the context window is getting full, it archives less-important information; when it realizes it needs information from a past interaction, it retrieves it.
+
+::: {.callout-note title="Think Hard: What would break in MemGPT's design if the LLM could not reliably generate function calls to manage its own memory?"}
+
+Everything. MemGPT's entire design depends on the LLM correctly deciding *when* to page information in and out and *what* to page. If the model fails to save important information before it scrolls out of the context window, that information is lost forever. If the model fails to retrieve relevant past context when answering a question, it gives incorrect or incomplete answers. If the model pages in irrelevant information, it wastes precious context window space.
+
+This is why MemGPT only became practical with models that are reliable at function calling (GPT-4, Claude 3.5). Earlier models would generate syntactically invalid function calls, forget to save critical information, or retrieve the wrong context. The reliability of memory management scales with the reliability of the underlying model's function-calling ability.
+
+This reveals a broader point: the capabilities of LLM agents are *bottlenecked by the weakest link* in their component chain. You can design the most sophisticated memory architecture imaginable, but if the LLM cannot reliably execute the memory management operations, the architecture degrades to whatever fits in the context window. This is a recurring theme in agent design: elegant architecture meets messy reality.
+:::
+
+### The Agent-Computer Interface: Why Design Matters
+
+We have covered what agents can think (reasoning), what they can remember (memory), and what they can do (tools). There is one more dimension that turns out to be at least as important as any of these: *how* the agent interacts with its tools. This is the Agent-Computer Interface (ACI) concept introduced by [SWE-agent](https://arxiv.org/abs/2405.15793) ([Yang et al., NeurIPS 2024](https://arxiv.org/abs/2405.15793)).
+
+The core insight of SWE-agent is a riff on the classic Human-Computer Interaction (HCI) principle: when a user struggles with software, the problem is usually the interface, not the user. The same applies to LLM agents. When an agent fails to edit a file correctly, the problem might not be the model's reasoning ability; it might be that the editing interface does not match how LLMs process text.
+
+SWE-agent redesigned the interface between a coding agent and a computer terminal, following three design principles:
+
+**Principle 1: Actions should be simple and composable.** Instead of requiring the agent to produce a complete `diff` or `sed` command (which LLMs frequently get wrong), SWE-agent provides `open`, `scroll_up`, `scroll_down`, `edit`, and `search_file` commands. Each command does one thing and returns clear feedback. This is the same philosophy behind UNIX pipes: small tools that compose.
+
+**Principle 2: Feedback should be immediate and informative.** After every action, the agent sees the result. If an edit introduced a syntax error, the agent immediately receives the error message. If a search found no results, the agent gets a clear "no results" message rather than empty output (which LLMs tend to interpret as success). Critically, the file viewer includes *line numbers*, so the agent can refer to specific locations precisely.
+
+**Principle 3: Prevent and recover from errors.** The interface validates commands before execution (catching malformed syntax), provides undo operations, and limits the scope of destructive actions. If the agent tries to write a file with a syntax error, the write is blocked and the agent is told why.
+
+![SWE-agent overview: the Agent-Computer Interface (ACI) provides specialized file viewers, search, and edit commands designed for how LLMs process text. Source: Yang et al. (2024), Figure 1.](LLM and VLM Agentic Systems/images/swe-agent-overview.png){#fig-swe-agent-overview}
+
+The results validate the approach. SWE-agent with GPT-4 resolves 12.5% of SWE-bench issues, compared to single-digit percentages for agents using unmodified terminal interfaces. Crucially, many of the improvements come not from better reasoning but from *fewer interface-induced errors*: the agent makes fewer malformed edits, navigates files more efficiently, and recovers from errors faster.
+
+The ACI paper's deepest insight is that *interface design and model capability are substitutes*. If you have a perfect model, any interface works. If you have an imperfect model (which we always do), a well-designed interface compensates for the model's weaknesses. This means that investing in interface design can be more cost-effective than investing in a larger model. For Priya, this means her research assistant might work better with a thoughtfully designed set of research tools (structured API wrappers, validated code runners, incremental file editors) than with a more powerful but clumsily interfaced model.
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+Think about an interface you use daily (your IDE, a terminal, a web browser). What features make it well-designed for *you* as a human? Now imagine an LLM using the same interface. What would trip it up? What would you redesign? The answer reveals the gap between HCI and ACI, and it is wider than you might expect.
+:::
+
+The tools, memory, and interface design we have explored in this section transform an agent from a reasoning engine into a grounded actor that can interact with the real world, remember its past, and operate through well-designed interfaces. But what happens when a single agent is not enough? What if the task is too complex for one entity, requiring different skills, perspectives, and specializations? That is the question we turn to next, as Priya discovers that her monolithic agent has hit a wall and needs to be split into a team.

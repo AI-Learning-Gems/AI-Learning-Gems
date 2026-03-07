@@ -1,0 +1,213 @@
+## Multi-Agent Systems and Scaling Collaboration {#sec-multi-agent}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Magentic-One (Fourney et al., 2024)](https://arxiv.org/abs/2411.04468) | Orchestrator + specialists; ledger-based planning |
+| 2 | [AutoGen (Wu et al., 2023)](https://arxiv.org/abs/2308.08155) | Multi-agent conversation framework |
+| 3 | [MetaGPT (Hong et al., 2023)](https://arxiv.org/abs/2308.00352) | SOP-based multi-agent software development |
+| 4 | [Multi-agent debate (Du et al., 2023)](https://arxiv.org/abs/2305.14325) | Debate improves factuality and reasoning |
+| 5 | [CoALA (Sumers et al., 2023)](https://arxiv.org/abs/2309.02427) | Multi-agent interaction in the CoALA framework |
+
+:::
+
+### Priya Hits the Wall of Complexity
+
+Priya's single-agent research assistant has grown impressive. It reasons with ReAct, learns from failures with Reflexion, searches Semantic Scholar, runs Python code, and manages its memory with MemGPT. But she has asked it to do something ambitious: simultaneously find the 20 most-cited papers on RAG from 2023-2025, reproduce three baselines, and write a synthesis.
+
+The agent struggles. Not because any individual capability is lacking, but because the *orchestration* collapses. When the agent is in the middle of debugging a PyTorch training loop, it loses track of which papers it still needs to read. When it switches from coding back to literature search, it forgets the specific error it was debugging. The context window becomes a war zone of half-finished tasks, and the agent's attention (such as it is) ping-pongs between objectives without making sustained progress on any of them.
+
+Priya has an idea. What if, instead of one agent trying to do everything, she creates *specialized* agents? A Researcher that finds and summarizes papers. A Coder that reproduces experiments. An Orchestrator that decides who should work on what and synthesizes the results. Each agent can focus on its own domain, with its own tools and its own memory, while the Orchestrator maintains the big picture.
+
+This is the multi-agent paradigm, and it is one of the most discussed (and most over-hyped) ideas in the LLM agent field. Let us examine when it actually helps, when it hurts, and what the seminal systems look like.
+
+### Why Multiple Agents? The Division of Labor
+
+The fundamental case for multi-agent systems rests on a simple observation: as the number of tools and the complexity of the task increase, a single agent's reliability degrades. An agent with 5 tools and a 3-step task can usually manage. An agent with 50 tools and a 50-step task faces a combinatorial explosion. Which tool should it use at each step? How should it handle failures in step 37 that invalidate work from step 12? How does it maintain coherent progress across a task that spans multiple domains (searching the web, editing files, running code, interacting with users)?
+
+Division of labor addresses this by *narrowing each agent's scope*. A Researcher agent does not need to know about code debugging tools. A Coder agent does not need to know about academic search APIs. By specializing, each agent has a smaller action space, a more focused prompt, and a simpler decision problem. The complexity shifts from the agents to the *communication protocol* between them.
+
+But this shift creates new problems. How do agents coordinate? How do they share information? How does the system avoid duplication of effort? And does the overhead of inter-agent communication outweigh the benefits of specialization? These questions define the multi-agent design space.
+
+### Design Pattern 1: Debate
+
+The simplest multi-agent pattern is *debate*: multiple agents independently tackle the same problem and then argue about their answers until they converge. Du et al. ([Du et al., ICML 2024](https://arxiv.org/abs/2305.14325)) showed that multi-agent debate significantly improves factuality on math and strategic reasoning tasks. The mechanism is analogous to ensemble methods in machine learning: individual models have uncorrelated errors, and aggregation cancels noise.
+
+The update rule is implicit: each agent generates a response, reads the other agents' responses, and generates a revised response. Over multiple rounds, agents tend to converge toward the correct answer, because agents with wrong answers are "argued out of" their positions by agents with correct ones. Formally, each agent updates its belief:
+
+$$
+b_i^{t+1} = f(b_i^t, \{r_j^t\}_{j \neq i})
+$$
+
+where $b_i^t$ is agent $i$'s belief at round $t$ and $r_j^t$ is agent $j$'s response.
+
+Debate works best when the task has a *verifiable* correct answer (math, factual claims, logical reasoning), because agents can check each other's work against external evidence. It works less well for subjective or creative tasks, where "convergence" might mean all agents drift toward a bland consensus rather than exploring diverse ideas.
+
+::: {.callout-note title="Think Hard: Under what conditions would a multi-agent debate outperform simply asking a single model to self-critique (Reflexion-style)?"}
+
+At first glance, debate and self-critique look similar: both involve generating a response, evaluating it, and revising. The key difference is whether the critique comes from the *same* model instance or a *different* one.
+
+When a single model self-critiques, it tends to be biased toward its own initial answer. It generated that answer for a reason, and its self-critique is conditioned on the same knowledge and biases that produced the original. This is the "echo chamber" problem: the model is unlikely to catch errors that arise from systematic blind spots.
+
+Multiple agents, especially if they are prompted with different personas or instructions, introduce *cognitive diversity*. Agent A might approach the problem algebraically while Agent B approaches it geometrically. Their errors are less correlated, so debate is more likely to surface mistakes that self-critique would miss.
+
+However, this diversity comes at a cost: 3-7x more tokens, higher latency, and coordination complexity. And if all agents are the same model with the same biases (just different random seeds), the diversity may be illusory. The empirical evidence suggests debate helps most when agents have genuinely different "perspectives" (different prompts, different tools, or even different underlying models) and when the task has objective success criteria.
+:::
+
+### Design Pattern 2: Role-Playing with Standard Operating Procedures
+
+MetaGPT ([Hong et al., ICLR 2024](https://arxiv.org/abs/2308.00352)) and ChatDev ([Qian et al., 2023](https://arxiv.org/abs/2307.07924)) take a different approach inspired by organizational design. Instead of agents debating as equals, they assign structured *roles* (Product Manager, Architect, Engineer, QA Tester) and enforce *Standard Operating Procedures* (SOPs) that govern their interactions.
+
+In MetaGPT's software development pipeline, the Product Manager writes a Product Requirements Document (PRD). The Architect reads the PRD and produces a system design. The Engineer reads the design and writes code. The QA Tester reads the code and writes tests. Each role produces a *structured artifact* (PRD, design doc, code, test suite) that serves as a verifiable checkpoint. If the Architect's design is inconsistent with the PRD, the problem is caught before any code is written.
+
+The key insight is that SOPs function as *communication protocols with built-in verification*. Instead of agents passing free-form messages (which can be ambiguous, incomplete, or contradictory), they pass structured documents with expected formats. This drastically reduces coordination failures because each agent knows exactly what to expect from its predecessors and what to produce for its successors.
+
+ChatDev extends this with explicit *phase transitions*: the waterfall proceeds from Design to Coding to Testing to Documentation, with human-like dialogue between role-playing agents at each phase boundary. The CEO might say to the CTO: "We need to add authentication." The CTO then discusses implementation details with the Programmer, who writes code and hands it to the Tester.
+
+The results are impressive for structured tasks. MetaGPT reduces code hallucination by 66% compared to ChatDev on a software development benchmark, and both significantly outperform single-agent approaches on multi-file codebases. The SOPs prevent the "context pollution" problem where a single agent accumulates too many responsibilities and starts confusing requirements with implementation details.
+
+### Design Pattern 3: Orchestrated Collaboration
+
+Magentic-One ([Fourney et al., 2024](https://arxiv.org/abs/2411.04468)), developed at Microsoft Research, represents the most sophisticated orchestration pattern. It uses a single Orchestrator agent that plans tasks, delegates to specialist agents, and tracks progress via a structured *ledger*.
+
+The Orchestrator maintains a ledger at each step:
+
+$$
+L_t = (\text{task}, \text{facts}_t, \text{plan}_t, \text{progress}_t)
+$$ {#eq-magentic-ledger}
+
+The *task* is the overall objective. The *facts* are what the system has learned so far. The *plan* is the current strategy, broken into steps. The *progress* tracks which steps have been completed and their outcomes. At each turn, the Orchestrator updates the ledger and decides which specialist agent should act next.
+
+The specialist agents are: **WebSurfer** (navigates the web using a browser), **FileSurfer** (reads and navigates local files), **Coder** (writes and executes Python code), and **ComputerTerminal** (executes shell commands). Each specialist is good at one thing and has a focused prompt and tool set.
+
+![Magentic-One orchestrator architecture. The Orchestrator maintains a ledger (task, facts, plan, progress) and delegates to specialist agents (WebSurfer, FileSurfer, Coder, ComputerTerminal). Source: Fourney et al. (2024), Figure 1.](LLM and VLM Agentic Systems/images/magentic-one-orchestrator.png){#fig-magentic-one-orchestrator}
+
+![Example Magentic-One task execution showing the Orchestrator directing WebSurfer and Coder agents through a multi-step workflow. Source: Fourney et al. (2024), Figure 2.](LLM and VLM Agentic Systems/images/magentic-one-example.png){#fig-magentic-one-example}
+
+Magentic-One achieves competitive results across multiple benchmarks: it performs on par with or better than other multi-agent systems on GAIA (general AI assistant tasks), WebArena (web navigation), and AssistantBench. Notably, it does this with a modular design where specialist agents can be swapped or upgraded independently.
+
+The comparison with AutoGen ([Wu et al., 2023](https://arxiv.org/abs/2308.08155)) is instructive. AutoGen provides a general-purpose framework for multi-agent conversations, where agents can be arranged in any topology: round-robin, broadcast, hierarchical, or custom. This flexibility is powerful but places the burden of designing the right topology on the developer. Magentic-One makes an opinionated choice (centralized orchestration) and builds specialized tooling around that choice. The trade-off is flexibility versus reliability: AutoGen can express any multi-agent pattern but may require more tuning; Magentic-One provides a proven pattern that works well out of the box for general-purpose tasks.
+
+### Comparing Multi-Agent Architectures
+
+| System | Year | Topology | Communication Protocol | Strengths | Limitations |
+|---|---|---|---|---|---|
+| Multi-Agent Debate | 2023 | Flat (peer-to-peer) | Free-form arguments | Improves factuality, simple | No role specialization, high token cost |
+| MetaGPT | 2023 | Pipeline (sequential) | Structured artifacts (PRD, design) | Low hallucination, verifiable | Rigid waterfall structure |
+| ChatDev | 2023 | Pipeline with dialogue | Phase-bounded conversations | Natural interaction, flexible | May over-generate dialogue |
+| AutoGen | 2023 | Configurable (any topology) | Conversational messages | Maximum flexibility | Requires careful topology design |
+| Magentic-One | 2024 | Star (central orchestrator) | Ledger + directed messages | Modular, proven on benchmarks | Orchestrator is a single point of failure |
+| CrewAI | 2024 | Configurable with roles | Task-oriented messages | Easy to use, good API | Less proven on research benchmarks |
+
+::: {.callout-warning title="Common Misconception: Multi-agent systems are always better than single-agent systems"}
+
+This is perhaps the most consequential misconception in the current field. The hype around multi-agent systems has led many teams to build complex multi-agent architectures for tasks that a well-designed single agent could handle better.
+
+The evidence for multi-agent benefits is nuanced. The gains come from *structured communication protocols* (SOPs, ledgers, debate rounds) rather than from having multiple LLM instances per se. A single agent with a well-designed prompt, good tools, and a structured planning step can often match or exceed a multi-agent system on the same task, at a fraction of the token cost.
+
+Multi-agent overhead is real: typically 3-7x more tokens than a single-agent approach, because agents must read each other's outputs, coordinate actions, and resolve conflicts. For a task that costs $0.10 with a single agent, the multi-agent version might cost $0.50-0.70. On latency-sensitive tasks, the serialized communication between agents adds significant delay.
+
+The strongest case for multi-agent is when the task genuinely requires *different capabilities that cannot coexist in a single context*. Magentic-One's Orchestrator does not have browser access; the WebSurfer does not have a code interpreter. This functional separation avoids the "too many tools" problem where a single agent becomes unreliable because its action space is too large. But if your task only needs 5-10 tools and fits in a single context window, a single well-designed agent is almost always the better choice.
+
+A useful heuristic: **use multi-agent when the *tools* need to be separated** (because they conflict, require different contexts, or are too numerous for a single prompt). Do NOT use multi-agent just because the *task* is complex; complexity is better handled by good planning within a single agent.
+:::
+
+```{.d2}
+direction: right
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 13
+    }
+  }
+  debate: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  pipeline: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  star: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 15
+      bold: true
+    }
+  }
+}
+
+flat: "Flat Debate" {
+  class: [base; container]
+  label.near: top-left
+
+  a1: "Agent A" { class: [base; debate] }
+  a2: "Agent B" { class: [base; debate] }
+  a3: "Agent C" { class: [base; debate] }
+  a1 -> a2: "argue" { style.stroke: "#6366F1" }
+  a2 -> a3: "argue" { style.stroke: "#6366F1" }
+  a3 -> a1: "argue" { style.stroke: "#6366F1" }
+}
+
+pipe: "Pipeline Role-Play" {
+  class: [base; container]
+  label.near: top-left
+
+  pm: "Product\nManager" { class: [base; pipeline] }
+  arch: "Architect" { class: [base; pipeline] }
+  eng: "Engineer" { class: [base; pipeline] }
+  qa: "QA Tester" { class: [base; pipeline] }
+  pm -> arch: "PRD" { style.stroke: "#10B981" }
+  arch -> eng: "Design\nDoc" { style.stroke: "#10B981" }
+  eng -> qa: "Code" { style.stroke: "#10B981" }
+}
+
+orch: "Orchestrated Star" {
+  class: [base; container]
+  label.near: top-left
+
+  o: "Orchestrator\n(Ledger)" { class: [base; star] }
+  ws: "Web\nSurfer" { class: [base; debate] }
+  cd: "Coder" { class: [base; pipeline] }
+  fs: "File\nSurfer" { class: [base; debate] }
+  o -> ws: "delegate" { style.stroke: "#F59E0B" }
+  o -> cd: "delegate" { style.stroke: "#F59E0B" }
+  o -> fs: "delegate" { style.stroke: "#F59E0B" }
+  ws -> o: "report" { style.stroke: "#F59E0B"; style.stroke-dash: 5 }
+  cd -> o: "report" { style.stroke: "#F59E0B"; style.stroke-dash: 5 }
+  fs -> o: "report" { style.stroke: "#F59E0B"; style.stroke-dash: 5 }
+}
+```
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+What is the essential difference between MetaGPT's SOP-based approach and Magentic-One's ledger-based orchestration? Consider: who decides what to do next? What artifacts are passed between agents? What happens when an intermediate step fails? MetaGPT's pipeline is rigid but verifiable; Magentic-One's orchestrator is flexible but creates a single point of failure. Which would you choose for Priya's research assistant, and why?
+:::
+
+Multi-agent systems are a powerful tool for managing complexity, but they are not a silver bullet. The real question is whether your task needs the structured communication and role specialization that multi-agent provides, or whether a well-designed single agent with good tools and planning would be simpler, cheaper, and more reliable. As we will see in the next section, the benchmarks provide a sobering reality check on all of these approaches.

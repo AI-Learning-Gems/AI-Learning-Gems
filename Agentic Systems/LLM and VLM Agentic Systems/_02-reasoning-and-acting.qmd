@@ -1,0 +1,256 @@
+## Reasoning and Acting: The Papers That Launched a Field {#sec-reasoning-and-acting}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [ReAct (Yao et al., 2022)](https://arxiv.org/abs/2210.03629) | Thought-Action-Observation loop; ICLR 2023 Oral |
+| 2 | [Tree of Thoughts (Yao et al., 2023)](https://arxiv.org/abs/2305.10601) | Tree-structured search with backtracking; NeurIPS 2023 |
+| 3 | [Reflexion (Shinn et al., 2023)](https://arxiv.org/abs/2303.11366) | Verbal reinforcement learning; NeurIPS 2023 |
+| 4 | [CoALA (Sumers et al., 2023)](https://arxiv.org/abs/2309.02427) | How reasoning fits into the CoALA action space |
+
+:::
+
+### Priya's Hallucination Problem
+
+Priya's first research assistant prototype has a problem. She asks it to find the original paper that proposed retrieval-augmented generation. The LLM, working from its parametric knowledge alone, confidently generates: "The foundational paper is 'Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks' by Lewis et al. (2020), published at NeurIPS." That is correct. But when she asks it to find the three most recent extensions of RAG published in 2025, it generates three titles, three author lists, and three publication venues, all of which look completely plausible. Two of them do not exist. The LLM hallucinated them with perfect formatting.
+
+The core issue is that Chain-of-Thought prompting, for all its power, is *monological*. The model reasons in a single unbroken stream, with no contact with the outside world. It generates thought after thought, and each thought is conditioned only on the previous thoughts and the original prompt. If the model's internal knowledge is wrong or incomplete, the chain of reasoning simply propagates the error forward, sometimes even reinforcing it.
+
+What if, instead of reasoning in isolation, the model could *check* its reasoning against external reality at every step? That is the key insight behind ReAct ([Yao et al., ICLR 2023](https://arxiv.org/abs/2210.03629)), and it turned out to be one of the most consequential ideas in the history of LLM research.
+
+### ReAct: Grounding Reasoning in Action
+
+The ReAct paper begins with a disarmingly simple observation. When humans solve problems that require external information, we do not think in a vacuum. We think *and* act in an interleaved fashion: "I need to find out when this company was founded. Let me Google it. Okay, it says 2004. Now, was that before or after the competitor? Let me check the competitor too." Our reasoning is grounded in the results of our actions, and our actions are guided by our reasoning.
+
+ReAct formalizes this interleaving for LLMs. The key technical idea is to augment the agent's action space. In a standard setup, an agent at time step $t$ receives an observation $o_t$ and selects an action $a_t$ from a task-specific action set $\mathcal{A}$ (search, click, answer, etc.). ReAct expands this to $\hat{\mathcal{A}} = \mathcal{A} \cup \mathcal{L}$, where $\mathcal{L}$ is the space of natural language. Actions in $\mathcal{L}$ are called *thoughts*: they do not affect the external environment and produce no observation, but they update the agent's context for future decision-making.
+
+The agent's policy becomes:
+
+$$
+a_t = \pi(a_t \mid c_t), \quad \text{where } c_t = (o_1, a_1, \ldots, o_{t-1}, a_{t-1}, o_t)
+$$ {#eq-react-policy}
+
+and the context $c_t$ now includes both external observations and the agent's own thought traces. The result is the iconic Thought-Action-Observation loop:
+
+> **Thought 1:** I need to find when Priya's target paper was published. Let me search for it.
+>
+> **Action 1:** Search["retrieval augmented generation Lewis 2020"]
+>
+> **Observation 1:** "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks, Lewis et al., NeurIPS 2020. Cited by 4,521 papers."
+>
+> **Thought 2:** Good, I confirmed the paper exists. Now I need to find the three most recent extensions. Let me search for papers that cite it, sorted by date.
+>
+> **Action 2:** Search["papers citing Lewis et al. 2020 RAG, 2025, sorted by recency"]
+>
+> **Observation 2:** [list of real papers with real titles and dates]
+
+The magic happens between Action 1 and Thought 2. The agent's second thought is conditioned on a *real observation* from the search engine, not on the LLM's parametric memory. This grounding is what prevents the hallucination that plagued Priya's first attempt. The model cannot fabricate a paper title because it is working from actual search results.
+
+![ReAct overview comparing reasoning-only (chain-of-thought), acting-only, and ReAct (interleaved reasoning and acting) on HotpotQA. The reasoning-only approach hallucinates because it cannot check facts; the acting-only approach takes unfocused actions. ReAct combines the best of both. Source: Yao et al. (2022), Figure 1.](LLM and VLM Agentic Systems/images/react-teaser.png){#fig-react-teaser}
+
+The results were striking. On HotpotQA (a multi-hop question-answering benchmark), ReAct with PaLM-540B achieved 60.4% exact match accuracy, compared to 49.2% for chain-of-thought reasoning alone and 50.6% for acting alone. On ALFWorld (a text-based household environment), ReAct solved 71% of tasks versus 45% for acting alone. Crucially, when ReAct failed, its failures were *interpretable*: you could read the thought traces and identify exactly where the reasoning went wrong. This interpretability is a direct consequence of making the agent's reasoning explicit rather than implicit.
+
+::: {.callout-warning title="Common Misconception: ReAct and Chain-of-Thought are the same thing"}
+
+They are not, and the difference matters. Chain-of-Thought (CoT) is *monological* reasoning: the model generates a sequence of thoughts, but each thought is conditioned only on previous thoughts and the original prompt. There is no external feedback. CoT happens in a single LLM call (or a single generation pass) and cannot correct itself if it starts with a wrong assumption.
+
+ReAct is *dialogical* reasoning: the model alternates between thinking and acting, and its thoughts are conditioned on *real observations* from the environment. This means ReAct can self-correct. If a search returns unexpected results, the model can update its reasoning. If an action fails, the model can try a different approach. This grounding in external feedback is the conceptual foundation of the entire agent field. Without it, you have a language model that talks to itself; with it, you have an agent that interacts with the world.
+:::
+
+### Tree of Thoughts: When Linear Reasoning Is Not Enough
+
+ReAct's Thought-Action-Observation loop is powerful, but it is *linear*. The agent generates one thought, takes one action, observes one result, and moves forward. It never backtracks. It never considers alternative approaches. For many tasks, this is fine. But for tasks that require exploration, creative problem-solving, or search over multiple possibilities, linearity is a severe limitation.
+
+Consider the Game of 24: given four numbers, combine them using arithmetic operations to reach 24. For example, given {4, 5, 6, 10}, one solution is $(10 - 4) \times (6 - 5) \times 4 = 24$. Wait, that uses 4 twice. The correct solution is $4 \times (10 - 6 + 5) = 4 \times 9$. No, that is 36. Let me try again: $(6 - 4) \times (10 + 5 - 3)$. Hmm, 3 is not in the set. This is getting frustrating, and that is the point. The Game of 24 requires *search*: you need to explore many possible combinations, evaluate partial solutions, and backtrack when you hit dead ends. Chain-of-Thought prompting, which commits to a single linear chain of reasoning, achieves only 4% accuracy on this task.
+
+Tree of Thoughts (ToT) ([Yao et al., NeurIPS 2023](https://arxiv.org/abs/2305.10601)), also by Yao et al., generalizes CoT from a *chain* to a *tree*. The key idea is to decompose the problem into intermediate "thought steps," generate multiple candidate thoughts at each step, evaluate them, and use tree search algorithms (BFS or DFS) to explore the most promising paths.
+
+The evaluation uses a value function estimated by the LLM itself:
+
+$$
+V(s) \approx \text{LLM}(\text{"evaluate this partial solution: } s \text{"})
+$$ {#eq-tot-value}
+
+For each intermediate state $s$, the LLM is asked whether the current partial solution is "sure" (definitely solvable), "maybe" (possibly solvable), or "impossible" (definitely a dead end). States evaluated as "impossible" are pruned. States evaluated as "sure" or "maybe" are expanded further.
+
+![Four approaches to LLM reasoning. Input-Output (IO) is a single prompt. Chain-of-Thought (CoT) is a linear chain. CoT with self-consistency (CoT-SC) samples multiple chains and votes. Tree of Thoughts (ToT) explores a tree structure with evaluation and backtracking. Source: Yao et al. (2023), Figure 1.](LLM and VLM Agentic Systems/images/tot-teaser.png){#fig-tot-teaser}
+
+The results are dramatic. On the Game of 24, ToT with GPT-4 achieves 74% accuracy, up from 4% with standard CoT. On a creative writing task, ToT produces text that humans rate as significantly more coherent. On a crossword puzzle task, ToT's word-level success rate reaches 60% versus 16% for CoT.
+
+The deeper lesson of ToT is about *deliberation*. Chain-of-Thought gives the model a scratchpad; Tree of Thoughts gives it an *explorer's notebook*. The model can try one approach, realize it is not working, back up, and try another. This is closer to how humans actually solve hard problems: not by committing to the first plan that comes to mind, but by maintaining multiple hypotheses, evaluating them against evidence, and pruning the ones that do not pan out.
+
+In CoALA ([Sumers et al., TMLR 2024](https://arxiv.org/abs/2309.02427)) terms, ToT enriches the agent's decision procedure. Instead of selecting one action at each step, the agent generates multiple candidate actions, evaluates them (an internal reasoning action), and selects the most promising one for execution. The search itself is a form of planning.
+
+### Reflexion: Learning from Failure Without Retraining
+
+ReAct grounds reasoning in external observations. Tree of Thoughts enables exploration and backtracking. But both operate within a single attempt. If the agent fails, it simply fails. There is no mechanism for learning from the failure and doing better next time.
+
+Reflexion ([Shinn et al., NeurIPS 2023](https://arxiv.org/abs/2303.11366)) fills this gap. The core idea is breathtaking in its simplicity: after a failed attempt, ask the LLM to reflect on *why* it failed, generate a natural-language summary of the lesson learned, and store that summary in an episodic memory buffer. On the next attempt, include the self-reflection in the prompt. The agent literally learns from its mistakes through self-critique, without any gradient updates or weight changes.
+
+The Shinn et al. paper calls this "verbal reinforcement learning," and the analogy is suggestive. In standard RL, the agent receives a scalar reward signal and updates its policy parameters via gradient descent. In Reflexion, the agent receives a binary reward (success/failure), generates a *verbal* description of what went wrong, and updates its behavior by conditioning on that description. The "gradient" is a sentence, not a number. The "parameter update" is a prompt augmentation, not a weight change.
+
+The memory update is:
+
+$$
+\text{mem}_{t+1} = \text{mem}_t \cup \{\text{reflect}(\text{trajectory}_t, \text{reward}_t)\}
+$$ {#eq-reflexion-memory}
+
+where $\text{reflect}$ is an LLM call that takes the failed trajectory and the reward signal and produces a natural-language self-reflection. This reflection is then prepended to the agent's prompt in the next trial. In practice, the memory buffer stores up to three reflections (to avoid overwhelming the context window), with the most recent ones taking priority.
+
+Let us see this in action for Priya's research assistant. On its first attempt to reproduce a baseline experiment, the agent writes Python code that imports a library incorrectly and crashes. Without Reflexion, it would simply fail. With Reflexion:
+
+> **Trial 1:** Write code to reproduce the baseline. Code crashes with ImportError: "No module named 'faiss.contrib'".
+>
+> **Reflection:** "I used 'from faiss.contrib import exhaustive_search', but the correct import for the faiss-cpu package is 'import faiss' followed by 'faiss.IndexFlatL2'. The contrib module is not available in the pip-installable version."
+>
+> **Trial 2:** (with reflection in context) Write code to reproduce the baseline. This time, the agent uses the correct import pattern. Code runs successfully.
+
+![Reflexion applied across decision-making, reasoning, and programming tasks. The framework generates self-reflections after failures and stores them in episodic memory for use in subsequent trials. Source: Shinn et al. (2023), Figure 1.](LLM and VLM Agentic Systems/images/reflexion-tasks.png){#fig-reflexion-tasks}
+
+The empirical results are remarkable. On HumanEval (a code generation benchmark), Reflexion with GPT-4 achieves 91% pass@1 accuracy, compared to GPT-4's baseline of 80%. On HotpotQA, Reflexion improves accuracy from 60% to 77% over six trials. On ALFWorld, Reflexion reaches 97% success rate after 12 trials, starting from 75%.
+
+::: {.callout-note title="Think Hard: In what sense is Reflexion doing 'gradient descent,' and in what sense is it fundamentally different?"}
+
+The analogy between Reflexion and gradient descent is more than a metaphor. In both cases, the agent (a) attempts a task, (b) receives a signal indicating how well it did, and (c) updates its behavior to do better next time. The update rule even has a loosely analogous structure: gradient descent adjusts weights in the direction that reduces loss; Reflexion adjusts the prompt in a direction that (the LLM believes) will avoid the identified failure mode.
+
+But there are fundamental differences. First, gradient descent is *precise and automatic*: the loss surface defines exactly how each parameter should change. Reflexion's self-critique is *heuristic and sometimes wrong*: the LLM might misidentify the cause of failure or suggest a fix that does not actually help. Second, gradient descent operates on all parameters simultaneously; Reflexion operates on natural-language descriptions that affect behavior through in-context conditioning, which is less controllable. Third, gradient descent accumulates updates over many examples; Reflexion's memory buffer is limited (typically 3 reflections), so the agent can only learn from its most recent failures.
+
+Perhaps the most important difference is that Reflexion's "learning" is *not permanent*. The weights do not change. If you restart the agent with a fresh prompt, all the learned lessons vanish. This makes Reflexion more like a skilled human using a notebook than like a human forming long-term memories. The question of how to make agent learning persistent (without fine-tuning) is one of the field's open problems.
+:::
+
+### The Reasoning Spectrum
+
+We can now organize these approaches into a spectrum of increasing reasoning power:
+
+```{.d2}
+direction: right
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 13
+    }
+  }
+  level1: {
+    style: {
+      stroke: "#94A3B8"
+      fill: "#F1F5F9"
+      font-color: "#475569"
+    }
+  }
+  level2: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  level3: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  level4: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  level5: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+}
+
+cot: "Chain-of-Thought\n(single-pass, linear)" {
+  class: [base; level1]
+}
+react: "ReAct\n(environment-grounded\nlinear reasoning)" {
+  class: [base; level2]
+}
+tot: "Tree of Thoughts\n(multi-path exploration\nwith evaluation)" {
+  class: [base; level3]
+}
+reflexion: "Reflexion\n(multi-trial learning\nfrom verbal self-critique)" {
+  class: [base; level4]
+}
+frontier: "Frontier: RL-trained\nreasoning agents\n(weight updates from\nverifiable rewards)" {
+  class: [base; level5]
+}
+
+cot -> react: "add external\nobservations" {
+  style.stroke: "#6366F1"
+}
+react -> tot: "add branching\n+ backtracking" {
+  style.stroke: "#10B981"
+}
+react -> reflexion: "add episodic\nmemory +\nself-critique" {
+  style.stroke: "#F59E0B"
+}
+reflexion -> frontier: "make learning\npermanent\n(weight updates)" {
+  style.stroke: "#F43F5E"
+  style.stroke-dash: 5
+}
+```
+
+Each step in this spectrum adds a qualitatively new capability:
+
+- **CoT** gives the LLM a scratchpad: it can break problems into steps, but it reasons in isolation and cannot self-correct.
+- **ReAct** grounds reasoning in external observations: the agent can check its beliefs against reality, reducing hallucination.
+- **ToT** enables exploration: the agent can consider multiple approaches, evaluate them, and backtrack when one fails.
+- **Reflexion** enables cross-trial learning: the agent can improve over multiple attempts by learning from verbal self-critique.
+- The **frontier** (which we will explore in @sec-frontiers) makes learning permanent: rather than storing lessons in a prompt, the agent updates its weights through reinforcement learning with verifiable rewards.
+
+Notice that these are complementary, not competing. You can have a ReAct agent that also uses Tree of Thoughts for difficult subproblems and Reflexion for multi-trial improvement. In practice, the most capable systems combine multiple reasoning strategies, selecting the right one based on the difficulty and structure of the current subproblem.
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+Why does interleaving reasoning with acting reduce hallucination compared to pure chain-of-thought? Think about what information is available to the model at each step in the two approaches. In CoT, the model's fourth thought is conditioned on thoughts 1-3 (all generated by the model itself). In ReAct, the model's fourth thought might be conditioned on a *real search result* from step 2. What does this difference imply for error accumulation?
+:::
+
+::: {.callout-tip title="Faded Example: Reflexion on a Search Task"}
+Priya's agent is trying to find the citation count for "BERT: Pre-training of Deep Bidirectional Transformers" published in 2019 by Devlin et al.
+
+**Trial 1:**
+
+> Thought: I should search for the BERT paper citation count.
+>
+> Action: Search["BERT Devlin 2019 citation count"]
+>
+> Observation: "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. Cited by 102,483 (Google Scholar, March 2026)."
+>
+> Thought: The paper has 102,483 citations. But I should verify this is the right paper.
+>
+> Action: Search["BERT Devlin et al. NAACL 2019"]
+>
+> Observation: "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. Jacob Devlin, Ming-Wei Chang, Kenton Lee, Kristina Toutanova. NAACL 2019."
+>
+> **Answer: 102,483 citations.** Correct.
+
+Now, suppose the agent made an error in trial 1: it searched for "BERT citation count" without specifying the year, and the observation returned results for a different paper also called BERT (a unrelated 2018 paper). The agent reported the wrong count.
+
+**Reflection:** "____________________________________________"
+
+**Trial 2:** (with the reflection in context) What would the agent do differently?
+
+Fill in the reflection and describe the agent's corrected strategy. The answer: the reflection should note that searching without specifying authors and year led to ambiguity, and the corrected strategy should include the full author list and venue in the initial search query.
+:::
+
+Now that we understand the reasoning backbone that makes agents possible, we need to give them something equally important: the ability to *do things in the real world*. In the next section, we explore how agents acquire and use tools, manage memory across sessions, and interact with their environment through carefully designed interfaces.

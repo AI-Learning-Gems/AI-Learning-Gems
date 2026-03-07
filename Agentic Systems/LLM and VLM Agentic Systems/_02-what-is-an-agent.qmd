@@ -1,0 +1,185 @@
+## What Makes an Agent an Agent? {#sec-what-is-an-agent}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [CoALA: Cognitive Architectures for Language Agents (Sumers et al.)](https://arxiv.org/abs/2309.02427) | Unifying framework: memory, action space, decision procedure |
+| 2 | [LLM Powered Autonomous Agents (Lilian Weng)](https://lilianweng.github.io/posts/2023-06-23-agent/) | Planning + Memory + Tool Use decomposition |
+| 3 | [Andrew Ng's Agentic Design Patterns](https://www.deeplearning.ai/the-batch/agentic-design-patterns-part-2-reflection/) | Four canonical patterns |
+| 4 | [ReAct (Yao et al.)](https://arxiv.org/abs/2210.03629) | Original framing of reasoning + acting synergy |
+
+:::
+
+### Priya's Accidental Agent
+
+Let us return to Priya. After two frustrating days of manual orchestration, she writes a Python script. It is simple: a loop that calls an LLM to decide what to do next ("search for papers on RAG," "summarize this abstract," "check if we already have this paper"), executes the chosen action (calls the Semantic Scholar API, writes a note to a file, reads the existing notes), and feeds the result back to the LLM for the next decision. She adds a stopping condition: if the LLM says "I have enough information to begin writing," the loop terminates.
+
+Priya does not think of this as building an "agent." She thinks of it as a hacky automation script. But when she describes it to her labmate, she hears herself say: "It observes what we have so far, reasons about what to do next, takes an action, and then checks the result." Her labmate raises an eyebrow. "That is literally the definition of an agent."
+
+He is right. But the word "agent" is one of the most overloaded terms in computer science, and pinning down exactly what makes something an agent (rather than a pipeline, a chatbot, or a fancy prompt chain) turns out to be both important and surprisingly subtle.
+
+### The Word "Agent" Is Overloaded
+
+In classical AI, an agent is any entity that perceives its environment through sensors and acts upon that environment through effectors (Russell and Norvig, 2020). This definition is so broad that a thermostat qualifies. In reinforcement learning, an agent is an entity that learns a policy mapping states to actions by maximizing cumulative reward. In the LLM world circa 2024, "agent" seems to mean anything from "a chatbot with a web search tool" to "a fully autonomous system that can debug production codebases."
+
+This definitional mess causes real confusion. A developer who builds a prompt chain (step 1: extract entities, step 2: look them up, step 3: generate a summary) might call it an "agentic workflow." A researcher who builds a system with memory, planning, and tool use across hundreds of steps calls it the same thing. These are qualitatively different systems with qualitatively different challenges, and lumping them together obscures the field's actual intellectual contributions.
+
+We need a sharper vocabulary. The most useful way to think about this is as a *spectrum* of autonomy, not a binary classification. At one end, you have a single LLM call: text in, text out, no environment interaction. At the other end, you have a cognitive agent that maintains internal state, reasons about its own knowledge gaps, plans multi-step strategies, uses tools, learns from experience, and operates for extended periods without human supervision. Most real systems fall somewhere in between.
+
+```{.d2}
+direction: right
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 13
+    }
+  }
+  level1: {
+    style: {
+      stroke: "#94A3B8"
+      fill: "#F8FAFC"
+      font-color: "#475569"
+    }
+  }
+  level2: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  level3: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  level4: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+}
+
+llm_call: "LLM Call\n(text in, text out)" {
+  class: [base; level1]
+}
+
+prompt_chain: "Prompt Chain\n(fixed sequence of LLM calls)" {
+  class: [base; level2]
+}
+
+agent_loop: "Agent Loop\n(LLM decides actions in\na loop with environment)" {
+  class: [base; level3]
+}
+
+cognitive_agent: "Cognitive Agent\n(memory + reasoning +\nplanning + learning)" {
+  class: [base; level4]
+}
+
+llm_call -> prompt_chain: "add sequencing" {
+  style.stroke: "#94A3B8"
+}
+prompt_chain -> agent_loop: "add environment\nfeedback loop" {
+  style.stroke: "#6366F1"
+}
+agent_loop -> cognitive_agent: "add internal\nstate management" {
+  style.stroke: "#10B981"
+}
+```
+
+Here is where it gets interesting. The transition from "prompt chain" to "agent loop" is the critical qualitative shift. A prompt chain has a fixed control flow: do step 1, then step 2, then step 3, regardless of what happens. An agent loop has a *dynamic* control flow: the LLM observes the result of each action and decides what to do next, which might include repeating a step, trying a different approach, or stopping early. This is what gives agents their power (they can adapt to unexpected situations) and their fragility (they can get stuck in loops, take wrong turns, or drift off-task).
+
+### Historical Lineage: From STRIPS to LLM Agents
+
+The idea of an agent that perceives, reasons, and acts is not new. It goes back to the earliest days of AI. STRIPS (Fikes and Nilsson, 1971) was a planning system for a robot that could push boxes around a room: it perceived the room state, planned a sequence of actions to achieve a goal, and executed them. SOAR (Laird, Newell, and Rosenbloom, 1987) was a cognitive architecture that modeled human problem-solving as a production system: if-then rules applied to a working memory, with learning through "chunking" of successful rule sequences.
+
+What changed with LLMs is not the agent concept itself, but the *generality* of the reasoning engine at its core. STRIPS required hand-engineered symbolic representations of the world. SOAR required hand-authored production rules. RL agents required millions of episodes of trial-and-error learning. An LLM agent, by contrast, can reason about novel tasks using the commonsense knowledge and language understanding it acquired during pretraining. You do not need to hand-code rules for how to search a database, summarize a paper, or debug Python code. You describe the tools available, show a few examples, and the LLM figures out how to compose them.
+
+This is both the great strength and the great weakness of LLM agents. The strength is generality: a single architecture can handle web browsing, code generation, scientific research, and customer service. The weakness is reliability: the commonsense reasoning that makes LLMs so flexible is also imprecise, probabilistic, and prone to hallucination in ways that symbolic planners and RL agents are not.
+
+### The CoALA Framework: A Unifying Lens
+
+The most rigorous attempt to organize the LLM agent field is CoALA ([Sumers et al., TMLR 2024](https://arxiv.org/abs/2309.02427)), proposed by Sumers, Yao, Narasimhan, and Griffiths at Princeton. CoALA draws an explicit analogy between LLM agents and classical cognitive architectures like SOAR, arguing that the same organizational principles apply. The key insight is that any language agent, no matter how complex, can be decomposed into three components.
+
+**Memory** is split into two kinds. *Working memory* is the agent's current context: the conversation history, the current task description, the recent observations. In practice, this corresponds to the LLM's context window. It is fast and immediately accessible, but limited in capacity (even with modern 128K+ token windows, you cannot fit everything). *Long-term memory* stores information that persists across interactions: episodic memory (specific past experiences and trajectories), semantic memory (facts and knowledge, typically in a vector database), and procedural memory (learned skills and routines, such as Voyager's code library). The crucial design question for any agent is how to manage the flow between these: what goes into working memory, what gets stored long-term, what gets retrieved when.
+
+**Action space** is split into *internal* actions and *external* actions. Internal actions happen inside the agent's "head": reasoning (generating a thought trace), retrieval (pulling information from long-term memory), and learning (updating long-term memory based on experience). External actions affect the outside world: calling tools, sending messages, interacting with users, modifying files. The distinction matters because internal actions are "free" (they do not change the environment and can be undone), while external actions have consequences (you cannot un-send an email, un-delete a file, or un-execute a trade).
+
+**Decision procedure** is how the agent chooses what to do at each step. In the simplest agents, this is just "ask the LLM what to do next." In more sophisticated agents, it involves explicit planning (decompose the goal into subgoals), evaluation (assess the quality of candidate actions), and selection (choose the best one). CoALA frames this as an interactive loop: at each step, the agent retrieves relevant information from memory, reasons about the current state, generates candidate actions, evaluates them, selects one, executes it, observes the result, and updates memory.
+
+![The full CoALA architecture. The decision procedure (center) orchestrates retrieval, reasoning, learning, and grounding actions across working memory and long-term memory stores. External actions interact with the environment. Source: Sumers et al. (2023), Figure 4.](LLM and VLM Agentic Systems/images/coala-architecture.png){#fig-coala-architecture}
+
+What makes CoALA powerful as a framework is its generality. You can express virtually any LLM agent system as a specific instantiation of these three components. ReAct ([Yao et al., ICLR 2023](https://arxiv.org/abs/2210.03629))? An agent with minimal memory (just the context window), an action space that includes both reasoning (thoughts) and external actions (API calls), and a decision procedure that alternates between them. Generative Agents ([Park et al., UIST 2023](https://arxiv.org/abs/2304.03442))? An agent with rich long-term memory (observation streams, reflection trees, daily plans), an action space that includes social interactions and movement, and a decision procedure that retrieves relevant memories using a weighted scoring function. Voyager ([Wang et al., NeurIPS 2023](https://arxiv.org/abs/2305.16291))? An agent whose long-term memory includes a growing library of executable code (procedural memory), with a decision procedure driven by an automatic curriculum.
+
+::: {.callout-note title="Think Hard: How does the CoALA decision cycle differ from a simple while-loop calling an LLM?"}
+
+At first glance, the CoALA decision cycle might look like a dressed-up version of `while not done: action = llm(context); result = execute(action)`. But there are crucial structural differences.
+
+First, CoALA explicitly separates *internal* and *external* actions. A simple loop treats everything the LLM outputs as an action to execute. CoALA recognizes that the agent might need to *think* (internal reasoning), *remember* (memory retrieval), or *learn* (memory update) before acting externally. These internal actions consume compute but do not affect the environment, and they can be performed multiple times before committing to an external action. This is precisely the structure that makes ReAct work: the "Thought" step is an internal action that improves the quality of the subsequent external "Action."
+
+Second, CoALA's decision procedure is not a flat loop but a *hierarchical* process. The agent can plan at multiple levels of abstraction: a high-level plan decomposes a goal into subgoals, each subgoal triggers its own inner loop of reasoning and action, and the results propagate back up. This hierarchical structure is what enables agents to handle complex, long-horizon tasks that a flat loop cannot.
+
+Third, and most subtly, the memory management in CoALA is itself an *action*. The agent actively decides what to store in long-term memory, what to retrieve, and what to forget. In a simple while-loop, memory management is implicit (the context window fills up and old content falls off). In CoALA, it is a first-class concern that the agent reasons about. This is the key idea behind systems like MemGPT ([Packer et al., ICLR 2024](https://arxiv.org/abs/2310.08560)), which we will explore in @sec-tools-memory-grounding.
+:::
+
+### Four Agentic Design Patterns (The Practitioner's Lens)
+
+While CoALA gives us a rigorous theoretical framework, Andrew Ng's four agentic design patterns ([Andrew Ng, DeepLearning.AI 2024](https://www.deeplearning.ai/the-batch/agentic-design-patterns-part-2-reflection/)) give us a practical vocabulary for the capabilities that matter most in real systems. The four patterns are:
+
+**Reflection** means the agent evaluates and critiques its own outputs. Instead of accepting the first response the LLM generates, the agent asks itself: "Is this correct? Is this complete? What could go wrong?" This self-critique can happen in a single step (generate, then evaluate) or iteratively (generate, critique, revise, critique again). Reflexion ([Shinn et al., NeurIPS 2023](https://arxiv.org/abs/2303.11366)) takes this further by storing self-critiques in episodic memory for use in future trials.
+
+**Tool Use** means the agent can call external functions: search engines, calculators, code interpreters, databases, APIs. This is what grounds the agent in reality. Without tool use, the agent can only reason using the knowledge frozen in its weights, which is incomplete and potentially outdated. Tool use is what lets Priya's agent search Semantic Scholar for real papers rather than hallucinating plausible-sounding titles.
+
+**Planning** means the agent decomposes a complex goal into a sequence of simpler subgoals and executes them in order. This can be done by the LLM itself (ask it to generate a step-by-step plan) or by an external planner: LLM+P ([Liu et al., 2023](https://arxiv.org/abs/2304.11477)) translates the goal into PDDL and uses a classical planning algorithm. Planning is what transforms an agent from "do the next obvious thing" to "think several steps ahead."
+
+**Multi-Agent Collaboration** means multiple agents, each potentially specialized for different tasks, work together. One agent might be a researcher (good at finding and summarizing information), another a coder (good at writing and debugging programs), and a third an orchestrator (good at deciding who should do what next). Magentic-One ([Fourney et al., 2024](https://arxiv.org/abs/2411.04468)) is the canonical example, with an Orchestrator agent coordinating WebSurfer, FileSurfer, Coder, and ComputerTerminal specialists.
+
+These four patterns map neatly onto CoALA's framework. Reflection is an internal action (reasoning about the agent's own outputs). Tool Use extends the external action space. Planning enriches the decision procedure. Multi-Agent Collaboration distributes the architecture across multiple CoALA instances that communicate through shared actions.
+
+::: {.callout-warning title="Common Misconception: Agents are just LLMs in a while loop"}
+
+This is the most common misunderstanding about the field. Yes, the simplest agent is a while loop that calls an LLM and executes its output. But the field's actual contributions are about what happens *inside* that loop. ReAct showed that interleaving reasoning traces with actions fundamentally changes performance. Reflexion showed that storing self-critiques in memory enables learning without weight updates. MemGPT showed that actively managing what is in the context window (rather than passively letting it fill up) enables long-term coherent behavior. SWE-agent showed that redesigning the *interface* between the agent and its environment can matter more than changing the model.
+
+The loop is necessary but not sufficient. Saying "agents are just LLMs in a while loop" is like saying "neural networks are just matrix multiplications in a loop." Technically true, profoundly uninformative.
+:::
+
+### Where the Field Stands: A Taxonomy
+
+To ground all of this in concrete systems, here is how the major systems from 2022-2026 map onto the agentic spectrum:
+
+| System | Year | Memory | Action Space | Decision Procedure | Autonomy Level |
+|---|---|---|---|---|---|
+| ChatGPT (vanilla) | 2022 | Working only | Text generation | Single call | LLM Call |
+| LangChain pipeline | 2023 | Working only | Text + tools | Fixed chain | Prompt Chain |
+| ReAct | 2022 | Working only | Thoughts + actions | Thought-Action loop | Agent Loop |
+| Reflexion | 2023 | Working + episodic | Thoughts + actions + self-critique | Multi-trial loop | Agent Loop + Learning |
+| Generative Agents | 2023 | Working + episodic + semantic | Social + movement + internal | Retrieve-Reason-Plan | Cognitive Agent |
+| Voyager | 2023 | Working + procedural | Code generation + Minecraft actions | Auto-curriculum | Cognitive Agent |
+| SWE-agent | 2024 | Working only | Code editing via ACI | Agent loop with specialized interface | Agent Loop |
+| Magentic-One | 2024 | Working + ledger | Multi-agent delegation | Orchestrator-directed | Multi-Cognitive Agent |
+| ADAS ([Hu et al., ICLR 2025](https://arxiv.org/abs/2408.08435)) | 2024 | Archive of agent designs | Code generation of agents | Meta-search | Meta-Agent |
+
+![The CoALA action space taxonomy. Agents have internal actions (reasoning, retrieval, learning) that operate on memory, and external actions (grounding) that interact with the environment. Source: Sumers et al. (2023), Figure 5.](LLM and VLM Agentic Systems/images/coala-action-space.png){#fig-coala-action-space}
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+Look at the taxonomy table above. What is the minimum set of capabilities an LLM system needs before you would call it an "agent" rather than a "pipeline"? Where would you draw the line, and why?
+:::
+
+This taxonomy gives us the conceptual vocabulary we need for the rest of the chapter. In the next section, we will dive into the *reasoning* dimension: how ReAct, Tree of Thoughts, and Reflexion gave agents the ability to think, explore, and learn. These are the papers that, more than any others, launched the field of LLM agents.

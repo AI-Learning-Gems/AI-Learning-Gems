@@ -1,0 +1,232 @@
+## Closing {#sec-closing}
+
+### Priya's Completed Journey
+
+Let us return to where we started. Priya has spent two weeks building, benchmarking, and iterating on her AI research assistant. She did not get the autonomous super-agent she initially dreamed of. What she got was something more valuable: a deep understanding of what LLM agents can and cannot do, and a practical system that handles the routine parts of her workflow while she focuses on the parts that still require human judgment.
+
+Her final architecture is modest by the standards of this chapter: a ReAct-style agent with Reflexion-inspired error recovery, Semantic Scholar and ArXiv search tools, a Python code interpreter, a MemGPT-like memory system for tracking paper notes across sessions, and a simple task planner that decomposes her high-level goals into manageable steps. No multi-agent orchestration (she found a single well-designed agent with 8 tools was more reliable than three specialist agents). No automated agent design (she hand-tuned the prompts and tools based on failure analysis). No RL training (she used GPT-4 with carefully engineered prompts).
+
+The system succeeds at about 60% of her daily research tasks on the first try, and about 80% with one retry and minimal human guidance. That is a far cry from full autonomy, but it saves her roughly 10 hours per week of tedious searching, summarizing, and code-template writing. She has learned, through hard experience, the lesson that runs through this entire chapter: the value of an agent system is not in what it can do autonomously but in *how it extends human capability*.
+
+### Key Takeaways
+
+- **An "agent" is defined by its perception-action loop with an environment, not by the model powering it.** The CoALA framework (memory, action space, decision procedure) provides the canonical decomposition. The critical qualitative shift is from a fixed prompt chain to a dynamic agent loop where the LLM decides what to do next based on environmental feedback.
+
+- **ReAct (2022) and Reflexion (2023) are the foundational reasoning papers.** ReAct grounded LLM reasoning in external observations, turning monological chain-of-thought into dialogical reasoning-and-acting. Reflexion introduced verbal self-improvement without weight updates. Together, they define the conceptual substrate on which everything else is built.
+
+- **Tool use evolved from self-supervised learning (Toolformer) through prompted function calling to protocol-level standardization (MCP).** The Agent-Computer Interface (SWE-agent) showed that *interface design* matters as much as model capability. A well-designed interface compensates for model weaknesses; a poorly-designed interface negates model strengths.
+
+- **Memory is the key unsolved challenge.** Working memory (context window) is limited. Long-term memory systems (MemGPT, Generative Agents) are functional but fragile. The field has not yet found its "attention mechanism" moment for agent memory: a simple, general, scalable solution that works across domains.
+
+- **Multi-agent systems help when they encode structured communication protocols** (SOPs, ledgers, debate rounds), not when they simply duplicate LLM instances. The overhead is real (3-7x tokens). A well-designed single agent often outperforms a poorly-designed multi-agent system.
+
+- **The reliability gap is the field's central obstacle.** Agents that score 70% on single trials often drop below 25% when required to succeed consistently ($\text{pass}^k$). Long-horizon tasks expose cascading failures. The compound error problem means that per-step improvements of even a few percentage points have outsized effects on end-to-end success.
+
+- **The most exciting frontiers are training agents with RL** (GRPO with verifiable rewards, where 14B models can beat 671B models), **automated agent design** (ADAS, where meta-agents discover architectures that outperform hand-designed ones), and **agent safety** (where Anthropic's finding of reward hacking generalizing to misalignment shows the risks are concrete, not hypothetical).
+
+### Completed Concept Map
+
+```{.d2}
+direction: down
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 12
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 15
+      bold: true
+    }
+  }
+}
+
+center: "LLM Agent\n(CoALA Framework)" {
+  class: [base; output]
+}
+
+reasoning: "Reasoning" {
+  class: [base; container]
+  label.near: top-left
+  cot: "CoT" { class: [base; input] }
+  react: "ReAct" { class: [base; process] }
+  tot: "ToT" { class: [base; process] }
+  reflexion: "Reflexion" { class: [base; highlight] }
+  cot -> react { style.stroke: "#6366F1" }
+  react -> tot { style.stroke: "#10B981" }
+  react -> reflexion { style.stroke: "#F43F5E" }
+}
+
+capabilities: "Capabilities" {
+  class: [base; container]
+  label.near: top-left
+  toolformer: "Toolformer" { class: [base; input] }
+  func_call: "Function\nCalling" { class: [base; process] }
+  mcp: "MCP" { class: [base; process] }
+  gen_agents: "Generative\nAgents" { class: [base; highlight] }
+  memgpt: "MemGPT" { class: [base; process] }
+  aci: "ACI\n(SWE-agent)" { class: [base; highlight] }
+  toolformer -> func_call { style.stroke: "#6366F1" }
+  func_call -> mcp { style.stroke: "#10B981" }
+}
+
+scaling: "Scaling" {
+  class: [base; container]
+  label.near: top-left
+  debate: "Debate" { class: [base; input] }
+  metagpt: "MetaGPT\n(SOPs)" { class: [base; process] }
+  magentic: "Magentic-One\n(Orchestrator)" { class: [base; process] }
+  adas: "ADAS\n(Meta-Agent)" { class: [base; highlight] }
+  debate -> metagpt { style.stroke: "#6366F1" }
+  metagpt -> magentic { style.stroke: "#10B981" }
+  magentic -> adas { style.stroke: "#F43F5E" }
+}
+
+challenges: "Challenges" {
+  class: [base; container]
+  label.near: top-left
+  reliability: "Reliability\nGap" { class: [base; decision] }
+  safety: "Safety &\nAlignment" { class: [base; decision] }
+  eval: "Evaluation\n(OSWorld,\ntau-bench)" { class: [base; decision] }
+  training: "Agent\nTraining\n(GRPO, DSPy)" { class: [base; decision] }
+}
+
+center -> reasoning { style.stroke: "#6366F1" }
+center -> capabilities { style.stroke: "#10B981" }
+center -> scaling { style.stroke: "#F59E0B" }
+center -> challenges { style.stroke: "#F43F5E" }
+
+reasoning.reflexion -> capabilities.memgpt: "episodic\nmemory" {
+  style.stroke: "#F43F5E"
+  style.stroke-dash: 5
+}
+capabilities.aci -> challenges.reliability: "interface design\nreduces errors" {
+  style.stroke: "#10B981"
+  style.stroke-dash: 5
+}
+challenges.safety -> scaling.adas: "reward hacking\nrisk in meta-search" {
+  style.stroke: "#F59E0B"
+  style.stroke-dash: 5
+}
+challenges.training -> reasoning.reflexion: "make learning\npermanent" {
+  style.stroke: "#F43F5E"
+  style.stroke-dash: 5
+}
+```
+
+### Retrieval Practice Questions
+
+Test your understanding of the key concepts from this chapter.
+
+::: {.callout-tip collapse="true" title="Questions and Answers"}
+
+**Q1: Name the three components of the CoALA framework and explain what each contains.**
+
+*Answer:* (1) **Memory**, split into working memory (context window) and long-term memory (episodic, semantic, procedural). (2) **Action space**, split into internal actions (reasoning, retrieval, learning) and external actions (tool calls, environment interaction). (3) **Decision procedure**, the interactive loop of retrieving information, reasoning about the current state, generating candidate actions, evaluating them, selecting one, and updating memory.
+
+**Q2: How does ReAct differ from pure Chain-of-Thought reasoning? Give a concrete example of when CoT would fail but ReAct would succeed.**
+
+*Answer:* CoT is monological: the model generates a chain of reasoning conditioned only on its own previous thoughts and the original prompt. ReAct is dialogical: the model alternates between thinking (internal) and acting (external), and its reasoning is grounded in real observations from the environment. CoT would fail on a question like "What is the current CEO of OpenAI?" because the model's parametric knowledge might be outdated. ReAct would succeed because it can issue a search action and ground its answer in the search result.
+
+**Q3: Describe Toolformer's self-supervised approach to learning tool use. What is the key criterion for inserting an API call?**
+
+*Answer:* Toolformer (1) uses few-shot prompting to have the LLM annotate text with candidate API calls, (2) executes each candidate and measures the language modeling loss with and without the API result, and (3) keeps only calls where the loss reduction exceeds a threshold $\tau$: $L^-(e_i) - L^+(e_i) > \tau$. The key criterion is that the API call must *actually help the model predict subsequent tokens*, ensuring the model only learns to use tools when they are genuinely useful.
+
+**Q4: In Generative Agents, the memory retrieval score combines three factors. Name them and explain why all three are necessary.**
+
+*Answer:* The three factors are: **recency** (exponential decay favoring recent memories), **importance** (LLM-rated significance of the observation), and **relevance** (cosine similarity between the memory embedding and the current query). All three are necessary because recency alone would favor trivial recent events, importance alone would always retrieve the same "big" memories regardless of the current situation, and relevance alone would miss time-sensitive context. Ablation studies showed that removing any single factor degraded agent behavior quality by 15-30%.
+
+**Q5: What is the Agent-Computer Interface (ACI) concept from SWE-agent, and why does it matter?**
+
+*Answer:* The ACI is the interface between an LLM agent and its computational environment, designed specifically for how LLMs process information. Key principles: (1) actions should be simple and composable, (2) feedback should be immediate and informative (including line numbers), and (3) the interface should prevent and recover from errors. It matters because interface design and model capability are *substitutes*: a well-designed interface can improve agent performance more cost-effectively than a larger model. SWE-agent showed that redesigning the terminal interface improved coding agent performance by several multiples, without changing the underlying model.
+
+**Q6: Explain the $\text{pass}^k$ metric and what the gap between $\text{pass}^1$ and $\text{pass}^k$ reveals about agent reliability.**
+
+*Answer:* $\text{pass}^k$ is the probability that an agent succeeds on all $k$ independent trials of the same task. If an agent has $\text{pass}^1 = 70\%$ and failures are independent, then $\text{pass}^5 \approx 0.7^5 = 17\%$. The gap between $\text{pass}^1$ and $\text{pass}^k$ measures *consistency*: an agent that succeeds most of the time but fails unpredictably is useless for production deployment, which requires reliable success on every attempt. $\tau$-bench data shows this gap is enormous for current agents (70% $\text{pass}^1$ dropping to <25% $\text{pass}^8$), revealing that the reliability problem is far from solved.
+
+**Q7: What does ADAS's Meta Agent Search actually search over, and why is code the representation language for agent architectures?**
+
+*Answer:* Meta Agent Search searches over *agent architectures expressed in Python code*. Each candidate is a complete agent program that can be instantiated and evaluated on a task set. Code is the representation language because it is Turing-complete: any possible agent architecture (any combination of reasoning, tool use, memory, and multi-agent interaction) can be expressed as a program. This means the search space is not constrained to predefined templates; it can discover architectures that no human has imagined. The auto-discovered agents outperform hand-designed ones on coding, science, and math, and transfer across domains and models.
+
+:::
+
+### Common Mistakes to Avoid
+
+- **Confusing "agentic" with "autonomous."** Using LLMs in a loop with tools is "agentic." Full autonomy without human oversight is a separate (and much harder) goal. Most practical agent systems benefit enormously from human-in-the-loop checkpoints, especially for high-stakes actions.
+
+- **Assuming multi-agent is always better than single-agent.** The evidence shows that multi-agent gains come from structured communication protocols, not from multiple LLM instances. A well-designed single agent with the right tools often outperforms a poorly-designed multi-agent system at lower cost.
+
+- **Treating benchmark scores as deployment readiness.** SWE-bench Verified scores of 53% sound impressive, but these are curated issues with clear test suites. Real codebases have ambiguous issues, missing tests, and dependency conflicts. $\text{pass}^k$ metrics reveal the consistency gap that $\text{pass}^1$ hides.
+
+- **Ignoring the ACI.** When an agent fails at a task, the instinct is to blame the model and reach for a larger one. Often, the real problem is the interface: the model receives confusing feedback, lacks line numbers, or cannot undo a bad action. Redesigning the interface is often cheaper and more effective than upgrading the model.
+
+- **Assuming scaling model size will fix agent reliability.** Analysis shows that 400B parameter models barely outperform 32B on some agentic tasks. The bottleneck is often context management, error recovery, or interface design, not raw reasoning capability.
+
+### Curated Resources
+
+The best entry points for continuing your exploration of this field:
+
+- [Lilian Weng: LLM Powered Autonomous Agents](https://lilianweng.github.io/posts/2023-06-23-agent/) -- The best single overview of the field, organized around planning, memory, and tool use. Start here if you have not already.
+
+- [Shunyu Yao PhD Thesis: Language Agents](https://ysymyth.github.io/papers/Dissertation-finalized.pdf) -- The most rigorous theoretical treatment of language agents, written by the author of ReAct and Tree of Thoughts. Essential reading for researchers.
+
+- [Andrew Ng's Agentic Design Patterns](https://www.deeplearning.ai/the-batch/agentic-design-patterns-part-2-reflection/) -- The practitioner's introduction. Four clear design patterns (Reflection, Tool Use, Planning, Multi-Agent) with practical guidance.
+
+- [CoALA paper (Sumers et al., 2023)](https://arxiv.org/abs/2309.02427) -- The field's best unifying framework. Drawing on cognitive science to organize the sprawling agent field.
+
+- [Awesome Language Agents repository](https://github.com/ysymyth/awesome-language-agents) -- A curated and regularly updated list of papers, maintained by Shunyu Yao. Organized by CoALA categories.
+
+- [SWE-agent paper (Yang et al., 2024)](https://arxiv.org/abs/2405.15793) -- Foundational reading on Agent-Computer Interface design. The insight that interface design matters as much as model capability applies far beyond coding.
+
+- [ADAS paper (Hu et al., 2024)](https://arxiv.org/abs/2408.08435) -- The most intellectually provocative paper in the field. Read this to understand the meta-problem of automated agent design.

@@ -1,0 +1,282 @@
+## Introduction {#sec-introduction}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [ReAct: Synergizing Reasoning and Acting in Language Models (Yao et al.)](https://arxiv.org/abs/2210.03629) | Foundational paper interleaving reasoning traces and actions; ICLR 2023 Oral |
+| 2 | [Toolformer: Language Models Can Teach Themselves to Use Tools (Schick et al.)](https://arxiv.org/abs/2302.04761) | Self-supervised tool-use learning; NeurIPS 2023 Oral |
+| 3 | [Generative Agents: Interactive Simulacra of Human Behavior (Park et al.)](https://arxiv.org/abs/2304.03442) | 25-agent Smallville simulation with observation-planning-reflection architecture |
+| 4 | [Reflexion: Language Agents with Verbal Reinforcement Learning (Shinn et al.)](https://arxiv.org/abs/2303.11366) | Verbal self-reflection as episodic memory for agent self-improvement; NeurIPS 2023 |
+| 5 | [Tree of Thoughts: Deliberate Problem Solving with LLMs (Yao et al.)](https://arxiv.org/abs/2305.10601) | Generalizes CoT to tree-structured search with backtracking; NeurIPS 2023 |
+| 6 | [Voyager: An Open-Ended Embodied Agent with LLMs (Wang et al.)](https://arxiv.org/abs/2305.16291) | Lifelong learning agent in Minecraft; auto-curriculum + skill library |
+| 7 | [CoALA: Cognitive Architectures for Language Agents (Sumers et al.)](https://arxiv.org/abs/2309.02427) | Unifying framework drawing on cognitive science; memory/action/decision modules |
+| 8 | [AgentBench: Evaluating LLMs as Agents (Liu et al.)](https://arxiv.org/abs/2308.03688) | First comprehensive multi-environment agent benchmark; ICLR 2024 |
+| 9 | [AgentTuning: Enabling Generalized Agent Abilities for LLMs (Zeng et al.)](https://arxiv.org/abs/2310.12823) | Instruction-tuning for agent capabilities without losing general abilities |
+| 10 | [MemGPT: Towards LLMs as Operating Systems (Packer et al.)](https://arxiv.org/abs/2310.08560) | OS-inspired virtual context management with memory paging for agents |
+| 11 | [ADAS: Automated Design of Agentic Systems (Hu et al.)](https://arxiv.org/abs/2408.08435) | Meta Agent Search to auto-discover agent architectures; ICLR 2025 |
+| 12 | [OSWorld: Benchmarking Multimodal Agents for Open-Ended Tasks (Xie et al.)](https://arxiv.org/abs/2404.07972) | Real computer environment benchmark; humans 72% vs best agent 12%; NeurIPS 2024 |
+| 13 | [Magentic-One: A Generalist Multi-Agent System (Fourney et al.)](https://arxiv.org/abs/2411.04468) | Orchestrator + specialist agents; competitive on GAIA, WebArena |
+| 14 | [SWE-agent: Agent-Computer Interfaces Enable Automated SE (Yang et al.)](https://arxiv.org/abs/2405.15793) | Introduced ACI concept; LM-centric interface design; NeurIPS 2024 |
+| 15 | [Agentic RAG: A Survey (Singh et al.)](https://arxiv.org/abs/2501.09136) | Comprehensive survey on embedding agents into RAG pipelines |
+| 16 | [LLM Powered Autonomous Agents (Lilian Weng)](https://lilianweng.github.io/posts/2023-06-23-agent/) | Canonical blog post organizing agents as Planning + Memory + Tool Use |
+| 17 | [DSPy: Compiling Declarative LM Calls (Khattab et al.)](https://arxiv.org/abs/2310.03714) | Programmatic LM pipeline optimization; NeurIPS 2023 |
+| 18 | [LLM+P: LLMs with Optimal Planning (Liu et al.)](https://arxiv.org/abs/2304.11477) | Integrating classical PDDL planners with LLMs for optimal plans |
+| 19 | [ChemCrow: Augmenting LLMs with Chemistry Tools (Bran et al.)](https://arxiv.org/abs/2304.05376) | 18-tool chemistry agent; Nature Machine Intelligence 2024 |
+| 20 | [Magentic-One (Fourney et al.)](https://arxiv.org/abs/2411.04468) | Orchestrator + specialist agents; competitive on GAIA, WebArena |
+| 21 | [ADAS (Hu et al.)](https://arxiv.org/abs/2408.08435) | Meta Agent Search to auto-discover agent architectures |
+| 22 | [Andrew Ng's Agentic Design Patterns](https://www.deeplearning.ai/the-batch/agentic-design-patterns-part-2-reflection/) | Four canonical patterns: Reflection, Tool Use, Planning, Multi-Agent |
+
+:::
+
+### Hook: Priya's Impossible Deadline
+
+Priya stared at her laptop screen and felt the familiar tightness in her chest. Her advisor had just sent a deceptively cheerful email: "Let's target a submission to the NeurIPS workshop. You'll need a full literature review on retrieval-augmented generation, reproduce three key baselines, and write up a coherent synthesis. Deadline: two weeks." Two weeks. For work that would normally take two months.
+
+She knew how to do each piece individually. She could prompt ChatGPT to summarize a paper. She could write Python to load a dataset and fine-tune a model. She could search Google Scholar for citations. But the real problem was not any single step. It was the *orchestration*. She found herself copying and pasting between twelve browser tabs, a Jupyter notebook, a shared Google Doc, and a Slack thread with her labmate. She would ask the LLM to summarize a paper, then realize she needed to check whether the paper's claims matched a table in a different paper, which meant searching for that second paper, which meant refining her search query, which meant remembering what she had already searched for. Every ten minutes, she lost her train of thought.
+
+After two days of this, Priya had a revelation that felt obvious in hindsight. She did not need a better LLM. She needed an LLM that could *do* things: search databases, read PDFs, write and run code, remember what it had already done, and figure out what to do next. Not a chatbot that waited passively for her next question, but something more like a research assistant with a mind of its own. What if she could describe her goal ("find the top 20 papers on RAG published since 2023, reproduce the three most-cited baselines, and write a synthesis") and have an AI system break that goal into subtasks, execute them in the right order, recover from mistakes, and produce a polished result?
+
+This is not science fiction. Systems that do exactly this exist today: coding agents that fix real GitHub issues, computer-use agents that operate desktop applications, and multi-agent teams that collaborate on complex research tasks. But here is the puzzle that will occupy us for this entire chapter. The gap between "an LLM that answers questions well" and "an LLM that reliably completes a 50-step autonomous workflow" turns out to be staggeringly large. The best computer-use agents in 2025 succeed at roughly 12% of the tasks that humans complete 72% of the time. Coding agents that score 53% on curated benchmarks crumble on real-world codebases. Agents that pass 70% of trials individually drop below 25% when you require them to succeed consistently across eight independent runs. What explains this gap, and what would it take to close it?
+
+![Different uses of large language models. **A**: In NLP, an LLM takes text as input and outputs text. **B**: Language agents place the LLM in a feedback loop with the external environment. **C**: Cognitive language agents additionally use the LLM to manage internal state via learning and reasoning. This chapter unpacks each of these transitions. Source: Sumers et al. (2023), Figure 1.](LLM and VLM Agentic Systems/images/coala-lang-agent-progression.png){#fig-lang-agent-progression}
+
+### Learning Objectives
+
+After completing this chapter, you will be able to:
+
+- Distinguish between an LLM, a tool-augmented LLM, and a true LLM agent using the CoALA framework's three dimensions: memory, action space, and decision procedure
+- Explain the reasoning spectrum from Chain-of-Thought through ReAct to Tree of Thoughts and Reflexion, and identify which approach fits which type of task
+- Describe how agents acquire and use tools (Toolformer's self-supervised approach, function calling, the MCP protocol) and why the Agent-Computer Interface (ACI) matters as much as model capability
+- Analyze the memory hierarchy in LLM agents (working, episodic, semantic, procedural) and explain the designs of Generative Agents and MemGPT
+- Evaluate when multi-agent architectures (debate, role-playing, orchestration) genuinely improve over a single agent, and when they introduce unnecessary overhead
+- Interpret agent benchmark results (SWE-bench, OSWorld, AgentBench, $\tau$-bench) and explain the reliability gap between single-trial and multi-trial success rates
+- Identify the three most important research frontiers: training agents with RL, automated agent design (ADAS), and agent safety
+
+### Notation
+
+| Symbol | Meaning | First used |
+|---|---|---|
+| $a_t$ | Action at time step $t$ | @sec-reasoning-and-acting |
+| $o_t$ | Observation at time step $t$ | @sec-reasoning-and-acting |
+| $c_t$ | Context (including thought traces) at time step $t$ | @sec-reasoning-and-acting |
+| $\text{mem}_t$ | Agent memory state at trial $t$ | @sec-reasoning-and-acting |
+| $V(s)$ | Value function for state/thought $s$ in tree search | @sec-reasoning-and-acting |
+| $e_i = (a_c, i_c)$ | API call token and input in Toolformer | @sec-tools-memory-grounding |
+| $L^+(e_i), L^-(e_i)$ | Language modeling loss with/without API result | @sec-tools-memory-grounding |
+| $\tau$ | Threshold for API call insertion (Toolformer) or benchmark name ($\tau$-bench) | @sec-tools-memory-grounding, @sec-real-world-agents |
+| $\alpha, \beta, \gamma$ | Weights for recency, importance, relevance in Generative Agents retrieval | @sec-tools-memory-grounding |
+| $L_t$ | Orchestrator ledger at step $t$ (Magentic-One) | @sec-multi-agent |
+| $\pi_\theta$ | Agent policy parameterized by $\theta$ | @sec-frontiers |
+| $\pi_{\text{ref}}$ | Reference policy for KL regularization | @sec-frontiers |
+| $F(\text{agent})$ | Fitness function for agent architecture search (ADAS) | @sec-frontiers |
+
+### Chapter Overview
+
+The word "agent" has become one of the most overloaded terms in AI. In 2023, it meant a chatbot with a web search plugin. In 2024, it meant a multi-step coding assistant. By early 2026, it seems to mean anything that calls an API more than once. This chapter cuts through the hype to map the actual intellectual terrain of LLM-based agentic systems, from the foundational papers that defined the field to the research frontiers that remain genuinely open.
+
+The story begins with a deceptively simple observation. A large language model, by itself, is a text-in, text-out function. You give it a prompt, it generates a completion, and the interaction ends. This is useful for many things (summarization, translation, question answering, code generation), but it is fundamentally *passive*. The model does not observe the consequences of its outputs. It does not update its knowledge based on what happens next. It does not decide what to do; it simply responds to what you asked.
+
+An agent, by contrast, operates in a loop. It perceives its environment (reads a web page, observes a file system, receives user feedback), reasons about what to do next, takes an action (runs a search query, edits a file, calls an API), observes the result, and repeats. This perception-reasoning-action cycle is the conceptual core that separates an agent from a language model. It is also what makes agents so much harder to build reliably, because errors compound across steps in ways they cannot in a single model call.
+
+The field coalesced remarkably quickly. In late 2022, Yao et al. published ReAct ([Yao et al., ICLR 2023](https://arxiv.org/abs/2210.03629)), showing that interleaving "thoughts" (reasoning traces) with "actions" (environment interactions) dramatically improved LLM performance on tasks requiring external knowledge. The insight was elegant: by letting the model think out loud about what it was doing and why, you could ground its reasoning in real observations rather than letting it hallucinate in isolation. ReAct became an ICLR 2023 Oral, and its Thought-Action-Observation loop became the field's foundational abstraction.
+
+Within months, the field exploded. Toolformer ([Schick et al., NeurIPS 2023](https://arxiv.org/abs/2302.04761)) showed that LLMs could teach *themselves* to use tools through self-supervised learning, without human demonstrations. Tree of Thoughts ([Yao et al., NeurIPS 2023](https://arxiv.org/abs/2305.10601)) generalized linear reasoning chains into tree-structured search with backtracking, improving success on hard puzzle-solving from 4% to 74%. Reflexion ([Shinn et al., NeurIPS 2023](https://arxiv.org/abs/2303.11366)) introduced "verbal reinforcement learning," where agents learn from their own failures by generating natural-language critiques and storing them in memory for future trials. Generative Agents ([Park et al., UIST 2023](https://arxiv.org/abs/2304.03442)) created a simulated town of 25 AI characters that autonomously organized a Valentine's Day party by observing, reflecting, and planning. Each of these papers introduced a genuinely new abstraction, not just a new system.
+
+The need for a unifying framework became apparent, and CoALA ([Sumers et al., TMLR 2024](https://arxiv.org/abs/2309.02427)) provided one. Drawing on decades of cognitive science research into architectures like SOAR and ACT-R, CoALA organizes any language agent along three dimensions: **memory** (what the agent knows and remembers, split into working memory and long-term storage), **action space** (what the agent can do, split into internal actions like reasoning and external actions like tool calls), and **decision procedure** (how the agent chooses what to do next). This framework turns out to be remarkably powerful for understanding why certain agents work and others do not. We will use it as our primary organizing lens throughout this chapter.
+
+From a practitioner's perspective, Andrew Ng distilled the field into [four canonical design patterns](https://www.deeplearning.ai/the-batch/agentic-design-patterns-part-2-reflection/) in early 2024: **Reflection** (the agent critiques and improves its own outputs), **Tool Use** (the agent calls external APIs and functions), **Planning** (the agent decomposes goals into subtasks and sequences them), and **Multi-Agent Collaboration** (multiple specialized agents work together). These four patterns are not mutually exclusive; the most capable systems combine all of them. Thinking in terms of patterns helps you decide which capabilities you actually need for a given task, rather than reflexively reaching for the most complex architecture available.
+
+The field's evolution from 2023 to 2026 has followed a recognizable trajectory. The first phase (2022-2023) established the foundational abstractions: reasoning-action loops, self-supervised tool use, reflective self-improvement, cognitive architectures. The second phase (2024) focused on scaling and evaluation: multi-agent systems, thorough benchmarks, computer-use agents, code agents. The third phase (2025-2026) is tackling the hard remaining problems: training agents with reinforcement learning rather than just prompting them, automating the agent design process itself, and confronting safety challenges that turn out to be more urgent than anyone expected.
+
+A pattern worth noting: many of the systems that receive the most attention (Cursor, Claude Code, ChatGPT with tools, Google's Mariner) are *engineering compositions* of the foundational ideas from 2022-2023, not fundamentally new research contributions. This is not a criticism; good engineering is essential. But the user's intuition that "people seem to just be building engineering-style systems" is largely correct. The genuinely seminal contributions introduce new *abstractions* (ReAct, CoALA, ACI), new *capabilities* (Toolformer, Reflexion), new *evaluation paradigms* (OSWorld ([Xie et al., NeurIPS 2024](https://arxiv.org/abs/2404.07972)), $\tau$-bench ([Yao et al., ICLR 2025](https://arxiv.org/abs/2406.12045))), or new *meta-approaches* (ADAS ([Hu et al., ICLR 2025](https://arxiv.org/abs/2408.08435)), DSPy ([Khattab et al., NeurIPS 2023](https://arxiv.org/abs/2310.03714))). One of this chapter's goals is to help you distinguish signal from noise.
+
+We will follow Priya's journey throughout. In @sec-what-is-an-agent, she discovers that the simple chain of LLM calls she built is actually a primitive agent, and we formalize what makes it one. In @sec-reasoning-and-acting, her agent learns to reason while acting (ReAct), explore multiple solution paths (Tree of Thoughts), and learn from its own failures (Reflexion). In @sec-tools-memory-grounding, it acquires the ability to search databases, run code, and remember what it has already done across sessions. In @sec-multi-agent, she splits her monolithic agent into specialized collaborators and discovers when that helps and when it hurts. In @sec-real-world-agents, she benchmarks her system and confronts the brutal reality of long-horizon reliability. And in @sec-frontiers, she explores the three frontiers that could transform the field: training agents with RL, automated agent design, and the safety challenges that may determine whether any of this is wise.
+
+Let us also set expectations about what will be hard. The conceptual foundations (Sections 1-2) are accessible and elegant. The capability building (Sections 3-4) is more technical, involving specific system designs. Section 5 on benchmarks and real-world agents is sobering: the numbers reveal how far we are from reliable autonomy. Section 6 on frontiers is genuinely speculative in places, because the field is moving fast and the open questions are genuinely open. Throughout, we will be honest about what we know, what we suspect, and what remains uncertain.
+
+One more thing before we dive in. The prerequisite knowledge for this chapter is modest but specific. You should be comfortable with the Transformer architecture at a high level (attention mechanism, encoder-decoder vs. decoder-only). You should know what Chain-of-Thought prompting is: asking a model to "think step by step" before giving a final answer. You should have a basic understanding of reinforcement learning vocabulary (policy, reward, value function), though we will define these precisely when we use them. And you should know what Retrieval-Augmented Generation (RAG) means: augmenting an LLM with an external knowledge retrieval step. If any of these are shaky, a quick refresher will be enough; we define all notation as we go.
+
+```{.d2}
+# =========================================================================
+# 1. LAYOUT CONFIGURATION
+# =========================================================================
+direction: right
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+# =========================================================================
+# 2. DESIGN SYSTEM
+# =========================================================================
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 14
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 16
+      bold: true
+    }
+  }
+}
+
+# =========================================================================
+# 3. CONCEPT MAP
+# =========================================================================
+
+reasoning: "Reasoning" {
+  class: [base; container]
+  label.near: top-left
+
+  cot: "    Chain-of-Thought    " {
+    class: [base; input]
+  }
+  react: "    ReAct    " {
+    class: [base; process]
+  }
+  tot: "    Tree of Thoughts    " {
+    class: [base; process]
+  }
+  reflexion: "    Reflexion    " {
+    class: [base; highlight]
+  }
+
+  cot -> react: "add actions" {
+    style.stroke: "#6366F1"
+  }
+  react -> tot: "add branching" {
+    style.stroke: "#10B981"
+  }
+  react -> reflexion: "add self-critique" {
+    style.stroke: "#F43F5E"
+  }
+}
+
+capabilities: "Capabilities" {
+  class: [base; container]
+  label.near: top-left
+
+  tools: "    Tool Use    " {
+    class: [base; input]
+  }
+  memory: "    Memory    " {
+    class: [base; process]
+  }
+  grounding: "    Grounding (ACI)    " {
+    class: [base; process]
+  }
+
+  tools -> memory: "store results" {
+    style.stroke: "#6366F1"
+  }
+  tools -> grounding: "interface design" {
+    style.stroke: "#10B981"
+  }
+}
+
+scaling: "Scaling" {
+  class: [base; container]
+  label.near: top-left
+
+  single: "    Single Agent    " {
+    class: [base; input]
+  }
+  multi: "    Multi-Agent    " {
+    class: [base; process]
+  }
+  meta: "    Meta-Agent (ADAS)    " {
+    class: [base; highlight]
+  }
+
+  single -> multi: "specialize" {
+    style.stroke: "#6366F1"
+  }
+  multi -> meta: "automate design" {
+    style.stroke: "#F43F5E"
+  }
+}
+
+challenges: "Cross-Cutting Challenges" {
+  class: [base; container]
+  label.near: top-left
+
+  reliability: "    Reliability Gap    " {
+    class: [base; decision]
+  }
+  safety: "    Safety & Alignment    " {
+    class: [base; decision]
+  }
+  evaluation: "    Evaluation    " {
+    class: [base; decision]
+  }
+}
+
+# Cross-cutting connections
+reasoning.reflexion -> capabilities.memory: "episodic memory" {
+  style.stroke: "#F43F5E"
+  style.stroke-dash: 5
+}
+capabilities.tools -> scaling.multi: "shared via orchestration" {
+  style.stroke: "#10B981"
+  style.stroke-dash: 5
+}
+challenges.evaluation -> scaling.multi: "benchmarks reveal gaps" {
+  style.stroke: "#F59E0B"
+  style.stroke-dash: 5
+}
+challenges.safety -> scaling.meta: "reward hacking risk" {
+  style.stroke: "#F59E0B"
+  style.stroke-dash: 5
+}
+```
+
+*@fig-lang-agent-progression shows the three levels of LLM usage that this chapter progressively unpacks: from passive text generation (A), to environment-coupled agents (B), to cognitive agents that manage their own internal state (C). The concept map above previews how these ideas organize into Reasoning, Capabilities, and Scaling, with cross-cutting challenges connecting them all.*
