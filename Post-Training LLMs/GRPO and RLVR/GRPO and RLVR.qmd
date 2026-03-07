@@ -1,0 +1,21 @@
+---
+title: "GRPO and RLVR"
+filters:
+  - ../../_extensions/pandoc-ext/diagram/diagram.lua
+---
+
+{{< include "GRPO and RLVR/_01-introduction.qmd" >}}
+
+{{< include "GRPO and RLVR/_02-policy-gradient-foundations.qmd" >}}
+
+{{< include "GRPO and RLVR/_03-grpo-core-algorithm.qmd" >}}
+
+{{< include "GRPO and RLVR/_04-grpo-variants.qmd" >}}
+
+{{< include "GRPO and RLVR/_05-rlvr-paradigm.qmd" >}}
+
+{{< include "GRPO and RLVR/_06-grpo-environments.qmd" >}}
+
+{{< include "GRPO and RLVR/_07-multi-turn-thinking.qmd" >}}
+
+{{< include "GRPO and RLVR/_99-closing.qmd" >}}

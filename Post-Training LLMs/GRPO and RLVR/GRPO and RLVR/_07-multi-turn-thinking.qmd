@@ -1,0 +1,80 @@
+## Thinking Models and Multi-Turn Training {#sec-multi-turn}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [DeepSeek-R1](https://arxiv.org/abs/2501.12948) | R1-Zero from base model, thinking behavior, multi-stage pipeline |
+| 2 | [Dr. GRPO](https://arxiv.org/abs/2503.20783) | Aha moment in base models, template importance, RL ceiling |
+
+:::
+
+The most dramatic demonstration of GRPO's potential came not from a carefully SFT'd model but from applying it directly to a *base model* — one that had never been fine-tuned on instructions. This is the DeepSeek-R1-Zero experiment, and it challenged fundamental assumptions about what RL can and cannot teach LLMs.
+
+### R1-Zero: RL Directly on a Base Model
+
+DeepSeek-R1-Zero applied GRPO with rule-based rewards (math verification) to DeepSeek-V3-Base, a 685-billion-parameter base model. The setup was remarkably simple: the prompt template wrapped each math problem with instructions to think in `<think>` tags and answer in `<answer>` tags. No SFT data was used. No examples of correct reasoning were shown.
+
+The results were striking. The model spontaneously developed several behaviors:
+
+1. **Extended reasoning chains**: Responses grew from tens of tokens to thousands, with the model showing what appeared to be step-by-step problem decomposition.
+2. **Self-reflection**: The model generated phrases like "Wait, let me reconsider" and "Hmm, that doesn't seem right," appearing to check and revise its own reasoning.
+3. **Verification**: The model sometimes generated secondary calculations to verify its primary answer.
+
+These behaviors were collectively called the "Aha moment" in the DeepSeek-R1 paper, and they captured the imagination of the AI research community. The idea that pure RL, without any demonstartion data, could induce sophisticated reasoning behaviors seemed to validate the promise of scalable AI alignment.
+
+### A Critical Perspective: Were These Behaviors Truly Emergent?
+
+The Dr. GRPO paper (Liu et al., 2025) cast important doubt on this narrative. By testing multiple base models *before* RL training, they found that:
+
+1. **Self-reflection keywords already exist in base models.** DeepSeek-V3-Base, Qwen2.5 models, and even Llama-3.1 already generate "Aha," "Wait," and "let me verify" in their responses to math questions, even before any RL training. The right plot of @fig-dr-grpo-dynamics shows that self-reflection counts are non-zero for all tested base models.
+
+2. **The "Aha moment" may be a pretraining artifact, not an emergent RL behavior.** These keywords appear in web text that the models were pretrained on. RL does not create the behavior; it amplifies and refines it, making self-reflection more frequent and (sometimes) more useful.
+
+3. **Some base models already solve math problems without any template.** Qwen2.5-Math models, when given questions without any instruction template, achieved 60% higher accuracy than with the standard R1 template. This suggests these models were pretrained on concatenated question-answer pairs, essentially receiving SFT through pretraining.
+
+4. **The length increase during training is partly an optimization artifact.** As we saw in @sec-grpo-variants, GRPO's length bias causes incorrect responses to grow longer, inflating average response length independently of reasoning quality. When Dr. GRPO removed this bias, the response length growth was substantially reduced while reasoning accuracy was maintained.
+
+This does not diminish GRPO's effectiveness — it clearly improves performance. But it reframes the narrative: **RL amplifies and specializes pre-existing capabilities rather than creating entirely new ones from scratch.** The base model's pretraining determines the ceiling of what RL can achieve; RL determines how close to that ceiling the model actually gets.
+
+::: {.callout-warning title="Common Misconception: R1-Zero proves that RL can teach LLMs to reason from scratch"}
+The R1-Zero results are impressive, but the claim that reasoning emerged "from scratch" is misleading. The 685B-parameter base model was pretrained on trillions of tokens including mathematical proofs, chain-of-thought examples, and self-reflective dialogue. The reasoning patterns are already encoded in the model's weights. RL did not create reasoning; it created the *incentive* for the model to use its existing reasoning capabilities more consistently. The Dr. GRPO team's experiments with Llama-3.2-3B showed that models without strong math pretraining show minimal improvement from RL, confirming that the base model's capabilities are the limiting factor. Domain-specific pretraining (like training on the FineMath dataset) substantially raised the RL ceiling. The takeaway: RL is a refinement tool, not a creation tool. Invest in pretraining and SFT data quality first, then use RL to extract the maximum performance from those capabilities.
+:::
+
+### The Multi-Stage Pipeline: DeepSeek-R1's Full Recipe
+
+DeepSeek-R1 (the production model, not R1-Zero) used a sophisticated multi-stage pipeline that combined pure RL with SFT in a carefully orchestrated sequence:
+
+![The DeepSeek-R1 training pipeline. Stage 1 applies cold-start SFT, Stage 2 uses RL with reasoning rewards, Stage 3 performs rejection sampling to create new SFT data, and Stage 4 applies final RL for alignment. Source: Guo et al. (2025).](images/r1-pipeline.png){#fig-r1-pipeline}
+
+1. **Cold-start SFT**: Though R1-Zero showed RL can start from a base model, the intermediate training was unstable. DeepSeek-R1 first performed SFT on a small set of long chain-of-thought examples to give the model a foundation for structured reasoning.
+
+2. **Reasoning-oriented RL**: GRPO with rule-based rewards on math, coding, and logic tasks. This is where the model's reasoning capabilities improved most dramatically. The reward functions were task-specific verifiers (math answer checking, code test execution).
+
+3. **Rejection sampling SFT**: After RL, the model's best outputs (from the RL-trained policy) were used as new SFT data for a second round of supervised training. This "distills" the RL improvements into a cleaner model that is more stable and less prone to RL artifacts like excessive hedging or irrelevant self-reflection.
+
+4. **Alignment RL**: A final round of RL with a mix of rule-based rewards (for correctness-heavy tasks) and a reward model (for helpfulness, safety, and conversational quality). This stage used RLHF techniques for subjective qualities and RLVR for objective ones.
+
+This multi-stage approach highlights an important practical pattern: **RL and SFT are not competing paradigms but complementary ones.** SFT provides the foundation; RL pushes performance beyond what SFT alone can achieve; rejection sampling stabilizes the RL gains; final RL polishes the model for deployment.
+
+### Single-Turn vs. Multi-Turn: What Changes
+
+Ava has been training her SQL model in a *single-turn* setting: one question, one SQL output. But many real-world tasks involve multiple turns of interaction. For example:
+
+- **Iterative query refinement**: The user asks a question, the model generates SQL, the user says "also filter by date > 2024," and the model must modify its previous SQL.
+- **Tool use**: The model generates SQL, executes it (receiving results as a new input), then generates another SQL query based on those results.
+- **Conversational debugging**: The model's SQL fails, it receives the error message, and it must fix the query.
+
+Multi-turn GRPO training is conceptually straightforward but practically complex. The "output" is no longer a single SQL query but an entire conversation trajectory. The reward may apply to the final outcome of the conversation, requiring credit assignment across multiple turns. The group sampling now generates $G$ complete trajectories per initial prompt, which is more expensive than single-turn sampling.
+
+The key practical challenges for multi-turn GRPO are:
+
+1. **Trajectory length**: Multi-turn conversations can be 10-100x longer than single-turn outputs, increasing memory and compute requirements.
+2. **Credit assignment**: If a three-turn conversation produces correct results, which turn was most important? The group-relative advantage assigns the same advantage to all tokens in all turns, which may be too coarse.
+3. **Environment statefulness**: Each turn may interact with an external tool (database, code execution), making the environment stateful and harder to parallelize.
+
+These challenges are active research areas. For Ava, the practical recommendation is to start with single-turn GRPO (which is simpler and faster), validate that it improves performance, and then extend to multi-turn only if the task requires it.
+
+::: {.callout-note title="Think Hard: The data quality vs. RL trade-off"}
+DeepSeek-R1's multi-stage pipeline suggests that the order of training matters: SFT → RL → Rejection Sampling → SFT → RL. But what if you had unlimited high-quality SFT data? Would RL still add value? The empirical evidence says yes: RL provides improvements *beyond* what SFT can achieve because it enables the model to learn from its own mistakes, explore alternative solutions, and optimize for end-to-end task performance rather than per-token likelihood. However, the magnitude of RL's improvement depends inversely on the quality of SFT data. Excellent SFT data narrows the gap that RL needs to close. Poor SFT data makes RL's contribution larger but also makes training harder (the model must explore from a worse starting point). The practical conclusion: invest in both, but SFT data quality first.
+:::

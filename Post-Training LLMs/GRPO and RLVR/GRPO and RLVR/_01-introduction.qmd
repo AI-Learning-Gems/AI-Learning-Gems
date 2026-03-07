@@ -1,0 +1,246 @@
+## Introduction {#sec-introduction}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [DeepSeekMath (GRPO)](https://arxiv.org/abs/2402.03300) | Original GRPO algorithm, equations, unified paradigm |
+| 2 | [DeepSeek-R1](https://arxiv.org/abs/2501.12948) | R1-Zero training, RLVR at scale, multi-stage pipeline |
+| 3 | [DAPO](https://arxiv.org/abs/2503.14476) | Four GRPO improvements, entropy management |
+| 4 | [Dr. GRPO](https://arxiv.org/abs/2503.20783) | Bias analysis, unbiased optimization, RLOO connection |
+| 5 | [REINFORCE++](https://arxiv.org/abs/2501.03262) | Critic-free alternative, global advantage normalization |
+
+:::
+
+### Hook
+
+Ava is a developer at a mid-sized online store. Her company has grown from a handful of product tables to dozens of interconnected databases: orders, products, customers, regions, returns, promotions. Every day, people across the company ask questions like "What were the top-selling headphones in the Northwest region last quarter, excluding returned items?" or "Which promotion code drove the most repeat purchases in December?" These questions are straightforward for a person who knows SQL (the standard language for querying databases), but the company has far more questions than SQL-literate engineers to answer them.
+
+Ava fine-tuned a 7-billion-parameter language model (a "7B model") to translate these natural-language questions into SQL queries. She used supervised fine-tuning (SFT), the standard approach: she collected a few thousand examples of questions paired with correct SQL queries, and trained the model to imitate them. The results were encouraging at first. On simple questions ("How many orders shipped last week?"), the model got it right about 85% of the time. But on anything requiring multi-table joins, nested subqueries, or conditional filters, the accuracy dropped to around 55%. The model would generate SQL that looked right on the surface but silently returned wrong results, or it would hallucinate table names that did not exist, or it would forget a crucial `WHERE` clause that filtered out returns.
+
+The frustrating part was that Ava could easily *check* whether the model's SQL was correct: just run it against the database and compare the output to the known answer. She had thousands of test questions with gold-standard answers. The feedback signal was sitting right there, a simple binary: did the query return the correct result, yes or no? But SFT could not use this signal. SFT only learns from pre-written correct examples; it has no mechanism to learn from its own mistakes. If the model generates `SELECT * FROM products WHERE region = 'Northwest'` instead of the correct three-table join, SFT simply never sees this failure. It is teaching the model *what correct SQL looks like*, but not *how to verify that its own output is correct*.
+
+What if, instead of showing the model more examples of correct SQL, Ava could let the model generate its own SQL attempts, execute each one against the real database, and then reinforce the attempts that worked while discouraging the ones that failed? This is exactly the idea behind **Reinforcement Learning with Verifiable Rewards (RLVR)**. And the algorithm that makes this practical for LLMs, without the enormous memory cost of traditional RL methods, is called **Group Relative Policy Optimization (GRPO)**. GRPO works by generating multiple SQL queries for the same question, comparing their outcomes within the group, and using the group's own performance as the benchmark for what counts as "good" or "bad." No separate critic model to train. No human annotators to hire. Just the model, its outputs, and a verifier that checks if the SQL returns the right answer.
+
+The result? When researchers at DeepSeek applied this approach to mathematical reasoning, their 7B model improved from 46.8% to 51.7% on the competition-level MATH benchmark, surpassing models 10 times its size. When teams combined GRPO with SQL-specific reward signals, models trained with RL outperformed those trained with SFT alone, sometimes by double-digit margins, and they kept improving even after SFT accuracy had plateaued.
+
+![The GRPO pipeline generates multiple outputs per question, scores them, uses the group's statistics as a baseline for advantage estimation, and updates the policy without requiring a separate critic model. This is the core mechanism that makes RL practical for LLM training. Source: Shao et al. (2024), Figure 4.](images/grpo-pipeline.png){#fig-grpo-hook}
+
+### Learning Objectives
+
+After completing this chapter, you will be able to:
+
+- **Explain** the policy gradient theorem and why variance reduction through baselines is critical for RL training of LLMs
+- **Derive** GRPO's objective function from first principles (REINFORCE with a group-relative baseline and PPO-style clipping)
+- **Compare** GRPO against PPO in terms of memory cost, compute requirements, and empirical performance
+- **Identify** the biases in vanilla GRPO (length bias, difficulty bias, entropy collapse) and explain how DAPO, Dr. GRPO, and REINFORCE++ address them
+- **Design** verifiable reward functions for specific tasks (SQL generation, code generation, structured output), including multi-signal rewards
+- **Set up** an end-to-end GRPO training environment using existing frameworks (TRL, verl, OpenRLHF), with appropriate hyperparameters and monitoring
+- **Evaluate** when RLVR is appropriate versus RLHF, and when thinking-model (R1-Zero style) training offers advantages over single-turn training
+
+### Notation
+
+| Symbol | Meaning |
+|---|---|
+| $\pi_\theta$ | Current policy model (the LLM being trained) |
+| $\pi_{\theta_{old}}$ | Old policy (snapshot before the current update step) |
+| $\pi_{ref}$ | Reference policy (usually the initial SFT model, used for KL regularization) |
+| $q$ | Input prompt or question |
+| $o, o_i$ | Generated output; the $i$-th output in a group |
+| $o_{i,t}$ | The $t$-th token of the $i$-th output |
+| $G$ | Group size (number of outputs sampled per prompt in GRPO) |
+| $r_i, R_i$ | Reward for the $i$-th output |
+| $\mathbf{r}, \mathbf{R}$ | Vector of all rewards in a group: $\{r_1, r_2, \ldots, r_G\}$ |
+| $\hat{A}_{i,t}$ | Estimated advantage for token $t$ of output $i$ |
+| $r_{i,t}(\theta)$ | Importance sampling ratio: $\frac{\pi_\theta(o_{i,t} \mid q, o_{i,<t})}{\pi_{\theta_{old}}(o_{i,t} \mid q, o_{i,<t})}$ |
+| $\epsilon$ | Clipping parameter for the PPO/GRPO surrogate objective |
+| $\beta$ | KL divergence coefficient (controls deviation from reference policy) |
+| $D_{KL}$ | KL divergence between the current policy and the reference policy |
+| $R(q, o)$ | Return: total reward for a question-output pair |
+| $V_\psi$ | Value function (critic network) used in PPO |
+
+### Chapter Overview
+
+Before we dive into the technical details, let us build a mental map of the entire landscape. The goal of this section is to give you a "first pass" through every major idea in the chapter, so that nothing in the detailed sections comes as a surprise. By the end of this overview, you should be able to explain GRPO and RLVR at a high level to a colleague, even without the equations.
+
+**Where we start: the limits of supervised fine-tuning.** If you have trained (or used) an LLM, you are familiar with SFT: collect examples of inputs paired with desired outputs, and train the model to maximize the probability of those outputs. SFT works remarkably well for many tasks, but it has a fundamental limitation. The model only learns from the *correct* examples you provide. It never gets to make mistakes, observe the consequences, and adjust. For tasks where correctness can be verified automatically (running SQL against a database, executing code against test cases, checking if a math answer is right), this is a missed opportunity. The feedback signal exists, but SFT cannot use it.
+
+**The RL bridge: policy gradients for LLMs.** Reinforcement learning fills this gap. In the RL framing, the LLM is a "policy" that takes an input (a question) and produces an output (a sequence of tokens). A "reward function" evaluates the output and returns a score. The RL algorithm adjusts the policy to produce outputs that earn higher rewards. The foundational algorithm for this, REINFORCE, computes a surprisingly elegant gradient: nudge up the probability of tokens that led to high rewards, nudge down the probability of tokens that led to low rewards, weighted by *how much better or worse* the reward was compared to some baseline. The problem is variance. With a single sample per question, the gradient estimate is noisy, causing training to oscillate wildly. PPO (Proximal Policy Optimization) solved this by introducing a learned "critic" (a value function) that estimates the expected reward for each state, dramatically reducing variance. But for LLMs, the critic is another model of comparable size to the policy, doubling the memory requirements.
+
+**GRPO's insight: the group as critic.** The central insight of GRPO is that you do not need a separate critic model if you sample *multiple* outputs for the same question. Generate $G$ outputs (say, $G=16$), score all of them, and use the group's mean reward as the baseline. Outputs that score above the mean get positive "advantage" (reinforced), those below get negative advantage (penalized). The variance reduction comes from the group statistics instead of a learned value function. This eliminates 50% of the memory cost compared to PPO (no critic model needed), while achieving comparable or superior performance on mathematical reasoning benchmarks. GRPO adds PPO-style clipping to prevent the policy from changing too dramatically in a single update, and regularizes with KL divergence from a reference model to prevent the policy from drifting too far from its starting point.
+
+**RLVR: a new training paradigm.** GRPO is the *optimization algorithm*; RLVR (Reinforcement Learning with Verifiable Rewards) is the *training paradigm* that specifies where the reward signal comes from. In RLHF (Reinforcement Learning from Human Feedback), human annotators rank model outputs, and a neural reward model learns to approximate those preferences. This works for subjective tasks (writing quality, helpfulness) but is expensive and introduces reward model errors. In RLVR, the reward comes from a deterministic verifier: execute the SQL and check if the results match, run the code and check if the tests pass, compare the math answer to the ground truth. The reward is cheap, accurate, and scales without human involvement. The combination of GRPO (efficient optimization) and RLVR (cheap, accurate rewards) is what made DeepSeek-R1 possible: training a model to reason by letting it practice and receive automated feedback.
+
+**When vanilla GRPO breaks.** Like any algorithm, GRPO has failure modes. Researchers identified three major issues in 2025. First, **entropy collapse**: the model converges to a single "safe" output pattern and stops exploring, because the clipping mechanism symmetrically limits both upward and downward probability changes. Second, **length bias**: GRPO divides the loss by the length of each output, which means long incorrect outputs are penalized *less per token* than short ones; the model learns to pad failing outputs with unnecessary tokens. Third, **difficulty bias**: the standard-deviation normalization over-weights questions where all outputs have similar rewards (very easy or very hard questions), which contribute little useful gradient signal. Three families of variants emerged to address these problems. DAPO (from ByteDance) introduced asymmetric clipping, dynamic sampling to discard uninformative prompts, and soft penalties for overly long outputs. Dr. GRPO (from Sea AI Lab) showed that simply removing the length normalization and standard-deviation normalization produces an unbiased estimator equivalent to the RLOO (REINFORCE Leave-One-Out) baseline. REINFORCE++ extended REINFORCE with PPO's stabilization tricks but used batch-level rather than per-prompt normalization.
+
+**Designing reward environments for specific tasks.** For practitioners, the most important question is often not "which algorithm variant should I use?" but rather "how do I design the reward function for my specific task?" This is where the practical engineering of RLVR becomes critical. For SQL, the reward function might combine execution correctness (does the query return the right results?), format compliance (is the output valid SQL?), and schema adherence (does it reference only tables and columns that exist?). For code generation, the reward runs unit tests in a sandboxed environment. For structured output like JSON, it validates against a schema. Getting the reward function right is the single most impactful engineering decision in the GRPO pipeline. Too sparse (pure binary correct/incorrect), and the model cannot learn from near-misses. Too rich (many partial signals), and the model may find shortcuts to game the reward without actually solving the task.
+
+**Beyond single-turn: thinking models and multi-turn training.** The most dramatic demonstration of GRPO's potential came with DeepSeek-R1-Zero, which applied GRPO to a base model (no SFT at all) and discovered that the model spontaneously developed "thinking" behaviors: self-reflection, backtracking, and verification. The model learned to wrap its reasoning in `<think>` and `</think>` tags, with the actual answer in a separate `<answer>` block. This "thinking model" paradigm extends naturally to multi-turn scenarios where the model engages in a conversation or uses tools iteratively. However, recent research (Dr. GRPO) has shown that many of these "emergent" behaviors were already present in the base models before RL; what RL actually does is amplify and refine them, not create them from scratch.
+
+**What to expect from the rest of this chapter.** We will build up the full picture in six sections. @sec-policy-gradients establishes the mathematical foundations: the policy gradient theorem, REINFORCE, baselines, and PPO. @sec-grpo-core derives GRPO's objective from first principles and connects it to the unified paradigm of different training methods. @sec-grpo-variants covers the three main GRPO variants (DAPO, Dr. GRPO, REINFORCE++) and when to use each. @sec-rlvr explains the RLVR paradigm and how to design verifiable reward functions. @sec-grpo-environments provides the practical engineering guide: how to set up a training pipeline, choose hyperparameters, and debug common problems. @sec-multi-turn covers multi-turn training, thinking models, and open research directions.
+
+The mathematical content in @sec-policy-gradients and @sec-grpo-core is the most technically demanding. If you are primarily interested in the practical aspects, you can read the overview of each equation (the "what it does" explanation) and skip the derivations without losing the narrative thread. However, if you want to truly understand *why* GRPO works and *where* its failure modes come from, the derivations are worth the effort. The reward function engineering in @sec-grpo-environments is likely the most immediately useful section for practitioners.
+
+```{.d2}
+# =========================================================================
+# 1. LAYOUT CONFIGURATION
+# =========================================================================
+direction: down
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+# =========================================================================
+# 2. DESIGN SYSTEM (6 Semantic Classes)
+# =========================================================================
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 14
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 16
+      bold: true
+    }
+  }
+}
+
+# =========================================================================
+# 3. CONTENT
+# =========================================================================
+
+rl_for_llms: "RL for LLM Training" {
+  class: [base; container]
+  label.near: top-left
+
+  foundations: "Policy Gradient\nFoundations" {
+    class: [base; input]
+    label: "     Policy Gradient Foundations     "
+  }
+
+  optimization: "Optimization Algorithms" {
+    class: [base; container]
+    label.near: top-left
+
+    reinforce: "    REINFORCE    " {
+      class: [base; process]
+    }
+    ppo: "    PPO (Actor-Critic)    " {
+      class: [base; process]
+    }
+    grpo: "    GRPO (Group-Relative)    " {
+      class: [base; highlight]
+    }
+
+    reinforce -> ppo: "add critic\n(variance reduction)" {
+      style.font-size: 11
+    }
+    ppo -> grpo: "replace critic\nwith group baseline" {
+      style.font-size: 11
+    }
+  }
+
+  variants: "GRPO Variants" {
+    class: [base; container]
+    label.near: top-left
+
+    dapo: "    DAPO    " {
+      class: [base; decision]
+    }
+    dr_grpo: "    Dr. GRPO    " {
+      class: [base; decision]
+    }
+    reinforce_pp: "    REINFORCE++    " {
+      class: [base; decision]
+    }
+  }
+
+  reward: "Reward Paradigms" {
+    class: [base; container]
+    label.near: top-left
+
+    rlhf: "    RLHF\n    (Learned Reward)    " {
+      class: [base; process]
+    }
+    rlvr: "    RLVR\n    (Verifiable Reward)    " {
+      class: [base; highlight]
+    }
+  }
+
+  tasks: "Task-Specific Environments" {
+    class: [base; container]
+    label.near: top-left
+
+    sql: "    SQL    " {
+      class: [base; output]
+    }
+    code: "    Code    " {
+      class: [base; output]
+    }
+    math: "    Math    " {
+      class: [base; output]
+    }
+    structured: "    Structured Output    " {
+      class: [base; output]
+    }
+  }
+
+  foundations -> optimization
+  optimization -> variants: "fix biases" {
+    style.font-size: 11
+  }
+  optimization -> reward
+  reward -> tasks: "design reward\nfunctions" {
+    style.font-size: 11
+  }
+}
+```
+
