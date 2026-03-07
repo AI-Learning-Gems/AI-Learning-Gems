@@ -1,0 +1,176 @@
+## Closing {#sec-closing}
+
+### Key Takeaways {#sec-takeaways}
+
+This chapter has covered the complete lifecycle of building a calibrated ECTR system for product search. Here are the seven ideas worth remembering:
+
+1. **CTR prediction is a *probability estimation* problem, not just a ranking problem.** AUC measures whether the model orders items correctly, but for ad auctions, ranking score fusion, and threshold-based decisions, the actual probability value must be correct. A model with AUC = 0.85 that predicts 30% when the truth is 10% is useless for revenue optimization. Calibration is non-negotiable.
+
+2. **The negative downsampling correction formula is the single most important calibration step.** When training data is downsampled to handle extreme class imbalance, applying $p_{\text{true}} = p' / (p' + (1-p')/w)$ at inference time corrects the inflated base rate. This one formula can reduce ECE by 5–10× (@sec-downsampling-correction).
+
+3. **Temperature scaling is astonishingly effective.** A single learned parameter $T$ that divides the model's logit before the sigmoid can reduce ECE from 0.15 to 0.02–0.03. It preserves ranking (AUC unchanged), requires only a one-dimensional optimization on a held-out set, and is the recommended default for any deep CTR model (@sec-temperature-scaling).
+
+4. **Label smoothing during training prevents overconfidence "for free."** Replacing hard labels $\{0, 1\}$ with soft labels $\{\epsilon/2, 1 - \epsilon/2\}$ (with $\epsilon = 0.05$–$0.1$) caps the optimal logit magnitude, producing more moderate probabilities that require less post-hoc correction. It adds zero computational cost to training (@sec-label-smoothing).
+
+5. **Position bias silently corrupts click labels.** Products at higher positions get more clicks regardless of relevance. Position-Aware Learning (PAL), which includes position as a training feature and sets it to a constant at inference, is the simplest and most widely adopted fix (@sec-position-bias).
+
+6. **BERT-based architectures must be combined with tabular features.** Text understanding alone is insufficient for CTR prediction. Late fusion (BERT + tabular MLP) is the recommended starting point; BERT4CTR's Uni-Attention provides richer cross-modal interaction when needed. Two-step training (freeze BERT, then unfreeze with differential learning rates) prevents gradient mismatch from destabilizing training (@sec-two-stage-training).
+
+7. **Historical CTR, BM25 match score, and product category embedding are typically the three most impactful features,** but each has caveats. Historical CTR suffers from sparsity and circularity. BM25 captures only lexical matching. Category embeddings require sufficient training data. The full feature set should span textual, categorical, numerical, and behavioral features (@sec-features).
+
+
+### Concept Map — The Complete Picture {#sec-complete-concept-map}
+
+Now that you have seen every component in detail, here is the complete flow from raw data to deployed system. This is the same concept map from the introduction, but now every term should carry meaning.
+
+```{.d2}
+direction: right
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 13
+    }
+  }
+  step: {
+    style: {
+      stroke: "#3B82F6"
+      fill: "#EFF6FF"
+      font-color: "#1E40AF"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#10B981"
+      stroke: "#059669"
+      font-color: "white"
+    }
+  }
+}
+
+logs: {
+  class: [base; step]
+  label: "  Click Logs  \n  query, product,  \n  click, position  "
+}
+negatives: {
+  class: [base; step]
+  label: "  Negatives  \n  Impression + BM25  \n  Downsample (w)  "
+}
+debias: {
+  class: [base; decision]
+  label: "  Position Debias  \n  PAL / IPW  "
+}
+model: {
+  class: [base; step]
+  label: "  Model  \n  BERT + Tabular MLP  \n  Label smoothing  "
+}
+features: {
+  class: [base; step]
+  label: "  Features  \n  Text · Category · Price  \n  Rating · Hist CTR  "
+}
+correction: {
+  class: [base; decision]
+  label: "  Corrections  \n  Downsample formula  \n  Temp scaling (T)  "
+}
+evaluate: {
+  class: [base; step]
+  label: "  Evaluate  \n  AUC · ECE · NE  \n  Brier · Log Loss  "
+}
+deploy: {
+  class: [base; output]
+  label: "  Deploy  \n  Retrieval → Re-rank  \n  Calibrated pCTR  "
+}
+monitor: {
+  class: [base; output]
+  label: "  Monitor  \n  Daily NE/ECE  \n  Recalibrate T  "
+}
+
+logs -> negatives: "" {style.stroke: "#3B82F6"}
+negatives -> model: "" {style.stroke: "#3B82F6"}
+logs -> debias: "" {style.stroke: "#F59E0B"}
+debias -> model: "" {style.stroke: "#F59E0B"; style.stroke-dash: 4}
+features -> model: "" {style.stroke: "#3B82F6"}
+model -> correction: "" {style.stroke: "#F59E0B"}
+correction -> evaluate: "" {style.stroke: "#3B82F6"}
+evaluate -> deploy: "" {style.stroke: "#10B981"}
+deploy -> monitor: "" {style.stroke: "#10B981"}
+monitor -> correction: "Recalibrate\non drift" {style.stroke: "#10B981"; style.stroke-dash: 4}
+```
+
+
+### Retrieval Practice Questions {#sec-practice-questions}
+
+Test your understanding with these questions. Try to answer each one *before* expanding the solution.
+
+::: {.callout-tip collapse="true" title="Q1: What is the difference between AUC and ECE? Can a model have excellent AUC but terrible calibration?"}
+**Answer:** AUC measures ranking quality: the probability that a randomly chosen positive is scored higher than a randomly chosen negative. ECE measures calibration: the average gap between predicted confidence and actual accuracy. Yes, a model can have AUC = 0.95 but ECE = 0.30. Example: a model that assigns $\hat{p} = 0.99$ to all positives and $\hat{p} = 0.98$ to all negatives has perfect AUC (0.99 > 0.98 for every positive-negative pair) but terrible calibration (it predicts 98–99% confidence when the true positive rate might be 2%).
+:::
+
+::: {.callout-tip collapse="true" title="Q2: Derive the downsampling correction formula from Bayes' rule."}
+**Answer:** Let $p'$ be the model's prediction on the downsampled data, and $w$ be the negative keep rate. The odds in the downsampled data are $\frac{p'}{1-p'}$. Since we kept fraction $w$ of negatives, the true odds are $\frac{p'}{1-p'} \cdot w$ (we inflate the negative count back to full). Converting odds back to probability:
+
+$$p_{\text{true}} = \frac{\frac{p'}{1-p'} \cdot w}{1 + \frac{p'}{1-p'} \cdot w} = \frac{p' \cdot w}{(1-p') + p' \cdot w} = \frac{p'}{p' + \frac{1-p'}{w}}$$
+
+The key insight: downsampling inflates the odds by $1/w$, so we deflate them by $w$ to recover the true probability.
+:::
+
+::: {.callout-tip collapse="true" title="Q3: You're building a CTR model for a new product category with no historical data. What features and fallback strategies would you use?"}
+**Answer:** With no history: (1) rely on text features (query-title match via BERT), (2) use product attributes (price, rating if available, brand via embedding), (3) use category-level priors (smoothed via Beta-Binomial: $\hat{\text{CTR}} = \alpha / (\alpha + \beta)$ where $(\alpha, \beta)$ are estimated from similar categories), (4) use semantic similarity to known queries to bootstrap behavioral features, (5) implement an exploration strategy (random positioning) to collect initial unbiased click data for the new category.
+:::
+
+::: {.callout-tip collapse="true" title="Q4: Why does temperature scaling preserve ranking but change probabilities?"}
+**Answer:** Temperature scaling divides all logits by the same constant $T > 0$: $z_i \to z_i / T$. Since the sigmoid $\sigma(\cdot)$ is monotonically increasing, and multiplying by $1/T > 0$ preserves the ordering of logits ($z_i > z_j \implies z_i/T > z_j/T$), the ranking of items is unchanged. However, the *magnitudes* change: for $T > 1$, logits are shrunk toward zero, and probabilities are pulled toward 0.5 (less confident). The probabilities change but the ordering does not.
+:::
+
+::: {.callout-tip collapse="true" title="Q5: Compare and contrast Platt scaling, isotonic regression, and temperature scaling. When would you choose each?"}
+**Answer:** **Temperature scaling** (1 parameter): best default, simplest, works well for uniformly overconfident models, preserves ranking. **Platt scaling** (2 parameters): adds an intercept/bias term, useful when the model's probability center is shifted (e.g., predicting around 0.5 when truth is much lower). **Isotonic regression** (non-parametric): most flexible, learns arbitrary monotonic corrections, best for models with non-uniform miscalibration (overconfident at high $p$ but underconfident at low $p$). Choose temperature scaling unless you have evidence of non-uniform miscalibration; choose isotonic regression for large calibration sets (>10K) with clear non-uniform patterns.
+:::
+
+::: {.callout-tip collapse="true" title="Q6: Design a position debiasing experiment. How would you measure whether your debiasing actually improved the model?"}
+**Answer:** **Experiment:** (1) For a random subset of traffic (e.g., 5%), shuffle the top 5 search results uniformly at random (RandTop5). (2) Train two models: Model A on the raw (biased) data and Model B on the same data using PAL (position-as-feature at training, position=1 at inference). (3) Evaluate both models on the *randomized* traffic, where click labels are unbiased by position. **Measurement:** Compare Model A and Model B on the randomized traffic using NDCG@5 and ECE. If debiasing worked, Model B should have higher NDCG (better true relevance ranking) and lower ECE (less inflated probabilities for high-position items) on the randomized traffic.
+:::
+
+::: {.callout-tip collapse="true" title="Q7: Your model predicts p=0.8 for a query-product pair, but the true CTR is only 0.15. List three possible reasons for this discrepancy."}
+**Answer:** (1) **Missing downsampling correction:** If the model was trained on 50/50 balanced data (downsample ratio $w \approx 0.01$), a raw prediction of 0.8 converts to $p \approx 0.8 / (0.8 + 0.2/0.01) = 0.8 / 20.8 \approx 0.038$ after correction, still inflated but far less so. (2) **Model overconfidence:** Deep networks produce extreme logits, and without temperature scaling, $\sigma(z)$ maps to near-1 probabilities. Temperature scaling with $T = 2.0$ would reduce the prediction significantly. (3) **Position bias:** If this product was historically shown only at position 1, its click data reflects the high examination probability of position 1, not its true relevance. Without PAL debiasing, the model incorrectly attributes position-driven clicks to product quality.
+:::
+
+
+### Common Mistakes to Avoid {#sec-common-mistakes}
+
+1. **Training on downsampled data without applying the correction formula.** The single most common cause of miscalibrated CTR models.
+2. **Using AUC as the sole evaluation metric.** AUC says nothing about probability quality. Always include ECE, Log Loss, and Normalized Entropy.
+3. **Not accounting for position bias in click labels.** Position bias creates a feedback loop that degrades model quality over time.
+4. **Feature leakage: using post-click data as features.** If a feature is only available *after* the click decision (purchase, cart-add, dwell time), using it as an input creates artificial signal that does not exist at serving time.
+5. **Deploying a model without monitoring calibration drift.** Even a well-calibrated model degrades within days to weeks as user behavior and the product catalog change.
+
+
+### Further Reading {#sec-further-reading}
+
+Listed in recommended priority order:
+
+1. [**BERT4CTR** (Wang et al., KDD 2023)](https://arxiv.org/abs/2308.11527) : Directly answers how to combine BERT with non-textual features via Uni-Attention
+2. [**ethen8181 BERT CTR blog**](http://ethen8181.github.io/machine-learning/deep_learning/tabular/bert_ctr/bert_ctr.html) : Full working PyTorch code for BERT + tabular CTR with differential learning rates
+3. [**Practical Lessons from Predicting Clicks at Facebook** (ADKDD 2014)](https://quinonero.net/Publications/predicting-clicks-facebook.pdf) : Calibration fundamentals, downsampling formula, Normalized Entropy
+4. [**Scale Calibration of Deep Ranking Models** (Google CalRank, KDD 2022)](https://marc.najork.org/papers/kdd2022-calrank.pdf) : Calibrated ranking losses for systems needing both ranking and calibration
+5. [**CTRL** (Li et al., 2023)](https://arxiv.org/abs/2306.02841) : Why two-stage training beats end-to-end for multi-modal CTR
+6. [**On Calibration of Modern Neural Networks** (Guo et al., 2017)](https://arxiv.org/abs/1706.04599) : The foundational calibration paper: ECE, reliability diagrams, temperature scaling
+7. [**How to Measure and Mitigate Position Bias** (Eugene Yan)](https://eugeneyan.com/writing/position-bias/) : Best practical guide to position bias
+8. [**DLRM** (Naumov et al., Meta 2019)](https://arxiv.org/abs/1906.00091) : Foundational embedding-based CTR architecture
+9. [**Cold Start via Empirical Bayes** (Amazon)](https://assets.amazon.science/b5/2f/a9d9581d4f8eab473a4ab4a8ad35/addressing-cold-start-in-product-search-via-empirical-bayes.pdf) : Beta-Binomial smoothing for new products

@@ -1,0 +1,154 @@
+## Feature Engineering — What Makes a Good ECTR Feature? {#sec-features}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [CTR-BERT (Amazon, NeurIPS 2021)](https://neurips2021-nlp.github.io/papers/20/CameraReady/camera_ready_final.pdf) | Feature categorization for product ads |
+| 2 | [BERT4CTR (Wang et al., KDD 2023)](https://arxiv.org/abs/2308.11527) | How non-textual features are encoded, 90+ features |
+| 3 | [Predicting Clicks for New Ads (Yahoo Labs)](https://www.cs.cmu.edu/~xuerui/papers/ctr.pdf) | Feature engineering taxonomy, counter features |
+| 4 | [DeepFM (Guo et al., 2017)](https://arxiv.org/abs/1703.04247) | Feature embedding, automatic interaction learning |
+
+:::
+
+So far, Priya has focused on model architecture, training data construction, and calibration, all essential components. But she has largely glossed over a question that, in practice, often determines the difference between a good model and a great one: *what features should she feed into the model?* Her current BERT + late fusion architecture can process text, categorical, and numerical features. But which specific features matter most for product search CTR?
+
+This section provides a comprehensive taxonomy of features used in production CTR systems, along with encoding strategies and practical guidelines for feature engineering in Amazon-style product search.
+
+### Textual Features {#sec-textual-features}
+
+Text is the most natural signal for connecting user intent to product relevance.
+
+**Query text** is the raw user search query ("wireless noise-canceling headphones under $200"). It carries intent, category signals, brand preferences, and price constraints, all encoded in natural language. For BERT-based models, the query is tokenized and processed directly; for embedding-based models like DLRM, the query might be represented by a pre-computed embedding from a bi-encoder.
+
+**Product title** is the product's headline ("Sony WH-1000XM5 Wireless Industry Leading Noise Canceling Bluetooth Headphones"). Product titles on e-commerce platforms are often keyword-stuffed by sellers, making them noisy but information-rich. The title is the most important text feature for relevance matching.
+
+**Product description** provides detailed product information, but it is typically much longer than what BERT can process (512 tokens is the standard limit). In practice, descriptions are truncated or summarized, and their marginal value beyond the title is modest. Most discriminative information is already in the title.
+
+**Query-document text overlap features** complement (or sometimes replace) neural text features:
+
+- **Exact match fraction:** What fraction of query terms appear verbatim in the product title? A simple but powerful baseline signal.
+- **BM25 score:** The classic information retrieval relevance score:
+$$
+\text{BM25}(q, d) = \sum_{t \in q} \text{IDF}(t) \cdot \frac{f(t, d) \cdot (k_1 + 1)}{f(t, d) + k_1 \cdot \left(1 - b + b \cdot \frac{|d|}{\text{avgdl}}\right)}
+$$ {#eq-bm25}
+where $f(t, d)$ is the term frequency of term $t$ in document $d$, $|d|$ is the document length, and $\text{avgdl}$ is the average document length. BM25 is fast to compute and provides a strong baseline. Several production systems use BM25 as a *feature* in a neural model, combining lexical matching with learned representations.
+- **Jaccard similarity:** $|q \cap d| / |q \cup d|$, measuring token-level overlap.
+- **Semantic similarity:** Cosine similarity between pre-computed query and document embeddings from a bi-encoder. This captures meaning ("laptop computer" matching "notebook PC") that lexical features miss.
+
+
+### Categorical Features {#sec-categorical-features}
+
+Categorical features capture structured product attributes that strongly influence click behavior.
+
+**Product category** is organized hierarchically (e.g., "Electronics > Audio > Headphones > Over-Ear"). Category is extraordinarily predictive because it segments user intent: a query for "headphones" has very different CTR distributions across "Wired Headphones" ($\sim$2% CTR) vs. "Wireless Headphones" ($\sim$5% CTR) vs. "Gaming Headsets" ($\sim$3% CTR). Categories can be encoded at different levels of the hierarchy. BERT4CTR uses the leaf category for maximum specificity, while fallback models may use broader levels for generalization.
+
+**Encoding strategies for categories:**
+
+- **One-hot encoding:** Creates a binary vector of length equal to the number of unique categories. Works for low-cardinality features (e.g., "fulfillment type" with 3 values: Prime, FBA, seller-fulfilled), but is impractical for high-cardinality features like product category (thousands of values) or brand (tens of thousands).
+- **Learned embeddings:** The standard approach in deep CTR models. Each category value is assigned a learnable vector $e_{\text{cat}} = \text{Embedding}(\text{category\_id}) \in \mathbb{R}^d$, where $d$ is typically 8–64 depending on cardinality. This is exactly how DLRM handles sparse features: each categorical feature has its own embedding table.
+- **Target encoding (smoothed):** Replace each category value with the average CTR for that category, smoothed toward the global average:
+$$
+\hat{\mu}_c = \frac{n_c \cdot \bar{y}_c + m \cdot \bar{y}_{\text{global}}}{n_c + m}
+$$ {#eq-target-encoding}
+where $n_c$ is the number of examples for category $c$, $\bar{y}_c$ is the category's average CTR, $\bar{y}_{\text{global}}$ is the overall average CTR, and $m$ is a smoothing parameter (typically 10–100). The smoothing prevents overfitting for rare categories. Target encoding is effective for tree-based models and can serve as an input feature for neural models as well.
+
+**Brand** is especially important for branded queries ("Sony headphones"). A model that knows the user typed "Sony" and the product is from Sony can predict higher CTR than for a generic brand. Brand can have very high cardinality (tens of thousands of brands), making learned embeddings the preferred encoding.
+
+**Fulfillment type** (Prime, FBA, seller-fulfilled) and **product condition** (new, renewed, used) are low-cardinality features with strong CTR effects. Prime-eligible products typically see higher CTR.
+
+
+### Numerical Features {#sec-numerical-features}
+
+Numerical features provide quantitative product attributes that directly influence click decisions.
+
+**Price** is one of the strongest CTR predictors, but it requires careful encoding. Raw price is problematic because the scale varies enormously across categories (headphones: $20–$500; laptops: $300–$3,000). Two effective strategies:
+
+- **Log-transform:** $\text{feature} = \log(1 + \text{price})$. This compresses the range and makes the feature distribution more normal, which neural networks handle better.
+- **Relative price:** price relative to the category average: $\text{feature} = \text{price} / \text{avg\_price\_in\_category}$. A $50 headphone is cheap (ratio < 1.0); a $50 laptop cable is expensive (ratio > 1.0). This captures price-value perception, which is more predictive of CTR than absolute price.
+
+**Star rating** (1–5 scale) is a strong CTR signal. Products with 4.5+ stars have significantly higher CTR than 3-star products. The raw value is informative, but the *number of ratings* (review count) is equally important: a 4.8-star product with 10 reviews is much less trustworthy than a 4.5-star product with 10,000 reviews.
+
+**Review count** should be log-transformed: $\text{feature} = \log(1 + \text{review\_count})$. The distribution of review counts is extremely skewed (many products have <10 reviews, a few blockbusters have 100,000+).
+
+**Product listing age** (recency/freshness) matters because new products often have lower CTR initially but may trend rapidly. Old products with stale information may also see declining CTR.
+
+::: {.callout-note title="Self-Explanation Prompt"}
+*Why should you log-transform price and review count before feeding them into a neural network?*
+
+*Hint: Think about the distribution of raw values. If most products have 10–100 reviews but a few have 100,000+, what happens to the neural network's gradient computation when it processes a batch containing both? What does log-transform do to this distribution?*
+:::
+
+
+### Behavioral and Historical Features {#sec-behavioral-features}
+
+Historical engagement data is the single most powerful category of features for CTR prediction, but it comes with significant challenges.
+
+**Historical CTR for (query, product) pair** is, when available, the best individual predictor of future CTR. If the query "wireless headphones" has been paired with the Sony WH-1000XM5 product 10,000 times and the product was clicked 400 times, the empirical CTR of 4% is an extremely strong signal. The challenge is **sparsity**: most query-product pairs have been seen only a handful of times, or not at all. This is the cold-start problem.
+
+**Query-level CTR** is the average CTR across all products for a given query. Some queries are "browsing" queries with high CTR (the user is likely to click) while others are "comparison" queries with lower CTR (the user is looking but not yet ready to click). Query-level CTR captures this intent signal.
+
+**Product-level CTR** is the average CTR for a product across all queries. Some products are inherently clickable (strong images, recognized brand, competitive price) regardless of the query.
+
+**User-level engagement** includes past clicks, purchases, and browsing history in the same category. A user who recently clicked on several wireless headphone products has demonstrated interest, making them more likely to click on another.
+
+**Session context** features include the number of queries in the current session (early vs. late in session), time of day (lunch-hour shopping vs. late-night browsing), device type (mobile users click differently than desktop users), and whether this is a returning user.
+
+::: {.callout-warning title="Common Misconception: Historical CTR is the best feature, so just use it directly as your prediction"}
+Historical CTR for a (query, product) pair is indeed the most predictive single feature. But there are three reasons you cannot simply use it as your final prediction:
+
+1. **Sparsity.** Most pairs have zero or very few observations. You need a model to generalize from observed pairs to unobserved ones.
+2. **Recency.** Historical CTR reflects past user behavior, which changes. A product's CTR drops after a negative review goes viral, or rises after a promotion.
+3. **Circularity.** Historical CTR is partly a function of the *position* the product was shown at historically. If the product was always shown at position 1 (because the old model liked it), its CTR is inflated by position bias. Using this inflated CTR as a feature creates a feedback loop.
+
+The right approach is to use historical CTR as one feature among many, smoothed with a prior (see Beta-Binomial smoothing in @sec-deployment), and combined with non-behavioral features (text, price, category) that provide generalization power for cold-start cases.
+:::
+
+
+### Cross Features and Feature Interactions {#sec-cross-features}
+
+Some of the most powerful CTR signals come from *interactions* between features, patterns that only emerge when you consider two or more features together.
+
+**Query-category match:** Does this query typically lead to purchases in this category? The query "running shoes" strongly predicts the "Athletic Shoes" category, so products in that category get a CTR boost. This can be computed as the historical distribution of clicks across categories for each query.
+
+**Price sensitivity by category:** Electronics buyers are more price-sensitive than grocery buyers. A 10% price increase might reduce CTR by 15% for electronics but only 3% for groceries. The interaction between price and category captures this differential sensitivity.
+
+**Brand affinity:** Does this user have a history of clicking on this brand? Brand-loyal users have systematically higher CTR for their preferred brands.
+
+**How deep models learn interactions automatically.** The DeepFM and DLRM architectures we studied in @sec-foundational-models are specifically designed to learn feature interactions without manual engineering:
+
+- **DeepFM's FM component** captures all pairwise interactions through factorized dot products: $\langle v_{\text{brand}}, v_{\text{category}} \rangle$ automatically learns the brand-category interaction.
+- **DLRM's interaction layer** computes explicit pairwise dot products between all feature embeddings.
+- **BERT4CTR's Uni-Attention** learns even richer interactions, where non-textual features attend to textual tokens to capture interactions like "the word 'premium' in the query interacts differently with 'Sony' vs. a generic brand."
+
+The advantage of learned interactions is that the model discovers patterns you might not have hypothesized. The disadvantage is that they require sufficient data volume to learn reliably. For rare feature combinations, manual cross-features remain valuable.
+
+
+### Feature Engineering Best Practices {#sec-feature-best-practices}
+
+From production experience and the literature, here are the key practices for feature engineering in CTR systems:
+
+1. **Start simple, add complexity gradually.** Begin with text features (query + title) and basic categorical features (category, brand). Measure AUC and calibration. Then add numerical features, then behavioral features, measuring the impact of each addition. This incremental approach makes it easy to identify which features help and which add noise.
+
+2. **Log-transform skewed numericals.** Price, review count, sales rank, and impression count all have heavy-tailed distributions. Log-transformation prevents outliers from dominating gradient updates.
+
+3. **Use target encoding carefully.** Smoothed target encoding (@eq-target-encoding) is powerful but risks leaking the target variable into features. Always compute target encoding using cross-validation (leave-out encoding) to prevent leakage: the encoding for each training fold is computed from the other folds.
+
+4. **Avoid feature leakage.** The most dangerous form is using post-click signals (conversion, purchase, return) as features for predicting clicks. A product that was purchased was obviously clicked first, so purchase signals "leak" the click label into the features. Only use features that are available *before* the click decision is made.
+
+5. **Monitor feature drift.** Features based on historical data (past CTR, user history, popularity) change over time. A product's average CTR from 6 months ago may be irrelevant today. Use rolling windows (last 7 days, last 30 days) rather than all-time averages, and monitors feature drift alongside model drift.
+
+
+### Priya's Feature Set {#sec-priya-features}
+
+Priya finalizes her feature set for the late-fusion BERT + tabular model:
+
+| Feature Type | Features | Encoding |
+|---|---|---|
+| **Textual** | Query, product title | BERT tokenization |
+| **Textual overlap** | BM25 score, exact match fraction | Numerical |
+| **Categorical** | Product category (leaf), brand, fulfillment type | Learned embeddings (dim 16, 32, 4) |
+| **Numerical** | log(price), star rating, log(review_count) | Raw float |
+| **Behavioral** | Smoothed historical CTR (7-day, 30-day), product-level CTR, query-level CTR | Numerical |
+
+The addition of non-textual features improves her AUC from 0.82 (text-only) to 0.86 (multi-modal). More importantly, the behavioral and categorical features provide signal in cases where the text match is ambiguous. Two products with similar titles but very different ratings and prices now receive appropriately different CTR predictions. With this enriched feature set, proper training data construction (@sec-training-data), and post-hoc calibration (@sec-calibration-techniques), her model is nearly ready for production. The final step is putting together the complete pipeline.

@@ -1,0 +1,351 @@
+## Introduction {#sec-introduction}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [On Calibration of Modern Neural Networks (Guo et al., 2017)](https://arxiv.org/abs/1706.04599) | Reliability diagrams, ECE, temperature scaling |
+| 2 | [Practical Lessons from Predicting Clicks at Facebook (ADKDD 2014)](https://quinonero.net/Publications/predicting-clicks-facebook.pdf) | Downsampling recalibration formula, Normalized Entropy |
+| 3 | [BERT4CTR (Wang et al., KDD 2023)](https://arxiv.org/abs/2308.11527) | Uni-Attention for combining BERT with tabular features |
+| 4 | [BERT CTR: Multimodal Fusion (ethen8181 blog)](http://ethen8181.github.io/machine-learning/deep_learning/tabular/bert_ctr/bert_ctr.html) | Full PyTorch code for BERT + tabular late fusion |
+| 5 | [How to Measure and Mitigate Position Bias (Eugene Yan)](https://eugeneyan.com/writing/position-bias/) | Position bias measurement and mitigation techniques |
+
+:::
+
+
+### When Good Rankings Make Bad Predictions {#sec-hook}
+
+Priya is a machine learning engineer at an e-commerce company. She works on product search, the system that takes a user's query (like "wireless noise-canceling headphones") and decides which products to show, and in what order. Her team has just given her a new assignment: build a model that predicts the probability that a user will click on a given product when it appears in search results. This probability is called the **expected click-through rate**, or ECTR.
+
+She starts with a healthy dataset: 50 million search sessions from the last quarter. Each row records a query, a product that was shown, and a binary label (the user either clicked or did not). She knows BERT-style transformer models are powerful for understanding text, so her first attempt is straightforward. She concatenates the query and the product title with a `[SEP]` token, feeds the sequence through a pre-trained BERT model, takes the `[CLS]` representation, passes it through a linear layer, and applies a sigmoid to get a probability between 0 and 1. She trains this cross-encoder on her 50 million examples using binary cross-entropy loss. The training goes smoothly. She evaluates on a held-out test set and gets an AUC of 0.82, a solid number that means the model is good at *ranking* products in the right order.
+
+Priya deploys the model to production. Within a week, the ads team is furious.
+
+The problem is subtle but devastating. The predicted probabilities are lies. When the model says a product has a 30% chance of being clicked, the actual click rate for those products is closer to 10%. When it says 15%, the truth is about 5%. The probabilities are consistently inflated by a factor of 2–3×. The model's *rankings* are fine: the products it ranks higher do tend to get more clicks than the ones it ranks lower. But the *numbers* attached to those rankings are wildly wrong.
+
+Why does this matter? Because the company's ad auction uses the predicted probability to compute expected revenue: $\text{expected\_revenue} = \text{pCTR} \times \text{bid}$. If pCTR is 3× too high, the auction overvalues low-quality ads, shows them too often, and both revenue and user experience suffer. The ads team tells Priya: *"I don't want just any probability. A 15% prediction had better mean that 15 out of 100 users actually click."* This property, where predicted probabilities faithfully match observed frequencies, is called **calibration**. It turns out to be one of the most critical (and most neglected) aspects of production machine learning systems.
+
+![Confidence histograms (top) and reliability diagrams (bottom) for a 5-layer LeNet (left) and a 110-layer ResNet (right) on CIFAR-100. The LeNet's average confidence closely matches its accuracy, and its reliability diagram bars align with the diagonal; it is well-calibrated. The ResNet achieves lower error (30.6 vs. 44.9), but its confidence far exceeds its accuracy: it is severely overconfident. The red shaded "Gap" regions in the reliability diagrams show the calibration error per bin. This is the core puzzle: **deeper, more accurate models produce worse probability estimates**. Source: Guo et al. (2017), Figure 1.](Expected Click-Through Rate Prediction/images/reliability-diagrams-guo2017.png){#fig-hook-reliability}
+
+As Priya digs deeper, she discovers this is not a bug in her code. It is a fundamental property of modern deep neural networks. The landmark paper by Guo et al. (2017), "On Calibration of Modern Neural Networks," demonstrated that as neural networks have gotten deeper and more accurate over time, they have simultaneously become worse at producing calibrated probabilities. The reliability diagrams in @fig-hook-reliability show this starkly: an older 5-layer network produces predictions that match reality almost perfectly, while a modern 110-layer network is systematically overconfident. Priya's BERT model, with 12 layers, 110 million parameters, and batch normalization, sits squarely in the "modern and miscalibrated" category.
+
+Through the rest of this chapter, we follow Priya as she traces the root causes of her model's miscalibration and discovers solutions, one by one. She will learn that (a) her training data's negative sampling strategy silently corrupted the model's notion of base rates, (b) her BERT model is inherently overconfident due to the depth and over-parameterization that make it powerful, (c) position bias in her click logs means items shown at the top of search results appear more popular than they actually are, and (d) there are elegant methods, both during and after training, that can fix all of this. Along the way, she will evolve from a simple BERT cross-encoder to a multi-modal transformer that combines text with categorical features like brand, price, and product category. She will also learn the feature engineering practices that make or break real-world CTR models.
+
+
+### Learning Objectives {#sec-learning-objectives}
+
+After completing this chapter, you will be able to:
+
+- **Formulate CTR prediction from raw click data:** Define the CTR estimation problem mathematically, construct training examples from impression logs, and explain why the choice of negatives fundamentally affects both model quality and calibration
+- **Compare model architectures for CTR:** Describe the trade-offs between cross-encoders, late fusion (BERT + tabular MLP), Uni-Attention (BERT4CTR), and foundational architectures like DLRM and DeepFM; select the right architecture given latency, data, and feature constraints
+- **Apply calibration techniques:** Implement temperature scaling, Platt scaling, and isotonic regression as post-hoc calibration methods; apply label smoothing and focal loss during training; and explain why temperature scaling is the recommended default
+- **Diagnose and fix calibration problems:** Read reliability diagrams, compute ECE and Normalized Entropy, apply the downsampling correction formula, and monitor calibration drift in production
+- **Engineer features for product search CTR:** Design feature sets spanning textual, categorical, numerical, and behavioral features, and explain encoding strategies including learned embeddings and target encoding
+- **Account for position bias:** Explain why position bias corrupts click labels, implement Position-Aware Learning (PAL), and apply Inverse Propensity Weighting (IPW) to debias training data
+
+
+### Notation {#sec-notation}
+
+We will use the following notation consistently throughout this chapter. Refer back to this table whenever you encounter an unfamiliar symbol.
+
+| Symbol | Meaning |
+|---|---|
+| $q$ | Search query |
+| $d$ | Document (product) |
+| $c$ | Context (position, device, time, etc.) |
+| $y \in \{0, 1\}$ | Binary click label |
+| $\hat{p}$ or $\hat{y}$ | Predicted click probability (pCTR) |
+| $z$ | Logit (pre-sigmoid output of the model) |
+| $\sigma(\cdot)$ | Sigmoid function: $\sigma(z) = 1/(1+e^{-z})$ |
+| $T$ | Temperature parameter for calibration |
+| $w$ | Negative sampling rate (fraction of negatives kept) |
+| $\epsilon$ | Label smoothing parameter |
+| $\gamma$ | Focal loss focusing parameter |
+| $\alpha$ | Weighting parameter (focal loss or knowledge distillation) |
+| $\text{ECE}$ | Expected Calibration Error |
+| $\text{NE}$ | Normalized Entropy |
+| $\text{BS}$ | Brier Score |
+| $\text{pCTR}$ | Predicted Click-Through Rate |
+| $B_m$ | The $m$-th bin in a reliability diagram |
+
+
+### The Story of CTR Prediction — From Simple Counts to Calibrated Deep Networks {#sec-chapter-intro}
+
+To understand why calibrated CTR prediction is both important and surprisingly hard, you need to appreciate what "predicting clicks" actually means, why naive approaches fail, and how the field arrived at the sophisticated techniques we will study. This section provides the conceptual scaffolding for the entire chapter, a first pass through the terrain that gives you the big picture before we dive into the technical details.
+
+#### Why Not Just Count?
+
+The simplest approach to predicting click-through rate is embarrassingly obvious: just count. If the query "wireless headphones" has been searched 10,000 times, and the product "Sony WH-1000XM5" was shown 500 of those times and clicked 20 times, then the empirical CTR is $20/500 = 4\%$. Done. No machine learning needed.
+
+This counting approach works surprisingly well for popular query-product pairs, and variants of it are still used as baseline features in production systems. But it fails catastrophically in the long tail. Most query-product pairs have been seen only a handful of times, or not at all. A new product has zero clicks and zero impressions: what is its CTR? Even popular products get new queries they have never been paired with. If someone searches "best Bluetooth headphones for running in rain," the specific combination of this query with any particular product is likely unique, or close to it. You cannot compute an empirical CTR from counts that do not exist.
+
+This is where machine learning enters the picture. Instead of memorizing counts for specific query-product pairs, a model learns the *relationship* between query features, product features, and click probability. It can generalize: if it knows that noise-canceling headphones with high ratings tend to get clicked for audio-related queries, it can make a reasonable prediction even for a query-product pair it has never seen. The question is: *how well* can it predict, and specifically, *how honest* are its probability estimates?
+
+#### The Calibration Problem: Rankings vs. Probabilities
+
+Here is the core tension that drives this entire chapter. Machine learning models are typically evaluated by how well they *rank* items. Does the model assign a higher score to products that are more likely to be clicked? This ranking quality is measured by metrics like AUC-ROC (Area Under the Receiver Operating Characteristic curve), which captures whether the model separates positive examples from negative examples. An AUC of 0.85 means the model ranks a randomly chosen clicked item above a randomly chosen unclicked item 85% of the time. That sounds great.
+
+But AUC tells you nothing about whether the actual *numbers* the model outputs are correct. A model that assigns scores of 0.9 to all clicked items and 0.1 to all unclicked items has the same AUC as a model that assigns 0.99 to all clicked items and 0.98 to all unclicked items. Both rank perfectly, but the second model's probabilities are useless: it thinks everything has a 98%+ chance of being clicked.
+
+In many applications, rankings are all you need. If you are building a search engine that just needs to show the most relevant result first, AUC is king. But CTR prediction in the context of ads and auction-based ranking is not one of those applications. In an ad auction, the platform computes:
+
+$$
+\text{expected\_revenue} = \text{pCTR} \times \text{bid\_per\_click}
+$$
+
+If pCTR is wrong, the revenue estimate is wrong, and the auction makes bad decisions. Overestimated pCTR means the ad gets shown when it should not, wasting user attention and damaging the platform. Underestimated pCTR means the ad misses opportunities and revenue is left on the table. The pCTR must be **calibrated**: not just relatively correct (good ranking), but absolutely correct (good probability).
+
+Formally, a model $f$ is perfectly calibrated if:
+
+$$
+P(Y=1 \mid \hat{p}(X) = p) = p, \quad \forall p \in [0,1]
+$$ {#eq-calibration-def}
+
+In words: among all examples where the model predicts probability $p$, the fraction that are actually positive should be exactly $p$. If the model says "30% chance of click," then across all items for which it says 30%, exactly 30% should actually be clicked. A reliability diagram (@fig-hook-reliability) visualizes calibration by plotting predicted confidence on the x-axis against actual accuracy on the y-axis. A perfectly calibrated model traces the diagonal $y = x$.
+
+#### A Brief History: How We Got Here
+
+The history of CTR prediction is surprisingly instructive, because it reveals how the calibration problem emerged as models grew more powerful.
+
+**The logistic regression era (2000s–early 2010s):** Early CTR systems used logistic regression with hand-crafted features. Logistic regression has a beautiful property: when trained with cross-entropy loss on representative data, its outputs are inherently calibrated. The sigmoid function maps the linear combination of features to a probability, and maximum likelihood estimation ensures the outputs match the training data distribution. This was the golden age of "train and deploy." You did not need a separate calibration step.
+
+**The ensemble era (mid-2010s):** Facebook's landmark 2014 paper, "Practical Lessons from Predicting Clicks on Ads" (He et al., ADKDD 2014), introduced the hybrid approach that became industry standard: gradient-boosted decision trees (GBDT) for feature transformation, followed by logistic regression for calibrated probability output. The GBDTs learn powerful nonlinear features (tree path encoding), while the logistic regression layer on top ensures the output stays calibrated. This paper also introduced two tools we will use repeatedly in this chapter: the **downsampling correction formula** for fixing probabilities inflated by negative undersampling, and **Normalized Entropy (NE)** as a scale-invariant calibration metric.
+
+**The deep learning era (late 2010s–present):** Starting with industry models like Google's Wide & Deep (2016), Meta's DLRM (2019), and academic innovations like DeepFM (2017) and DCN (2017), deep neural networks began to dominate CTR prediction. These models replaced hand-crafted feature interactions with learned embeddings and automatic feature crossing. The accuracy gains were real and significant. But there was a catch. Unlike logistic regression, deep networks are *not* inherently calibrated. The same depth, width, and batch normalization that make them accurate also make them overconfident, as Guo et al. (2017) demonstrated. The field suddenly needed calibration techniques that had been unnecessary for decades.
+
+**The transformer era (2020s):** The arrival of BERT-based models for CTR, including CTR-BERT (Amazon, NeurIPS 2021), DCAF-BERT (Amazon), and BERT4CTR (KDD 2023), brought powerful text understanding to product search. But it also intensified the calibration challenge. BERT models are among the most overparameterized networks in common use, with 110M+ parameters, and they can produce extremely confident (and wrong) probability estimates if not carefully calibrated. At the same time, the research community developed increasingly sophisticated solutions: calibrated ranking losses (Google CalRank, KDD 2022), contrastive two-stage training (CTRL, 2023), and hybrid approaches that combine in-training regularization with post-hoc correction.
+
+#### The Mental Model: Four Sources of Miscalibration
+
+As we work through the chapter, it will help to have a mental model of *why* CTR predictions go wrong. There are four main sources of miscalibration, and understanding them will organize everything that follows:
+
+1. **Training data bias (Sections [-@sec-problem-formulation] and [-@sec-training-data]):** The data itself introduces miscalibration. When you downsample negative examples to handle extreme class imbalance (typical click rates are 0.5–5%), you shift the model's learned base rate. When you mine hard negatives, you change the difficulty distribution. And when you use click logs where not all items were equally visible to users, position bias corrupts the labels themselves.
+
+2. **Model overconfidence (Section [-@sec-calibration-techniques]):** Deep neural networks, especially modern overparameterized ones, tend to produce logits with too-large magnitudes, which the sigmoid function maps to probabilities near 0 or 1. The model "knows" that its predictions are usually correct during training, so it learns to be extremely confident. But this confidence does not transfer to new data, where it becomes overconfidence.
+
+3. **Feature gaps (Sections [-@sec-model-architectures] and [-@sec-features]):** A model that only sees text features (query + product title) is missing critical information: price, ratings, brand, category, and historical engagement. Missing features cause systematic errors that appear as miscalibration. For instance, if two products have similar titles but one is from a premium brand with a 4.8-star rating and the other is a no-name product with a 3.2-star rating, a text-only model assigns them similar probabilities, but the true CTRs are very different.
+
+4. **Distribution shift (Section [-@sec-deployment]):** Even a perfectly calibrated model degrades over time. User preferences change, product catalogs turn over, and seasonal trends shift demand. The model's training distribution diverges from the serving distribution. Yesterday's perfectly calibrated 15% becomes today's actual 8%.
+
+#### What Lies Ahead
+
+This chapter is organized to follow Priya's journey through these four challenges, with each section building on the previous one:
+
+- **@sec-problem-formulation** lays the foundation: what is CTR prediction mathematically, how do you construct training data from click logs, and what metrics capture calibration quality?
+- **@sec-model-architectures** explores the spectrum of model architectures: from the simplest BERT cross-encoder to sophisticated multi-modal frameworks (BERT4CTR, CTR-BERT, DLRM, DeepFM) that combine text with tabular features.
+- **@sec-training-data** tackles the critical decisions in training data construction: types of negatives, the downsampling correction formula, hard negative mining, and position bias debiasing.
+- **@sec-calibration-techniques** is the technical heart of the chapter: a deep treatment of calibration methods both post-hoc (temperature scaling, Platt scaling, isotonic regression) and in-training (label smoothing, focal loss, CalRank calibrated ranking losses).
+- **@sec-features** catalogs the features that production CTR systems use (textual, categorical, numerical, behavioral, and cross features) along with encoding strategies and engineering best practices.
+- **@sec-deployment** ties everything together with the complete training pipeline, serving architecture, production monitoring, and cold-start handling.
+
+Some of the material ahead is straightforward. Temperature scaling, for instance, is astonishingly simple. Some of it involves careful reasoning: the downsampling correction formula requires you to think through Bayes' rule in a specific way. And some of it carries practical wisdom that can only come from production experience, like the finding from Facebook's 2014 paper that models trained on data more than one week old lose significant calibration quality. All of it is aimed at building genuine understanding of what it takes to produce a probability estimate that you can trust enough to bet money on. That is, quite literally, what ad auctions do.
+
+::: {.callout-tip title="Before reading on..."}
+Here is a question to prime your thinking: *if you trained a binary classifier on 50 million examples with a 1% positive rate, and it achieves AUC = 0.85, would you trust its predicted probabilities for an ad auction? What specific things could go wrong with the probabilities, even though the ranking is good?* Hold your answer in mind as we work through the chapter. By the end, you will have a precise checklist of everything that can go wrong, and how to fix each one.
+:::
+
+
+### Concept Map {#sec-concept-map}
+
+The following diagram shows how the major ideas in this chapter connect. The flow moves from raw click data through training data construction, model architecture, calibration, and finally to production deployment. Each color represents a different concern: data (indigo), models (green), calibration (amber), bias (rose), and evaluation (blue).
+
+```{.d2}
+direction: down
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 14
+    }
+  }
+  data: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  model: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  calibration: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  bias: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  eval: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 16
+      bold: true
+    }
+  }
+}
+
+data_block: "Data Pipeline (§1, §3)" {
+  class: [base; container]
+  label.near: top-left
+
+  logs: {
+    class: [base; data]
+    label: "  Click Logs  \n  (query, product, click/no-click)  "
+  }
+  negatives: {
+    class: [base; data]
+    label: "  Negative Strategies  \n  Impression / Random / Hard (BM25)  "
+  }
+  downsampling: {
+    class: [base; data]
+    label: "  Downsampling + Correction  \n  p_true = p' / (p' + (1-p')/w)  "
+  }
+}
+
+bias_block: "Bias (§3)" {
+  class: [base; container]
+  label.near: top-left
+
+  position: {
+    class: [base; bias]
+    label: "  Position Bias  \n  Higher rank → more clicks  \n  regardless of relevance  "
+  }
+  debiasing: {
+    class: [base; bias]
+    label: "  Debiasing  \n  PAL / IPW / Randomization  "
+  }
+}
+
+model_block: "Model Architectures (§2)" {
+  class: [base; container]
+  label.near: top-left
+
+  cross_encoder: {
+    class: [base; model]
+    label: "  Cross-Encoder  \n  BERT([CLS] q [SEP] d)  "
+  }
+  late_fusion: {
+    class: [base; model]
+    label: "  Late Fusion  \n  BERT + Tabular MLP  "
+  }
+  bert4ctr: {
+    class: [base; model]
+    label: "  BERT4CTR  \n  Uni-Attention  "
+  }
+  dlrm_deepfm: {
+    class: [base; model]
+    label: "  DLRM / DeepFM  \n  Embedding + Feature Interaction  "
+  }
+}
+
+features: {
+  class: [base; model]
+  label: "  Features (§5)  \n  Text · Category · Price · Rating  \n  Historical CTR · BM25 · Brand  "
+}
+
+calibration_block: "Calibration (§4)" {
+  class: [base; container]
+  label.near: top-left
+
+  posthoc: {
+    class: [base; calibration]
+    label: "  Post-Hoc  \n  Temperature · Platt · Isotonic  "
+  }
+  intraining: {
+    class: [base; calibration]
+    label: "  In-Training  \n  Label Smoothing · Focal Loss  "
+  }
+  calrank: {
+    class: [base; calibration]
+    label: "  CalRank  \n  Calibrated Ranking Losses  "
+  }
+}
+
+eval_block: "Evaluation & Deployment (§6)" {
+  class: [base; container]
+  label.near: top-left
+
+  metrics: {
+    class: [base; eval]
+    label: "  Metrics  \n  AUC · ECE · Log Loss  \n  Brier · Norm. Entropy  "
+  }
+  serving: {
+    class: [base; eval]
+    label: "  Serving  \n  Candidate Retrieval →  \n  Cross-Encoder Re-ranking  "
+  }
+  monitoring: {
+    class: [base; eval]
+    label: "  Monitoring  \n  Calibration Drift ·  \n  Online Recalibration  "
+  }
+}
+
+data_block.logs -> data_block.negatives: "Define\nnegatives" {
+  style.stroke: "#6366F1"
+}
+data_block.negatives -> data_block.downsampling: "Handle\nimbalance" {
+  style.stroke: "#6366F1"
+}
+data_block.logs -> bias_block.position: "Contains\nposition bias" {
+  style.stroke: "#F43F5E"
+}
+bias_block.position -> bias_block.debiasing: "Mitigate" {
+  style.stroke: "#F43F5E"
+}
+data_block.downsampling -> model_block: "Training\ndata" {
+  style.stroke: "#6366F1"
+}
+bias_block.debiasing -> model_block: "Debiased\nlabels" {
+  style.stroke: "#F43F5E"
+  style.stroke-dash: 4
+}
+features -> model_block: "Input\nfeatures" {
+  style.stroke: "#10B981"
+}
+model_block -> calibration_block: "Raw\npredictions" {
+  style.stroke: "#10B981"
+}
+calibration_block -> eval_block.metrics: "Calibrated\nprobabilities" {
+  style.stroke: "#F59E0B"
+}
+eval_block.metrics -> eval_block.serving: "Validated\nmodel" {
+  style.stroke: "#1D4ED8"
+}
+eval_block.serving -> eval_block.monitoring: "Production\ntraffic" {
+  style.stroke: "#1D4ED8"
+}
+eval_block.monitoring -> calibration_block.posthoc: "Recalibrate\non drift" {
+  style.stroke: "#1D4ED8"
+  style.stroke-dash: 4
+}
+```

@@ -1,0 +1,165 @@
+## The CTR Prediction Problem — From Click Logs to Binary Classification {#sec-problem-formulation}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Practical Lessons from Predicting Clicks at Facebook (ADKDD 2014)](https://quinonero.net/Publications/predicting-clicks-facebook.pdf) | Downsampling recalibration, Normalized Entropy, calibration monitoring |
+| 2 | [On Calibration of Modern Neural Networks (Guo et al., 2017)](https://arxiv.org/abs/1706.04599) | ECE definition, reliability diagrams, temperature scaling |
+| 3 | [adPredictor: Bayesian CTR (Graepel et al., ICML 2010)](https://quinonero.net/Publications/AdPredictorICML2010-final.pdf) | Bayesian online CTR, per-feature uncertainty |
+| 4 | [scikit-learn Calibration Guide](https://scikit-learn.org/stable/modules/calibration.html) | Formal definition of calibration, Platt/isotonic API |
+
+:::
+
+Every CTR system begins in the same place: with a table of click events and the deceptively simple question of how to turn those raw events into a training signal for a machine learning model. The choices Priya makes at this stage (how she defines her labels, how she handles the extreme class imbalance, and how she evaluates her model) will have cascading effects all the way through deployment. Getting this foundation wrong is the most common source of miscalibration in production systems.
+
+### What Is CTR Prediction? {#sec-ctr-definition}
+
+Click-through rate prediction is a **conditional probability estimation** problem. Given a search query $q$, a candidate document (product) $d$, and a context $c$ (which includes things like the user's device, time of day, and the position at which the product was shown), we want to estimate:
+
+$$
+\text{pCTR} = P(\text{click} = 1 \mid q, d, c)
+$$ {#eq-ctr-def}
+
+This is the probability that a user will click on product $d$ when it is shown in response to query $q$ under context $c$. Notice the subtle but critical distinction between two things that are both called "CTR":
+
+- **Pointwise CTR:** The probability for a *specific* impression: this particular user, this particular query, this particular product, at this particular moment. This is what our model predicts.
+- **Aggregate CTR:** The average click rate over many impressions. For example, "this product gets clicked 4% of the time when it appears in search results." This is what we can measure from historical data, but it pools over many different contexts, queries, and positions.
+
+Our model needs to predict pointwise CTR, but we typically only have aggregate historical data to learn from. This gap is the first source of complexity.
+
+The simplest estimate of aggregate CTR is just counting:
+
+$$
+\text{CTR}(q, d) = \frac{\text{Number of clicks for } (q, d)}{\text{Number of impressions for } (q, d)}
+$$ {#eq-empirical-ctr}
+
+This empirical CTR is an unbiased estimator when we have many observations. But for query-product pairs with fewer than a few dozen observations, the variance is enormous. A product that happened to get clicked 1 out of 3 times gets an empirical CTR of 33%, while a product that happened to get clicked 2 out of 5 times gets 40%, even though neither estimate is reliable. We will revisit this problem in @sec-deployment when we discuss cold-start and Beta-Binomial smoothing.
+
+### From Click Logs to Training Data {#sec-click-logs}
+
+Priya's raw data is straightforward. Each row in her impression log records a search session event with the query, the product that was displayed, the position it was displayed at, and whether the user clicked on it.
+
+| Query | Product | Position | Clicked |
+|-------|---------|----------|---------|
+| wireless headphones | Sony WH-1000XM5 | 1 | 1 |
+| wireless headphones | Bose QC45 | 2 | 0 |
+| wireless headphones | Anker Soundcore | 3 | 0 |
+| wireless headphones | JBL Tune 500 | 4 | 0 |
+| ... | ... | ... | ... |
+
+From this log, constructing training examples seems straightforward: each row becomes a $(q, d, y)$ triple where $y \in \{0, 1\}$ is the click label. But there is an immediate problem: the data is *massively imbalanced*. In a typical product search system, the click-through rate across all impressions averages somewhere between 0.5% and 5%. Priya's data has a 0.8% positive rate. For every product that was clicked, there are roughly 124 that were shown but not clicked.
+
+This imbalance creates a practical problem for training. A model that predicts $\hat{p} = 0.008$ for every example achieves a loss very close to optimal, because the overwhelmingly common case is "no click." The model learns the *base rate* rather than the *discriminative signal*: which features distinguish the 0.8% of clicks from the 99.2% of non-clicks.
+
+The standard solution is **negative downsampling**: randomly keep only a fraction $w$ of the negative examples (non-clicks), so the training set becomes more balanced. If Priya keeps 5% of her negatives ($w = 0.05$), the effective positive rate in her training set jumps from 0.8% to roughly 14%:
+
+$$
+p_{\text{train}} = \frac{p}{p + (1-p) \cdot w} = \frac{0.008}{0.008 + 0.992 \times 0.05} \approx 0.14
+$$
+
+The model can now learn meaningful patterns, because positive and negative examples are both well-represented. But here is the critical part that many practitioners miss: the model now learns a different base rate. It learns that clicks happen about 14% of the time, not 0.8% of the time. Every probability it outputs will be inflated relative to reality.
+
+::: {.callout-warning title="Common Misconception: Downsampling negatives to 50/50 is just class balancing"}
+Many practitioners treat negative downsampling as a routine class-balancing step (like SMOTE for tabular data) and expect the model's outputs to magically represent the true probabilities. They do not. Downsampling changes the model's learned prior: it fundamentally shifts what the model believes the base rate of positive examples is. Without applying the correction formula (see @sec-training-data), all predicted probabilities will be systematically inflated. A model trained on 50/50 balanced data will predict probabilities centered around 0.5, when the true CTR might be 1-2%. This single mistake is the most common source of miscalibration in production CTR systems.
+:::
+
+We will derive the exact correction formula in @sec-training-data. For now, the takeaway is: negative downsampling helps the model *learn*, but it hurts the model's *probability estimates* unless you correct for it.
+
+### Why CTR Is Harder Than Standard Binary Classification {#sec-harder-than-binary}
+
+If you have experience with binary classification tasks (spam detection, sentiment analysis, fraud detection), you might think CTR prediction is just more of the same, but with more data. It is not. Several properties make CTR prediction uniquely challenging:
+
+**1. Extreme class imbalance at scale.** A 0.8% positive rate across 50 million examples means only 400,000 positive examples and 49.6 million negatives. This is not unusual; some product search systems see positive rates below 0.5%. The class imbalance is more extreme than most text classification tasks, and it interacts with calibration in subtle ways.
+
+**2. The distinction between ranking and calibration.** In sentiment analysis, you typically just need to decide "positive or negative?" at some threshold. In CTR, you need the *actual probability value*, because it feeds into downstream computations (ad auctions, expected revenue, ranking score fusion). This means standard classification metrics like accuracy and F1 are nearly useless. AUC measures ranking quality but says nothing about probability quality. You need metrics that specifically measure calibration.
+
+**3. Non-stationarity.** User behavior changes over time. A product that was hot last month is cold this month. New products appear. Seasonal trends shift demand. The data distribution you train on is different from the distribution you serve on, and this distribution shift degrades calibration faster than it degrades ranking.
+
+**4. Observation bias.** Your training data only contains products that were *shown* to the user by a previous version of the model (or a rule-based system). Products that were never shown have no labels, which means your training data is censored in ways that can systematically bias the model's probability estimates.
+
+### Evaluation: Beyond AUC {#sec-evaluation-metrics}
+
+Given these challenges, Priya needs metrics that tell her not just whether her model ranks well, but whether its probabilities are honest. Here are the key metrics she will use.
+
+**Expected Calibration Error (ECE)** is the most common calibration metric. It works by binning predictions into $M$ equal-width bins (typically $M = 15$), computing the accuracy and average confidence within each bin, and measuring the weighted average gap between them:
+
+$$
+\text{ECE} = \sum_{m=1}^{M} \frac{|B_m|}{n} \left| \text{acc}(B_m) - \text{conf}(B_m) \right|
+$$ {#eq-ece}
+
+where $B_m$ is the set of samples whose predicted probability falls in the $m$-th bin, $\text{acc}(B_m)$ is the fraction of positive examples in that bin, and $\text{conf}(B_m)$ is the average predicted probability in that bin. An ECE of 0 means perfect calibration: the "reliability diagram" (a bar chart of $\text{acc}$ vs. $\text{conf}$ per bin) would fall exactly on the diagonal.
+
+**Normalized Entropy (NE)** was introduced by Facebook's ADKDD 2014 paper and is particularly well-suited for CTR. It normalizes the model's log loss by the entropy of a model that simply predicts the background CTR ($p$) for every example:
+
+$$
+\text{NE} = \frac{-\frac{1}{n}\sum_{i=1}^{n} \left[y_i \log \hat{p}_i + (1-y_i)\log(1-\hat{p}_i)\right]}{-(p \log p + (1-p)\log(1-p))}
+$$ {#eq-ne}
+
+where $p = \frac{1}{n}\sum_i y_i$ is the average positive rate. If $\text{NE} = 1.0$, the model is no better than predicting the background CTR for every example. Values less than 1.0 indicate the model adds information beyond the base rate. Facebook reported production models achieving NE around 0.85–0.90, meaning they capture only 10–15% of the information beyond the base rate. On billions of impressions, even this modest improvement translates to enormous revenue impact.
+
+**Brier Score** provides a complementary view by measuring the mean squared error of probability predictions:
+
+$$
+\text{BS} = \frac{1}{n}\sum_{i=1}^{n}(\hat{p}_i - y_i)^2
+$$ {#eq-brier}
+
+The Brier Score has a beautiful decomposition into three terms: **reliability** (how well calibrated), **resolution** (how well the model discriminates), and **uncertainty** (irreducible noise). This decomposition makes it useful for diagnosing what aspect of a model's probability estimates is weakest.
+
+::: {.callout-note title="Think Hard: Is there a fundamental tension between ranking (AUC) and calibration (ECE)?"}
+
+It might seem that optimizing for ranking and optimizing for calibration should go hand in hand. After all, both want the model to assign higher scores to positive items. But there is a subtle tension. Consider a toy example with four items: two clicked ($y=1$) and two not clicked ($y=0$). Model A predicts $(0.9, 0.8, 0.2, 0.1)$ and Model B predicts $(0.51, 0.50, 0.49, 0.48)$. Both models achieve *perfect* AUC: they rank every positive above every negative. But Model A has much worse calibration: it says the first item has a 90% click rate, which might be dramatically overconfident.
+
+In practice, the tension emerges because standard ranking losses (pairwise, listwise) are **translation-invariant**: they only care about the *relative* order of scores, not their absolute values. As Google's CalRank paper (KDD 2022) demonstrated, this means ranking models are free to drift their score scale arbitrarily, producing predictions like 0.98 and 0.97 (both high) or 0.02 and 0.01 (both low), as long as the order is preserved. This score drift is invisible to AUC but catastrophic for calibration. The CalRank solution, which we cover in @sec-calibration-techniques, anchors scores to a calibrated reference to prevent this drift.
+:::
+
+
+### The Calibration Contract {#sec-calibration-contract}
+
+With the evaluation metrics in hand, we can now formalize what we mean by calibration. This concept recurs throughout the chapter. A model $f$ is **calibrated** if:
+
+$$
+P(Y=1 \mid f(X) = p) = p, \quad \forall p \in [0,1]
+$$ {#eq-calibration-formal}
+
+This is a strong statement: among *all* examples for which the model predicts probability $p$, the actual fraction of positives should be exactly $p$. It must hold for every value of $p$, not just the average.
+
+Why does calibration matter for CTR? Consider three downstream applications:
+
+1. **Ad auctions.** The expected revenue of showing an ad is $\text{pCTR} \times \text{bid\_per\_click}$. If pCTR is inflated by 2×, the auction will show this ad in cases where a different ad (with lower bid but truly higher CTR) would have generated more revenue.
+
+2. **Multi-signal ranking fusion.** Product search results are often ranked by a weighted combination: $\text{score} = \alpha \cdot \text{pCTR} + \beta \cdot \text{pCVR} + \gamma \cdot \text{relevance}$. If pCTR is on a different scale from pCVR (predicted conversion rate), the weighting is meaningless.
+
+3. **Threshold-based decisions.** Some systems use hard thresholds, such as "only show products with pCTR > 5%." If the model is miscalibrated, this threshold selects a completely different set of products than intended.
+
+There is an important historical note here. Logistic regression, the workhorse of CTR prediction for over a decade, is inherently calibrated when trained with maximum likelihood on representative data. The sigmoid function maps linear combinations of features to probabilities, and the maximum likelihood objective ensures the output distribution matches the training distribution. This is why early CTR systems (Facebook 2014, Google AdWords) worked well without explicit calibration. Logistic regression gave you calibration "for free."
+
+Deep networks break this contract. As Guo et al. (2017) demonstrated, modern networks with batch normalization, increased depth, and large capacity produce overconfident predictions. The training loss decreases (the model fits the data better), but the gap between its confidence and its actual accuracy grows (the model becomes miscalibrated). The deeper and wider the network, the worse the calibration. This is exactly the opposite of what you want from a more powerful model.
+
+::: {.callout-note title="Self-Explanation Prompt"}
+*Why might a model with AUC = 0.85 still produce terrible probability estimates? Can you construct a specific scenario, with actual numbers for predictions and labels, where this happens?*
+
+*Hint: AUC depends only on the relative ordering of scores, not their magnitudes. What kinds of score distributions maintain the same ranking but produce very different probability estimates?*
+:::
+
+::: {.callout-note title="Self-Explanation Prompt"}
+*If your training data has a 1% positive rate and you randomly undersample negatives to create a 50/50 training set, what happens to the raw model probabilities? Specifically, if the model learned perfectly on the balanced data, what probability would it assign to a sample with a "true" CTR of 2%?*
+:::
+
+### Priya's First Checkpoint {#sec-priya-checkpoint-1}
+
+Priya now understands the landscape of her problem:
+
+1. She has a conditional probability estimation problem ($P(\text{click} \mid q, d, c)$) with extreme class imbalance (0.8% positive rate).
+2. She needs both good ranking (AUC) and accurate probabilities (calibration), because the downstream ad auction uses pCTR directly.
+3. Her BERT cross-encoder achieved AUC = 0.82, good for ranking, but the probabilities are 2–3× inflated.
+4. She suspects the inflation comes from at least two sources: (a) she downsampled negatives without correcting the base rate, and (b) her deep BERT model is inherently overconfident.
+
+Her plan is to tackle these issues systematically:
+
+- First, understand what model architectures are available and how to incorporate product features beyond just text (@sec-model-architectures).
+- Then, fix her training data pipeline: properly handle negatives, correct for downsampling, and debias position effects (@sec-training-data).
+- Next, apply calibration techniques to make her probabilities honest (@sec-calibration-techniques).
+- Finally, engineer the right features (@sec-features) and deploy with proper monitoring (@sec-deployment).
+
+We will follow her through each of these steps, building up the theory and practice piece by piece.

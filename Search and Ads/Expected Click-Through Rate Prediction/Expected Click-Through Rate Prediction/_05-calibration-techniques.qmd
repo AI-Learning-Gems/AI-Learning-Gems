@@ -1,0 +1,362 @@
+## Calibration Techniques — Making Predictions Honest {#sec-calibration-techniques}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [On Calibration of Modern Neural Networks (Guo et al., 2017)](https://arxiv.org/abs/1706.04599) | Temperature scaling, comparison of methods, reliability diagrams, ECE |
+| 2 | [Scale Calibration of Deep Ranking Models (Google CalRank, KDD 2022)](https://marc.najork.org/papers/kdd2022-calrank.pdf) | Calibrated ranking losses, multi-objective, score drift in translation-invariant losses |
+| 3 | [Practical Lessons from Predicting Clicks at Facebook (ADKDD 2014)](https://quinonero.net/Publications/predicting-clicks-facebook.pdf) | Normalized Entropy, calibration monitoring |
+| 4 | [Calibrating CTR with Transfer Learning (Instacart)](https://tech.instacart.com/calibrating-ctr-prediction-with-transfer-learning-in-instacart-ads-99c978a28d53) | Transfer learning outperforms Platt/isotonic for calibration |
+| 5 | [scikit-learn Calibration Guide](https://scikit-learn.org/stable/modules/calibration.html) | Practical API for Platt/isotonic, reliability diagrams |
+| 6 | [Label Smoothing (Müller et al., NeurIPS 2019)](https://proceedings.neurips.cc/paper/2019/hash/f1748d6b0fd9d439f71450117eba2725-Abstract.html) | Label smoothing improves calibration during training |
+| 7 | [Focal Loss (Lin et al., 2017)](https://arxiv.org/abs/1708.02002) | Focal loss for class imbalance and calibration |
+
+:::
+
+Even after fixing her training data pipeline (applying the downsampling correction, adding hard negatives at the right ratio, and debiasing position effects), Priya's model still produces overconfident predictions. When the model says "this product has a 25% chance of being clicked," the true click rate among those products is only about 18%. The probabilities are better than before the data fixes, but still systematically inflated. Why?
+
+The answer lies in a fundamental property of modern deep neural networks. As Guo et al. (2017) demonstrated, deeper and more parameterized networks produce predictions with *higher confidence* than older, simpler models, even when that confidence is unwarranted. The phenomenon is robust across architectures (CNNs, transformers, ResNets), datasets (image classification, text classification, structured prediction), and training methods. The root cause is over-parameterization: a model with millions of parameters can drive training loss to very low values, which corresponds to logits with very large magnitudes, which the sigmoid function maps to probabilities near 0 or 1. The model becomes "certain" in a mathematical sense (large logits) even when the underlying prediction is genuinely uncertain.
+
+This section covers the full toolkit for making deep network predictions honest: methods that can be applied after training (post-hoc) or during training (in-training), plus specialized approaches for ranking systems where both calibration and ordering matter.
+
+### Post-Hoc Calibration: The Big Four {#sec-posthoc-calibration}
+
+Post-hoc calibration methods leave the model unchanged and learn a mapping from the model's raw outputs to calibrated probabilities. They are applied after training, using a held-out calibration set that was not used for either training or validation.
+
+#### Temperature Scaling {#sec-temperature-scaling}
+
+Temperature scaling is the simplest, most effective, and most widely used calibration method for deep networks. It is a single-parameter modification: divide the model's logit by a learned temperature $T$ before applying the sigmoid:
+
+$$
+\hat{p}_{\text{cal}} = \sigma\left(\frac{z}{T}\right)
+$$ {#eq-temperature-scaling}
+
+where $z$ is the model's output logit (before sigmoid). The temperature $T$ is learned by minimizing negative log-likelihood on a held-out calibration set:
+
+$$
+T^* = \arg\min_T -\sum_{i} \left[y_i \log \sigma(z_i / T) + (1 - y_i) \log(1 - \sigma(z_i / T))\right]
+$$ {#eq-opt-temp}
+
+This is a one-dimensional optimization: you are searching for a single scalar. It can be solved trivially with scipy's `minimize_scalar` or even a grid search over $T \in [0.5, 5.0]$ with step size 0.01.
+
+**Why it works.** When a deep network is overconfident, its logits have magnitudes that are too large. The sigmoid function $\sigma(z) = 1/(1+e^{-z})$ is very steep around $z = 0$: a logit of $z = 2.0$ gives $p = 0.88$, but a logit of $z = 3.0$ gives $p = 0.95$. Small changes in logit magnitude produce large changes in confidence. Temperature scaling addresses this by shrinking the logits. If $T > 1$, then $z/T < z$, and the sigmoid produces a less extreme (less confident) probability. If $T = 1.5$ and $z = 2.0$:
+
+$$
+\hat{p}_{\text{cal}} = \sigma(2.0 / 1.5) = \sigma(1.33) = \frac{1}{1 + e^{-1.33}} \approx 0.79
+$$
+
+The prediction drops from 0.88 to 0.79. Still high, but less overconfident.
+
+**The critical property: temperature scaling preserves ranking.** Since the sigmoid function is monotonically increasing, and dividing by $T > 0$ is a monotonic scaling of the logits, the *ordering* of predictions is unchanged. If item A had a higher predicted probability than item B before temperature scaling, it still has a higher probability after. This means temperature scaling never hurts AUC. It only adjusts the probability scale while keeping the ranking intact.
+
+Guo et al. (2017) found that temperature scaling matched or outperformed every other post-hoc calibration method they tested across multiple datasets and architectures, despite having only a single parameter. This result is surprising and has been replicated extensively. Temperature scaling is the recommended default for any deep CTR model.
+
+::: {.callout-note title="Self-Explanation Prompt"}
+*Temperature scaling with $T = 1.5$ means the model becomes less confident. If the original logit $z = 2.0$ (giving $p = 0.88$), what is the calibrated probability? You computed this above. Now: what if $T = 0.5$ (less than 1)? What does $T < 1$ mean for calibration, and when might it be useful?*
+:::
+
+#### Platt Scaling {#sec-platt-scaling}
+
+Platt scaling fits a two-parameter logistic regression on top of the model's logits:
+
+$$
+\hat{p}_{\text{cal}} = \sigma(A \cdot z + B)
+$$
+
+where $A$ and $B$ are learned by minimizing NLL on a calibration set. This is more flexible than temperature scaling: the intercept $B$ can shift the probability center (useful if the base rate in the calibration set differs from the training set), and the slope $A$ provides the same stretching/shrinking as temperature.
+
+Platt scaling was originally designed for SVMs (which produce scores that are not probabilities) and works well with small calibration sets because it has only two parameters. However, for deep networks, Guo et al. found that the extra parameter rarely helps: temperature scaling alone is sufficient, and the additional flexibility of Platt scaling can lead to slight overfitting on small calibration sets.
+
+**When Platt scaling is better than temperature scaling:** If the model's probability distribution is not just overconfident but also *shifted* (e.g., the model's average prediction is 0.5 but the true average CTR is 0.01), the intercept $B$ helps. In practice, this shift is more effectively handled by the downsampling correction formula (@eq-downsampling-correction), so Platt scaling's advantage over temperature scaling is marginal for CTR.
+
+#### Isotonic Regression {#sec-isotonic-regression}
+
+Isotonic regression is a **non-parametric** method: it learns a monotonically increasing step function that maps the model's predicted probabilities to calibrated probabilities. No functional form is assumed. The method simply finds the best-fitting monotonic mapping.
+
+The algorithm works by:
+1. Sort all calibration examples by predicted probability.
+2. Find a monotonically increasing step function that minimizes the mean squared error between the function's output and the actual labels.
+3. For new predictions, look up the corresponding step in the learned function.
+
+Isotonic regression is the most flexible post-hoc method and can correct even highly non-linear distortions. But this flexibility is a double-edged sword: it can overfit on small calibration sets. Guo et al. recommend at least 1,000 calibration examples, ideally more. For CTR datasets with millions of examples, this is never a problem. You can easily set aside hundreds of thousands of calibration examples.
+
+**When isotonic regression beats temperature scaling:** For models with systematically non-uniform miscalibration (for example, the model is overconfident for high predicted probabilities but underconfident for low predicted probabilities), isotonic regression can capture this non-uniform pattern while temperature scaling (which applies the same correction everywhere) cannot.
+
+#### Histogram Binning {#sec-histogram-binning}
+
+Histogram binning is the simplest post-hoc method: divide predicted probabilities into $M$ equal-width bins, and replace each prediction with the empirical positive rate in its bin. In effect, you build a lookup table:
+
+| Predicted Probability Range | Calibrated Probability |
+|---|---|
+| [0.0, 0.1) | 0.005 |
+| [0.1, 0.2) | 0.08 |
+| [0.2, 0.3) | 0.18 |
+| ... | ... |
+
+Histogram binning is extremely simple and interpretable, but it loses fine-grained information within each bin. All predictions in the range [0.2, 0.3) get the same calibrated value, even though the model thinks some are closer to 0.2 and others closer to 0.3. Extensions like **Bayesian Binning into Quantiles (BBQ)** address this by using adaptive bin widths and Bayesian model averaging.
+
+
+#### Worked Example: Comparing Post-Hoc Methods {#sec-posthoc-comparison}
+
+Let us put all four methods head-to-head. The code below simulates an **overconfident CTR model** (mimicking the deep-network miscalibration pattern from Guo et al.), applies each calibration method, and plots the resulting reliability diagrams. This is the kind of diagnostic plot Priya would generate before choosing a calibration strategy.
+
+```{python}
+#| output: false
+#| error: true
+#| warning: false
+import warnings
+warnings.filterwarnings("ignore")
+
+import numpy as np
+import pandas as pd
+import hvplot.pandas
+import holoviews as hv
+hv.extension('bokeh')
+
+from sklearn.datasets import make_classification
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+from sklearn.calibration import CalibratedClassifierCV, calibration_curve
+from scipy.optimize import minimize_scalar
+
+np.random.seed(42)
+
+## --- Common plot display options ---
+## hvplot_opts: passed directly as kwargs to df.hvplot.line(), .scatter(), .bar(), etc.
+hvplot_opts = dict(width=600, height=400, grid=True)
+## hv_opts: passed to .opts() on each holoviews element for holoviews/bokeh-level settings
+hv_opts = dict(
+    show_grid=True,
+    default_tools=['hover', 'save', 'pan', 'box_zoom', 'reset', 'wheel_zoom'],
+    active_tools=['pan'],  # wheel_zoom shown but not active by default
+)
+
+## --- Step 1: Simulate an overconfident CTR model ---
+X, y = make_classification(
+    n_samples=50_000, n_features=20, n_informative=5,
+    n_redundant=5, weights=[0.95, 0.05],
+    flip_y=0.02, random_state=42
+)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.6, random_state=42)
+X_cal, X_eval, y_cal, y_eval = train_test_split(X_test, y_test, test_size=0.5, random_state=42)
+
+base_model = make_pipeline(
+    StandardScaler(),
+    LogisticRegression(C=10, max_iter=1000, random_state=42)
+)
+base_model.fit(X_train, y_train)
+uncal_probs = base_model.predict_proba(X_eval)[:, 1]
+
+## --- Step 2: Apply four post-hoc calibration methods ---
+try:
+    from sklearn import FrozenEstimator
+    frozen = FrozenEstimator(base_model)
+except ImportError:
+    frozen = base_model
+
+platt = CalibratedClassifierCV(frozen, cv="prefit", method="sigmoid")
+platt.fit(X_cal, y_cal)
+platt_probs = platt.predict_proba(X_eval)[:, 1]
+
+isotonic = CalibratedClassifierCV(frozen, cv="prefit", method="isotonic")
+isotonic.fit(X_cal, y_cal)
+isotonic_probs = isotonic.predict_proba(X_eval)[:, 1]
+
+logits_cal = base_model.decision_function(X_cal)
+logits_eval = base_model.decision_function(X_eval)
+
+def nll_temp(T):
+    s = np.clip(logits_cal / T, -500, 500)
+    p = np.clip(1 / (1 + np.exp(-s)), 1e-10, 1 - 1e-10)
+    return -np.mean(y_cal * np.log(p) + (1 - y_cal) * np.log(1 - p))
+
+T_star = minimize_scalar(nll_temp, bounds=(0.1, 10.0), method='bounded').x
+temp_probs = 1 / (1 + np.exp(-np.clip(logits_eval / T_star, -500, 500)))
+
+n_hist_bins = 15
+bin_edges = np.linspace(0, 1, n_hist_bins + 1)
+hist_probs = uncal_probs.copy()
+for i in range(n_hist_bins):
+    mask = (uncal_probs >= bin_edges[i]) & (uncal_probs < bin_edges[i + 1])
+    if mask.sum() > 0:
+        hist_probs[mask] = y_eval[mask].mean()
+
+## --- Step 3: Compute calibration curves and ECE ---
+n_bins = 10
+methods = {
+    'Uncalibrated': uncal_probs,
+    f'Temperature (T={T_star:.2f})': temp_probs,
+    'Platt Scaling': platt_probs,
+    'Isotonic Regression': isotonic_probs,
+    'Histogram Binning': hist_probs,
+}
+
+cal_curves = {}
+eces = {}
+for name, probs in methods.items():
+    prob_true, prob_pred = calibration_curve(y_eval, probs, n_bins=n_bins, strategy='uniform')
+    cal_curves[name] = (prob_pred, prob_true)
+    edges = np.linspace(0, 1, n_bins + 1)
+    ece = 0.0
+    for i in range(n_bins):
+        mask = (probs >= edges[i]) & (probs < edges[i + 1])
+        if mask.sum() > 0:
+            ece += (mask.sum() / len(probs)) * abs(y_eval[mask].mean() - probs[mask].mean())
+    eces[name] = round(ece * 100, 2)
+
+## --- Step 4: Build hvplot objects ---
+rows = []
+for name, (pred, true) in cal_curves.items():
+    for pp, pt in zip(pred, true):
+        rows.append({'Method': name, 'Mean Predicted': pp, 'Fraction of Positives': pt})
+cal_df = pd.DataFrame(rows)
+perfect = pd.DataFrame({'Mean Predicted': [0, 1], 'Fraction of Positives': [0, 1]})
+ece_df = pd.DataFrame([{'Method': k, 'ECE (%)': v} for k, v in eces.items()])
+
+reliability_plot = (
+    cal_df.hvplot.line(
+        x='Mean Predicted', y='Fraction of Positives', by='Method',
+        **hvplot_opts,
+        xlabel='Mean Predicted Probability',
+        ylabel='Fraction of Positives (Actual)',
+        title='Reliability Diagrams: Post-Hoc Calibration Methods',
+        line_width=3,
+    ).opts(**hv_opts)
+    * cal_df.hvplot.scatter(
+        x='Mean Predicted', y='Fraction of Positives', by='Method',
+        **hvplot_opts,
+        size=30,
+    ).opts(**hv_opts)
+    * perfect.hvplot.line(
+        x='Mean Predicted', y='Fraction of Positives',
+        **hvplot_opts,
+        color='gray', line_dash='dashed', line_width=2,
+    ).opts(**hv_opts)
+)
+
+ece_plot = ece_df.hvplot.bar(
+    x='Method', y='ECE (%)',
+    title='Expected Calibration Error',
+    **hvplot_opts,
+    rot=25, color='#3B82F6',
+    xlabel='', ylabel='ECE (%)',
+).opts(**hv_opts)
+
+final_plot = (reliability_plot + ece_plot).cols(1)
+```
+
+```{python}
+#| label: fig-calibration-comparison
+#| fig-cap: "Reliability diagrams comparing four post-hoc calibration methods on a simulated overconfident CTR model. The uncalibrated model dramatically overshoots the diagonal. Temperature scaling and Platt scaling bring the curve much closer to the diagonal with just 1–2 parameters. Isotonic regression hugs the diagonal most tightly. The bar chart (right) shows the Expected Calibration Error (ECE) for each method."
+#| echo: false
+#| warning: false
+from bokeh.io import output_notebook, show
+import holoviews as hv
+output_notebook(hide_banner=True)
+show(hv.render(final_plot, backend='bokeh'))
+```
+
+
+The results tell a clear story. The uncalibrated model dramatically overshoots the diagonal on the reliability diagram, consistent with the overconfidence pattern Guo et al. documented for modern neural networks. Temperature scaling, with just a single learned parameter $T$, brings the curve sharply back toward the diagonal. Platt scaling (two parameters) achieves similar or slightly better results. Isotonic regression, with its full non-parametric flexibility, can hug the diagonal most tightly, but the improvement over temperature scaling is modest for this scenario. Histogram binning is well-calibrated *within* bins by construction, but it produces a stepped output that loses fine-grained ordering information.
+
+The ECE bar chart quantifies what the reliability diagrams show qualitatively: all four methods dramatically reduce calibration error, with isotonic regression and temperature scaling typically performing best. For production CTR systems, the recommendation is clear: **start with temperature scaling** (simplest, rank-preserving, nearly optimal), and switch to isotonic regression only if you have evidence of non-uniform miscalibration and a large calibration set.
+
+### In-Training Calibration Methods {#sec-in-training-calibration}
+
+Post-hoc methods fix calibration after the fact. A complementary approach is to prevent miscalibration from developing during training in the first place.
+
+#### Label Smoothing {#sec-label-smoothing}
+
+Label smoothing replaces hard labels ($y \in \{0, 1\}$) with soft labels that are slightly mixed:
+
+$$
+y_{\text{smooth}} = (1 - \epsilon) \cdot y + \epsilon \cdot 0.5
+$$ {#eq-label-smoothing}
+
+For the binary case, this means $y = 1$ becomes $y_{\text{smooth}} = 1 - \epsilon/2$ and $y = 0$ becomes $y_{\text{smooth}} = \epsilon/2$. Typical values range from $\epsilon = 0.05$ to $0.1$.
+
+**Why this improves calibration.** With hard labels, the optimal logits have infinite magnitude: the loss $-\log \sigma(z)$ is minimized as $z \to +\infty$ for positive labels, and $-\log(1 - \sigma(z))$ is minimized as $z \to -\infty$ for negative labels. The model is rewarded for being *infinitely* confident, which drives logit magnitudes to extreme values. With smoothed labels, the optimal logit for a "positive" example is *finite*: large but bounded. The label smoothing parameter $\epsilon$ implicitly sets a "ceiling" on how confident the model should be. This is exactly the same effect as temperature scaling, but applied during training instead of after.
+
+Müller et al. (NeurIPS 2019) showed that label smoothing has a similar calibration effect to temperature scaling and can even *prevent* the need for post-hoc calibration entirely when the smoothing parameter is well-tuned. For CTR, a typical recommendation is $\epsilon = 0.05$ to $0.1$, enough to prevent overconfidence without significantly hurting discrimination.
+
+::: {.callout-note title="Self-Explanation Prompt"}
+*Why does label smoothing help with calibration? What would happen if you used too much smoothing ($\epsilon = 0.5$)?*
+
+*Hint: With $\epsilon = 0.5$, the smoothed "positive" label is $0.75$ and the smoothed "negative" label is $0.25$. What happens to the model's ability to discriminate positives from negatives?*
+:::
+
+#### Focal Loss {#sec-focal-loss}
+
+Focal loss (Lin et al., 2017) was originally designed for object detection to address class imbalance, but it has calibration benefits as well:
+
+$$
+\mathcal{L}_{\text{FL}} = -\alpha_t (1 - p_t)^\gamma \log(p_t)
+$$ {#eq-focal-loss}
+
+where $p_t = \hat{p}$ if $y = 1$ and $p_t = 1 - \hat{p}$ if $y = 0$. The factor $(1 - p_t)^\gamma$ down-weights examples that the model already classifies correctly with high confidence. When $\gamma = 0$, focal loss reduces to standard cross-entropy. When $\gamma = 2$ (a common choice), an example with $p_t = 0.9$ (easy, correctly classified) has its loss reduced by a factor of $(1 - 0.9)^2 = 0.01$, a 100× reduction. Hard examples ($p_t$ near 0.5 or lower) are barely affected.
+
+**Calibration benefit.** By downweighting easy examples, focal loss prevents the model from "wasting" gradient updates on trivially classified negatives (which dominate CTR datasets due to extreme imbalance). This has two effects: (1) the model focuses training on the decision boundary rather than pushing easy negatives to extreme logits, and (2) the resulting logit distribution is less extreme overall, producing more moderate probabilities that are naturally closer to calibrated. For CTR with $\gamma = 1$ to $2$, focal loss can improve both discrimination *and* calibration simultaneously.
+
+::: {.callout-warning title="Common Misconception: Just add a sigmoid and you get probabilities"}
+Many practitioners believe that applying a sigmoid $\sigma(z) = 1/(1+e^{-z})$ to a model's output automatically produces a calibrated probability. After all, the sigmoid maps any real number to the (0, 1) interval, and logistic regression with sigmoid *is* calibrated. But the sigmoid is just a scaling function. It maps logits to a [0, 1] range without any guarantee that the resulting values correspond to true frequencies. A deep network with logit $z = 5.0$ produces $\sigma(5.0) = 0.993$, which looks like a 99.3% probability, but this does not mean 99.3% of items with this logit value are actually clicked. The logit magnitude reflects the network's *internal certainty*, which is driven by its capacity and training dynamics, not by the true data-generating process. Calibration techniques exist precisely because the sigmoid alone is insufficient.
+:::
+
+
+### Calibrated Ranking Losses (Google CalRank) {#sec-calrank}
+
+Standard CTR models are trained with pointwise losses (binary cross-entropy per item). But in ranking systems, we also care about the relative ordering of items. The natural approach is to use ranking losses (pairwise or listwise) alongside or instead of pointwise losses. However, Google's CalRank paper (KDD 2022) revealed a fundamental problem with this approach.
+
+**The score drift problem.** Standard ranking losses like BPR (Bayesian Personalized Ranking) or softmax cross-entropy over lists are **translation-invariant**: adding a constant $c$ to all scores does not change the ranking, so ranking losses cannot "see" this shift. Over time, this means the absolute scale of model scores drifts unpredictably. The model might output scores centered around 0.5 one week and around 0.95 the next, even though the rankings are equally good. This drift is invisible to AUC but catastrophic for calibration.
+
+CalRank proposed three solutions:
+
+1. **Multi-objective training:** Jointly optimize a ranking loss (for ordering quality) and a calibration loss (binary cross-entropy for probability quality). The combined loss is:
+$$
+\mathcal{L} = \lambda_{\text{rank}} \cdot \mathcal{L}_{\text{rank}} + \lambda_{\text{cal}} \cdot \mathcal{L}_{\text{cal}}
+$$
+The calibration loss anchors the score scale while the ranking loss ensures good ordering.
+
+2. **Multi-task learning:** Use separate output heads for ranking and calibration. The model shares a backbone but produces two outputs: one optimized for ranking and one for calibrated probability estimation. At serving time, use the calibrated head's output for probability-dependent decisions (ad auctions) and the ranking head for ordering.
+
+3. **Reference-based calibration:** During training, anchor scores to a separately calibrated reference model. New model predictions are encouraged to stay close to the reference model's calibrated outputs while improving ranking quality. This prevents the score drift that causes miscalibration.
+
+Google deployed CalRank in their Sponsored Search system and reported significant improvements in calibration quality (measured by ECE and Normalized Entropy) with no degradation in ranking quality (measured by AUC). The multi-objective approach is the simplest to implement and is the recommended default when both ranking and calibration matter.
+
+::: {.callout-note title="Think Hard: Can you have both perfect ranking and perfect calibration?"}
+
+In theory, yes. A model that outputs the true conditional probability $P(Y=1 \mid X)$ achieves both perfect ranking (the true probabilities are the optimal ranking) and perfect calibration (by definition). In practice, achieving both simultaneously is hard because:
+
+1. **Ranking losses don't care about calibration.** They optimize relative ordering, which is a weaker objective than exact probability estimation.
+2. **Calibration losses don't care about ranking.** Cross-entropy for calibration treats each example independently, without considering how it compares to alternatives.
+3. **The data is finite and noisy.** With limited data, there is a statistical trade-off: a model can fit the ranking order well at the expense of probability accuracy, or vice versa. The CalRank multi-objective approach addresses this by explicitly optimizing both objectives, but the relative weighting $\lambda_{\text{rank}} / \lambda_{\text{cal}}$ must be tuned.
+
+The practical takeaway is to **always include a calibration loss component** (even a small one) in any system where the predicted probability is used downstream, not just the ranking.
+:::
+
+
+### Transfer Learning for Calibration {#sec-transfer-learning}
+
+Instacart reported a surprising finding: **warm-starting from a previously trained model** (transfer learning) improves calibration more than any post-hoc method alone. The intuition is that a warm-started model has:
+
+1. **Better-conditioned feature representations:** The features learned during previous training are already "organized" in a way that maps smoothly to calibrated outputs. A randomly initialized model must find this organization from scratch, and the path it takes through parameter space tends to produce more extreme logits.
+2. **A more moderate logit distribution:** Pre-trained weights tend to produce logits with moderate magnitudes. The network does not need to "push" its weights to extreme values to achieve good training loss, because it starts from a good initialization.
+
+In production, this means the first model you train will likely need aggressive post-hoc calibration (temperature scaling with $T = 1.5$ to $2.0$). But subsequent models, warm-started from the previous one, will need much less correction ($T$ closer to 1.0). Over time, the transfer learning effect compounds, and the model becomes increasingly self-calibrating.
+
+This finding aligns with the broader theme of this chapter: calibration is not just about a post-processing step at the end. It is affected by every decision in the pipeline: data construction, model architecture, training procedure, and initialization.
+
+
+### Practical Calibration Recipe {#sec-calibration-recipe}
+
+Putting it all together, here is the step-by-step recipe Priya follows:
+
+1. **During training:** Use label smoothing ($\epsilon = 0.1$) and consider focal loss ($\gamma = 1$) if class imbalance is extreme (positive rate < 1%).
+2. **After training:** Apply the downsampling correction (@eq-downsampling-correction) if negative downsampling was used.
+3. **Post-hoc calibration:** Learn temperature $T$ on a held-out calibration set (10–20% of validation data, disjoint from the set used for hyperparameter tuning). Optimize $T$ by minimizing NLL.
+4. **Validation:** Generate a reliability diagram and compute ECE, Brier Score, and Normalized Entropy. ECE < 0.05 is a good target; NE < 0.95 (below background CTR entropy) means the model adds value.
+5. **Production monitoring:** Track NE and ECE on daily batches of live traffic. Re-fit the temperature $T$ periodically (e.g., daily) on fresh data as a lightweight recalibration step.
+
+Priya applies temperature scaling and finds $T^* = 1.42$. Her ECE drops from 0.15 (before any calibration) to 0.03 (after downsampling correction, PAL debiasing, and temperature scaling). The reliability diagram now hugs the diagonal. She can finally deploy with confidence, or rather, with appropriately *calibrated* confidence.

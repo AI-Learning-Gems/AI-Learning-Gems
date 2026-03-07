@@ -1,0 +1,159 @@
+## Putting It All Together — Training, Serving, and Monitoring {#sec-deployment}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [CTR-BERT (Amazon, NeurIPS 2021)](https://neurips2021-nlp.github.io/papers/20/CameraReady/camera_ready_final.pdf) | Online experiments, distribution shift, retraining |
+| 2 | [Practical Lessons from Predicting Clicks at Facebook (ADKDD 2014)](https://quinonero.net/Publications/predicting-clicks-facebook.pdf) | Data freshness, online joiner, feature staleness |
+| 3 | [Cold Start via Empirical Bayes (Amazon)](https://assets.amazon.science/b5/2f/a9d9581d4f8eab473a4ab4a8ad35/addressing-cold-start-in-product-search-via-empirical-bayes.pdf) | Beta-Binomial smoothed CTR for new products |
+| 4 | [Scale Calibration of Deep Ranking Models (Google CalRank, KDD 2022)](https://marc.najork.org/papers/kdd2022-calrank.pdf) | Deployed calibrated ranking in Google Sponsored Search |
+
+:::
+
+Priya has all the pieces: a well-architected model, properly constructed training data, a rich feature set, and calibration techniques that make her probabilities honest. But deploying a model to production and *keeping* it honest over time introduces a new set of challenges. This section covers the end-to-end lifecycle: training pipeline, evaluation protocol, serving architecture, cold-start handling, and the critical but often-overlooked topic of production monitoring.
+
+### The Complete Training Pipeline {#sec-training-pipeline}
+
+Here is Priya's step-by-step training recipe, integrating everything from the previous sections:
+
+1. **Collect impression logs with positions.** Each record contains: query, product, click (0/1), display position, timestamp, and all product metadata (category, brand, price, rating, review count).
+
+2. **Construct training pairs.** Use impression negatives (shown but not clicked) as the base, supplemented with 20% BM25 hard negatives at a configurable ratio. Include position as a feature for PAL debiasing.
+
+3. **Apply negative downsampling.** Keep fraction $w$ of negatives (e.g., $w = 0.05$) to create a manageable training set. Record $w$ for the correction formula at inference.
+
+4. **Train the model.** BERT + late fusion with:
+   - **Label smoothing** ($\epsilon = 0.1$) during training for inherent calibration regularization
+   - **Focal loss** ($\gamma = 1$) for extremely imbalanced scenarios
+   - **Two-step training:** Freeze BERT for 2 epochs, then unfreeze with differential learning rates ($\text{lr}_{\text{BERT}} = 10^{-4}$, $\text{lr}_{\text{head}} = 10^{-3}$)
+   - **Warm start** from the previous production model (if available)
+
+5. **Apply downsampling correction.** At inference time, apply @eq-downsampling-correction to transform the model's raw probabilities back to the true scale.
+
+6. **Learn temperature scaling** on a held-out calibration set (10–20% of data, disjoint from training and validation).
+
+7. **Validate with the full metric suite.** AUC-ROC (ranking), Log Loss (probability quality), ECE (calibration), Brier Score (overall probability accuracy), Normalized Entropy (scale-invariant calibration). All five must be acceptable before deployment.
+
+**Data freshness matters enormously.** Facebook's ADKDD 2014 paper found that models trained on data more than one week old suffered significant calibration degradation. User behavior shifts rapidly: trends, promotions, and catalog changes mean that yesterday's clicking patterns differ from today's. The practical recommendation is to retrain models weekly on the most recent data, with daily recalibration of the temperature parameter $T$ on fresh data as a lightweight maintenance step.
+
+
+### Evaluation: The Metrics Hierarchy {#sec-metrics-hierarchy}
+
+Deploying a CTR model requires evaluating multiple dimensions simultaneously: ranking quality, probability quality, calibration quality, and overall accuracy. Using any single metric in isolation is dangerous.
+
+| Metric | What It Measures | Sensitive To | Best For |
+|---|---|---|---|
+| **AUC-ROC** | Ranking quality | Relative ordering | "Does the model rank clicked items above unclicked items?" |
+| **Log Loss** | Probability quality | Both ranking and calibration | "How well do the probabilities fit the data?" |
+| **ECE** | Calibration quality | Predicted-vs-actual frequency | "Are the probabilities honest?" |
+| **Brier Score** | Overall probability accuracy | Combines calibration + discrimination | "How close are predictions to labels?" |
+| **Normalized Entropy** | Scale-invariant calibration | Information beyond base rate | "Does the model add value beyond predicting the average CTR?" |
+
+The Brier Score has a particularly useful decomposition, $\text{BS} = \text{REL} - \text{RES} + \text{UNC}$, that separates reliability (calibration: lower is better), resolution (discrimination: higher is better), and uncertainty (irreducible noise). This decomposition helps diagnose exactly *what* is wrong when the model underperforms.
+
+**Group-wise calibration** adds an essential dimension: check calibration within subgroups, not just overall. A model might be well-calibrated in aggregate (ECE = 0.03) but poorly calibrated for specific query types, product categories, or positions. Priya checks calibration separately for:
+
+- High-frequency vs. low-frequency queries
+- Different product categories (electronics vs. clothing vs. groceries)
+- New products vs. established products
+- Desktop vs. mobile users
+
+This subgroup analysis often reveals that the "average" calibration hides significant variation, and specific subgroups may need targeted treatment (additional features, separate calibration parameters, or specialized models).
+
+### Loss Function Selection {#sec-loss-functions}
+
+The choice of training loss function is a design decision that balances ranking, calibration, and training stability:
+
+- **Binary cross-entropy (BCE):** The default choice. Optimizes both ranking and probability estimation. When combined with label smoothing, produces well-calibrated models. Recommended for most CTR applications.
+
+- **BCE + label smoothing:** Label smoothing ($\epsilon = 0.05$–$0.1$) prevents overconfidence during training, reducing the need for aggressive post-hoc calibration. This is the pragmatic default.
+
+- **Focal loss:** When positive rates are below 1%, the vast majority of training signal comes from easy negatives that the model already classifies correctly. Focal loss ($\gamma = 1$–$2$) suppresses this wasted signal and focuses training on the decision boundary. Improves both discrimination and calibration for highly imbalanced data.
+
+- **CalRank multi-objective:** When both ranking quality and calibration are critical (e.g., ad auction pricing), combine a ranking loss with a calibration loss: $\mathcal{L} = \lambda_r \mathcal{L}_{\text{rank}} + \lambda_c \mathcal{L}_{\text{cal}}$. This anchors the score scale (preventing drift) while maintaining ranking quality.
+
+
+### Serving Architecture {#sec-serving-architecture}
+
+Production CTR systems operate under strict latency constraints, typically P99 < 50ms for the re-ranking stage. This drives a two-stage architecture:
+
+**Stage 1: Candidate retrieval** (P99 < 20ms). Fast retrieval of the top 100–1000 candidate products from a catalog of millions. Methods include BM25 (lexical matching), approximate nearest neighbors (ANN) on pre-computed embeddings, and category/brand filters. This stage prioritizes recall (finding all potentially relevant products) without worrying about precise ranking.
+
+**Stage 2: Cross-encoder re-ranking** (P99 < 50ms). The BERT-based CTR model re-ranks the candidates from Stage 1. This is where the sophisticated model runs: the cross-encoder (or factorized encoder with cached product embeddings) scores each candidate and produces a calibrated pCTR.
+
+For factorized models (CTR-BERT, DCAF-BERT), the product embeddings are **pre-computed and cached**: the product BERT encoder runs offline on the entire catalog, and the resulting embeddings are stored in a fast lookup table (Redis, a hash table, or an embedding index). At serving time, only the query encoder runs in real-time. The final MLP that combines query embedding, product embedding, and tabular features is lightweight and fast.
+
+**Knowledge distillation** enables deploying small, fast models that retain the accuracy of large, expensive ones. The standard recipe:
+
+1. Train a large **teacher** model (1B+ parameters, full cross-encoder) on the full training set.
+2. Generate soft labels: the teacher's predicted probabilities for each training example.
+3. Train a small **student** model (70M parameters, factorized encoder) to match both the soft labels (via KL divergence) and the hard labels (via BCE).
+
+The student model runs 10–20× faster than the teacher while retaining 95–98% of the teacher's ranking quality.
+
+
+### Monitoring and Maintenance {#sec-monitoring}
+
+A calibrated model does not stay calibrated. User behavior evolves, product catalogs change, seasonal trends shift demand, and the data distribution at serving time diverges from the training distribution. Without proactive monitoring, calibration silently degrades.
+
+**Daily calibration tracking.** Compute Normalized Entropy and ECE on each day's production traffic. Plot these metrics over time. A well-calibrated model should maintain stable NE and ECE day over day. A rising trend signals distribution shift: the model's notion of "normal" is becoming outdated.
+
+**Online recalibration.** The simplest response to calibration drift is to re-fit the temperature parameter $T$ on fresh data daily or weekly. This is a lightweight operation (no model retraining required, just a one-dimensional optimization on a sample of recent traffic). Online recalibration can buy weeks of stable calibration between full model retraining cycles.
+
+**Retraining schedule.** How often to retrain the full model depends on the rate of distribution shift:
+
+- **Daily recalibration** (temperature $T$ re-fitting): always recommended
+- **Weekly retraining** (full model): recommended for high-traffic systems with rapid trend changes
+- **Monthly retraining**: acceptable for slower-changing domains
+
+Facebook's ADKDD 2014 paper provides a powerful practical insight: they used an **online joiner** system that streamed real-time labels (clicks/no-clicks) back into the training pipeline within minutes, enabling near-real-time feature freshness. Most production systems do not achieve this level of freshness, but the principle (fresher training data produces better calibration) is universal.
+
+::: {.callout-note title="Self-Explanation Prompt"}
+*You notice your model's ECE doubled over the last month but AUC stayed the same. What likely happened, and what is the cheapest fix?*
+
+*Hint: If AUC is unchanged, the model still ranks items correctly. What has changed is the probability scale. What is the simplest way to adjust the probability scale without retraining?*
+:::
+
+
+### Handling Cold-Start {#sec-cold-start}
+
+New products and new queries are a persistent challenge for CTR systems. A product that launched yesterday has no click history, no CTR statistics, and no behavioral features. How do you predict its click-through rate?
+
+**Beta-Binomial smoothed CTR** (Amazon Cold Start paper). The key idea is to use the product's category as a prior: before observing any clicks, assume the product's CTR follows the category average. As clicks accumulate, gradually shift from the prior to the empirical estimate:
+
+$$
+\hat{\text{CTR}}_c = \frac{\text{clicks}_c + \alpha}{\text{impressions}_c + \alpha + \beta}
+$$ {#eq-beta-binomial}
+
+where $(\alpha, \beta)$ are the parameters of a Beta prior estimated from the category-level CTR distribution using empirical Bayes. For a new product with $\text{clicks} = 0$ and $\text{impressions} = 0$, this defaults to $\alpha / (\alpha + \beta)$, the category average CTR. As the product accumulates data, the estimate converges to its true empirical CTR.
+
+This is exactly Bayesian updating: the prior captures what we know about the category, the likelihood captures the product-specific click evidence, and the posterior is the smoothed estimate. The smoothing parameter $\alpha + \beta$ determines how quickly the estimate moves from the prior toward the empirical estimate. Higher values mean more smoothing (more conservative); lower values mean faster adaptation.
+
+**New query handling.** For queries that have never been seen before, the model relies on:
+
+- **Textual similarity:** Match the new query to similar known queries using semantic embeddings. If "best Bluetooth over-ear headphones" has never been seen but "Bluetooth over-ear headphones" has, the historical data for the similar query provides a reasonable starting point.
+- **Non-behavioral features:** Text, price, category, brand, and rating features are all available for new queries and products regardless of click history. The BERT text encoder provides strong generalization from query-product text matching alone.
+
+**Warm-up strategies.** For cold-start products, intentionally show them at randomized positions for an initial "exploration" period to collect unbiased click data. This is a bandit-style approach: sacrifice short-term ranking quality for a small number of impressions to gain the data needed for long-term accurate CTR estimation.
+
+
+### Priya's Deployed System {#sec-priya-final}
+
+Priya's complete deployed ECTR system:
+
+1. **Architecture:** BERT-base + late fusion MLP with categorical embeddings and numerical features
+2. **Training data:** Impression negatives + 20% BM25 hard negatives, downsampled with $w = 0.05$, position-as-feature (PAL)
+3. **Training recipe:** Label smoothing ($\epsilon = 0.1$), two-step training (freeze BERT → unfreeze with differential LR), warm-started from previous model
+4. **Features:** Query + title (BERT), BM25 score, category + brand + fulfillment (embeddings), log(price) + rating + log(reviews) + historical CTR (numerical)
+5. **Post-hoc calibration:** Downsampling correction + temperature scaling ($T = 1.42$)
+6. **Serving:** BM25 candidate retrieval → BERT re-ranking top 100 candidates
+7. **Monitoring:** Daily NE and ECE tracking, weekly temperature re-fitting, monthly full retraining
+
+Her final metrics: AUC = 0.86, ECE = 0.03, NE = 0.88. The ads team is satisfied: the predicted probabilities are now honest enough for the auction, and the system generates more revenue precisely because it makes better decisions about which ads to show. Her manager's original requirement, "a 15% prediction had better mean that 15 out of 100 users actually click," is met.
+
+::: {.callout-note title="Self-Explanation Prompt"}
+*Your manager wants a single number to evaluate your ECTR model. Which metric do you choose and why?*
+
+*Consider: AUC captures ranking but not calibration. ECE captures calibration but not ranking. Log Loss captures both but is hard to interpret. Normalized Entropy is scale-invariant and captures "value added beyond the base rate." What are the trade-offs?*
+:::

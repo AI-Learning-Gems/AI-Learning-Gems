@@ -1,0 +1,21 @@
+---
+title: "Expected Click-Through Rate Prediction: From Click Logs to Calibrated Probabilities"
+filters:
+  - ../../_extensions/pandoc-ext/diagram/diagram.lua
+---
+
+{{< include "Expected Click-Through Rate Prediction/_01-introduction.qmd" >}}
+
+{{< include "Expected Click-Through Rate Prediction/_02-problem-formulation.qmd" >}}
+
+{{< include "Expected Click-Through Rate Prediction/_03-model-architectures.qmd" >}}
+
+{{< include "Expected Click-Through Rate Prediction/_04-training-data.qmd" >}}
+
+{{< include "Expected Click-Through Rate Prediction/_05-calibration-techniques.qmd" >}}
+
+{{< include "Expected Click-Through Rate Prediction/_06-features.qmd" >}}
+
+{{< include "Expected Click-Through Rate Prediction/_07-deployment.qmd" >}}
+
+{{< include "Expected Click-Through Rate Prediction/_99-closing.qmd" >}}

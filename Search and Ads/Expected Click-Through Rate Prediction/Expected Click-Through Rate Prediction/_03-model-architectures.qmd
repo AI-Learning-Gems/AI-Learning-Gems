@@ -1,0 +1,214 @@
+## Model Architectures — From Cross-Encoders to Multi-Modal Transformers {#sec-model-architectures}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [BERT4CTR (Wang et al., KDD 2023)](https://arxiv.org/abs/2308.11527) | Uni-Attention mechanism, 190M pairs, 90 features, two-step joint training |
+| 2 | [CTR-BERT (Amazon, NeurIPS 2021)](https://neurips2021-nlp.github.io/papers/20/CameraReady/camera_ready_final.pdf) | Twin-BERT + late fusion MLP, 1.5B→70M knowledge distillation |
+| 3 | [DCAF-BERT (Amazon)](https://assets.amazon.science/db/32/dcaf-bert.pdf) | Factorized BERT, cacheable towers, adaptation layers for non-textual features |
+| 4 | [CTRL (Li et al., Huawei 2023)](https://arxiv.org/abs/2306.02841) | Contrastive alignment, two-stage > end-to-end, gradient mismatch |
+| 5 | [DLRM (Naumov et al., Meta 2019)](https://arxiv.org/abs/1906.00091) | Foundational embedding architecture, interaction layers |
+| 6 | [DeepFM (Guo et al., 2017)](https://arxiv.org/abs/1703.04247) | FM + DNN, automatic low+high order feature interactions |
+| 7 | [BERT CTR: Multimodal Fusion (ethen8181 blog)](http://ethen8181.github.io/machine-learning/deep_learning/tabular/bert_ctr/bert_ctr.html) | Full PyTorch code for BERT + tabular late fusion |
+
+:::
+
+Priya's first BERT cross-encoder treated CTR prediction as a pure text problem: query and product title go in, click probability comes out. But she quickly realized this ignores most of the information available about a product. She cannot feed price, star rating, category, brand, or historical click counts into a text-only model. This section explores the spectrum of architectures for CTR prediction, from the simplest text-only baseline to sophisticated multi-modal systems that combine text with dozens or even hundreds of non-textual features.
+
+### The Naive Cross-Encoder {#sec-cross-encoder}
+
+The simplest BERT-based CTR model is a **cross-encoder**: concatenate the query and the document (product title) with special tokens, pass through BERT, and use the `[CLS]` token's representation as the prediction input.
+
+The input sequence looks like:
+
+```
+[CLS] wireless noise-canceling headphones [SEP] Sony WH-1000XM5 Wireless Premium Headphones [SEP]
+```
+
+BERT processes this entire sequence through self-attention, where every token can attend to every other token. The `[CLS]` token's final-layer representation captures the *interaction* between query and document: not just their individual meanings, but how they relate. A linear layer on top maps this representation to a logit, and a sigmoid produces a probability:
+
+$$
+\hat{y} = \sigma\left(W \cdot \text{BERT}\left([CLS] \; q \; [SEP] \; d \; [SEP]\right) + b\right)
+$$ {#eq-cross-encoder}
+
+where $W \in \mathbb{R}^{1 \times D}$ and $b \in \mathbb{R}$ are learnable parameters. This is a powerful architecture for capturing textual relevance. The full cross-attention between query and document tokens means the model can learn subtle matchings like "noise-canceling" matching "ANC" (active noise cancellation) in a product title. Cross-encoders consistently achieve the highest AUC among text-based models for search relevance tasks.
+
+But the cross-encoder has two critical limitations. First, it is **computationally expensive** for serving: because the query and document must be processed *together*, you cannot pre-compute document representations. Every new query requires running BERT on every candidate document. For a re-ranking stage that scores the top 100 candidates, that means 100 BERT forward passes per query, which is possible but expensive. Second, and more important for CTR, it **completely ignores non-textual features**. Priya's product "Sony WH-1000XM5" has a price of $349, a 4.7-star rating from 12,000 reviews, belongs to the "Electronics > Headphones > Over-Ear" category, is fulfilled by Prime, and has a historical CTR of 3.2% for audio-related queries. None of this information enters the cross-encoder. The model must predict CTR from text alone, which is like trying to predict a restaurant's popularity from just its name, without knowing the cuisine, price range, location, or ratings.
+
+### Adding Non-Textual Features: Three Paradigms {#sec-three-paradigms}
+
+There are three main approaches to combining BERT's text understanding with tabular features like price, category, and rating. Each represents a different trade-off between model capacity, training complexity, and computational cost.
+
+#### Paradigm 1: Late Fusion {#sec-late-fusion}
+
+The simplest approach is **late fusion**: process text and tabular features *separately*, then combine them at the end. The text goes through BERT, tabular features go through their own encoding (embeddings for categorical, raw values for numerical), and both outputs are concatenated before a final MLP head.
+
+![Late fusion architecture for combining BERT text representation with tabular features (categorical embeddings and numerical values). The BERT encoder processes the text, the tabular features are independently embedded, and all representations are concatenated and fed through MLP layers to produce the final prediction. Source: ethen8181 blog.](Expected Click-Through Rate Prediction/images/bert-ctr-late-fusion.png){#fig-late-fusion}
+
+The ethen8181 blog (see @fig-late-fusion) provides a clean implementation that illustrates the architecture. The model has three "towers":
+
+1. **Text tower**: BERT processes `[CLS] query [SEP] title [SEP]`, and mean pooling over the output gives a text embedding $h_{\text{text}} \in \mathbb{R}^{D}$.
+2. **Categorical tower**: Each categorical feature (brand, category, fulfillment type) is looked up in a learned embedding table. The embeddings are concatenated: $h_{\text{cat}} = [\text{Emb}(\text{brand}); \text{Emb}(\text{category}); \ldots]$.
+3. **Numerical tower**: Numerical features (price, rating, review count) are stacked into a vector: $h_{\text{num}} = [\text{price}; \text{rating}; \log(\text{reviews})]$.
+
+The final prediction is:
+
+$$
+\hat{y} = \sigma\left(\text{MLP}\left([h_{\text{text}}; h_{\text{cat}}; h_{\text{num}}]\right)\right)
+$$ {#eq-late-fusion}
+
+Late fusion is simple, modular, and easy to train. The text encoder and tabular encoder can even be pre-trained separately. But it has a fundamental limitation: the text tower and the tabular tower *do not interact* until the very end. The BERT model cannot "see" the price when it computes the text representation, so it cannot learn cross-modal patterns like "for luxury brands, longer product titles indicate higher click rates." The interaction between text and non-text is limited to whatever the final MLP can learn from the concatenated representations.
+
+#### Paradigm 2: Tokenization (Feature-as-Token) {#sec-feature-as-token}
+
+A more integrated approach is to convert each non-textual feature into a **pseudo-token** and prepend it to the text sequence:
+
+```
+[CLS] [PRICE_349] [RATING_4.7] [CAT_HEADPHONES] wireless noise-canceling headphones [SEP] Sony WH-1000XM5 [SEP]
+```
+
+Each feature gets its own embedding (either a learned embedding for categorical features, or a special tokenization for numerical values), and these embeddings participate in BERT's full self-attention alongside the text tokens. This means the model can learn rich cross-modal interactions: the attention mechanism can directly attend from the word "premium" to the `[PRICE_349]` token, learning that expensive products described as "premium" get high CTR.
+
+The downside is computational: each additional feature token increases the sequence length, and self-attention is $O(n^2)$ in sequence length. Adding 20 feature tokens to a 128-token text sequence increases the attention computation by about 34%. For dozens of features, this cost adds up.
+
+#### Paradigm 3: Uni-Attention (BERT4CTR) {#sec-uni-attention}
+
+BERT4CTR (Wang et al., KDD 2023) introduces an elegant middle ground called **Uni-Attention**. The key insight is that the interaction between text and non-text features is *asymmetric*: non-textual features (price, category, rating) should be able to attend to textual tokens to understand the text in context, but textual tokens do not need to attend to feature tokens. The meaning of "wireless headphones" is independent of the product's price.
+
+![BERT4CTR's Uni-Attention mechanism. Non-textual feature embeddings attend to textual tokens through cross-attention (green arrows), but textual tokens' self-attention is unmodified (blue arrows). This achieves rich cross-modal interaction without increasing the computational cost of text encoding. Source: Wang et al. (2023), Figure from arXiv:2308.11527.](Expected Click-Through Rate Prediction/images/bert4ctr-uni-attention.png){#fig-uni-attention}
+
+In Uni-Attention (@fig-uni-attention), the textual tokens go through standard self-attention as in regular BERT. But non-textual features are encoded separately and attend to the textual tokens through a cross-attention mechanism: the feature embeddings provide queries, while the text tokens provide keys and values. This means:
+
+- Non-textual features get enriched by textual information. A price of $349 is interpreted differently in the context of "wireless headphones" versus "phone case."
+- The textual self-attention is unchanged, so text understanding is not degraded.
+- The computational overhead is *linear* in the number of features (not quadratic), because the cross-attention has complexity $O(k \cdot n)$ where $k$ is the number of features and $n$ is the text sequence length.
+
+BERT4CTR also introduces a **two-step joint training** process (@fig-joint-training). The first step freezes the BERT text encoder and trains only the feature encoders and the MLP head. The second step unfreezes BERT and fine-tunes the entire model with a lower learning rate for BERT and a higher learning rate for the rest. This prevents the large gradients from the tabular features from destabilizing the pre-trained text representations in the early stages of training.
+
+![BERT4CTR's two-step joint training process. Step 1: freeze the pre-trained BERT encoder and train only the feature encoding layers and the prediction head. Step 2: unfreeze BERT and fine-tune the entire model, using differential learning rates (lower for BERT, higher for the head). Source: Wang et al. (2023).](Expected Click-Through Rate Prediction/images/bert4ctr-joint-training.png){#fig-joint-training}
+
+::: {.callout-note title="Self-Explanation Prompt"}
+*Why can't you simply concatenate product price and rating as text tokens ('$29.99', '4.7 stars') into the BERT input? What would go wrong?*
+
+*Hint: Think about how BERT's tokenizer handles numbers, and what happens to the model's understanding of numerical magnitude when "29.99" is tokenized as ["29", ".", "99"].*
+:::
+
+### The CTR-BERT and DCAF-BERT Approach {#sec-ctr-bert}
+
+Amazon's production CTR systems take a different approach, driven by the need for **low-latency serving**. The key architectural idea is **factorization**: instead of a single cross-encoder that processes query and document together, use separate encoders.
+
+**CTR-BERT** (NeurIPS 2021) uses twin BERT encoders, one for the query and one for the product. Each encoder produces a fixed-size representation independently. These representations are concatenated with tabular features and fed into a late-fusion MLP. The critical advantage is that product embeddings can be **pre-computed and cached**. When a new query arrives, only the query encoder runs in real-time; the product encoder's output is retrieved from a pre-computed cache. This reduces per-query latency from "run BERT 100 times" to "run BERT once + 100 cache lookups + 100 MLP forward passes."
+
+To compensate for the accuracy lost by factorization (cross-encoders are more powerful than twin-encoders because they capture direct query-document token interactions), CTR-BERT uses **knowledge distillation**: a large 1.5-billion-parameter cross-encoder teacher model generates soft labels, and a smaller 70-million-parameter twin-encoder student model learns to match the teacher's output distributions:
+
+$$
+\mathcal{L}_{\text{KD}} = \alpha \cdot \mathcal{L}_{\text{CE}}(y, \hat{y}_s) + (1-\alpha) \cdot \text{KL}(\hat{y}_t \| \hat{y}_s)
+$$ {#eq-kd}
+
+where $\hat{y}_s$ and $\hat{y}_t$ are the student and teacher predictions, and $\alpha$ balances the supervised loss with the distillation loss.
+
+**DCAF-BERT** (Amazon) extends this with **adaptation layers** that allow non-textual features to modify the text representations before the final fusion. It also introduces cacheable independent towers for query and document, with a shared interaction layer that computes query-document relevance features at serving time.
+
+::: {.callout-note title="Self-Explanation Prompt"}
+*CTR-BERT uses two separate BERT encoders for query and product. What key advantage does this give for production serving that a single cross-encoder cannot provide?*
+
+*Follow-up: What information is lost by processing query and document independently instead of jointly?*
+:::
+
+### Two-Stage Training: Why It Beats End-to-End {#sec-two-stage-training}
+
+CTRL (Li et al., Huawei 2023) made a surprising discovery: training a combined text-and-tabular model end-to-end often *underperforms* a two-stage approach. The root cause is **gradient magnitude mismatch** between the two modalities.
+
+In an end-to-end model, gradients flow back through both the text encoder (BERT) and the tabular encoder simultaneously. But the gradient scales are very different. BERT has 110M+ parameters with small gradients (it is already well-initialized from pre-training), while the tabular head has far fewer parameters with large gradients (it is randomly initialized). When both are updated with the same optimizer step, the large tabular gradients destabilize the carefully pre-trained BERT weights, causing catastrophic forgetting of the text understanding that makes BERT valuable in the first place.
+
+CTRL's solution is two-stage **contrastive alignment**:
+
+1. **Stage 1:** Train the collaborative (tabular) model and the language model *separately* on their respective feature sets. Each model learns strong representations in its own modality.
+2. **Stage 2:** Align the two modalities using a contrastive loss that pulls the representations of the same query-document pair together and pushes representations of different pairs apart:
+
+$$
+\mathcal{L}_{\text{align}} = -\log \frac{\exp(\text{sim}(z_c, z_l) / \tau)}{\sum_{j} \exp(\text{sim}(z_c, z_{l,j}) / \tau)}
+$$ {#eq-ctrl}
+
+where $z_c$ and $z_l$ are the collaborative and language model representations of the same example, $\tau$ is a temperature parameter, and the sum is over all examples in the batch.
+
+The practical takeaway, corroborated by the ethen8181 blog's experiments, is a simple recipe for training multi-modal CTR models:
+
+1. **Step 1:** Freeze the BERT encoder. Train only the tabular feature encoders and the prediction head for several epochs.
+2. **Step 2:** Unfreeze BERT. Fine-tune the entire model with **differential learning rates**: a low learning rate for BERT (e.g., $1 \times 10^{-4}$) and a high learning rate for the tabular head (e.g., $1 \times 10^{-3}$).
+
+This two-step approach respects the gradient mismatch: the tabular components adapt quickly while the text encoder adjusts slowly, preserving its pre-trained knowledge.
+
+::: {.callout-warning title="Common Misconception: End-to-end training is always better"}
+The deep learning community has a strong bias toward end-to-end training, the idea that letting gradients flow through the entire system leads to the best learned representations. For CNNs on single-modality tasks, this is usually true. But for multi-modal systems where one modality is pre-trained (like BERT) and another is randomly initialized (like a tabular feature encoder), end-to-end training can actually make things worse. The gradient mismatch between modalities causes the pre-trained encoder to "forget" its valuable representations before the randomly initialized encoder has learned anything useful. CTRL's experiments showed that two-stage training outperformed end-to-end training by 2-4% in AUC on multiple benchmark datasets. The lesson: when combining pre-trained and randomly initialized components, always consider stage-wise training.
+:::
+
+
+### Foundational Deep CTR Models {#sec-foundational-models}
+
+Not all CTR models need BERT. For applications where textual understanding is less critical, or where feature interactions matter more than language comprehension, a family of deep CTR architectures operates primarily on **feature embeddings**. These architectures are the workhorses of CTR prediction at companies like Meta, Google, and Alibaba.
+
+#### DLRM (Meta, 2019) {#sec-dlrm}
+
+Meta's **Deep Learning Recommendation Model** (DLRM) established the foundational architecture that most modern CTR systems are built on. The key insight is that recommendation data consists of two fundamentally different types of features: **dense features** (numerical, like price and rating) and **sparse features** (categorical, like user ID, product ID, brand, category).
+
+![DLRM architecture. Dense (numerical) features are processed by a bottom MLP, while sparse (categorical) features are converted to embeddings via lookup tables. All pairwise dot products between these embedding vectors form the "interaction" layer, which is then concatenated with the dense features and passed through a top MLP for final prediction. Source: Naumov et al. (2019).](Expected Click-Through Rate Prediction/images/dlrm-architecture.png){#fig-dlrm}
+
+The DLRM architecture (@fig-dlrm) proceeds in three stages:
+
+1. **Feature encoding:** Dense features are processed through a "bottom MLP" to produce a dense embedding. Sparse features are each looked up in their own embedding table.
+2. **Feature interaction:** All pairwise dot products between the embedding vectors (both dense and sparse) are computed. This interaction layer captures second-order feature cross effects (e.g., the interaction between "brand = Sony" and "category = Headphones").
+3. **Prediction:** The interaction features are concatenated with the original dense embedding and fed through a "top MLP" that produces the final logit.
+
+$$
+\hat{y} = \sigma\left(W_{\text{top}} \cdot \left[\text{concat}\left(\text{dense\_out}, \text{pairwise\_dot}(e_1, \ldots, e_k, \text{dense\_out})\right)\right]\right)
+$$ {#eq-dlrm}
+
+DLRM is the backbone of Meta's ad ranking systems, processing billions of predictions per day. Its simplicity (embedding tables + dot products + MLPs) makes it extremely efficient for both training and serving.
+
+#### DeepFM (2017) {#sec-deepfm}
+
+While DLRM uses explicit dot products for feature interactions, DeepFM takes a different approach by combining a **Factorization Machine (FM)** component for second-order interactions with a **DNN** component for higher-order interactions.
+
+![DeepFM architecture. The FM component (left) captures all pairwise feature interactions through factorized dot products, while the DNN component (right) learns arbitrary higher-order feature interactions through multiple layers. Both share the same feature embedding layer. Source: Guo et al. (2017), arXiv:1703.04247.](Expected Click-Through Rate Prediction/images/deepfm-architecture.png){#fig-deepfm}
+
+The FM component models all pairwise feature interactions efficiently:
+
+$$
+y_{\text{FM}} = \langle w, x \rangle + \sum_{i=1}^{n}\sum_{j=i+1}^{n} \langle v_i, v_j \rangle x_i x_j
+$$ {#eq-fm}
+
+where $v_i \in \mathbb{R}^k$ is the latent factor for feature $i$, and the pairwise dot product $\langle v_i, v_j \rangle$ captures the interaction between features $i$ and $j$. The DNN component takes the same feature embeddings and passes them through multiple fully connected layers to learn higher-order interactions:
+
+$$
+\hat{y} = \sigma(y_{\text{FM}} + y_{\text{DNN}})
+$$ {#eq-deepfm}
+
+The key innovation is that both components **share the same embedding layer**: the FM and DNN see the same representation of each feature. This enables efficient training and ensures the low-order (FM) and high-order (DNN) interactions are aligned.
+
+### Practical Architecture Decision Tree {#sec-architecture-decision}
+
+With so many architectures available, how does Priya choose? The decision depends on:
+
+- **Is textual understanding the bottleneck?** If the query and product title are the primary signals (and non-text features like price and category are less important or unavailable), a BERT cross-encoder or BERT + late fusion is the right choice.
+- **Are feature interactions the bottleneck?** If you have many categorical and numerical features with rich interactions (user demographics × product category × time of day × device type), DLRM or DeepFM excel because they are specifically designed for efficient feature interaction modeling.
+- **Latency constraints?** If you need sub-50ms per-query latency for serving, factorized architectures (CTR-BERT, DCAF-BERT) with pre-computed product embeddings are necessary. A full cross-encoder re-ranking 100 candidates is too slow for most production systems.
+- **Data scale?** BERT-based models benefit from pre-training on large text corpora (which has already been done), but they need sufficient fine-tuning data (hundreds of thousands to millions of examples) to learn the task. DLRM-style models need very large training sets (hundreds of millions to billions) to learn good embedding tables, especially for high-cardinality features like product IDs.
+
+::: {.callout-note title="Think Hard: When should you use BERT vs. DLRM for CTR prediction?"}
+
+The answer is context-dependent. BERT excels when *textual understanding* is the bottleneck, specifically when the meaning of the query and the content of the product title are the primary drivers of whether a user will click. This is typical in product search, where queries are natural-language descriptions of intent ("best laptop for video editing under $1000") and the text match between query and product determines relevance.
+
+DLRM/DeepFM excel when *feature interactions* are the bottleneck, that is, when the click decision depends more on who the user is, what they have clicked before, and how the product's attributes match user preferences. This is typical in feed-based recommendation (like Facebook's News Feed), where user-item interaction history and demographic patterns drive engagement more than text similarity.
+
+In practice, the most powerful production systems combine both: BERT (or a distilled version) for textual features, feeding into a DLRM-like architecture for feature interaction. The text encoder produces one embedding among many, and the interaction layer learns how text relevance combines with price, brand, category, and behavioral signals.
+:::
+
+### Priya's Architecture Choice {#sec-priya-checkpoint-2}
+
+Priya decides on a **late fusion** architecture. BERT processes the query and title (her strongest text signal), while separate embedding layers handle categorical features (brand, category, fulfillment type) and numerical features (price, rating, review count) are passed through as raw values. All three representations are concatenated and fed through a 3-layer MLP with ReLU activations and dropout. She uses the differential learning rate recipe from the ethen8181 blog: $\text{lr}_{\text{BERT}} = 10^{-4}$ and $\text{lr}_{\text{head}} = 10^{-3}$.
+
+This choice balances simplicity with effectiveness: she can start with pre-trained BERT weights, the modular architecture makes debugging easy (she can test the text tower and tabular tower independently), and the late fusion MLP can learn whatever cross-modal patterns exist in her data. If she later needs richer cross-modal interaction, she can upgrade to BERT4CTR's Uni-Attention without changing the rest of her pipeline.
+
+But her model is still miscalibrated. The architecture determines *what* the model can learn, but *how* it learns (specifically, how the training data is constructed) determines whether the probabilities are honest. That is the subject of the next section.

@@ -1,0 +1,171 @@
+## Training Data Construction — Negatives, Sampling, and Bias {#sec-training-data}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Practical Lessons from Predicting Clicks at Facebook (ADKDD 2014)](https://quinonero.net/Publications/predicting-clicks-facebook.pdf) | Downsampling recalibration formula with derivation, data freshness effects |
+| 2 | [How to Measure and Mitigate Position Bias (Eugene Yan)](https://eugeneyan.com/writing/position-bias/) | RandTopN, Boltzmann, position-as-feature |
+| 3 | [Nudging Click Models for Position Bias (Amazon)](https://assets.amazon.science/position-bias/nudging-position-bias.pdf) | Position bias debiasing at Amazon scale, PAL |
+| 4 | [Rules of ML: Rule 36 (Google)](https://developers.google.com/machine-learning/guides/rules-of-ml#rule_36_avoid_feedback_loops_with_positional_features) | Position feature at training, constant at inference |
+
+:::
+
+Priya has chosen her model architecture, a late-fusion BERT + tabular MLP. But the best architecture in the world cannot produce calibrated probabilities if the *training data* is flawed. As she investigates further, she discovers that her training data has three distinct problems, each contributing to the 2–3× probability inflation she observed in production. This section works through each problem and its solution.
+
+### Types of Negatives for CTR Prediction {#sec-negative-types}
+
+The first decision in constructing training data is: *what counts as a negative example?* In a standard binary classification task, the negative class is well-defined (a non-spam email is a negative, a review that is not positive is a negative). In CTR prediction, the answer is not so clear, and the choice has profound effects on both model quality and calibration.
+
+There are three main types of negatives:
+
+**1. Impression negatives (shown but not clicked).** These are the most natural negatives: the product was shown to the user in the search results, the user potentially saw it, and chose not to click on it. Impression negatives represent the true distribution of "not interesting to this user for this query." They are the gold standard for calibration because they reflect the actual serving distribution: at inference time, the model will be scoring products that are being shown to users, which is exactly the scenario these negatives represent.
+
+**2. Random negatives (never shown).** These are products randomly sampled from the catalog, products that were never displayed for this particular query. For the query "wireless headphones," a random negative might be a kitchen blender. These negatives are *very easy* for the model: the query and product are so unrelated that even a simple keyword matcher would get them right. Training on random negatives helps the model learn the broadest discriminative signal ("headphones are relevant to headphone queries, blenders are not"), but it does not help the model learn the fine-grained distinctions that matter in practice ("which specific headphone model will this user prefer?").
+
+**3. Hard negatives (similar but not clicked).** These are products that are superficially similar to clicked products but were not clicked, or were shown for the same query but ranked lower and not engaged with. For "wireless headphones," a hard negative might be an over-ear headphone with low ratings that appeared on the same results page. Hard negatives push the model to learn subtle distinctions. Common strategies for mining hard negatives include:
+
+- **BM25 negatives:** Use BM25 (a text-matching algorithm) to retrieve the top-$k$ products for the query, then take the ones that were not clicked. These are lexically similar but apparently not relevant or appealing.
+- **In-batch negatives:** Within a training batch, treat other positive documents as negatives. If the batch contains (wireless headphones, Sony WH-1000XM5, click=1) and (laptop case, AmazonBasics Case, click=1), then "AmazonBasics Case" serves as a negative for the headphones query.
+- **Model-mined negatives:** Use a previously trained model to identify products that the model found confusing: items for which the model predicted high CTR but users did not click. These are the model's current mistakes, and training on them targets the specific failure modes.
+
+The choice of negatives fundamentally affects both model quality and calibration. Training on only easy (random) negatives produces a model with high AUC on random test sets but poor AUC on realistic test sets where all candidates are plausibly relevant. Training on too many hard negatives can produce a model that is excellent at fine-grained discrimination but poorly calibrated because the difficulty distribution in training does not match serving. The practical recipe is to **mix** impression negatives (the bulk), BM25 hard negatives (for discrimination power), and optionally some random negatives (for diversity), at a ratio that roughly mirrors the serving distribution.
+
+::: {.callout-warning title="Common Misconception: More data always improves calibration"}
+More data improves the model's *accuracy* and *ranking quality*. Given enough examples, the model learns finer distinctions and achieves higher AUC. But more data does *not* automatically improve calibration, and can actually *worsen* it in two ways. First, if the additional data comes from a biased source (e.g., click logs with strong position bias), more data means more bias amplified at scale. Second, if the data is augmented with hard negatives, the difficulty distribution shifts away from the natural frequency distribution, causing the model to overestimate the prevalence of "tricky" cases. Calibration requires not just sufficient data volume, but data whose label distribution and difficulty distribution match the serving environment.
+:::
+
+### Negative Downsampling and Its Calibration Cost {#sec-downsampling-correction}
+
+As we discussed in @sec-click-logs, Priya downsampled her negatives to handle the extreme class imbalance (0.8% positive rate). This is standard practice. But it introduces a systematic bias: the model learns a different base rate than reality. The correction formula for this bias was derived in Facebook's ADKDD 2014 paper and has become the industry standard.
+
+**Setup.** Let $p'$ be the model's predicted probability on the *downsampled* training data, and let $w$ be the **negative keep rate** (the fraction of negatives that were retained). We want the corrected probability $p_{\text{calibrated}}$ that would apply under the *true* class distribution.
+
+**The key idea: downsampling inflates the odds.** The model's predicted odds on the downsampled data are $\frac{p'}{1 - p'}$. Because we discarded a fraction $(1 - w)$ of the negatives, the model "sees" fewer negatives than actually exist. In the true distribution, there are $1/w$ times as many negatives. So the true odds are deflated by a factor of $w$:
+
+$$
+\text{true odds} = \frac{p'}{1 - p'} \cdot w
+$$
+
+Converting odds back to probability (using $p = \text{odds} / (1 + \text{odds})$):
+
+$$
+p_{\text{calibrated}} = \frac{\frac{p'}{1-p'} \cdot w}{1 + \frac{p'}{1-p'} \cdot w} = \frac{p' \cdot w}{(1 - p') + p' \cdot w} = \frac{p'}{p' + \frac{1 - p'}{w}}
+$$ {#eq-downsampling-correction}
+
+**Full derivation (via Bayes' rule).** The odds-ratio argument above can be made rigorous through Bayes' rule. In the downsampled data, the fraction of positives is inflated. If the true positive rate is $p$ and we keep fraction $w$ of negatives, the positive rate in the training data becomes $p_{\text{train}} = p / (p + (1-p) \cdot w)$. The model's output $p'$ is calibrated to $p_{\text{train}}$, not to $p$.
+
+The likelihood ratio $P(\text{features} \mid y=1) / P(\text{features} \mid y=0)$ is the same in the downsampled and true distributions (downsampling does not change the *features* of the examples it keeps, only their relative frequency). The model's predicted odds encode this likelihood ratio times the training prior odds:
+
+$$
+\frac{p'}{1 - p'} = \frac{P(\text{features} \mid y=1)}{P(\text{features} \mid y=0)} \cdot \frac{P(y=1)_{\text{train}}}{P(y=0)_{\text{train}}}
+$$
+
+To recover the true posterior, we replace the training prior with the true prior. The training prior odds are inflated by $1/w$ relative to the true odds (because we removed $(1-w)$ of the negatives), so we deflate:
+
+$$
+\frac{p_{\text{calibrated}}}{1 - p_{\text{calibrated}}} = \frac{p'}{1 - p'} \cdot \frac{P(y=0)_{\text{train}}}{P(y=1)_{\text{train}}} \cdot \frac{P(y=1)_{\text{true}}}{P(y=0)_{\text{true}}} = \frac{p'}{1 - p'} \cdot w
+$$
+
+Converting back to probability yields @eq-downsampling-correction.
+
+**Worked example with Priya's data.** Priya's dataset has a true base CTR of 0.8% ($p = 0.008$). She downsampled negatives with keep rate $w = 1/99 \approx 0.0101$ (keeping roughly 1% of negatives, creating a roughly 50/50 balance). Her model predicts $p' = 0.6$ for a particular query-product pair.
+
+$$
+p_{\text{calibrated}} = \frac{0.6}{0.6 + \frac{1 - 0.6}{1/99}} = \frac{0.6}{0.6 + 0.4 \times 99} = \frac{0.6}{0.6 + 39.6} = \frac{0.6}{40.2} \approx 0.015
+$$
+
+The model said 60% chance of click; the corrected probability is 1.5%. That is a 40× correction.
+
+**This is a calibration correction.** The downsampling formula is not merely a data preprocessing detail. It is the first and often the largest calibration correction in any CTR system that uses downsampled training data. It corrects for the *shifted base rate* that downsampling introduces. But it does not address a second, independent source of miscalibration: *model overconfidence*, where the deep network produces logits with excessively large magnitudes. Even after applying @eq-downsampling-correction, Priya's probabilities will still be systematically inflated because BERT pushes its logits to extreme values. In @sec-calibration-techniques, we introduce temperature scaling and other post-hoc methods that correct for this model-level overconfidence. The standard production recipe applies both corrections in sequence: first the downsampling correction (to fix the base rate), then temperature scaling (to fix the logit scale). The calibration recipe in @sec-calibration-recipe makes this ordering explicit.
+
+::: {.callout-note title="Self-Explanation Prompt"}
+*You train a model on 50/50 sampled data and get $p' = 0.3$ for a query-document pair. The original negative sampling rate was $w = 0.05$ (you kept 5% of negatives). What is the corrected probability?*
+
+*Compute it step by step using @eq-downsampling-correction. Does the corrected value seem reasonable given that the original CTR was around 1%?*
+:::
+
+### Hard Negative Mining Strategies {#sec-hard-negative-mining}
+
+Beyond fixing the base rate through the downsampling correction, Priya also needs to consider how hard negatives affect her model's discrimination ability. Hard negative mining is a powerful technique for improving ranking quality, but it requires care to avoid harming calibration.
+
+The main strategies are:
+
+**BM25 negatives.** For each query, use BM25 (a classic text-matching algorithm) to retrieve the top 100 products from the catalog. The products that rank high in BM25 but were not clicked by users are "hard" in the sense that they are textually similar to relevant products but not behaviorally relevant. BM25 negatives are effective because they force the model to learn beyond surface-level text matching: it must capture semantic relevance, user intent, and product quality signals that BM25 misses.
+
+**In-batch negatives.** During training, each positive pair $(q_i, d_i^+)$ in a mini-batch can treat all other positive documents $\{d_j^+ : j \neq i\}$ as negatives. This is computationally free (no additional data loading) and produces a diverse mix of easy and hard negatives. The hardness depends on the batch composition. If two queries in the same batch are similar ("wireless headphones" and "Bluetooth headphones"), their respective positive products become informative hard negatives for each other.
+
+**Model-mined negatives.** After training a preliminary model, use it to score the entire candidate set for each query. Products with high predicted CTR but no clicks are the model's failure cases, products it currently thinks are good but users disagree. Training on these negatives directly targets the model's worst mistakes, leading to rapid improvement in the next training iteration.
+
+A key risk with hard negatives is **false negatives**: a product labeled as "negative" because it was not clicked in one specific session might actually be highly relevant. The user may simply not have clicked it because they found what they wanted earlier on the page, or because they were browsing casually. Training the model to predict low CTR for genuinely relevant products hurts both accuracy and calibration. The standard mitigation is to limit hard negatives to a fraction of the total negatives (e.g., ~20% hard negatives from BM25/in-batch/model-mined sources, ~80% impression negatives) and to filter out obvious false negatives (products that were shown but not clicked only because of low position; see below).
+
+
+### Position Bias in Click Data {#sec-position-bias}
+
+The third and most insidious problem with Priya's click data is **position bias**: products shown at higher positions on the page receive more clicks regardless of their actual relevance.
+
+![Position bias: users process search results from top to bottom and left to right, engaging more with higher-ranked items regardless of their actual relevance. A product at position 1 may receive 5–10× more clicks than the same product at position 5. Source: Eugene Yan blog.](Expected Click-Through Rate Prediction/images/position-bias.webp){#fig-position-bias}
+
+The phenomenon is well-documented (@fig-position-bias). On Google Search, the first position gets roughly 10× more clicks than the tenth position. In product search, the decay is typically less dramatic but still significant: position 1 might get 3–5× the CTR of position 5. The fundamental problem is that a product's click count is driven by *both* its relevance (does the user want this product?) and its examination probability (did the user even *see* this product?):
+
+$$
+P(\text{click} \mid q, d, \text{pos}) = P(\text{exam} \mid \text{pos}) \cdot P(\text{rel} \mid q, d)
+$$ {#eq-position-bias}
+
+where $P(\text{exam} \mid \text{pos})$ is the probability that the user examines (looks at) the item at a given position, and $P(\text{rel} \mid q, d)$ is the true relevance. Products at position 1 have high $P(\text{exam})$, so they get more clicks even if their relevance is mediocre. Products at position 10 have low $P(\text{exam})$, so even highly relevant products get few clicks.
+
+If Priya trains her model on raw click data without accounting for position, the model learns that products which historically appeared at high positions have high CTR. But this is an artifact of position, not relevance. When deployed, the model systematically overestimates CTR for products that happened to be ranked high historically, creating a self-reinforcing feedback loop.
+
+Three approaches can debias position effects:
+
+#### Approach 1: Inverse Propensity Weighting (IPW)
+
+Weight each training example by the inverse of its examination probability. Clicks from high positions (where $P(\text{exam})$ is high) are downweighted, while clicks from low positions (where $P(\text{exam})$ is low) are upweighted:
+
+$$
+\mathcal{L}_{\text{IPW}} = -\sum_i \frac{y_i}{\hat{P}(\text{exam} \mid \text{pos}_i)} \log \hat{y}_i + (1 - y_i) \log(1 - \hat{y}_i)
+$$ {#eq-ipw}
+
+The challenge is estimating $\hat{P}(\text{exam} \mid \text{pos})$. One approach is randomized experiments: randomly shuffle items in the top-$k$ positions and measure CTR by position (RandTopN). Another is to exploit "natural randomness" from A/B tests and ranker updates, as Eugene Yan describes. IPW is theoretically principled but can have high variance when examination probabilities are very small (low positions).
+
+#### Approach 2: Position-Aware Learning (PAL)
+
+Google's Rule 36 from "Rules of Machine Learning" prescribes a pragmatic approach: include position as a **training feature**, then set it to a constant (position = 1, or more precisely, the average position) at **inference time**.
+
+During training, the model sees position as one of its inputs and learns to factor it out: it learns that a click at position 10 is more "impressive" than a click at position 1, because the user had to scroll down to find it. At inference time, all candidates are evaluated with position = 1, effectively asking: "If this product were shown at the top, how likely would it be clicked?" The model's learned position coefficient acts as an implicit IPW correction.
+
+PAL is the simplest debiasing method to implement and has been adopted widely in industry. Its main limitation is that it assumes the position effect is separable from query-document relevance, that position affects all products equally. In practice, position effects interact with product quality (users might scan more carefully for expensive items), so perfect separation is not achievable.
+
+#### Approach 3: Randomization {#sec-randomization}
+
+The most direct approach is to inject controlled randomness into the ranking: shuffle the top-$k$ results randomly, observe click patterns, and use the randomized data to estimate both position-specific examination probabilities and unbiased relevance. Methods include:
+
+- **RandTopN:** Uniformly shuffle the top $N$ results. Clean measurement but significant user experience impact.
+- **FairPair/RandPair:** Swap adjacent items or specific position pairs. Less disruptive but provides weaker signal.
+- **Boltzmann exploration:** Add noise to ranking scores proportional to their uncertainty, then re-sort. This naturally explores more for uncertain items while keeping confident rankings stable.
+
+::: {.callout-note title="Think Hard: Position bias debiasing is circular — how do you break it?"}
+
+Position bias debiasing requires knowing $P(\text{exam} \mid \text{pos})$, the probability that a user examines an item at each position. But this probability itself depends on the *relevance* of items shown at those positions. If highly relevant items are always shown at position 1, users may learn to trust position 1 and always examine it. If irrelevant items are sometimes shown at position 1, users may learn to be more skeptical and examine more carefully.
+
+This circularity makes the problem fundamentally harder than it appears. In practice, the standard approach is iterative: (1) make a simplifying assumption (e.g., examination probability depends only on position, not on what is shown there), (2) estimate position-specific examination probabilities using randomized experiments or EM algorithms, (3) use these estimates to debias the training data and retrain the model, and (4) repeat. Google's "Position Bias Estimation for Unbiased Learning to Rank in Personal Search" shows that even the simplified model (examination depends only on position) captures most of the position bias effect, and iterating helps but with diminishing returns.
+
+The key insight is that *you don't need to perfectly debias*. Even approximate debiasing (like PAL with position-as-feature) removes the largest source of bias and significantly improves model quality. Perfect unbiased estimation is a theoretical ideal that is neither necessary nor achievable in practice.
+:::
+
+
+::: {.callout-note title="Self-Explanation Prompt"}
+*A colleague argues that position bias doesn't matter because "we'll just retrain the model every week with fresh data." Why is this reasoning flawed?*
+
+*Hint: Think about the feedback loop. If the model overvalues certain products because of position bias, what happens when those products are shown at high positions in the next week's data?*
+:::
+
+### Priya's Updated Pipeline {#sec-priya-checkpoint-3}
+
+Priya now updates her training data pipeline:
+
+1. **Negatives:** She uses impression negatives as the base (products shown but not clicked) supplemented with 20% BM25 hard negatives.
+2. **Downsampling:** She keeps 5% of negatives ($w = 0.05$) and applies the correction formula @eq-downsampling-correction to all model outputs at inference time.
+3. **Position debiasing:** She adds the display position as a feature during training, and sets it to position = 1 at inference time (PAL approach).
+
+With these changes, her model's probabilities are already more realistic: instead of predicting 30% CTR for products that actually get clicked 10% of the time, the corrected probabilities are in the right ballpark. But they are still not perfectly calibrated. The deep BERT model itself introduces overconfidence. She needs calibration techniques, which we turn to next.
