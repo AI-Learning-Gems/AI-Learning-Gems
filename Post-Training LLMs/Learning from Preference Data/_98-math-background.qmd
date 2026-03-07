@@ -1,0 +1,111 @@
+## Mathematical Background {#sec-math-background}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | `Deep-Learning/KL Divergence vs Cross Entropy.md` | Information theory foundations, KL divergence |
+| 2 | `Deep-Learning/Loss functions in Ranking.md` | Pairwise ranking losses and the sigmoid connection |
+| 3 | `Probability/An Introduction to Bayesian Inference.md` | Bayes' theorem, prior-likelihood-posterior framework |
+| 4 | `Statistics/Estimation/2. The Variance of the Sample Mean Estimator...` | Variance of the sample mean, $1/\sqrt{N}$ scaling |
+| 5 | `Statistics/Estimation/4. Interpretation of the Covariance Matrix.md` | Covariance matrix: diagonal = variances, off-diagonal = covariances |
+
+:::
+
+This appendix collects the mathematical prerequisites used throughout the chapter. Each subsection covers one concept at the level of detail needed to follow the main text. If you are comfortable with logistic regression, Bayes' theorem, and basic probability, you can skip this section and refer back as needed.
+
+### The Logistic Sigmoid Function
+
+The logistic sigmoid function $\sigma(z)$ maps any real number $z$ to the interval $(0, 1)$:
+
+$$
+\sigma(z) = \frac{1}{1 + e^{-z}}
+$$ {#eq-sigmoid-bg}
+
+When $z = 0$, $\sigma(0) = 0.5$. As $z \to +\infty$, $\sigma(z) \to 1$. As $z \to -\infty$, $\sigma(z) \to 0$. The function is symmetric around 0: $\sigma(-z) = 1 - \sigma(z)$.
+
+A quick numerical example: if two TTS engines have log-abilities $\lambda_C = 0.5$ and $\lambda_B = -0.5$, the difference is $1.0$. Plugging in: $\sigma(1.0) = 1/(1 + e^{-1}) \approx 0.73$. So the model predicts a 73% chance that Clarity beats Brio.
+
+The sigmoid appears everywhere in this chapter because it converts a real-valued "score difference" into a probability. In the Bradley-Terry model (@sec-bradley-terry), the preference probability $P(i \succ j) = \sigma(\lambda_i - \lambda_j)$ is a sigmoid of the skill difference. In the DPO loss (@sec-rlhf-dpo), the log-probability ratio passes through a sigmoid.
+
+A useful property: the derivative is $\sigma'(z) = \sigma(z)(1 - \sigma(z))$. The gradient is largest when $\sigma(z) = 0.5$ (when $z = 0$ and the model is most uncertain). Gradient-based optimization therefore focuses updates on the cases where the model is least confident. This is the mathematical basis for adaptive pair selection in @sec-data-collection.
+
+### Maximum Likelihood Estimation
+
+**Maximum Likelihood Estimation (MLE)** is the standard method for fitting parameters to data. The idea is simple: choose the parameter values that make the observed data most probable.
+
+Suppose you have data $D$ and a model with parameters $\theta$. The **likelihood function** $\mathcal{L}(\theta) = P(D \mid \theta)$ is the probability of observing your data, viewed as a function of the parameters. The MLE is the value $\hat{\theta}$ that maximizes this function:
+
+$$
+\hat{\theta}_{MLE} = \arg\max_\theta \; \mathcal{L}(\theta) = \arg\max_\theta \; P(D \mid \theta)
+$$
+
+In practice, we maximize the **log-likelihood** $\ell(\theta) = \log \mathcal{L}(\theta)$ instead, because products turn into sums (easier to differentiate) and the maximum is at the same point (the log function is monotonically increasing).
+
+A concrete example: suppose you flip a coin 10 times and see 7 heads. The likelihood of the data given a heads-probability $p$ is $\mathcal{L}(p) = p^7(1-p)^3$. Taking the log and maximizing gives $\hat{p}_{MLE} = 7/10 = 0.70$, the sample proportion. BT works the same way, but the "coin" is the matchup between two engines and the "heads probability" is $\sigma(\lambda_i - \lambda_j)$.
+
+For the Bradley-Terry model, each pairwise comparison is a Bernoulli trial with probability $P(i \succ j) = \sigma(\lambda_i - \lambda_j)$. The log-likelihood of all comparisons is the sum of the log-probabilities of each observed outcome (see @eq-bt-loglik). MLE finds the $\hat{\lambda}$ values that best explain the observed win-loss pattern. This is the mathematical foundation for @sec-bradley-terry.
+
+A key property of MLEs is **asymptotic normality**: for large enough samples, the MLE is approximately normally distributed around the true parameter value, with variance equal to the inverse of the **Fisher Information Matrix** (see the next subsection). This is why we can construct confidence intervals for BT parameters using the formula $\hat{\lambda}_i \pm 1.96 \times \text{SE}(\hat{\lambda}_i)$.
+
+### The Variance-Covariance Matrix and Standard Errors
+
+When you estimate a vector of parameters $\hat{\Lambda} = (\hat{\lambda}_1, \ldots, \hat{\lambda}_C)$ simultaneously (as in BT), the uncertainty is described by a **variance-covariance matrix**: a $C \times C$ matrix whose diagonal entries are the variances of individual estimates and whose off-diagonal entries are the covariances between pairs.
+
+The **standard error** of a parameter is the square root of its variance: $\text{SE}(\hat{\lambda}_i) = \sqrt{\text{Var}(\hat{\lambda}_i)}$. Smaller SE means a more precise estimate.
+
+The covariances matter when testing whether two parameters differ. The variance of a difference is:
+
+$$
+\text{Var}(\hat{\lambda}_i - \hat{\lambda}_j) = \text{Var}(\hat{\lambda}_i) + \text{Var}(\hat{\lambda}_j) - 2\text{Cov}(\hat{\lambda}_i, \hat{\lambda}_j)
+$$
+
+A numerical example: suppose $\text{Var}(\hat{\lambda}_C) = 0.031$, $\text{Var}(\hat{\lambda}_S) = 0.029$, and $\text{Cov}(\hat{\lambda}_C, \hat{\lambda}_S) = 0.008$. Then $\text{Var}(\hat{\lambda}_C - \hat{\lambda}_S) = 0.031 + 0.029 - 2(0.008) = 0.044$. Notice the positive covariance *reduced* the variance of the difference. This is why overlapping individual CIs do not necessarily mean the difference is non-significant; you must compute the CI of the difference directly (see @sec-bradley-terry).
+
+For MLE, the variance-covariance matrix is the inverse of the **Fisher Information Matrix** $\mathcal{I}(\hat{\Lambda})$. Fisher Information measures the curvature of the log-likelihood at the optimum. High curvature means the data pin down the parameter tightly (small SE); low curvature means the data are ambiguous (large SE). Standard errors scale as $1/\sqrt{N}$: doubling your data cuts the SE by a factor of $\sqrt{2} \approx 1.41$, not by 2. This diminishing-returns property motivates the adaptive pair selection strategies in @sec-data-collection.
+
+### Bayesian Inference: Prior, Likelihood, Posterior
+
+Bayesian inference provides an alternative to MLE that explicitly tracks uncertainty. Instead of finding a single "best" parameter value, Bayesian inference maintains a full probability distribution over parameter values.
+
+The framework has three components:
+
+**The prior** $P(\theta)$ encodes your beliefs about the parameter *before* seeing any data. A "wide" prior (e.g., $\theta \sim \mathcal{N}(0, 100)$) says "I have very little idea what $\theta$ is." A "narrow" prior says "I am fairly confident $\theta$ is near some value."
+
+**The likelihood** $P(D \mid \theta)$ is the same quantity as in MLE: the probability of the data given the parameters.
+
+**The posterior** $P(\theta \mid D)$ is the updated belief about $\theta$ *after* observing data $D$. Bayes' theorem tells you how to compute it:
+
+$$
+P(\theta \mid D) = \frac{P(D \mid \theta) \cdot P(\theta)}{P(D)}
+$$ {#eq-bayes-bg}
+
+The denominator $P(D) = \int P(D \mid \theta) P(\theta) d\theta$ is the **marginal likelihood** (or "evidence"), a normalizing constant. In practice, computing this integral exactly is often intractable, which is why TrueSkill uses **expectation propagation** (an approximate inference algorithm) instead.
+
+A quick example of the Bayesian update in action: suppose you believe a TTS engine's skill is somewhere around 25 with high uncertainty: $\mu = 25, \sigma = 8.33$. The engine wins a match it was expected to lose. The posterior shifts: $\mu$ increases (the engine is better than you thought) and $\sigma$ shrinks (you are more certain now). After 20 more comparisons, $\sigma$ might drop from 8.33 to 3.1, meaning you have pinned down the engine's skill much more tightly.
+
+This is the mathematical engine behind TrueSkill in @sec-bayesian-models: each comparison is a piece of evidence that updates the skill distribution via Bayes' theorem.
+
+### KL Divergence
+
+The **Kullback-Leibler divergence** $D_{KL}(P \| Q)$ measures how different two probability distributions $P$ and $Q$ are. It is defined as:
+
+$$
+D_{KL}(P \| Q) = \sum_x P(x) \log \frac{P(x)}{Q(x)}
+$$ {#eq-kl-bg}
+
+(For continuous distributions, replace the sum with an integral.)
+
+KL divergence is always non-negative: $D_{KL}(P \| Q) \geq 0$, with equality if and only if $P = Q$. It is *not* symmetric: $D_{KL}(P \| Q) \neq D_{KL}(Q \| P)$ in general. This means it is not a true "distance" metric. Think of it as the extra cost (in nats, if using natural log) of using distribution $Q$ when the true distribution is $P$.
+
+A concrete example: suppose the true distribution is $P = (0.7, 0.3)$ and your model predicts $Q = (0.5, 0.5)$. Then $D_{KL}(P \| Q) = 0.7 \ln(0.7/0.5) + 0.3 \ln(0.3/0.5) \approx 0.7(0.336) + 0.3(-0.511) \approx 0.082$ nats. If your model instead predicted $Q = (0.9, 0.1)$, the KL divergence would be larger: $\approx 0.105$ nats. The closer $Q$ is to $P$, the smaller the divergence.
+
+In this chapter, KL divergence appears in the RLHF objective (@eq-rlhf-objective):
+
+$$
+\max_{\pi_\theta} \; \mathbb{E}[R_\phi(x, y)] - \beta \cdot D_{KL}(\pi_\theta \| \pi_{ref})
+$$
+
+The term $\beta \cdot D_{KL}(\pi_\theta \| \pi_{ref})$ penalizes the policy $\pi_\theta$ for drifting too far from the reference policy $\pi_{ref}$. Without this penalty, the policy could exploit flaws in the reward model (reward hacking). The coefficient $\beta$ controls the trade-off: large $\beta$ keeps the policy close to the reference (conservative updates), small $\beta$ allows more aggressive optimization of the reward.
+
+KL divergence also appears in the DPO derivation. The closed-form optimal policy for the KL-constrained objective is a Boltzmann distribution (@eq-optimal-policy), and the DPO loss emerges from substituting this solution back into the BT preference probability. The KL penalty, controlled by $\beta$, is the mathematical bridge between reward maximization and policy stability in @sec-rlhf-dpo.

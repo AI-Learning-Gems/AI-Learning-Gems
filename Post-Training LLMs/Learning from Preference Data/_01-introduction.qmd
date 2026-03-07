@@ -1,0 +1,288 @@
+## Introduction {#sec-introduction}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Bradley & Terry (1952)](https://en.wikipedia.org/wiki/Bradley%E2%80%93Terry_model) | Original BT pairwise comparison model |
+| 2 | [InstructGPT (Ouyang et al. 2022)](https://arxiv.org/abs/2203.02155) | Production-scale RLHF pipeline diagram |
+| 3 | [Christiano et al. (2017)](https://arxiv.org/abs/1706.03741) | Foundational RLHF from trajectory preferences |
+| 4 | [DPO (Rafailov et al. 2023)](https://arxiv.org/abs/2305.18290) | BT-based reward reparameterization; DPO loss |
+| 5 | [Thurstone (1927)](https://en.wikipedia.org/wiki/Law_of_comparative_judgment) | Gaussian noise model; probit formulation |
+| 6 | [LMSYS Chatbot Arena (2023)](https://lmsys.org/blog/2023-12-07-leaderboard/) | BT for ranking 90+ LLMs |
+
+:::
+
+### The TTS Evaluation Problem
+
+You are a product manager at a tech company, and your team has just built three new text-to-speech (TTS) engines: **Clarity**, **Brio**, and **Sonus**. Your job is to figure out which one sounds the most natural. The obvious approach is to ask people to rate each engine on a 1-to-5 scale, but you already know this is unreliable. One listener's "4" is another listener's "3." Humans are inconsistent at assigning absolute scores. Calibrating across raters is a nightmare.
+
+So you try something simpler. You play two audio clips side by side and ask: "Which one sounds more natural?" You repeat this hundreds of times with different listeners and different pairs. After 300 comparisons, you have a neat win-loss matrix:
+
+|  | Clarity | Brio | Sonus |
+|---|---|---|---|
+| **Clarity** | -- | 70 wins | 60 wins |
+| **Brio** | 30 wins | -- | 45 wins |
+| **Sonus** | 40 wins | 55 wins | -- |
+
+The totals seem clear: Clarity has 130 wins, Sonus has 95, Brio has 75. Ranking: Clarity > Sonus > Brio. Done?
+
+Not quite. Simple win-counting ignores the **strength of schedule**. Clarity's 130 wins came from beating Brio (which everybody beats) and Sonus. Sonus's 95 wins came from beating Brio and, surprisingly often, Clarity. Is the gap between Clarity and Sonus really as big as their win totals suggest? And critically: *how much* better is Clarity than Sonus? Is the difference statistically significant, or could it be noise?
+
+This is the exact question that the **Bradley-Terry model** ([Bradley & Terry, 1952](https://en.wikipedia.org/wiki/Bradley%E2%80%93Terry_model)), proposed independently by Zermelo for chess in 1929, was designed to answer. It assigns each engine a latent "skill" parameter, and the probability that one engine beats another is determined entirely by the ratio of their skills. The result for our three engines turns out to be surprising: Clarity and Sonus are so close that, given only 300 comparisons, we **cannot statistically distinguish them** at the 95% confidence level. A naive win-count would have led us to pick Clarity with false confidence. The BT model tells us we need more data before making that call.
+
+But here is where the story gets really interesting. This 1952 model for ranking TTS engines turns out to be *mathematically identical* to the model that powers the alignment of every major large language model in 2024. The same equation that answers "which TTS engine sounds better?" also answers "which ChatGPT response is more helpful?"
+
+![The InstructGPT pipeline: human preference data is collected via pairwise comparisons (Step 2), used to train a reward model, and then used to fine-tune the language model via reinforcement learning (Step 3). The preference comparison in Step 2 is powered by the Bradley-Terry model. Source: Ouyang et al. (2022), Figure 2.](Learning from Preference Data/images/instructgpt-rlhf-pipeline.png){#fig-instructgpt-pipeline}
+
+@fig-instructgpt-pipeline shows the three-stage RLHF pipeline that transformed GPT-3 into InstructGPT (and later ChatGPT). Look at Step 2: human labelers compare two model outputs and pick the one they prefer. This is a pairwise comparison, identical in structure to our TTS evaluation. The mathematical model that converts these pairwise preferences into a "reward model" (the thing that tells the AI what humans like) is exactly the Bradley-Terry model from 1952. The same logistic function. The same maximum likelihood estimation. The same confidence intervals.
+
+### Learning Objectives
+
+After reading this chapter, you will be able to:
+
+- **Derive** the Bradley-Terry model from first principles: the core assumption, the logistic regression equivalence, and the MLE objective
+- **Explain** the Bayesian alternatives (TrueSkill, Glicko, Elo) and articulate when each is preferred over BT
+- **Survey** the full landscape of ranking methods (Thurstone, Plackett-Luce, PageRank, voting methods) and explain why BT dominates in practice
+- **Design** a preference data collection experiment: pair selection, annotation UI, quality control, and adaptive sampling
+- **Handle** real-world complications: multi-criteria evaluation, annotator disagreement, ties, and context-dependent preferences
+- **Trace** the mathematical path from the classical BT model to the neural reward model in RLHF, and then to DPO's elimination of the reward model entirely
+
+### Notation
+
+The following notation is used throughout this chapter. All symbols are defined on first use in the text, but this table serves as a reference.
+
+| Symbol | Definition |
+|---|---|
+| $C$ | Total number of items to be ranked |
+| $\theta_i$ | BT strength parameter; $\theta_i \in (0, \infty)$ |
+| $\lambda_i$ | Log-ability: $\lambda_i = \log(\theta_i)$; $\lambda_i \in \mathbb{R}$ |
+| $\sigma(z)$ | Logistic sigmoid: $1/(1+e^{-z})$ |
+| $w_{ij}$ | Number of times item $i$ was preferred over item $j$ |
+| $n_{ij}$ | Total comparisons between $i$ and $j$: $n_{ij} = w_{ij} + w_{ji}$ |
+| $W_i$ | Total wins for item $i$: $W_i = \sum_{j \neq i} w_{ij}$ |
+| $\mu_i, \sigma_i^2$ | TrueSkill/Glicko skill mean and variance |
+| $\beta^2$ | TrueSkill performance variance |
+| $R_i, K$ | Elo rating and K-factor |
+| $RD_i$ | Glicko rating deviation |
+| $x$ | Prompt or input context |
+| $y, y_w, y_l$ | Response; preferred response; dispreferred response |
+| $R_\theta(x,y)$ | Neural reward model (parameterized by $\theta$) |
+| $\pi_\theta, \pi_{ref}$ | Policy model; reference policy |
+| $\beta$ (RLHF context) | KL-penalty coefficient |
+| $Z(x)$ | Partition function (normalizing constant) |
+
+### A Century of the Same Equation
+
+To understand where preference learning comes from and where it is going, you need to appreciate something remarkable: the same mathematical structure has been independently discovered across six different fields over the span of a century. Each field thought it was solving a unique problem. Each arrived at the same answer.
+
+The story begins in 1927 with **Louis Thurstone**, a psychophysicist studying how people perceive stimuli. Thurstone proposed that when a person compares two objects, each object's "perceived quality" is a random variable drawn from a Gaussian distribution. The probability that object $i$ is preferred over object $j$ is the probability that $i$'s random draw exceeds $j$'s. This gave a probit model: $P(i \succ j) = \Phi((\mu_i - \mu_j)/\sigma\sqrt{2})$, where $\Phi$ is the standard normal CDF. Thurstone was studying the perceived quality of handwriting samples, not chess players or language models, but the mathematical structure was already there.
+
+Two years later, in 1929, the mathematician **Ernst Zermelo** (better known for his contributions to set theory) independently proposed essentially the same model to rank chess players. His formulation used a ratio of "strengths" rather than Gaussian draws, arriving at $P(i \succ j) = \theta_i / (\theta_i + \theta_j)$. This is the formula we now call the Bradley-Terry model, though Zermelo published it 23 years before Bradley and Terry.
+
+In 1952, **Ralph Bradley and Dorothy Terry** formalized Zermelo's model with a rigorous statistical treatment: maximum likelihood estimation, convergence conditions, confidence intervals. Their paper gave the model its name, its practical estimation framework, and its connection to mainstream statistics.
+
+Then in 1959, the mathematical psychologist **R. Duncan Luce** proposed his **Choice Axiom**: the probability of choosing item $a$ from a set $S$ is $u(a) / \sum_{s \in S} u(s)$. For pairwise choices (sets of size 2), this is exactly the BT model. But Luce's formulation was more general. It extends naturally to choices from sets of any size, leading directly to the **Plackett-Luce** model for full rankings.
+
+Around the same time, the physicist **Arpad Elo** was developing his famous rating system for chess. Elo used a logistic function of rating differences to compute the expected outcome of a match: $E_A = 1/(1 + 10^{(R_B - R_A)/400})$. This looks different from BT, but it is mathematically identical. Setting $R_i = 400 \log_{10}(\theta_i)$ transforms one into the other. The Elo system, which has been used to rank every chess grandmaster since the 1960s, is the Bradley-Terry model in disguise, processed sequentially rather than in batch.
+
+In 1974, the econometrician **Daniel McFadden** derived the same formula from a completely different direction. He showed that if individuals make choices to maximize a "utility" that includes a random error term, and if that error follows a Gumbel (extreme value) distribution, then the probability of choosing option $i$ from a choice set is a **logistic** (softmax) function of utilities. This is the **conditional logit model**, and McFadden won the Nobel Prize in Economics for it in 2000. His model is mathematically equivalent to BT when the choice set has exactly two options.
+
+Fast forward to the 2010s and 2020s. [Christiano et al. (2017)](https://arxiv.org/abs/1706.03741) used human preferences over trajectory pairs to train a reward function for deep reinforcement learning agents. The loss function for the reward model? Bradley-Terry. [Ouyang et al. (2022)](https://arxiv.org/abs/2203.02155) scaled this to InstructGPT with the same BT loss. And in 2023, [Rafailov et al.](https://arxiv.org/abs/2305.18290) showed that DPO can bypass the reward model entirely by reparameterizing the BT probability in terms of the language model's own log-probabilities.
+
+The intellectual lineage is: **Thurstone (1927, psychophysics) $\to$ Zermelo (1929, chess) $\to$ Bradley & Terry (1952, statistics) $\to$ Luce (1959, mathematical psychology) $\to$ Elo (1960, chess) $\to$ McFadden (1974, economics, Nobel Prize) $\to$ Glicko (1999, online gaming) $\to$ TrueSkill (2007, Xbox Live) $\to$ RankNet (2005, web search) $\to$ Christiano et al. (2017, deep RL) $\to$ InstructGPT (2022, RLHF at scale) $\to$ DPO (2023, direct preference optimization)**. Six fields, one equation.
+
+### What This Chapter Covers
+
+This chapter traces this intellectual lineage from its mathematical foundations to its modern applications. The journey follows the TTS evaluation example throughout, starting simple and accumulating real-world complexity.
+
+**@sec-bradley-terry** begins with three TTS engines and 300 comparisons. We derive the Bradley-Terry model from scratch: the core probability assumption, the reparameterization to log-abilities, the logistic regression equivalence, the maximum likelihood objective and its beautiful "observed wins equals expected wins" interpretation, and confidence intervals. By the end, you will be able to set up a BT model as a standard logistic regression and assess whether your ranking is statistically significant.
+
+**@sec-bayesian-models** asks: what if you don't want to wait until all data is collected? With 10 annotators working in parallel, you need a system that can update incrementally. We introduce the Bayesian approach: TrueSkill (which models skill as a Gaussian distribution, not a point estimate), the Elo system and its mathematical equivalence to BT, and Glicko's clever addition of rating deviation. This section explains when offline (BT) versus online (TrueSkill/Elo) systems are appropriate, and how to run TrueSkill in batch mode for parallel annotation.
+
+**@sec-model-landscape** zooms out to survey the full landscape of preference models. We trace the Thurstone-to-DPO timeline across six fields, explain Luce's Choice Axiom and the Independence of Irrelevant Alternatives (IIA) property (and its famous failure with the "red bus / blue bus" problem), generalize from pairwise to full rankings via Plackett-Luce, connect to McFadden's econometric framework, and explore alternatives to probabilistic models: graph-based methods (PageRank, Rank Centrality), voting-theoretic methods (Borda, Copeland, Kemeny-Young), and the surprising 2024 evidence that social choice methods may outperform BT for noisy, heterogeneous evaluators.
+
+**@sec-data-collection** turns practical. Your TTS evaluation now has 20 engines and you cannot compare all 190 pairs. We cover experiment design (circulant tournaments for 79% pair reduction), adaptive pair selection (query the most uncertain pair), annotation UI best practices (anonymization, randomization, forced choice), quality control (gold-standard questions, inter-annotator agreement), and scaling with parallel annotators (diverse batch selection).
+
+**@sec-practical-extensions** addresses the messiness of real data. Some annotators are unreliable. Some pairs sound identical. Your engine that excels at news text falters on poetry. We cover multi-criteria evaluation (BT + AHP aggregation), annotator heterogeneity (random-effects GLMM), ties (Rao-Kupper and Davidson extensions), and contextual preferences where skill is a function of the input text. This last extension is the conceptual bridge to neural reward models.
+
+**@sec-rlhf-dpo** closes the loop. The contextual BT model from @sec-practical-extensions, where $\lambda_i(x) = \lambda_i + \phi(x)^T \beta_i$, is a linear model. Replace that linear function with a neural network, and you have the reward model in RLHF. Same BT loss, same math, different parametrization. We walk through the full RLHF pipeline (SFT $\to$ Reward Model $\to$ PPO), then derive DPO: the insight that the optimal policy under a KL-constrained reward-maximization objective has a closed-form solution, and substituting that solution into BT causes the intractable partition function $Z(x)$ to cancel, yielding a loss that depends only on the policy and a reference model. The reward model disappears. "Your language model is secretly a reward model."
+
+### What to Watch For
+
+The derivations in @sec-bradley-terry and @sec-rlhf-dpo are the mathematical heart of this chapter. Take your time with them. Several results will feel surprising:
+
+- The BT model is *exactly* logistic regression with a $\{+1, -1\}$ design matrix. Not "similar to" or "inspired by" but mathematically identical.
+- Elo ratings are BT parameters on a different scale: $R_i = 400 \log_{10}(\theta_i)$. The systems are equivalent.
+- DPO is not a separate "technique" from RLHF. It is a mathematical consequence of substituting BT's closed-form optimal policy into BT's own loss function.
+
+The conceptual thread connecting all of this is that **only differences in skill matter, not absolute values**. The BT model has scale indeterminacy: multiplying all $\theta_i$ by a constant changes nothing. This same indeterminacy is what makes absolute reward scores meaningless in RLHF and is what allows DPO's partition function to cancel. If you internalize this one property, everything else follows.
+
+```{.d2}
+# =========================================================================
+# Concept Map: Learning from Preference Data
+# =========================================================================
+direction: right
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 14
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 16
+      bold: true
+    }
+  }
+}
+
+# =========================================================================
+# Historical Roots
+# =========================================================================
+Historical: {
+  label.near: top-left
+  label: "Historical Roots"
+  class: [container]
+
+  thurstone: {
+    class: [base; input]
+    label: "    Thurstone (1927)\n    Gaussian noise model    "
+  }
+  zermelo: {
+    class: [base; input]
+    label: "  Zermelo (1929)\n  Chess ratings  "
+  }
+}
+
+# =========================================================================
+# Core Model
+# =========================================================================
+bt: {
+  class: [base; highlight]
+  label: "  Bradley-Terry (1952)\n  P(i ≻ j) = σ(λᵢ − λⱼ)  "
+}
+
+Historical.thurstone -> bt: "probit → logit"
+Historical.zermelo -> bt: "ratio model"
+
+# =========================================================================
+# Three Branches from BT
+# =========================================================================
+Bayesian: {
+  label.near: top-left
+  label: "Bayesian Branch"
+  class: [container]
+
+  elo: {
+    class: [base; process]
+    label: "  Elo (1960)  "
+  }
+  glicko: {
+    class: [base; process]
+    label: "  Glicko (1999)  "
+  }
+  trueskill: {
+    class: [base; process]
+    label: "  TrueSkill (2007)  "
+  }
+  elo -> glicko: "+uncertainty"
+  glicko -> trueskill: "+teams, EP"
+}
+
+Listwise: {
+  label.near: top-left
+  label: "Listwise Branch"
+  class: [container]
+
+  luce: {
+    class: [base; decision]
+    label: "  Luce (1959)  "
+  }
+  mcfadden: {
+    class: [base; decision]
+    label: "  McFadden (1974)\n  Nobel 2000  "
+  }
+  pl: {
+    class: [base; decision]
+    label: "  Plackett-Luce  "
+  }
+  luce -> pl: "full rankings"
+  luce -> mcfadden: "random utility"
+}
+
+Neural: {
+  label.near: top-left
+  label: "Neural Branch"
+  class: [container]
+
+  rm: {
+    class: [base; output]
+    label: "  RLHF Reward Model\n  Rθ(x,y)  "
+  }
+  dpo: {
+    class: [base; output]
+    label: "  DPO (2023)\n  No reward model  "
+  }
+  beyond: {
+    class: [base; output]
+    label: "  IPO / KTO / SimPO  "
+  }
+  rm -> dpo: "reparameterize"
+  dpo -> beyond: "variations"
+}
+
+bt -> Bayesian.elo: "sequential"
+bt -> Listwise.luce: "IIA, choice"
+bt -> Neural.rm: "neural λᵢ(x)"
+```

@@ -1,0 +1,188 @@
+## From Classical Models to LLM Alignment: Reward Models, RLHF, and DPO {#sec-rlhf-dpo}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [DPO (Rafailov et al. 2023)](https://arxiv.org/abs/2305.18290) | BT reparameterization, DPO loss derivation |
+| 2 | [InstructGPT (Ouyang et al. 2022)](https://arxiv.org/abs/2203.02155) | 3-stage RLHF pipeline |
+| 3 | [Christiano et al. (2017)](https://arxiv.org/abs/1706.03741) | Foundational RLHF from trajectory preferences |
+| 4 | [Unification Survey (Raheja & Pochhi 2026)](https://arxiv.org/abs/2601.06108) | Three-axis taxonomy: IPO/KTO/SimPO |
+| 5 | [Lilian Weng, "Reward Hacking in RL" (2024)](https://lilianweng.github.io/posts/2024-11-28-reward-hacking/) | Taxonomy of reward hacking failure modes |
+| 6 | [Cameron Wolfe, "Reward Models" (2024)](https://cameronrwolfe.substack.com/p/reward-models) | BT as RM foundation, practical training |
+| 7 | [Nathan Lambert, "The DPO Debate" (2024)](https://www.interconnects.ai/p/the-dpo-debate) | DPO vs PPO driven by data quality |
+| 8 | [BAIR Blog, "Rethinking PPO in RLHF" (P3O, 2023)](https://bair.berkeley.edu/blog/2023/10/16/p3o/) | Pairwise-absolute mismatch |
+| 9 | Existing: `Post-Training LLMs/Policy Gradient/2.1...` | DPO derivation with $Z(x)$ cancellation |
+
+:::
+
+### From $\lambda_i$ to $R_\theta(x, y)$: The Conceptual Leap
+
+Let us trace the path from the classical BT model to the neural reward model, step by step. The mathematics does not change; only the parameterization becomes more powerful.
+
+**Static BT (Section 2).** Each TTS engine $i$ has a fixed skill parameter $\lambda_i$. The preference probability is $P(i \succ j) = \sigma(\lambda_i - \lambda_j)$. There are $C$ parameters for $C$ engines.
+
+**Contextual BT (Section 6).** Skill depends on the input text: $\lambda_i(x) = \lambda_i + \phi(x)^T \beta_i$. The preference probability is $P(i \succ j \mid x) = \sigma(\lambda_i(x) - \lambda_j(x))$. There are $C \times (K+1)$ parameters (base skill + feature interaction per engine).
+
+**Neural BT.** Replace the linear function with a neural network: $R_\theta(x, y)$, where $x$ is the input (prompt, text) and $y$ is the output (TTS audio, LLM response). The network takes the raw input and output and produces a scalar "reward." The preference probability is:
+
+$$
+P(y_w \succ y_l \mid x) = \sigma(R_\theta(x, y_w) - R_\theta(x, y_l))
+$$ {#eq-neural-bt}
+
+This is the same BT formula. The same logistic sigmoid. The same interpretation: the probability of preferring $y_w$ over $y_l$ is a function of the difference in their "quality scores." The only change is that $R_\theta$ is now computed by a neural network with millions (or billions) of parameters, instead of a per-item table lookup.
+
+For TTS, the architecture might be: audio encoder (extracts features from the waveform) $\to$ pooling layer (produces a fixed-length vector) $\to$ MLP with a single scalar output. For LLMs, the architecture is: the language model itself (e.g., a pretrained transformer) $\to$ a linear "reward head" that maps the final hidden state to a scalar.
+
+The TTS reward model and the LLM reward model use the same loss function. The same math. Different modalities.
+
+### Training the Reward Model
+
+The reward model (RM) is trained on a dataset of human preference pairs: $\{(x, y_w, y_l)\}$, where $y_w$ is the preferred response and $y_l$ is the dispreferred response. The loss is the negative log-likelihood of the BT model:
+
+$$
+\mathcal{L}_{RM} = -\mathbb{E}_{(x, y_w, y_l)} \left[\log \sigma(R_\theta(x, y_w) - R_\theta(x, y_l))\right]
+$$ {#eq-rm-loss}
+
+This is exactly the BT log-likelihood from @eq-bt-loglik, but with a neural network instead of per-item parameters. Each training step:
+
+1. **Two forward passes:** Compute $R_\theta(x, y_w)$ and $R_\theta(x, y_l)$ for the same prompt $x$.
+2. **Compute the difference:** $\Delta = R_\theta(x, y_w) - R_\theta(x, y_l)$.
+3. **Sigmoid and log:** $\mathcal{L} = -\log \sigma(\Delta)$.
+4. **Backprop:** Update $\theta$ to increase $\Delta$ (make the reward of the preferred response higher).
+
+**Worked numerical example.** Initial scores: $R_\theta(x, y_w) = 1.5$, $R_\theta(x, y_l) = 1.2$. The difference is $\Delta = 0.3$. Loss: $-\log \sigma(0.3) = -\log(0.574) = 0.555$. After a gradient step, suppose the updated scores are $R_\theta(x, y_w) = 2.1$, $R_\theta(x, y_l) = 0.9$. Now $\Delta = 1.2$, and loss: $-\log \sigma(1.2) = -\log(0.769) = 0.263$. The loss dropped because the model now assigns a larger gap between the preferred and dispreferred responses.
+
+**Evaluation.** The primary metric for a reward model is **pairwise preference accuracy**: on a held-out test set, what fraction of pairs does the model rank correctly?
+
+$$
+A = \frac{1}{N}\sum_{n=1}^{N} \mathbb{1}\left(R_\theta(x_n, y_w^{(n)}) > R_\theta(x_n, y_l^{(n)})\right)
+$$
+
+A random model achieves 50%. A well-trained reward model for LLM alignment typically achieves 70-80%. Above 80% is excellent. Average test loss is a secondary metric; avoid tracking absolute average reward, which is meaningless due to BT's scale indeterminacy.
+
+::: {.callout-warning title="Common Misconception: Higher absolute reward means a better response"}
+Only reward **differences** are meaningful. The BT model has scale indeterminacy: adding a constant to all rewards changes nothing. If $R_\theta(x, y_1) = 5.0$ and $R_\theta(x, y_2) = 3.0$, the model says $y_1$ is preferred. If we add 100 to both ($105.0$ and $103.0$), the preference is identical. Reporting "this response got a reward of 5.0" is meaningless without a reference point. The standard practice is to normalize rewards relative to the SFT model's average: $R'_\theta(y) = R_\theta(y) - \mathbb{E}_{\hat{y} \sim \pi_{SFT}}[R_\theta(\hat{y})]$.
+:::
+
+### The RLHF Pipeline: SFT $\to$ Reward Model $\to$ PPO
+
+The full RLHF pipeline, as implemented in InstructGPT ([Ouyang et al., 2022](https://arxiv.org/abs/2203.02155)), has three stages:
+
+**Stage 1: Supervised Fine-Tuning (SFT).** Take a pretrained language model and fine-tune it on a curated dataset of high-quality demonstrations (prompt-response pairs). This teaches the model the *format* of desired outputs: instruction-following, conversational tone, structured answers. The result is $\pi_{SFT}$.
+
+**Stage 2: Reward Model Training.** Collect human preference data: for each prompt $x$, generate two responses from $\pi_{SFT}$, ask an annotator which they prefer, record $(x, y_w, y_l)$. Train a reward model $R_\theta$ using the BT loss from @eq-rm-loss. InstructGPT used 33K preference comparisons on prompts from their API.
+
+**Stage 3: RL Fine-Tuning via PPO.** Optimize the language model's policy $\pi_\theta$ to maximize the learned reward, subject to a KL divergence penalty that prevents the policy from diverging too far from the SFT model $\pi_{ref} = \pi_{SFT}$ (see @sec-math-background for a review of KL divergence):
+
+$$
+\max_{\pi_\theta} \; \mathbb{E}_{x \sim \mathcal{D}, \; y \sim \pi_\theta(\cdot|x)} \left[R_\phi(x, y)\right] - \beta \cdot D_{KL}\left(\pi_\theta(\cdot|x) \;\|\; \pi_{ref}(\cdot|x)\right)
+$$ {#eq-rlhf-objective}
+
+The KL penalty serves two purposes. First, it prevents **reward hacking**: without the penalty, the policy would find adversarial inputs that exploit flaws in the reward model. As [Lilian Weng](https://lilianweng.github.io/posts/2024-11-28-reward-hacking/) catalogs, reward hacking comes in many forms. The policy might generate outputs that are excessively long (because longer outputs tend to get higher reward). It might mimic the annotator's known biases, such as flattery or agreeing with the user's stated opinion. It might produce text that "games" surface-level patterns in the reward model without being genuinely helpful. In code generation, reward-hacked policies have been observed to modify unit tests rather than fix bugs, because the RM scores "passing tests" highly regardless of *how* they pass. Second, the KL penalty maintains generation quality: the SFT model already produces grammatical, coherent text, and we do not want to destroy that by chasing reward too aggressively.
+
+The optimization in Stage 3 uses Proximal Policy Optimization (PPO), a reinforcement learning algorithm. Each training step: sample a batch of prompts, generate responses from $\pi_\theta$, score them with $R_\phi$, compute the PPO objective (reward minus KL penalty), and update $\pi_\theta$.
+
+::: {.callout-note title="Think Hard: The pairwise-absolute mismatch in RLHF"}
+There is a subtle tension at the heart of the RLHF pipeline, highlighted by the [BAIR P3O blog post](https://bair.berkeley.edu/blog/2023/10/16/p3o/). The reward model is trained on **pairwise** comparisons ("Is $y_w$ better than $y_l$?"), which means it only learns to get the *sign* of the reward difference right. But PPO uses the reward model's output as an **absolute** scalar signal: it treats $R_\phi(x, y) = 5.0$ very differently from $R_\phi(x, y) = 3.0$, even though the pairwise training never taught the model what "5.0 vs. 3.0" means in absolute terms. This mismatch can cause instability during PPO training, because the policy optimizer reads meaning into reward magnitudes that were never calibrated. The P3O method proposes applying pairwise (comparative) learning throughout the entire pipeline, not just in the RM stage, to avoid this inconsistency. DPO sidesteps this problem entirely: it never extracts an absolute reward from the model, working only with log-probability *ratios*.
+:::
+
+![The RLHF pipeline from Christiano et al. (2017): a human provides preference labels on pairs of trajectory segments, which are used to train a reward model. Source: Christiano et al. (2017), Figure 1.](Learning from Preference Data/images/christiano-preference-learning-setup.png){#fig-christiano-setup}
+
+The four-model memory problem is one practical difficulty of this pipeline. During PPO training, you need four models in memory simultaneously: the policy $\pi_\theta$ being optimized, the value function (critic) for PPO, the frozen reward model $R_\phi$, and the frozen reference policy $\pi_{ref}$ for the KL penalty. For large language models, this is extremely expensive.
+
+### DPO: Eliminating the Reward Model
+
+**Direct Preference Optimization (DPO)**, proposed by [Rafailov et al. (2023)](https://arxiv.org/abs/2305.18290), is a mathematical trick that eliminates the reward model and the RL step entirely. The key insight has four steps, each building on the previous.
+
+**Step 1: The KL-constrained objective has a closed-form optimal policy.** The RLHF objective @eq-rlhf-objective is a constrained optimization problem: maximize reward while staying close to the reference policy. It turns out that this has an analytical solution. The optimal policy is a Boltzmann distribution:
+
+$$
+\pi^*(y \mid x) = \frac{1}{Z(x)} \pi_{ref}(y \mid x) \exp\left(\frac{1}{\beta} r(x, y)\right)
+$$ {#eq-optimal-policy}
+
+where $Z(x) = \sum_y \pi_{ref}(y \mid x) \exp(\frac{1}{\beta} r(x, y))$ is the partition function (a normalizing constant that ensures probabilities sum to 1). This says: the optimal policy is the reference policy, reweighted by the exponentiated reward.
+
+**Step 2: Rearrange to express the reward in terms of the policy.** Taking the log of @eq-optimal-policy and rearranging:
+
+$$
+r(x, y) = \beta \log \frac{\pi^*(y \mid x)}{\pi_{ref}(y \mid x)} + \beta \log Z(x)
+$$ {#eq-reward-from-policy}
+
+This is remarkable: the reward is a function of the policy and the reference policy, plus a prompt-dependent constant $\beta \log Z(x)$.
+
+**Step 3: Substitute into the BT model.** The BT preference probability is:
+
+$$
+P(y_w \succ y_l \mid x) = \sigma(r(x, y_w) - r(x, y_l))
+$$
+
+Substituting @eq-reward-from-policy:
+
+$$
+P(y_w \succ y_l \mid x) = \sigma\left(\beta \log \frac{\pi^*(y_w \mid x)}{\pi_{ref}(y_w \mid x)} + \beta \log Z(x) - \beta \log \frac{\pi^*(y_l \mid x)}{\pi_{ref}(y_l \mid x)} - \beta \log Z(x)\right)
+$$
+
+**The $Z(x)$ terms cancel.** This is the key mathematical moment. BT only cares about reward *differences*. The $\beta \log Z(x)$ is a constant (for a given prompt $x$) that appears in both rewards and subtracts away:
+
+$$
+P(y_w \succ y_l \mid x) = \sigma\left(\beta \left(\log \frac{\pi^*(y_w \mid x)}{\pi_{ref}(y_w \mid x)} - \log \frac{\pi^*(y_l \mid x)}{\pi_{ref}(y_l \mid x)}\right)\right)
+$$ {#eq-dpo-probability}
+
+**Step 4: The DPO loss.** Replace $\pi^*$ with the trainable policy $\pi_\theta$ and maximize the log-likelihood of the preference data:
+
+$$
+\mathcal{L}_{DPO}(\pi_\theta) = -\mathbb{E}_{(x, y_w, y_l)}\left[\log \sigma\left(\beta \left(\log \frac{\pi_\theta(y_w \mid x)}{\pi_{ref}(y_w \mid x)} - \log \frac{\pi_\theta(y_l \mid x)}{\pi_{ref}(y_l \mid x)}\right)\right)\right]
+$$ {#eq-dpo-loss}
+
+This loss requires only two models: $\pi_\theta$ (the policy being trained) and $\pi_{ref}$ (the frozen reference policy). No reward model. No RL. No PPO. Just a classification loss on preference pairs, where the "logit" is the difference in log-probability ratios.
+
+The slogan from Rafailov et al.: **"Your language model is secretly a reward model."** The implicit reward is $r(x, y) = \beta \log(\pi_\theta(y \mid x) / \pi_{ref}(y \mid x))$ plus a constant.
+
+![DPO directly optimizes the policy using preference data, bypassing the reward model and RL stages of the traditional RLHF pipeline. Source: Rafailov et al. (2023), Figure 1.](Learning from Preference Data/images/dpo-vs-rlhf-pipeline.png){#fig-dpo-pipeline}
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+In the DPO derivation, why does $Z(x)$ cancel? What property of the BT model makes this possible? (Hint: revisit scale indeterminacy from @sec-bradley-terry.)
+:::
+
+### RLHF vs. DPO: A Comparison
+
+| Property | RLHF (PPO) | DPO |
+|---|---|---|
+| **Models during training** | 4 (policy, critic, RM, reference) | 2 (policy, reference) |
+| **Training stages** | 3 (SFT, RM, PPO) | 2 (SFT, DPO) |
+| **Stability** | Low (PPO is finicky) | High (classification loss) |
+| **Hyperparameters** | Many (PPO lr, clip, epochs, etc.) | Few ($\beta$, lr) |
+| **Can use existing RM** | Yes | No (bypasses RM) |
+| **Data format** | Preference pairs | Preference pairs |
+| **Limitations** | Reward hacking, 4-model memory | Likelihood displacement, SFT sensitivity |
+
+**DPO's limitations:**
+
+- **Likelihood displacement.** DPO increases $\pi_\theta(y_w \mid x)$ and decreases $\pi_\theta(y_l \mid x)$. But because the policy is a distribution over all possible outputs, decreasing the probability of $y_l$ can inadvertently increase the probability of other undesirable outputs.
+- **SFT sensitivity.** The quality of the reference policy $\pi_{ref}$ matters a lot. If $\pi_{ref}$ is poor, DPO cannot deviate far from it (the log-ratio penalizes large deviations).
+- **Requires paired data.** DPO needs explicit $(y_w, y_l)$ pairs for each prompt. It cannot use unpaired binary feedback ("this response was good" / "this response was bad").
+
+![Reward vs. KL divergence frontier: DPO achieves a better trade-off than PPO on summarization. Source: Rafailov et al. (2023), Figure 3.](Learning from Preference Data/images/dpo-reward-kl-frontier.png){#fig-dpo-frontier}
+
+### Beyond DPO: A Brief Survey
+
+DPO sparked a family of follow-up methods, each modifying different aspects of the BT-derived loss. The three-axis framework of [Raheja and Pochhi (2026)](https://arxiv.org/abs/2601.06108) organizes these along: **(a) preference model** (BT, Thurstone, others), **(b) regularization** (KL penalty, direct constraints), **(c) data distribution** (paired, unpaired, ranked).
+
+**IPO (Identity Preference Optimization).** Adds explicit regularization to prevent overfitting to the preference data. When the training set is small or noisy, IPO prevents the model from becoming too confident.
+
+**KTO (Kahneman-Tversky Optimization).** Works with **unpaired binary feedback**: "this response is good" or "this response is bad," without needing explicit preference pairs. This dramatically expands the usable data (most user feedback is thumbs up/down, not A-vs-B comparisons).
+
+**SimPO.** Eliminates the reference model entirely, using length-normalized log-probabilities. Training requires only one model.
+
+**ORPO.** Merges SFT and preference tuning into a single training stage.
+
+The key insight is that **all of these methods are variations on the same BT-derived loss function**. They differ in how they handle regularization (KL penalty vs. explicit margin vs. none), data format (paired vs. unpaired vs. ranked), and architectural simplifications (reference model vs. no reference model). Understanding BT is the foundation for understanding all of them.
+
+An important practical lesson comes from [Nathan Lambert's analysis](https://www.interconnects.ai/p/the-dpo-debate) of the "DPO vs. PPO" debate in the open-source community. Lambert argues that the performance gap between DPO and PPO-based RLHF is driven primarily by **data quality** (e.g., the choice of preference dataset like UltraFeedback) and hyperparameter exploration, not by the optimizer itself. The bottleneck for the open-source community is data and evaluation infrastructure, not algorithms. This is a useful reminder: the mathematical elegance of DPO (or any method) matters less than the quality of the preference data you feed it.
+
+Even in the DPO era, explicit reward models retain value. As [Lambert argues separately](https://www.interconnects.ai/p/why-reward-models-matter), RMs serve as **auditing tools** for understanding LLM representations. We still lack basic understanding of RM properties. For example, how does the reward change as the model generates each successive token? Explicit RMs give you something to inspect; DPO's implicit reward is harder to analyze. For teams that need to understand *why* their model prefers certain outputs, training an explicit RM alongside DPO can be valuable for interpretability, even if the RM is not used for PPO training.
+
+::: {.callout-note title="Think Hard: BT has scale indeterminacy. How does this interact with DPO's $\beta$ parameter?"}
+In the classical BT model, multiplying all $\theta_i$ by a constant changes nothing. The same indeterminacy appears in the reward model: adding a constant to all $R_\theta(x, y)$ values changes nothing in @eq-rm-loss. But in DPO, the $\beta$ parameter controls how "sharply" the policy reweights responses relative to the reference. A larger $\beta$ means the policy changes more slowly (it takes larger reward differences to shift the policy). The interplay between BT's scale indeterminacy and DPO's $\beta$ is subtle: $\beta$ effectively sets the scale for how much reward difference is "large enough" to warrant changing the policy. It converts the scale-free BT reward into a scale-specific policy update.
+:::

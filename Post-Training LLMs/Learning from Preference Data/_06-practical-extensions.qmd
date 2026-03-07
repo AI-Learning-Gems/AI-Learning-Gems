@@ -1,0 +1,145 @@
+## Practical Extensions: Multi-Criteria, Annotator Heterogeneity, Ties, and Context {#sec-practical-extensions}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | Existing: `Ranking Options With Multi-Criteria Pairwise Preferences.md` | BTL + AHP, Saaty's scale, consistency ratio |
+| 2 | Existing: `Ranking TTS Models With Annotator Heterogeneity.md` | Pooled vs. fixed-effects vs. random-effects (GLMM) |
+| 3 | Existing: `3. Modeling Multiple Preference Criteria.md` | Descriptive vs. prescriptive weights, z-score normalization |
+| 4 | Existing: `Bradley-Terry Model Explained - Derivations.md` | Contextual BT, ties, annotator GLMM equations |
+| 5 | [Rao-Kupper (1967) / Davidson (1970)](https://encyclopediaofmath.org/wiki/Paired_comparison_model) | BT extensions for ties |
+
+:::
+
+### Multi-Criteria Preferences: "Best" Has Many Dimensions
+
+Our TTS evaluation has been treating "naturalness" as a single quality dimension. But real evaluations often care about multiple criteria. A TTS engine might score highly on **clarity** (words are easy to understand) but poorly on **warmth** (the voice sounds robotic and cold). Another might be clear and warm but **shrill** at higher volumes.
+
+When annotators evaluate multiple criteria, we need a way to combine per-criterion rankings into an overall ranking. There are two fundamentally different approaches.
+
+#### The Descriptive Approach: Let the Data Decide the Weights
+
+Fit an independent BT model for each criterion $k$, giving per-criterion skill estimates $\hat{\lambda}_i^k$. Then collect a separate set of "overall preference" annotations and use the per-criterion skill differences as features in a logistic regression:
+
+$$
+P(i \succ j \mid \text{Overall}) = \sigma\left(\sum_{k} w_k \cdot (\hat{\lambda}_i^k - \hat{\lambda}_j^k)\right)
+$$ {#eq-multi-criteria-descriptive}
+
+The weights $w_k$ are learned from data. They tell you how much each criterion contributes to overall preference. If $w_{\text{clarity}} = 1.2$ and $w_{\text{warmth}} = 0.4$, the data is telling you that listeners weigh clarity three times more than warmth when forming their overall preference.
+
+This approach is "descriptive" because it discovers what annotators actually care about, rather than imposing what they should care about. The learned weights can reveal surprising priorities: perhaps listeners care more about the absence of shrillness than about positive warmth.
+
+#### The Prescriptive Approach: Impose Business Priorities
+
+Sometimes you do not want to learn the weights from data; you want to set them based on business requirements. Your product team might decide that clarity and warmth are equally important and shrillness should be penalized heavily.
+
+The prescriptive approach:
+
+1. Fit independent BT models per criterion to get $\hat{\lambda}_i^k$.
+2. **Normalize** the scores across criteria. Because different criteria may have different scales (clarity scores range from -2 to 3, warmth from -0.5 to 0.5), z-score normalize each criterion: $z_i^k = (\hat{\lambda}_i^k - \text{mean}_k) / \text{sd}_k$.
+3. **Apply weights** and sum: $\text{Overall}_i = \sum_k w_k \cdot z_i^k$.
+
+The weights can be set by equal weighting ($w_k = 1/K$), ordered weighting (rank-order centroid weights), or **Saaty's Analytic Hierarchy Process (AHP)**. AHP uses pairwise comparisons between *criteria themselves* ("Is clarity more important than warmth? How much more?") scored on a 1-9 scale. The principal eigenvector of the comparison matrix gives the weights. A **consistency ratio** checks whether the pairwise judgments are logically coherent (e.g., if you said clarity > warmth and warmth > shrillness, you should also say clarity > shrillness).
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+You fitted BT models for clarity and warmth. Engine Orion has $\hat{\lambda}^{\text{clarity}} = 1.8, \hat{\lambda}^{\text{warmth}} = 0.2$. Engine Lyra has $\hat{\lambda}^{\text{clarity}} = 0.5, \hat{\lambda}^{\text{warmth}} = 1.5$. Under equal weighting, which engine ranks higher overall? What if clarity gets 3x the weight of warmth?
+:::
+
+### Annotator Heterogeneity: Not All Judges Are Equal
+
+Our 10 annotators do not all agree. Some genuinely prefer different styles. Some are more careful than others. Some click randomly on 10% of trials. Ignoring this heterogeneity introduces bias and overestimates our confidence. There are three approaches, from worst to best.
+
+#### The Pooled Model (Not Recommended)
+
+Ignore annotator identity. Sum all annotations into one win matrix: $w_{ij} = \sum_{k=1}^{K} w_{ij,k}$. Fit a single BT model.
+
+This is flawed for three reasons. First, the **"loud rater" problem**: an annotator who provides 500 comparisons dominates one who provides 50, even if the prolific annotator is less reliable. Second, **violated independence**: 100 annotations from one person are not the same as 100 annotations from 100 people. The pooled model treats them identically, producing overconfident standard errors. Third, **information loss**: the pooled model cannot distinguish "all annotators agree this pair is 50/50" from "half always prefer A and half always prefer B." These represent very different situations (genuine tie vs. controversial engine).
+
+#### The Fixed-Effects Model (Too Complex)
+
+Estimate a specific bias $\delta_{ik}$ for every annotator-item combination:
+
+$$
+P_k(i \succ j) = \sigma\left((\lambda_i + \delta_{ik}) - (\lambda_j + \delta_{jk})\right)
+$$
+
+With $C = 20$ engines and $K = 10$ annotators, this adds $(C-1)(K-1) = 171$ parameters on top of the 19 global skill parameters. This is a total of 190 parameters, approaching the number of unique pairs (190). The model will overfit badly.
+
+#### The Random-Effects Model (Recommended)
+
+The modern, principled solution treats annotator biases as random variables drawn from a distribution, rather than fixed parameters to estimate:
+
+$$
+\lambda_{ik} = \lambda_i + \epsilon_{ik}, \quad \epsilon_{ik} \sim \mathcal{N}(0, \tau_i^2)
+$$ {#eq-random-effects}
+
+Here $\lambda_i$ is the **global skill** of engine $i$ (what we want), $\epsilon_{ik}$ is the random deviation for annotator $k$ on engine $i$, and $\tau_i^2$ is the **variance component** for engine $i$, which captures how much annotators disagree about that engine.
+
+This is a **Generalized Linear Mixed Model (GLMM)**. It is fitted with packages like `lme4::glmer` in R or `BradleyTerry2::BTm`. The model estimates both the fixed effects ($\hat{\lambda}_i$, the global ranking) and the variance components ($\hat{\tau}_i^2$, the "controversiality" scores).
+
+The payoff is twofold. First, the global ranking is **robust**: the "loud rater" problem disappears because the model knows that 500 annotations from one person are not 500 independent data points. The standard errors are correct. Second, the variance components are **diagnostic**: if $\hat{\tau}_{\text{Clarity}}^2 \approx 0$, all annotators agree on Clarity's quality. If $\hat{\tau}_{\text{Sonus}}^2$ is large, Sonus is controversial: some annotators love it, others hate it.
+
+::: {.callout-warning title="Common Misconception: Higher reward is always more certain"}
+A common error is to assume that a high BT score means a confident ranking. The pooled model can produce a high $\hat{\lambda}_i$ with a tiny standard error, making it look statistically significant, when in reality the data came from a single prolific annotator with an idiosyncratic preference. The random-effects model catches this because it models the annotator-specific variation, producing larger (and correct) standard errors when annotators disagree.
+:::
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+After fitting a random-effects model, you find $\hat{\tau}^2_{\text{Engine A}} \approx 0$ and $\hat{\tau}^2_{\text{Engine B}}$ is very large. What does this tell you about each engine? Which engine would you be more worried about deploying in production?
+:::
+
+### Handling Ties: "They Sound the Same"
+
+The standard BT model has no tie mechanism: $P(i \succ j) + P(j \succ i) = 1$. But in many evaluations, annotators genuinely cannot distinguish between two options. Forcing a choice when none exists introduces noise.
+
+There are three approaches:
+
+**Split ties 0.5/0.5.** The simplest: treat each tie as half a win for each engine. Add 0.5 to $w_{ij}$ and 0.5 to $w_{ji}$. This is crude but effective for small numbers of ties.
+
+**Rao-Kupper (1967).** Introduce a threshold $\eta_0 > 1$. A tie occurs when the performance difference is small:
+
+$$
+P(\text{tie}) = P\left(\frac{1}{\eta_0} < \frac{\theta_i}{\theta_j} < \eta_0\right)
+$$
+
+When $\eta_0 = 1$ (no tie zone), this reduces to the standard BT model. Larger $\eta_0$ allows more ties. The model estimates $\eta_0$ from data alongside the $\theta_i$ parameters.
+
+**Davidson (1970).** A different parameterization that adds a separate tie probability proportional to $\sqrt{\theta_i \theta_j}$. Items of similar strength produce more ties than mismatched items. Davidson's model is more widely used in practice because it is easier to estimate.
+
+**Practical recommendation:** Start with the 0.5/0.5 split. If more than 20% of your comparisons are ties, switch to Davidson's model to properly account for them.
+
+### Contextual Preferences: Skill Depends on the Input
+
+The most subtle complication is **context dependence**. Engine A might be excellent on news text but terrible on poetry. The annotator's preference depends not just on the engines, but on the *input text* that both engines read.
+
+This requires making the skill parameter a function of the input. Recall the contextual BT model:
+
+$$
+\lambda_i(x) = \lambda_i + \phi(x)^T \beta_i
+$$ {#eq-contextual-bt}
+
+Here $\lambda_i$ is the **base skill** (the engine's quality on an "average" input), $\phi(x)$ is a feature vector for the input text (e.g., is it a question? how long is it? does it contain numbers?), and $\beta_i$ is a vector of **interaction coefficients** specific to engine $i$. The dot product $\phi(x)^T \beta_i$ is the "bonus" (positive or negative) that engine $i$ receives for this particular input.
+
+The preference probability becomes:
+
+$$
+P(i \succ j \mid x) = \sigma\left((\lambda_i - \lambda_j) + \phi(x)^T(\beta_i - \beta_j)\right)
+$$ {#eq-contextual-bt-prob}
+
+This is still a logistic regression, just with a larger design matrix. Each row now includes the base $+1/-1$ encoding for the two engines *plus* the feature-weighted interaction terms. The model can be solved with any standard GLM solver.
+
+The results are highly interpretable. If $\hat{\beta}_{\text{Clarity}, \text{is\_question}} = 0.7$, Clarity gets a bonus of 0.7 log-odds when reading questions. If $\hat{\beta}_{\text{Brio}, \text{is\_question}} = -0.4$, Brio is penalized on questions. You can now diagnose specific strengths and weaknesses: "Clarity is the best overall engine, and it is *especially* strong on questions. Brio struggles with questions; we should focus engineering effort there."
+
+::: {.callout-note title="Think Hard: From contextual BT to neural reward models"}
+The contextual BT model in @eq-contextual-bt is a **linear** model: $\lambda_i(x) = \lambda_i + \phi(x)^T \beta_i$. The features $\phi(x)$ must be hand-engineered (is_question, text_length, etc.). But what if the interaction between the input and the engine is nonlinear? What if we cannot anticipate which features matter?
+
+The natural extension is to replace the linear function with a **neural network**: $\lambda_i(x) = f_\theta(x, i)$, where $f_\theta$ takes the raw input $x$ and an engine identifier $i$ and outputs a scalar "reward." The loss function is still BT: $-\log \sigma(f_\theta(x, i) - f_\theta(x, j))$ when $i$ is preferred over $j$. This is exactly the **neural reward model** in RLHF.
+
+The conceptual leap from @eq-contextual-bt to the neural reward model is replacing hand-crafted features with learned representations, and replacing per-item parameters with a shared neural architecture. The mathematics (BT loss, logistic sigmoid, MLE) is unchanged. This is the bridge to the next section.
+:::
+
+### Transition: The Neural Bridge
+
+We have now covered the full classical toolkit: the BT model (@sec-bradley-terry), its Bayesian alternatives (@sec-bayesian-models), the broader landscape (@sec-model-landscape), how to collect data (@sec-data-collection), and how to handle real-world complications (this section). Each extension has stayed within the "same mathematical family": a logistic function of score differences.
+
+In the final section, we follow this mathematics across the bridge from classical preference models to modern LLM alignment. The contextual BT model becomes the neural reward model. The BT loss becomes the reward model training loss. And DPO shows that you can bypass the reward model entirely, training the language model directly on preference data.

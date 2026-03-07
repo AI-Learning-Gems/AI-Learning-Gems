@@ -1,0 +1,240 @@
+## Summary and Further Reading {#sec-closing}
+
+### Key Takeaways
+
+- **BT converts pairwise preferences into quantitative skill scores** via $P(i \succ j) = \sigma(\lambda_i - \lambda_j)$. This is mathematically identical to logistic regression with a $\{+1, -1\}$ design matrix and no intercept. Any GLM solver can fit a BT model.
+
+- **TrueSkill adds Bayesian uncertainty tracking** ($\mu$, $\sigma^2$), enabling online updates and batch annotation workflows. New items start with high uncertainty that shrinks with data. This is the right tool for live annotation systems with parallel annotators.
+
+- **Elo is mathematically equivalent to BT** ($R_i = 400 \log_{10} \theta_i$) but processes data sequentially and is order-dependent. BT is strictly preferred for batch analysis. Use Elo only when you need a simple, sequential leaderboard and do not care about statistical rigor.
+
+- **Efficient data collection uses adaptive pair selection**: query the pair where $P(i \succ j)$ is closest to 0.5, with diversity constraints for parallel annotation. A circulant tournament design reduces the number of pairs by 79% while maintaining connected coverage.
+
+- **Real-world complications each have principled BT extensions**: multi-criteria evaluation (independent BT per criterion + learned or imposed weights), annotator heterogeneity (random-effects GLMM), ties (Davidson's model), and context-dependent preferences (contextual BT with input features).
+
+- **In RLHF, a neural network replaces the static BT parameter**, trained with the same BT loss $\mathcal{L}_{RM} = -\mathbb{E}[\log \sigma(R_\theta(x, y_w) - R_\theta(x, y_l))]$. The architecture changes; the mathematics does not.
+
+- **DPO eliminates the reward model** by showing that the optimal policy under a KL-constrained objective has a closed form. Substituting this into the BT preference probability causes the partition function $Z(x)$ to cancel, yielding a loss that depends only on the policy and a reference model.
+
+### Completed Concept Map
+
+```{.d2}
+direction: down
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 13
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 15
+      bold: true
+    }
+  }
+}
+
+# =========================================================================
+# HISTORICAL ROOTS
+# =========================================================================
+thurstone: {
+  class: [base; input]
+  label: "Thurstone (1927)\nGaussian noise\nprobit model"
+}
+zermelo: {
+  class: [base; input]
+  label: "Zermelo (1929)\nChess ratings"
+}
+
+# =========================================================================
+# CORE
+# =========================================================================
+bt: {
+  class: [base; highlight]
+  label: "Bradley-Terry (1952)\nP(i ≻ j) = σ(λᵢ − λⱼ)\n≡ Logistic Regression"
+}
+
+thurstone -> bt: "logistic ≈ Gaussian"
+zermelo -> bt: "ratio model"
+
+# =========================================================================
+# THREE BRANCHES
+# =========================================================================
+
+# --- Bayesian ---
+Bayesian: {
+  label.near: top-left
+  label: "Bayesian / Online"
+  class: [container]
+
+  elo: {class: [base; process]; label: "Elo (1960s)\nR = 400 log₁₀(θ)"}
+  glicko: {class: [base; process]; label: "Glicko (1999)\n+ Rating Deviation"}
+  trueskill: {class: [base; process]; label: "TrueSkill (2007)\nμ, σ² per item\nBatch updates"}
+  elo -> glicko: "+uncertainty"
+  glicko -> trueskill: "+teams, EP"
+}
+
+# --- Listwise / Econ ---
+Listwise: {
+  label.near: top-left
+  label: "Listwise / Econometric"
+  class: [container]
+
+  luce: {class: [base; decision]; label: "Luce (1959)\nChoice Axiom, IIA"}
+  pl: {class: [base; decision]; label: "Plackett-Luce\nFull rankings"}
+  mcfadden: {class: [base; decision]; label: "McFadden (1974)\nRandom utility\nNobel 2000"}
+  luce -> pl: "K items"
+  luce -> mcfadden: "Gumbel noise"
+}
+
+# --- Neural ---
+Neural: {
+  label.near: top-left
+  label: "Neural / LLM Alignment"
+  class: [container]
+
+  contextual: {class: [base; output]; label: "Contextual BT\nλᵢ(x) = λᵢ + φ(x)ᵀβᵢ"}
+  rm: {class: [base; output]; label: "Neural RM\nRθ(x,y) = fθ(x,y)"}
+  rlhf: {class: [base; output]; label: "RLHF\nSFT → RM → PPO"}
+  dpo: {class: [base; output]; label: "DPO (2023)\nNo reward model\nZ(x) cancels"}
+  beyond: {class: [base; output]; label: "IPO / KTO / SimPO\nVariations on BT loss"}
+
+  contextual -> rm: "neural features"
+  rm -> rlhf: "PPO maximizes R"
+  rm -> dpo: "reparameterize"
+  dpo -> beyond: "regularization\nvariants"
+}
+
+# --- Alternatives ---
+Alternatives: {
+  label.near: top-left
+  label: "Non-Parametric Alternatives"
+  class: [container]
+
+  pagerank: {class: [base; input]; label: "PageRank\nRank Centrality"}
+  voting: {class: [base; input]; label: "Borda, Copeland\nKemeny-Young"}
+}
+
+# Connections from BT
+bt -> Bayesian.elo: "sequential SGD"
+bt -> Listwise.luce: "IIA, choice sets"
+bt -> Neural.contextual: "input features"
+bt -> Alternatives.pagerank: "preference graph"
+bt -> Alternatives.voting: "pairwise majorities"
+```
+
+### Retrieval Practice Questions
+
+::: {.callout-tip collapse="true" title="Questions and Answers"}
+
+**Q1.** Write the BT probability formula. What does each symbol mean?
+
+**A1.** $P(i \succ j) = \sigma(\lambda_i - \lambda_j) = \frac{1}{1 + e^{-(\lambda_i - \lambda_j)}}$. Here $\lambda_i = \log(\theta_i)$ is the log-ability of item $i$, and $\sigma$ is the logistic sigmoid. The probability depends only on the *difference* in log-abilities.
+
+**Q2.** You have a BT model fitted on 500 comparisons. The top two items have $\hat{\lambda}_1 = 1.8$ and $\hat{\lambda}_2 = 1.5$, with $\text{SE}(\hat{\lambda}_1 - \hat{\lambda}_2) = 0.22$. Is item 1 significantly better than item 2 at the 95% level?
+
+**A2.** The 95% CI for the difference is $0.3 \pm 1.96 \times 0.22 = 0.3 \pm 0.431 = [-0.131, 0.731]$. Since this interval contains zero, we cannot conclude item 1 is significantly better at the 95% level. We need more data.
+
+**Q3.** Prove that Elo is equivalent to BT. What is the change of variables?
+
+**A3.** $R_i = 400 \log_{10}(\theta_i)$. Then $E_A = \frac{1}{1 + 10^{(R_B - R_A)/400}} = \frac{1}{1 + 10^{400(\log_{10}\theta_B - \log_{10}\theta_A)/400}} = \frac{1}{1 + \theta_B/\theta_A} = \frac{\theta_A}{\theta_A + \theta_B} = P(A \succ B)$.
+
+**Q4.** In the DPO derivation, why does the partition function $Z(x)$ cancel?
+
+**A4.** BT computes $\sigma(r(x, y_w) - r(x, y_l))$, which depends only on the *difference* $r(x, y_w) - r(x, y_l)$. Since $r(x, y) = \beta \log \frac{\pi^*(y|x)}{\pi_{ref}(y|x)} + \beta \log Z(x)$, the $\beta \log Z(x)$ term appears in both $r(x, y_w)$ and $r(x, y_l)$ and cancels in the difference. This is BT's scale indeterminacy in action: adding a prompt-specific constant to all rewards does not change any preference probability.
+
+**Q5.** You are running a TTS evaluation with 20 engines using a circulant design with $k = 3$ neighbors. How many unique pairs do you need to compare? How many comparisons does each engine participate in?
+
+**A5.** Unique pairs: $C \times k = 20 \times 3 = 60$. Each engine participates in $2k = 6$ comparisons. This is 60 out of the total $\binom{20}{2} = 190$ possible pairs, a 68% reduction.
+
+**Q6.** What does a large $\hat{\tau}_i^2$ in the random-effects BT model (GLMM) tell you about item $i$?
+
+**A6.** A large $\hat{\tau}_i^2$ means annotators strongly disagree about item $i$. It is "controversial": some annotators love it, others dislike it. The global ranking $\hat{\lambda}_i$ represents the average preference across annotators, but the large variance component warns that this average obscures genuine disagreement. This might indicate the item is polarizing (e.g., a TTS engine with an unusual prosodic style) rather than universally good or bad.
+
+**Q7.** Name three advantages of BT over Copeland's method, and one advantage of Copeland over BT.
+
+**A7.** BT advantages: (1) provides a probabilistic model with confidence intervals, (2) connects directly to logistic regression and neural reward model training, (3) extensive software support (any GLM solver). Copeland advantage: (1) robust to voter heterogeneity and intransitive preferences because it only counts "who beats whom by majority," ignoring margins that BT tries to fit and that may reflect noise.
+
+:::
+
+### Common Mistakes to Avoid
+
+**1. Using win percentages instead of BT scores.** Simple win percentages ignore strength of schedule. Engine A with 80% wins against weak opponents may be worse than Engine B with 60% wins against strong opponents. BT accounts for this.
+
+**2. Trusting overlapping individual CIs as evidence of no difference.** Two items can have overlapping individual CIs but a significant pairwise difference, because the variance of the difference accounts for covariance. Always test the difference directly using @eq-var-diff.
+
+**3. Using the pooled annotator model when annotators disagree.** Pooling treats all annotations as independent and equally reliable, producing overconfident standard errors. If annotators disagree substantially (Krippendorff's $\alpha < 0.7$), use a random-effects (GLMM) model.
+
+**4. Reporting or optimizing absolute reward scores.** BT has scale indeterminacy: absolute reward values are meaningless. Only differences matter. Always normalize rewards relative to a reference (e.g., the SFT model's average reward).
+
+**5. Applying BT to strongly intransitive data without checking.** BT assumes a total order exists (each item has a single scalar skill). If preferences are systematically intransitive ($A \succ B \succ C \succ A$), BT will find a "best compromise" but the fit will be poor. Check for intransitivity (via model residuals or cycle analysis) and consider contextual BT or non-parametric methods.
+
+### Curated Resources
+
+| # | Resource | Why It Is Useful |
+|---|---|---|
+| 1 | [Hunter (2004): MM Algorithms for BT](https://projecteuclid.org/journals/annals-of-statistics/volume-32/issue-1/MM-algorithms-for-generalized-Bradley-Terry-models/10.1214/aos/1079120141.full) | The "Observed Wins = Expected Wins" interpretation. Clear mathematical writing. |
+| 2 | [Brenndoerfer: BT tutorial](https://mbrenndoerfer.com/writing/bradley-terry-model-pairwise-preferences-rankings) | Interactive visual BT tutorial with worked examples. |
+| 3 | [Brenndoerfer: Human Preference Data Collection](https://mbrenndoerfer.com/writing/human-preference-data-collection-rlhf-alignment) | Practical guide to annotation UI, data collection, quality control. |
+| 4 | [LMSYS Chatbot Arena blog (Dec 2023)](https://lmsys.org/blog/2023-12-07-leaderboard/) | Why LMSYS switched from Elo to BT for ranking 90+ LLMs. |
+| 5 | [Microsoft TrueSkill project page](https://www.microsoft.com/en-us/research/project/trueskill-ranking-system/) | Official TrueSkill documentation and papers. |
+| 6 | [Rafailov et al. (2023): DPO paper](https://arxiv.org/abs/2305.18290) | The complete DPO derivation; Sections 3-4 are essential reading. |
+| 7 | [Ouyang et al. (2022): InstructGPT](https://arxiv.org/abs/2203.02155) | The canonical RLHF pipeline paper. Section 3 and Figure 2. |
+| 8 | [Raheja & Pochhi (2026): Unification Survey](https://arxiv.org/abs/2601.06108) | Unifies RLHF/DPO/IPO/KTO/SimPO under three axes. |
+| 9 | [Glickman: Glicko/Glicko-2](http://www.glicko.net/glicko.html) | Rating system with uncertainty tracking. Papers and implementation details. |
+| 10 | [Fürnkranz & Hüllermeier (2010): Preference Learning](https://link.springer.com/book/10.1007/978-3-642-14125-6) | The canonical textbook on preference learning. Comprehensive but dense. |
+| 11 | [Lilian Weng: "Reward Hacking in RL" (2024)](https://lilianweng.github.io/posts/2024-11-28-reward-hacking/) | Taxonomy of reward hacking failure modes with mitigations. |
+| 12 | [Lilian Weng: "High-Quality Human Data" (2024)](https://lilianweng.github.io/posts/2024-02-05-human-data-quality/) | Annotator management, task design, quality assurance for preference labeling. |
+| 13 | [Cameron Wolfe: "Reward Models" (2024)](https://cameronrwolfe.substack.com/p/reward-models) | Accessible deep-dive on BT as RM foundation, architecture details, practical training. |
+| 14 | [Nathan Lambert: "The DPO Debate" (2024)](https://www.interconnects.ai/p/the-dpo-debate) | DPO vs. PPO driven by data quality, not optimizer choice. |
+| 15 | [Gregory Gundersen: "The Fisher Information" (2019)](https://gregorygundersen.com/blog/2019/11/21/fisher-information/) | Rigorous Fisher Information derivation; justifies CI computation for BT. |

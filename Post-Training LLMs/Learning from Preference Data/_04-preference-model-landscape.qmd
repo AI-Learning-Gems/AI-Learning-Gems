@@ -1,0 +1,157 @@
+## A Century of Preference Models: From Thurstone to the Chatbot Arena {#sec-model-landscape}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | Existing: `Ranking Methods Beyond Elo.md` | Full survey: BTL, Thurstone, PageRank, Borda, Copeland, Kemeny-Young |
+| 2 | [Thurstone (1927)](https://en.wikipedia.org/wiki/Law_of_comparative_judgment) | Gaussian noise model, probit formulation |
+| 3 | [Luce (1959)](http://www.scholarpedia.org/article/Luce%27s_choice_axiom) | Choice Axiom, IIA |
+| 4 | [McFadden (1974)](https://eml.berkeley.edu/books/choice2nd/Ch03_p34-75.pdf) | Random utility model, conditional logit, Nobel 2000 |
+| 5 | [Plackett-Luce explainer](https://statisticaloddsandends.wordpress.com/2024/04/24/what-is-the-plackett-luce-model/) | PL as sequential choice |
+| 6 | [LMSYS Chatbot Arena (2023)](https://lmsys.org/blog/2023-12-07-leaderboard/) | BT for ranking 90+ LLMs |
+| 7 | [Ryan (2024)](https://nickcdryan.com) | Copeland and Ranked Pairs outperform Elo for imperfect voters |
+
+:::
+
+### A Universal Mathematical Idea
+
+The story of preference learning is, at its core, the story of one mathematical idea discovered independently across six disciplines over a century. Each field thought it was solving a different problem: psychophysics (how do people perceive stimuli?), chess (who is the best player?), statistics (how to analyze paired data?), economics (why do consumers choose what they choose?), computer science (how to rank search results?), AI (how to teach language models what humans prefer?). Each arrived at variants of the same answer: the probability of preferring $i$ over $j$ is a monotonically increasing function of the difference in their latent "quality" scores.
+
+The timeline runs: Thurstone (1927) $\to$ Zermelo (1929) $\to$ Bradley-Terry (1952) $\to$ Luce (1959) $\to$ Elo (1960s) $\to$ McFadden (1974) $\to$ Glicko (1999) $\to$ TrueSkill (2007) $\to$ RankNet (2005) $\to$ Christiano et al. (2017) $\to$ InstructGPT (2022) $\to$ DPO (2023).
+
+This section surveys the full landscape, organized into three families: **probabilistic models** (Thurstone, BT, Luce, Plackett-Luce, McFadden), **graph-based methods** (PageRank, Rank Centrality), and **voting-theoretic methods** (Borda, Copeland, Kemeny-Young, Ranked Pairs). We explain why BT dominates in practice despite strong theoretical alternatives.
+
+### Thurstone's Model (1927): Gaussian Noise
+
+Louis Thurstone was studying how people perceive the quality of handwriting samples. His model predated BT by 25 years and starts from a different assumption: each item $i$ has a "psychological value" that is a Gaussian random variable $X_i \sim \mathcal{N}(\mu_i, \sigma_i^2)$. When a person compares two items, they draw a random value from each distribution and prefer the one with the higher draw.
+
+Under his "Case V" simplification (equal variances $\sigma_i = \sigma$ for all items, zero correlation), the preference probability is:
+
+$$
+P(i \succ j) = \Phi\left(\frac{\mu_i - \mu_j}{\sigma\sqrt{2}}\right)
+$$ {#eq-thurstone}
+
+where $\Phi$ is the standard normal CDF. This is a **probit** model: the preference probability is a function of the standardized skill difference, passed through the Gaussian CDF rather than the logistic sigmoid.
+
+How different is this from BT? Barely. The logistic CDF $\sigma(z)$ and the scaled Gaussian CDF $\Phi(z \cdot \pi/\sqrt{3})$ differ by less than 2% everywhere. In practice, fitting a probit model to preference data gives nearly identical rankings and probabilities as fitting BT. The choice between them is almost purely a matter of computational convenience: logistic models (BT) are slightly easier to work with analytically and have a cleaner connection to logistic regression software.
+
+The deeper historical significance of Thurstone's model is that it established the **random utility** framework: quality is not a fixed number but a noisy perception. This idea, born in 1927 psychophysics, would later become the foundation of McFadden's Nobel Prize-winning work in econometrics.
+
+### Luce's Choice Axiom (1959): The Independence of Irrelevant Alternatives
+
+The mathematical psychologist R. Duncan Luce formalized a principle that captures BT as a special case while generalizing to choices from sets of any size. His **Choice Axiom** states:
+
+$$
+P(a \mid S) = \frac{u(a)}{\sum_{s \in S} u(s)}
+$$ {#eq-luce}
+
+where $P(a \mid S)$ is the probability of choosing item $a$ from a choice set $S$, and $u(a)$ is a positive "utility" or "strength" associated with item $a$. For pairwise choices ($|S| = 2$), this is exactly the BT model. For larger sets, it becomes the **softmax** function over utilities.
+
+The Choice Axiom implies a powerful (and sometimes problematic) property: the **Independence of Irrelevant Alternatives (IIA)**. Adding or removing items from the choice set does not change the relative probability of any two remaining items. Formally, $P(a \mid S) / P(b \mid S) = u(a)/u(b)$, regardless of what other items are in $S$.
+
+IIA often holds approximately, but it fails spectacularly in the famous "red bus / blue bus" problem. Suppose commuters choose between a car and a red bus with equal probability (50/50). Now add a blue bus identical to the red bus. Luce's model predicts each option gets 33.3%. But real people treat the two buses as near-substitutes. The observed split is closer to 50% car, 25% red bus, 25% blue bus. Adding the blue bus "stole" share from the red bus but not from the car.
+
+Violations of IIA are handled by extensions like **nested logit** (grouping similar options into "nests") and **mixed logit** (allowing utility parameters to vary across individuals). In preference learning for LLMs, IIA violations are rarely a practical concern because comparisons are pairwise (sets of size 2, where IIA holds by construction).
+
+### Plackett-Luce: From Pairs to Full Rankings
+
+The **Plackett-Luce (PL) model** generalizes BT from pairwise comparisons to full rankings. Suppose an annotator ranks $n$ items: $\sigma(1) \succ \sigma(2) \succ \cdots \succ \sigma(n)$. PL models this as a sequential choice process: first, the top-ranked item is "chosen" from all $n$ items (with Luce probabilities), then the second-ranked item is chosen from the remaining $n-1$, and so on:
+
+$$
+P(\sigma) = \prod_{k=1}^{n} \frac{u(\sigma(k))}{\sum_{l=k}^{n} u(\sigma(l))}
+$$ {#eq-plackett-luce}
+
+This matters for RLHF because annotators sometimes rank $K$ responses rather than choosing a single winner from a pair. A ranking of 4 responses produces $\binom{4}{2} = 6$ pairwise preferences that could be used with BT, or one PL likelihood that uses the full ranking directly. PL is more data-efficient when full rankings are available because it extracts the ordering information that BT discards when decomposing a ranking into independent pairs.
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+An RLHF annotator ranks 4 responses: $y_3 \succ y_1 \succ y_4 \succ y_2$. How many pairwise preference pairs does this produce? Write them out. How would Plackett-Luce use this ranking differently than BT?
+:::
+
+### McFadden and Discrete Choice (1974): The Economics Connection
+
+Daniel McFadden, an econometrician at UC Berkeley, arrived at the same formula from a completely different direction. He was studying why commuters choose particular modes of transportation. His **random utility model** posits that a decision-maker chooses the option that maximizes a utility composed of a deterministic component $V_i$ (observable features like cost, travel time) plus a random error $\epsilon_i$:
+
+$$
+U_i = V_i + \epsilon_i
+$$
+
+If the error terms $\epsilon_i$ follow independent Gumbel (Type I extreme value) distributions, then the probability of choosing option $i$ from choice set $C$ is:
+
+$$
+P(i \mid C) = \frac{e^{V_i}}{\sum_{j \in C} e^{V_j}}
+$$ {#eq-mcfadden}
+
+This is the **conditional logit** model. For a binary choice between $i$ and $j$, it reduces to $P(i \succ j) = \sigma(V_i - V_j)$, which is exactly BT with $\lambda_i = V_i$. McFadden won the Nobel Prize in Economics in 2000 for this work.
+
+The McFadden connection is more than a curiosity. It reveals that BT's logistic form is not an arbitrary modeling choice; it is the *unique* consequence of rational utility maximization with Gumbel-distributed noise. This provides a micro-foundation for the BT model that the original 1952 paper lacked.
+
+::: {.callout-warning title="Common Misconception: Preference learning is an AI/ML invention"}
+Preference learning as a mathematical discipline is nearly a century old. Thurstone published the Law of Comparative Judgment in 1927, Bradley and Terry formalized MLE for pairwise comparisons in 1952, Luce axiomatized choice theory in 1959, and McFadden won the Nobel Prize for discrete choice models in 2000. RLHF and DPO are applications of this classical theory to a new domain (language model alignment), not inventions of new mathematics. Understanding the classical foundations makes the modern applications much clearer.
+:::
+
+### Beyond Probabilistic Models: Graph and Voting Methods
+
+All the methods above share a common assumption: each item has a latent scalar "quality" or "utility," and preference probabilities are a function of quality differences. This is a strong assumption. Real preferences can be **intransitive** ($A \succ B \succ C \succ A$), **context-dependent**, or **heterogeneous** across annotators. Alternative methods relax these assumptions.
+
+#### Graph-Based Methods: PageRank and Rank Centrality
+
+**PageRank on preference graphs.** Represent items as nodes and preferences as directed, weighted edges (edge $i \to j$ with weight $w_{ij}$). An item's "quality" is its PageRank score: the stationary distribution of a random walk on this graph. Intuitively, an item is good if it is preferred by other good items. PageRank handles cycles naturally (intransitive preferences create cycles, but the random walk still converges).
+
+**Rank Centrality** (Negahban, Oh, Shah, 2012) is a cleaner variant designed specifically for ranking from pairwise data. It defines a Markov chain where the transition probability from $j$ to $i$ is proportional to $w_{ij}/n_{ij}$ (the empirical win rate of $i$ against $j$). The stationary distribution gives the ranking. A key theoretical result: Rank Centrality matches the performance of BT MLE (the same convergence rate in $n$) but requires no parametric assumptions. It is **model-free** yet **statistically efficient**. There is also a deep theoretical connection: under BT's parametric assumptions, the Rank Centrality scores are "scaled PageRanks" that converge to the BT scores.
+
+#### Voting-Theoretic Methods: From Borda to Condorcet
+
+This family comes from social choice theory: given a set of "voters" (annotators) with preferences, how should we aggregate their votes into a social ranking?
+
+**Borda Count.** For pairwise data, the Borda score of item $i$ is simply its total wins: $B_i = \sum_{j \neq i} w_{ij}$. This is the simplest possible aggregation, equivalent to ranking by win percentage. It ignores strength of schedule.
+
+**Copeland's Method.** A **Condorcet method**: count the number of pairwise "majority wins." $C_i = |\{j : w_{ij} > w_{ji}\}|$. An item that beats 18 out of 19 opponents (by any margin) gets $C_i = 18$. Copeland is more robust to outlier matchups than Borda because it cares about who wins each head-to-head, not by how much.
+
+**Kemeny-Young.** Find the ranking $\sigma^*$ that minimizes total disagreement with the observed pairwise preferences: $\sigma^* = \arg\min_\sigma \sum_{(i,j): \sigma(i) < \sigma(j)} w_{ji}$. This is the "optimal" ranking in an information-theoretic sense, but computing it is NP-hard. For small $C$ (up to ~20), it is feasible via integer programming.
+
+**Ranked Pairs (Tideman).** Resolves cycles by "locking in" pairwise majorities from strongest to weakest, skipping any pair that would create a cycle. This produces a total order that respects the strongest preferences.
+
+**The Condorcet Paradox.** A fundamental result in social choice theory: it is possible for majority preferences to be cyclic. If 33% of annotators rank $A \succ B \succ C$, 33% rank $B \succ C \succ A$, and 33% rank $C \succ A \succ B$, then $A$ beats $B$ by majority, $B$ beats $C$ by majority, and $C$ beats $A$ by majority. No single ranking is consistent with all pairwise majorities. BT handles this by finding the "best fit" ranking that minimizes overall inconsistency. Condorcet methods handle it by declaring no Condorcet winner and using tie-breaking rules.
+
+### The 2024 Reappraisal: When BT is Not Enough
+
+Two recent studies challenge BT's dominance for crowdsourced evaluation with heterogeneous voters:
+
+**Ryan (2024)** simulated leaderboard rankings with imperfect, heterogeneous voters (different annotators have different skill levels and biases) and found that Copeland and Ranked Pairs **outperform Elo** in recovering the true ranking. The key insight: when voters are noisy and disagree, Condorcet methods' focus on "who beats whom" (ignoring margins) is more robust than BT's attempt to find globally consistent scores.
+
+**DeepMind's Soft Condorcet Optimization (arXiv 2411.00119)** goes further, showing that SCO rankings outperform Elo-based rankings for LLM evaluation. Their method optimizes a differentiable relaxation of the Condorcet criterion.
+
+A third, surprising finding from arXiv 2312.08358: standard RLHF **implicitly uses Borda count aggregation** when the prompt context is hidden from the aggregation step. This can produce counterintuitive results because Borda is manipulable and ignores preference strength.
+
+### Why BT Still Dominates in Practice (and When It Shouldn't)
+
+Despite these alternatives, BT remains the default choice for most preference learning applications. Here is why, and when to deviate:
+
+| Criterion | BT | Copeland / Ranked Pairs | PageRank / Rank Centrality |
+|---|---|---|---|
+| **Probabilistic model** | Yes (with CIs) | No | No |
+| **Confidence intervals** | Yes (from GLM) | Not standard | Not standard |
+| **Handles intransitivity** | Poorly (finds "best fit") | Naturally | Naturally |
+| **Voter heterogeneity** | Assumes homogeneous | Robust (majority rules) | Moderate |
+| **Connection to neural RM** | Direct (same loss) | None | None |
+| **Scalability** | $O(N^2)$ per iteration | $O(N^2)$ | $O(N^2)$ |
+| **Software ecosystem** | Excellent (any GLM solver) | Sparse | Moderate |
+
+**BT's killer advantages:** (1) It is a probabilistic model that gives confidence intervals, letting you know when rankings are statistically significant. (2) The logistic regression connection means you can use any GLM solver with no custom code. (3) It connects directly to the neural reward model in RLHF: the reward model training loss is the BT loss with neural-network parameters instead of per-item parameters. No other ranking method has this bridge.
+
+**When to use alternatives:** If your evaluators are highly heterogeneous (crowdsourced workers with variable quality), if you suspect strong intransitivity in preferences, or if you are building a leaderboard from noisy votes, consider Copeland or Ranked Pairs. For pure ranking without confidence intervals, Rank Centrality is a strong model-free option that matches BT's statistical efficiency.
+
+**The practical takeaway:** Use BT for reward model training and offline analysis with confidence intervals. Consider Copeland/Ranked Pairs for leaderboards with diverse, noisy evaluators.
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+Copeland outperforms Elo for heterogeneous voters (Ryan, 2024). Why might it still be worse than BT for training a reward model for RLHF? (Hint: what does BT give you that Copeland does not?)
+:::
+
+::: {.callout-note title="Think Hard: What happens when you fit BT to intransitive data?"}
+Suppose your preference data contains a strong cycle: $A$ beats $B$ 80% of the time, $B$ beats $C$ 80%, but $C$ beats $A$ 70%. BT *cannot* represent this perfectly. It will find the "best compromise" scores: perhaps $\lambda_A > \lambda_B > \lambda_C$, but the predicted $P(C \succ A)$ will be well below 70%. The model absorbs the intransitivity as "noise" and finds the closest transitive ranking. This is fine if intransitivity is rare and random. It is misleading if intransitivity is systematic (e.g., $A$ is better on questions, $B$ on narratives, $C$ on dialogue, and the evaluation mixes all three). In that case, a contextual BT model (@sec-practical-extensions) or a non-parametric method is more appropriate.
+:::
+
+### Transition: From Models to Data
+
+We now have a rich toolkit of ranking methods. But all of them require one thing: **preference data**. And preference data does not collect itself. How many comparisons do we need? Which pairs should we compare? How do we build the annotation interface? How do we handle unreliable annotators? These are the questions for the next section.

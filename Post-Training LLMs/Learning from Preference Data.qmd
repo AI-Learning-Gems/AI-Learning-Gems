@@ -1,0 +1,23 @@
+---
+title: "Learning from Preference Data"
+filters:
+  - ../../_extensions/pandoc-ext/diagram/diagram.lua
+---
+
+{{< include "Learning from Preference Data/_01-introduction.qmd" >}}
+
+{{< include "Learning from Preference Data/_02-bradley-terry-model.qmd" >}}
+
+{{< include "Learning from Preference Data/_03-bayesian-preference-models.qmd" >}}
+
+{{< include "Learning from Preference Data/_04-preference-model-landscape.qmd" >}}
+
+{{< include "Learning from Preference Data/_05-collecting-preference-data.qmd" >}}
+
+{{< include "Learning from Preference Data/_06-practical-extensions.qmd" >}}
+
+{{< include "Learning from Preference Data/_07-rlhf-and-dpo.qmd" >}}
+
+{{< include "Learning from Preference Data/_98-math-background.qmd" >}}
+
+{{< include "Learning from Preference Data/_99-closing.qmd" >}}

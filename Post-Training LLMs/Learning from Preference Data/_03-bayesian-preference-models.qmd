@@ -1,0 +1,171 @@
+## Bayesian Preference Models: TrueSkill, Glicko, and Online Rating Systems {#sec-bayesian-models}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | Existing: `TrueSkill.md` | Bayesian primer, TrueSkill model, factor graphs, batch updates |
+| 2 | Existing: `Ranking Methods Beyond Elo.md` | Elo derivation, Elo-BT equivalence proof, Glicko formulas |
+| 3 | [Herbrich et al. (2007)](https://www.microsoft.com/en-us/research/project/trueskill-ranking-system/) | TrueSkill: Bayesian skill rating via factor graphs |
+| 4 | [Glickman (1999/2012)](http://www.glicko.net/glicko.html) | Glicko/Glicko-2: rating deviation, volatility |
+
+:::
+
+### The Limitation of BT: No Uncertainty, No Online Updates
+
+In @sec-bradley-terry, we fitted a BT model to 300 comparisons and got point estimates with confidence intervals. But the BT model has two practical limitations that surface immediately in our TTS evaluation.
+
+First, BT gives **no per-item uncertainty**. After fitting, $\hat{\lambda}_C = 0.493$. But how confident are we in this specific value? The standard error is 0.176, so the 95% CI is $[0.148, 0.838]$. That is a wide range. Now imagine we add a 21st TTS engine that has been compared only twice. Its $\hat{\lambda}$ estimate will be wildly uncertain, but BT provides no built-in mechanism to flag this. The standard error is available from the Fisher Information Matrix, but it requires re-solving the entire model.
+
+Second, BT is an **offline, batch method**. You collect all your data, then fit. If you have 10 annotators working in parallel via a web UI and you want to select informative pairs in real time (sending each annotator the comparison that will tell you the most), BT requires you to re-solve the entire GLM after every new annotation. For 20 engines, this is fast enough. For 1,000 engines on a live leaderboard, it becomes a bottleneck.
+
+The Bayesian approach addresses both issues by modeling skill not as a point estimate, but as a **probability distribution** (for a review of Bayesian inference fundamentals, see @sec-math-background).
+
+### Skill as a Distribution: The Gaussian Prior
+
+In the Bayesian framework, each engine's skill is a random variable, not a fixed number. Before observing any data, we represent our belief about engine $i$'s skill as a Gaussian distribution:
+
+$$
+s_i \sim \mathcal{N}(\mu_i, \sigma_i^2)
+$$
+
+Here $\mu_i$ is our best guess for the skill, and $\sigma_i$ is our uncertainty. A new, untested engine starts with a wide prior (high $\sigma$, e.g., $\sigma = 8.33$ in TrueSkill's default parameterization where the mean starts at $\mu = 25$). An engine that has been compared hundreds of times has a tight posterior (low $\sigma$, e.g., $\sigma = 1.5$).
+
+The beauty of this representation is that uncertainty is a first-class citizen. You can immediately see which engines you are confident about and which you are not. When a new engine is added, it starts with a wide distribution, and the system naturally assigns it uncertain comparisons to learn its skill quickly. When an engine has been extensively tested, its distribution is tight, and the system knows further comparisons involving that engine will not be very informative.
+
+### TrueSkill: A Bayesian Model for Pairwise Comparison
+
+TrueSkill, developed by Microsoft Research for Xbox Live matchmaking ([Herbrich et al., 2007](https://www.microsoft.com/en-us/research/project/trueskill-ranking-system/)), is the most sophisticated Bayesian system for pairwise ranking. Its generative model has three layers:
+
+**1. Skill.** Each item $i$ has a latent skill $s_i \sim \mathcal{N}(\mu_i, \sigma_i^2)$.
+
+**2. Performance.** In any single comparison, an item's actual performance is drawn from its skill, plus noise: $p_i \sim \mathcal{N}(s_i, \beta^2)$, where $\beta^2$ is the **performance variance**. This captures the idea that even a great engine might sound slightly worse on a particular sample due to input-dependent factors.
+
+Since we do not know $s_i$ exactly (only its distribution), the marginal performance distribution is:
+
+$$
+p_i \sim \mathcal{N}(\mu_i, \sigma_i^2 + \beta^2)
+$$
+
+**3. Outcome.** In a 1v1 comparison, item $i$ beats item $j$ if $p_i > p_j$. The performance difference $d = p_i - p_j$ is also Gaussian:
+
+$$
+d \sim \mathcal{N}(\mu_i - \mu_j, \; \sigma_i^2 + \sigma_j^2 + 2\beta^2)
+$$
+
+The probability that $i$ wins is $P(d > 0) = \Phi\left(\frac{\mu_i - \mu_j}{\sqrt{\sigma_i^2 + \sigma_j^2 + 2\beta^2}}\right)$, where $\Phi$ is the standard normal CDF. This is a **probit** model (Thurstone's model), not BT's logit model. In practice, the probit and logit functions differ by less than 2% everywhere, so TrueSkill and BT produce nearly identical probability estimates.
+
+After observing a comparison outcome, TrueSkill updates the skill distributions using **expectation propagation** (EP), an approximate Bayesian inference algorithm. The update rules adjust $\mu_i$ (moving it up for a win, down for a loss, with larger moves for surprising outcomes) and shrink $\sigma_i$ (we are more certain after observing data). An upset (a low-rated engine beats a high-rated one) produces a larger update than a predictable outcome.
+
+::: {.callout-note title="Think Hard: Why does TrueSkill use approximate inference instead of exact Bayes?"}
+The comparison outcome ($p_i > p_j$) introduces a non-conjugate constraint into the Gaussian model. Unlike the simple "coin flip" in a textbook Bayesian example, the likelihood here is a step function (or probit function) of a Gaussian variable. The exact posterior is not Gaussian; it is a truncated Gaussian. To keep the posterior in Gaussian form (so we can continue updating efficiently), TrueSkill uses expectation propagation to find the Gaussian that best matches the true posterior's mean and variance. This is the computational price of maintaining a tractable, fast-updating system.
+:::
+
+### Worked Example: TrueSkill Update for a 1v1 Match
+
+Let us see TrueSkill in action. Alice and Bob are new players, both starting at $\mu = 25$, $\sigma = 8.33$. The performance variance is $\beta = 25/6 \approx 4.17$.
+
+**Before the match:** Their performance distributions are both $\mathcal{N}(25, 8.33^2 + 4.17^2) = \mathcal{N}(25, 86.8)$. The predicted win probability for either player is 50%.
+
+**Alice wins.** After the EP update:
+
+- Alice: $\mu_A = 29.39$, $\sigma_A = 7.17$
+- Bob: $\mu_B = 20.61$, $\sigma_B = 7.17$
+
+Alice's mean went up, Bob's went down, and both uncertainties decreased. The move was moderate (about 4.4 points each) because the outcome was not surprising (a 50/50 match). If Alice had been a heavy underdog and won, the update would have been much larger.
+
+### The Elo Rating System and Its Equivalence to BT
+
+The Elo system, developed by Arpad Elo for chess in the 1960s, is by far the most widely known rating system. Its expected score formula is:
+
+$$
+E_A = \frac{1}{1 + 10^{(R_B - R_A)/400}}
+$$ {#eq-elo-expected}
+
+The update rule after a game is:
+
+$$
+R'_A = R_A + K(S_A - E_A)
+$$ {#eq-elo-update}
+
+where $S_A$ is the actual score (1 for win, 0 for loss, 0.5 for draw) and $K$ is the "K-factor" controlling update speed.
+
+Here is the key insight: **Elo is mathematically equivalent to BT**. The connection is a change of scale. If we define $R_i = 400 \log_{10}(\theta_i)$, where $\theta_i$ is the BT strength parameter, then:
+
+$$
+E_A = \frac{1}{1 + 10^{(R_B - R_A)/400}} = \frac{1}{1 + 10^{400(\log_{10}\theta_B - \log_{10}\theta_A)/400}} = \frac{1}{1 + \theta_B/\theta_A} = \frac{\theta_A}{\theta_A + \theta_B}
+$$
+
+This is exactly the BT probability $P(A \succ B)$. The Elo expected score formula and the BT probability formula are the same equation on different scales. A 200-point Elo difference corresponds to a BT probability of $10^{200/400}/(1 + 10^{200/400}) = 10^{0.5}/(1+10^{0.5}) \approx 0.76$.
+
+::: {.callout-warning title="Common Misconception: Elo and BT are fundamentally different models"}
+They are the same model. The *estimation procedures* differ: BT uses batch MLE (process all data at once, find globally optimal parameters), while Elo uses sequential stochastic gradient descent (update after each game, with the K-factor acting as a learning rate). Batch BT is more statistically efficient and gives the same result regardless of game order. Sequential Elo is order-dependent and can be unstable. This is why the LMSYS Chatbot Arena, which initially used Elo to rank 90+ LLMs, switched to batch BT for stability, order-independence, and proper confidence intervals.
+:::
+
+### Glicko and Glicko-2: Elo with Uncertainty
+
+The Glicko system ([Glickman, 1999](http://www.glicko.net/glicko.html)) extends Elo by adding a **rating deviation** $RD_i$ that quantifies uncertainty, similar to TrueSkill's $\sigma_i$. The key ideas:
+
+**Rating deviation increases with inactivity.** If an engine has not been compared recently, its $RD$ grows (reflecting that its true skill may have drifted). When it is compared again, the system appropriately assigns more weight to the new result.
+
+**The dampening function $g(RD)$.** When computing the expected score against an opponent with high uncertainty, Glicko dampens the prediction:
+
+$$
+E_j = \frac{1}{1 + 10^{-g(RD_j)(r - r_j)/400}}
+$$
+
+where $g(RD) = \frac{1}{\sqrt{1 + 3q^2 RD^2/\pi^2}}$ with $q = \ln(10)/400$. When $RD_j$ is large (uncertain opponent), $g(RD_j)$ is small, so the expected score is pulled toward 0.5 (an uncertain opponent is treated as closer to you than their nominal rating suggests).
+
+**Glicko-2** adds a **volatility** parameter $\sigma$ that captures how consistently an item performs. An engine with high volatility has erratic results; one with low volatility performs consistently relative to its rating.
+
+### Batch TrueSkill for Parallel Annotation
+
+For our TTS evaluation with 10 annotators working simultaneously, we need a batch update strategy. This is the most practically important section for anyone running a live annotation system.
+
+The algorithm works in cycles:
+
+**1. Freeze priors.** Before dispatching a batch, snapshot the current skill distributions $(\mu_i, \sigma_i)$ for all engines. These are the "frozen priors."
+
+**2. Select diverse pairs.** Choose which pairs each annotator will evaluate. The pair selection algorithm has two objectives: **(a) informativeness** (pick pairs where the current model is most uncertain about the outcome, i.e., $P(i \succ j) \approx 0.5$) and **(b) diversity** (avoid sending the same pair to multiple annotators; spread comparisons across different engines to gather broad information).
+
+**3. Collect annotations asynchronously.** Annotators work at their own pace. Some finish quickly, others take longer. All annotations in this batch are evaluated against the same frozen prior.
+
+**4. Calculate individual deltas.** For each annotation, compute what the TrueSkill update *would* produce if this were the only new observation. Crucially, use the *frozen prior* (from step 1), not the updated posterior from a previous annotation in the batch. This yields a delta: $(\Delta\mu_i, \Delta\sigma_i^2)$ for each item involved.
+
+**5. Aggregate deltas.** Sum the deltas across all annotations in the batch. This works because the annotations are conditionally independent given the frozen prior.
+
+**6. Apply the aggregated update.** Update each item's skill distribution by applying the total delta to the frozen prior.
+
+**7. Repeat.** Use the new posteriors as the prior for the next batch.
+
+This approach is mathematically correct (it correctly treats batch annotations as independent evidence about the same underlying state) and computationally efficient (deltas can be computed in parallel). The main trade-off is **model staleness**: annotations within a batch are based on pair selections from the same model state, so late annotations in the batch do not benefit from information provided by early annotations. For human-in-the-loop systems where a batch takes a few seconds to a few minutes, this trade-off is negligible.
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+In TrueSkill, a new engine starts with $\mu = 25$, $\sigma = 8.33$. After 20 comparisons, $\sigma$ drops to 3.1. What does this mean practically? How would the system treat a comparison involving this engine differently from one involving a brand-new engine?
+:::
+
+### Offline vs. Online: When to Use Which
+
+| Property | BT (batch) | Elo (sequential) | Glicko | TrueSkill |
+|---|---|---|---|---|
+| **Estimation** | Batch MLE | SGD per game | Batch per period | EP per game or batch |
+| **Order-dependent?** | No | Yes | No (within period) | No (within batch) |
+| **Tracks uncertainty?** | Via Fisher Information (post-hoc) | No | Yes ($RD$) | Yes ($\sigma$) |
+| **Online updates?** | No (re-solve from scratch) | Yes | Yes | Yes |
+| **Confidence intervals?** | Yes (from GLM) | No | Approximate | Approximate |
+| **Handles new items?** | Re-solve entire model | Start at default $R$ | Start with high $RD$ | Start with high $\sigma$ |
+| **Best for** | Retrospective analysis, reward model training | Simple leaderboards | Active leaderboards | Live annotation systems, matchmaking |
+
+**Practical guidance for the TTS evaluation:**
+
+- Use **batch BT** for the final analysis: fit once after all data is collected, report $\hat{\lambda}$ with 95% CIs, test pairwise differences.
+- Use **batch TrueSkill** during the annotation process: update after each batch of 10 annotations, use the current posteriors to select the next informative pairs.
+- Do not use raw Elo for anything that needs statistical rigor. It is order-dependent, provides no uncertainty estimates, and has been superseded by BT for batch analysis.
+
+::: {.callout-note title="Think Hard: Why is the Elo system order-dependent while BT is not?"}
+Elo updates parameters sequentially: process game 1, update ratings, then process game 2 using the *updated* ratings. The result depends on which game is processed first. If you reverse the game order, you get different final ratings. BT, by contrast, maximizes the likelihood of all games *simultaneously*. It does not matter what order the games were played or entered into the dataset; the MLE is the same. Formally, Elo is an online stochastic gradient descent algorithm with a fixed learning rate ($K$); BT is a batch optimization that finds the global optimum. For the same data, BT gives a better (more statistically efficient) estimate than Elo. The LMSYS team switched from Elo to BT for exactly this reason: with 800K+ crowdsourced votes, the instability of Elo's order-dependence became a practical problem.
+:::
+
+### Transition: The Full Landscape
+
+BT and TrueSkill are the two most commonly used preference models: BT for batch analysis, TrueSkill for online systems. But they are far from the only options. In the next section, we zoom out to survey the full landscape of ranking methods, spanning six fields and a century of independent discovery.
