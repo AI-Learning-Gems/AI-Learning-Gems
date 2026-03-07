@@ -40,11 +40,11 @@ For our triage system, ProTeGi might show the LLM three misclassified tickets an
 
 **Stage 3: Monte Carlo exploration.** Paraphrase each candidate to explore the local neighborhood: "Rewrite this prompt in a different way while preserving its meaning." This produces additional candidates $\{p''_{ijk}\}$ for local search.
 
-![ProTeGi: the textual gradient pipeline. A minibatch of training examples generates failures, which are critiqued to produce "gradients" (natural language feedback), which guide prompt editing in the "opposite semantic direction." Source: Pryzant et al. (2023), Figure 1.](images/protegi-pipeline.png){#fig-protegi-pipeline}
+![ProTeGi: the textual gradient pipeline. A minibatch of training examples generates failures, which are critiqued to produce "gradients" (natural language feedback), which guide prompt editing in the "opposite semantic direction." Source: Pryzant et al. (2023), Figure 1.](Automatic Prompt Optimization/images/protegi-pipeline.png){#fig-protegi-pipeline}
 
-![ProTeGi's gradient descent analogy. Left: standard gradient descent on a loss surface, where the gradient points toward steepest ascent and the update moves in the opposite direction. Right: textual gradient descent, where natural language critiques play the role of gradients and prompt edits play the role of parameter updates. Source: Pryzant et al. (2023).](images/protegi-gradient-analogy.png){#fig-protegi-gd}
+![ProTeGi's gradient descent analogy. Left: standard gradient descent on a loss surface, where the gradient points toward steepest ascent and the update moves in the opposite direction. Right: textual gradient descent, where natural language critiques play the role of gradients and prompt edits play the role of parameter updates. Source: Pryzant et al. (2023).](Automatic Prompt Optimization/images/protegi-gradient-analogy.png){#fig-protegi-gd}
 
-The beam search maintains $W$ parallel optimization paths (beam width), and a UCB-based bandit algorithm allocates evaluation budget across candidates:
+The beam search maintains $W$ parallel optimization paths (beam width), and a UCB-based bandit algorithm allocates evaluation budget across candidates (see @sec-math-ucb for a review of multi-armed bandits and UCB):
 
 $$
 p_i \leftarrow \arg\max_p \left\{ Q_t(p) + c \sqrt{\frac{\log t}{N_t(p)}} \right\}
@@ -119,7 +119,7 @@ TRACE provides two Python primitives to build computation graphs automatically:
 
 The **OptoPrime** algorithm converts the minimal subgraph connecting parameters to the output into pseudo-code, then prompts an LLM with a ReAct-CoT (Chain of Thought) approach to reason about the execution and suggest parameter updates. Because the optimizer sees the actual execution steps (not just the final result), it can make more targeted updates.
 
-![TRACE applied to MetaWorld robot controller optimization, demonstrating that the OPTO framework generalizes beyond NLP to arbitrary computational workflows. Source: Nie et al. (2024).](images/trace-metaworld.png){#fig-trace-metaworld}
+![TRACE applied to MetaWorld robot controller optimization, demonstrating that the OPTO framework generalizes beyond NLP to arbitrary computational workflows. Source: Nie et al. (2024).](Automatic Prompt Optimization/images/trace-metaworld.png){#fig-trace-metaworld}
 
 TRACE's subgraph propagation has complexity $O(WN^2 \log N)$ in time and $O(WN)$ in space, where $N$ is the number of nodes and $W$ is the maximum degree. This is more expensive than standard backpropagation's $O(WNd^2)$ per step, reflecting the richer information being propagated.
 

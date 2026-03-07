@@ -29,7 +29,7 @@ This is the multi-objective optimization problem, and it requires a fundamentall
 
 Before examining the prompt-specific methods, let us build the mathematical foundations. Think about buying a car. You want to minimize cost and maximize fuel efficiency. Some cars are cheap but gas-guzzling. Others are fuel-efficient but expensive. A few are both cheap and efficient. The set of cars where you cannot improve one criterion without worsening the other is the **Pareto front**.
 
-Formally, given $m \geq 2$ objective functions $f_1, \ldots, f_m$ to maximize, a solution $a$ **Pareto-dominates** another solution $b$ (written $a \succ b$) if and only if:
+Formally, given $m \geq 2$ objective functions $f_1, \ldots, f_m$ to maximize, a solution $a$ **Pareto-dominates** another solution $b$ (written $a \succ b$) if and only if (see @sec-math-pareto for the formal definition and a worked example):
 
 $$
 \forall i: f_i(a) \geq f_i(b) \quad \text{and} \quad \exists j: f_j(a) > f_j(b)
@@ -51,7 +51,7 @@ A larger hypervolume means the solution set covers more of the objective space, 
 
 2. **Epsilon-constraint**: Maximize $f_j(p)$ subject to $f_i(p) \geq \epsilon_i$ for all $i \neq j$. More flexible than scalarization but requires choosing constraint thresholds.
 
-3. **Evolutionary multi-objective (NSGA-II)**: The dominant approach. NSGA-II sorts the population into non-dominated fronts (Rank 1 = Pareto-optimal, Rank 2 = dominated only by Rank 1, etc.), then within each front uses **crowding distance** to maintain diversity:
+3. **Evolutionary multi-objective (NSGA-II)**: The dominant approach (see @sec-math-nsga2 for a detailed walkthrough). NSGA-II sorts the population into non-dominated fronts (Rank 1 = Pareto-optimal, Rank 2 = dominated only by Rank 1, etc.), then within each front uses **crowding distance** to maintain diversity:
 
 $$
 I[i]_\text{distance} = \sum_{m=1}^{M} \frac{f_m[i+1] - f_m[i-1]}{f_m^\text{max} - f_m^\text{min}}
@@ -69,7 +69,7 @@ $$
 
 When $\cos(\varphi_{ij}) < 0$, the objectives actively interfere. In our triage system, improving accuracy-focused phrasing (adding detailed diagnostic criteria) pulls in the opposite direction from improving conciseness (removing words). The "perfect storm" of destructive interference requires three conditions: (a) conflicting gradient directions, (b) magnitude imbalance (one objective dominates the update), and (c) high curvature (small changes cause large objective swings). All three are present in prompt optimization.
 
-The **Multiple Gradient Descent Algorithm (MGDA)** finds the minimum-norm vector in the convex hull of per-objective gradients, representing the direction that improves all objectives simultaneously (or harms the least):
+The **Multiple Gradient Descent Algorithm (MGDA)** finds the minimum-norm vector in the convex hull of per-objective gradients, representing the direction that improves all objectives simultaneously (or harms the least) (see @sec-math-mgda for the formal definition and geometric interpretation):
 
 $$
 \mathbf{d}^* = \arg\min_{\mathbf{d}} \|\mathbf{d}\|^2 \quad \text{s.t.} \quad \mathbf{d} \in \text{conv}(\mathbf{g}_1, \ldots, \mathbf{g}_m)
@@ -97,13 +97,13 @@ $$
 
 where $z$ is the prompt, $x$ is the input, $y$ is the generated text, and $r_i$ are per-objective rewards.
 
-![MORL-Prompt architecture showing the multi-objective RL pipeline. The policy network generates prompts, the LLM generates text, and multiple reward functions evaluate different objectives. The key insight is that different aggregation strategies for the reward functions lead to dramatically different Pareto behavior. Source: Shi et al. (2024).](images/morl-prompt-architecture.png){#fig-morl-architecture}
+![MORL-Prompt architecture showing the multi-objective RL pipeline. The policy network generates prompts, the LLM generates text, and multiple reward functions evaluate different objectives. The key insight is that different aggregation strategies for the reward functions lead to dramatically different Pareto behavior. Source: Shi et al. (2024).](Automatic Prompt Optimization/images/morl-prompt-architecture.png){#fig-morl-architecture}
 
 The averaging baseline shows textbook objective collapse: on style transfer with three objectives (content preservation, style accuracy, sentiment), the Average method achieves 79.25% on style but only 19.56% on content. Style dominates because its reward signal is stronger, and the optimizer sacrifices content to push style higher.
 
-![Hypervolume indicator convergence during training. Different multi-objective reward formulations converge at different rates and to different final values, illustrating the importance of reward design in multi-objective optimization. Source: Shi et al. (2024).](images/morl-hvi-convergence.png){#fig-morl-hvi}
+![Hypervolume indicator convergence during training. Different multi-objective reward formulations converge at different rates and to different final values, illustrating the importance of reward design in multi-objective optimization. Source: Shi et al. (2024).](Automatic Prompt Optimization/images/morl-hvi-convergence.png){#fig-morl-hvi}
 
-![Style vs. content trade-off in text style transfer. The Average method (objective collapse) achieves high style accuracy but sacrifices content preservation. The Product method achieves a more balanced Pareto front. Source: Shi et al. (2024).](images/morl-style-content-tradeoff.png){#fig-morl-tradeoff}
+![Style vs. content trade-off in text style transfer. The Average method (objective collapse) achieves high style accuracy but sacrifices content preservation. The Product method achieves a more balanced Pareto front. Source: Shi et al. (2024).](Automatic Prompt Optimization/images/morl-style-content-tradeoff.png){#fig-morl-tradeoff}
 
 MORL-Prompt proposes three alternatives to simple averaging:
 
@@ -127,7 +127,7 @@ MOPO ([Tong et al., COLING 2025](https://arxiv.org/abs/2412.12948)) introduced a
 
 Selection uses NSGA-II, preserving the top-$n$ prompts per objective plus the Pareto-optimal set. Genetic operations include paraphrasing at both sentence level (LLM-based) and word level (RoBERTa masked prediction for addition, removal, and replacement).
 
-![MOPO per-emotion optimization trajectories showing how multi-objective optimization improves across different emotion dimensions simultaneously. Source: Tong et al. (2024).](images/mopo-per-emotion.png){#fig-mopo-trajectories}
+![MOPO per-emotion optimization trajectories showing how multi-objective optimization improves across different emotion dimensions simultaneously. Source: Tong et al. (2024).](Automatic Prompt Optimization/images/mopo-per-emotion.png){#fig-mopo-trajectories}
 
 MOPO achieved up to 34 percentage points improvement over seed prompts on GPT-3.5, with best prompts scoring .99 (ISEAR), .97 (TEC), and .96 (AT) across three emotion benchmarks. The critical finding: multi-objective optimization lost only 1--2 percentage points per objective compared to single-objective optimization of each metric independently. This near-free diversification is the promise of multi-objective prompt optimization: you can have accuracy *and* safety *and* conciseness, losing almost nothing on each compared to optimizing them separately.
 

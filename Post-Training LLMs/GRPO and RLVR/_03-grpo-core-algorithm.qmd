@@ -45,7 +45,7 @@ The trade-off hinges on inference cost versus training cost. Generating $G$ outp
 
 ### The Full GRPO Objective
 
-Armed with the group-relative advantage, GRPO uses PPO's clipped surrogate objective for stability. The complete objective function, as defined in DeepSeekMath (Equation 3), is:
+Armed with the group-relative advantage, GRPO uses PPO's clipped surrogate objective for stability. The complete objective function, as defined in DeepSeekMath ([Shao et al., 2024](https://arxiv.org/abs/2402.03300), Equation 3), is:
 
 $$
 \mathcal{J}_{GRPO}(\theta) = \mathbb{E}_{q \sim P(Q), \; \{o_i\}_{i=1}^G \sim \pi_{\theta_{old}}(\cdot \mid q)} \left[ \frac{1}{G}\sum_{i=1}^G\frac{1}{|o_i|} \sum_{t=1}^{|o_i|} \left\{ \min \left[ r_{i,t}(\theta) \hat{A}_{i,t}, \; \text{clip}(r_{i,t}(\theta), 1-\epsilon, 1+\epsilon) \hat{A}_{i,t} \right] - \beta D_{KL}[\pi_\theta \| \pi_{ref}] \right\} \right]
@@ -55,7 +55,7 @@ This looks dense, so let us unpack each piece:
 
 1. **Group sampling**: $\{o_i\}_{i=1}^G \sim \pi_{\theta_{old}}(\cdot \mid q)$ generates $G$ outputs for each question $q$ using the old policy (a snapshot of the model from the previous iteration).
 
-2. **Importance sampling ratio**: $r_{i,t}(\theta) = \frac{\pi_\theta(o_{i,t} \mid q, o_{i,<t})}{\pi_{\theta_{old}}(o_{i,t} \mid q, o_{i,<t})}$ measures how much each token's probability has changed since the outputs were generated. If a token is now more likely ($r > 1$), the policy has moved toward it; if less likely ($r < 1$), the policy has moved away.
+2. **Importance sampling ratio**: $r_{i,t}(\theta) = \frac{\pi_\theta(o_{i,t} \mid q, o_{i,<t})}{\pi_{\theta_{old}}(o_{i,t} \mid q, o_{i,<t})}$ measures how much each token's probability has changed since the outputs were generated (see @sec-math-importance-sampling for the foundations of importance sampling). If a token is now more likely ($r > 1$), the policy has moved toward it; if less likely ($r < 1$), the policy has moved away.
 
 3. **Group-relative advantage**: $\hat{A}_{i,t} = \frac{r_i - \text{mean}(\mathbf{r})}{\text{std}(\mathbf{r})}$ is the same for all tokens in a given output $o_i$. Under *outcome supervision*, every token gets the same advantage because the reward arrives only at the end of the sequence.
 
@@ -63,7 +63,7 @@ This looks dense, so let us unpack each piece:
 
 5. **Per-output normalization**: $\frac{1}{|o_i|}$ divides by the length of each output. This means longer outputs contribute less gradient per token than shorter ones. (We will see in @sec-grpo-variants that this introduces a bias that later variants fix.)
 
-6. **KL regularization**: $\beta D_{KL}[\pi_\theta \| \pi_{ref}]$ penalizes the policy for deviating from the reference model, using an unbiased KL estimator:
+6. **KL regularization**: $\beta D_{KL}[\pi_\theta \| \pi_{ref}]$ penalizes the policy for deviating from the reference model (see @sec-math-kl-divergence for the definition and properties of KL divergence), using an unbiased KL estimator:
 
 $$
 D_{KL}[\pi_\theta \| \pi_{ref}] = \frac{\pi_{ref}(o_{i,t} \mid q, o_{i,<t})}{\pi_\theta(o_{i,t} \mid q, o_{i,<t})} - \log \frac{\pi_{ref}(o_{i,t} \mid q, o_{i,<t})}{\pi_\theta(o_{i,t} \mid q, o_{i,<t})} - 1
@@ -84,12 +84,12 @@ GRPO supports two reward regimes that give the optimizer different granularity o
 DeepSeekMath found that GRPO with process supervision (GRPO+PS) outperformed GRPO with outcome supervision (GRPO+OS) on mathematical reasoning tasks, confirming the value of step-level feedback when it is available.
 
 ::: {.callout-warning title="Common Misconception: Removing the critic sacrifices training quality"}
-GRPO achieves comparable or better performance than PPO on mathematical reasoning (DeepSeekMath improved from 46.8% to 51.7% on MATH with GRPO, which matches PPO's improvements). The reason is subtle: with outcome-only rewards (a single score at the end of the sequence), the PPO critic must learn to predict this score from *every intermediate token position*, which is extremely difficult. The critic's advantage estimates are noisy in practice, often not much better than GRPO's uniform-across-tokens group advantage. GRPO trades per-token precision (which is noisy anyway) for computational simplicity and memory savings. When process rewards are available (step-level feedback), the critic's per-step advantage estimates become more accurate, and PPO's advantage narrows. But for most practical RLVR tasks with outcome-only rewards, GRPO is the better trade-off.
+GRPO achieves comparable or better performance than PPO on mathematical reasoning. DeepSeekMath improved from 46.8% to 51.7% on MATH with GRPO, matching PPO's improvements. The reason is subtle: with outcome-only rewards (a single score at the end of the sequence), the PPO critic must learn to predict this score from *every intermediate token position*, which is extremely difficult. The critic's advantage estimates are noisy in practice, often not much better than GRPO's uniform-across-tokens group advantage. GRPO trades per-token precision (which is noisy anyway) for computational simplicity and memory savings. When process rewards are available (step-level feedback), the critic's per-step advantage estimates become more accurate, and PPO's advantage narrows. But for most practical RLVR tasks with outcome-only rewards, GRPO is the better trade-off.
 :::
 
 ### The Connection to REINFORCE and RLOO
 
-GRPO may look novel, but it is fundamentally a variant of REINFORCE with a specific choice of baseline. The Dr. GRPO paper (Liu et al., 2025) made this connection precise. Starting from the Monte Carlo policy gradient (see @eq-reinforce-baseline), if we set the baseline to $B(q) = \text{mean}(\{R(q, o_1), \ldots, R(q, o_G)\})$, the resulting advantage $\tilde{A}_{i,t} = R(q, o_i) - \text{mean}(\mathbf{R})$ is exactly the unbiased group-relative advantage (without the standard-deviation normalization).
+GRPO may look novel, but it is fundamentally a variant of REINFORCE with a specific choice of baseline. Dr. GRPO ([Liu et al., 2025](https://arxiv.org/abs/2503.20783)) made this connection precise. Starting from the Monte Carlo policy gradient (see @eq-reinforce-baseline), if we set the baseline to $B(q) = \text{mean}(\{R(q, o_1), \ldots, R(q, o_G)\})$, the resulting advantage $\tilde{A}_{i,t} = R(q, o_i) - \text{mean}(\mathbf{R})$ is exactly the unbiased group-relative advantage (without the standard-deviation normalization).
 
 The connection goes further. The RLOO (REINFORCE Leave-One-Out) estimator uses the average reward of *the other* $G-1$ outputs as the baseline for output $i$:
 
@@ -148,5 +148,5 @@ The memory reduction from removing the critic is approximately 50%, which enable
 For Ava, the choice is clear. With GRPO, she can train her 7B model on a single node with 4 A100 GPUs. With PPO, she would need 8 GPUs or more, and the critic would be difficult to train effectively on her sparse SQL execution rewards.
 
 ::: {.callout-note title="Think Hard: How does GRPO's group-relative baseline interact with the difficulty distribution of training questions?"}
-This is a subtle point that connects to the biases discussed in @sec-grpo-variants. GRPO's baseline is the mean reward within each group, which adapts automatically to question difficulty. For easy questions (high mean reward), the baseline is high, so even correct outputs have small positive advantages. For hard questions (low mean reward), the baseline is low, so correct outputs have large positive advantages. This means GRPO naturally focuses its learning signal on "medium difficulty" questions where some outputs are correct and some are incorrect. If the training set is dominated by very easy or very hard questions, the effective gradient signal is weak because advantages are nearly zero. This self-adjusting property is generally beneficial (it prevents the model from wasting compute on questions it already solves or cannot yet solve), but it also means the training data distribution matters. DAPO's dynamic sampling (dropping questions with 0% or 100% accuracy) explicitly leverages this observation.
+This is a subtle point that connects to the biases discussed in @sec-grpo-variants. GRPO's baseline is the mean reward within each group, which adapts automatically to question difficulty. For easy questions (high mean reward), the baseline is high, so even correct outputs have small positive advantages. For hard questions (low mean reward), the baseline is low, so correct outputs have large positive advantages. This means GRPO naturally focuses its learning signal on "medium difficulty" questions where some outputs are correct and some are incorrect. If the training set is dominated by very easy or very hard questions, the effective gradient signal is weak because advantages are nearly zero. This self-adjusting property is generally beneficial (it prevents the model from wasting compute on questions it already solves or cannot yet solve), but it also means the training data distribution matters. DAPO's dynamic sampling (dropping questions with 0% or 100% accuracy) explicitly takes advantage of this observation.
 :::

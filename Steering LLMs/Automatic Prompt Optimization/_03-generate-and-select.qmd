@@ -111,7 +111,7 @@ This links prompt optimization to the RLHF pipeline. **BPO (Black-Box Prompt Opt
 
 InstructZero ([Chen et al., ICML 2024](https://arxiv.org/abs/2306.03082), June 2023) introduced an elegant indirection. Instead of searching directly in the intractable space of discrete instructions, it optimizes a continuous soft prompt $z$ on an open-source LLM, which then generates a discrete instruction $I(z)$ for the black-box target LLM.
 
-The soft prompt $z \in \mathbb{R}^d$ is a continuous vector that can be optimized with Bayesian optimization (BO). At each step, BO selects a promising $z$ based on an acquisition function (Expected Improvement), the open-source LLM converts $z$ into a natural language instruction $I(z)$, and the instruction is evaluated on the black-box LLM. An instruction-coupled kernel captures the relationship between soft prompts and the instructions they produce.
+The soft prompt $z \in \mathbb{R}^d$ is a continuous vector that can be optimized with Bayesian optimization (BO) (see @sec-math-bo for a review of BO, GP surrogates, and acquisition functions). At each step, BO selects a promising $z$ based on an acquisition function (Expected Improvement), the open-source LLM converts $z$ into a natural language instruction $I(z)$, and the instruction is evaluated on the black-box LLM. An instruction-coupled kernel captures the relationship between soft prompts and the instructions they produce.
 
 The result: InstructZero achieved the best performance on all 32 BIG-Bench Lite tasks compared to APE and other baselines. The key insight is that BO is extremely sample-efficient (it builds a probabilistic model of the objective function), which makes it well-suited to the expensive-evaluation setting of prompt optimization.
 

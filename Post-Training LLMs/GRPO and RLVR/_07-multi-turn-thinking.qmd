@@ -9,7 +9,7 @@
 
 :::
 
-The most dramatic demonstration of GRPO's potential came not from a carefully SFT'd model but from applying it directly to a *base model* — one that had never been fine-tuned on instructions. This is the DeepSeek-R1-Zero experiment, and it challenged fundamental assumptions about what RL can and cannot teach LLMs.
+The most dramatic demonstration of GRPO's potential came not from a carefully SFT'd model but from applying it directly to a *base model*, one that had never been fine-tuned on instructions. This is the DeepSeek-R1-Zero experiment, and it challenged fundamental assumptions about what RL can and cannot teach LLMs.
 
 ### R1-Zero: RL Directly on a Base Model
 
@@ -21,11 +21,11 @@ The results were striking. The model spontaneously developed several behaviors:
 2. **Self-reflection**: The model generated phrases like "Wait, let me reconsider" and "Hmm, that doesn't seem right," appearing to check and revise its own reasoning.
 3. **Verification**: The model sometimes generated secondary calculations to verify its primary answer.
 
-These behaviors were collectively called the "Aha moment" in the DeepSeek-R1 paper, and they captured the imagination of the AI research community. The idea that pure RL, without any demonstartion data, could induce sophisticated reasoning behaviors seemed to validate the promise of scalable AI alignment.
+These behaviors were collectively called the "Aha moment" in the DeepSeek-R1 paper ([Guo et al., 2025](https://arxiv.org/abs/2501.12948)), and they captured the imagination of the AI research community. The idea that pure RL, without any demonstration data, could induce sophisticated reasoning behaviors seemed to validate the promise of scalable AI alignment.
 
 ### A Critical Perspective: Were These Behaviors Truly Emergent?
 
-The Dr. GRPO paper (Liu et al., 2025) cast important doubt on this narrative. By testing multiple base models *before* RL training, they found that:
+The Dr. GRPO paper ([Liu et al., 2025](https://arxiv.org/abs/2503.20783)) cast important doubt on this narrative. By testing multiple base models *before* RL training, they found that:
 
 1. **Self-reflection keywords already exist in base models.** DeepSeek-V3-Base, Qwen2.5 models, and even Llama-3.1 already generate "Aha," "Wait," and "let me verify" in their responses to math questions, even before any RL training. The right plot of @fig-dr-grpo-dynamics shows that self-reflection counts are non-zero for all tested base models.
 
@@ -35,7 +35,7 @@ The Dr. GRPO paper (Liu et al., 2025) cast important doubt on this narrative. By
 
 4. **The length increase during training is partly an optimization artifact.** As we saw in @sec-grpo-variants, GRPO's length bias causes incorrect responses to grow longer, inflating average response length independently of reasoning quality. When Dr. GRPO removed this bias, the response length growth was substantially reduced while reasoning accuracy was maintained.
 
-This does not diminish GRPO's effectiveness — it clearly improves performance. But it reframes the narrative: **RL amplifies and specializes pre-existing capabilities rather than creating entirely new ones from scratch.** The base model's pretraining determines the ceiling of what RL can achieve; RL determines how close to that ceiling the model actually gets.
+This does not diminish GRPO's effectiveness; it clearly improves performance. But it reframes the narrative: **RL amplifies and specializes pre-existing capabilities rather than creating entirely new ones from scratch.** The base model's pretraining determines the ceiling of what RL can achieve. RL determines how close to that ceiling the model actually gets.
 
 ::: {.callout-warning title="Common Misconception: R1-Zero proves that RL can teach LLMs to reason from scratch"}
 The R1-Zero results are impressive, but the claim that reasoning emerged "from scratch" is misleading. The 685B-parameter base model was pretrained on trillions of tokens including mathematical proofs, chain-of-thought examples, and self-reflective dialogue. The reasoning patterns are already encoded in the model's weights. RL did not create reasoning; it created the *incentive* for the model to use its existing reasoning capabilities more consistently. The Dr. GRPO team's experiments with Llama-3.2-3B showed that models without strong math pretraining show minimal improvement from RL, confirming that the base model's capabilities are the limiting factor. Domain-specific pretraining (like training on the FineMath dataset) substantially raised the RL ceiling. The takeaway: RL is a refinement tool, not a creation tool. Invest in pretraining and SFT data quality first, then use RL to extract the maximum performance from those capabilities.
@@ -65,7 +65,7 @@ Ava has been training her SQL model in a *single-turn* setting: one question, on
 - **Tool use**: The model generates SQL, executes it (receiving results as a new input), then generates another SQL query based on those results.
 - **Conversational debugging**: The model's SQL fails, it receives the error message, and it must fix the query.
 
-Multi-turn GRPO training is conceptually straightforward but practically complex. The "output" is no longer a single SQL query but an entire conversation trajectory. The reward may apply to the final outcome of the conversation, requiring credit assignment across multiple turns. The group sampling now generates $G$ complete trajectories per initial prompt, which is more expensive than single-turn sampling.
+Multi-turn GRPO training is conceptually straightforward but practically complex. The "output" is no longer a single SQL query but an entire conversation trajectory. The reward may apply to the final outcome of the conversation, requiring credit assignment across multiple turns. Group sampling now generates $G$ complete trajectories per initial prompt, which is more expensive than single-turn sampling.
 
 The key practical challenges for multi-turn GRPO are:
 

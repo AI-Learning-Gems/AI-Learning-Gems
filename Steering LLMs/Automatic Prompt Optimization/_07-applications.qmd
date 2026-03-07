@@ -34,9 +34,9 @@ When agents interact in non-sequential DAG structures (a retriever feeds a reaso
 
 **The TRACE approach** provides per-module feedback through execution traces. When the system fails, TRACE's minimal subgraph propagator identifies which module's output caused the failure by tracing backward through the DAG. The optimizer reads the trace as pseudo-code and proposes targeted updates.
 
-![HiveMind: multi-agent prompt optimization with DAG-Shapley credit assignment. Instead of optimizing all agents' prompts equally, HiveMind quantifies each agent's marginal contribution using Shapley values, then targets optimization budget at underperforming modules. Source: Wang et al. (2025).](images/hivemind-architecture.png){#fig-hivemind}
+![HiveMind: multi-agent prompt optimization with DAG-Shapley credit assignment. Instead of optimizing all agents' prompts equally, HiveMind quantifies each agent's marginal contribution using Shapley values, then targets optimization budget at underperforming modules. Source: Wang et al. (2025).](Automatic Prompt Optimization/images/hivemind-architecture.png){#fig-hivemind}
 
-**The HiveMind approach ([Wang et al., AAAI 2026](https://arxiv.org/abs/2512.06432))** uses Shapley values to quantify each agent's marginal contribution:
+**The HiveMind approach ([Wang et al., AAAI 2026](https://arxiv.org/abs/2512.06432))** uses Shapley values to quantify each agent's marginal contribution (see @sec-math-shapley for a review of Shapley values in cooperative game theory):
 
 $$
 \phi_i(v) = \sum_{S \subseteq N \setminus \{i\}} \frac{|S|!(|N|-|S|-1)!}{|N|!} \cdot \left[v(S \cup \{i\}) - v(S)\right]
@@ -62,7 +62,7 @@ $$
 
 The objective is alignment with human judgment, not task accuracy. This changes the optimization problem in three ways: (a) the "ground truth" is noisy human preferences, not deterministic labels, (b) judges must generalize across domains and models, and (c) multi-criteria evaluation (helpfulness, safety, style) is inherently multi-objective.
 
-**BLPO ([Feb 2026](https://arxiv.org/abs/2602.11340))** addresses a challenge specific to multimodal judges. When evaluating vision-language model outputs, the judge must process both text and images. Context window limits force a two-stage pipeline: first convert the image to text (via an image-to-text prompt $p_\text{i2t}$), then evaluate the output (via a judge prompt $p_\text{judge}$). BLPO jointly optimizes both prompts through bi-level optimization:
+**BLPO ([Feb 2026](https://arxiv.org/abs/2602.11340))** addresses a challenge specific to multimodal judges. When evaluating vision-language model outputs, the judge must process both text and images. Context window limits force a two-stage pipeline: first convert the image to text (via an image-to-text prompt $p_\text{i2t}$), then evaluate the output (via a judge prompt $p_\text{judge}$). BLPO jointly optimizes both prompts through bi-level optimization (see @sec-math-bilevel for a review of bi-level optimization):
 
 $$
 \min_{p_\text{judge}} \; \mathcal{L}_\text{outer}(p_\text{judge}, p_\text{i2t}^*(p_\text{judge})) \quad \text{s.t.} \quad p_\text{i2t}^*(p_\text{judge}) = \arg\min_{p_\text{i2t}} \; \mathcal{L}_\text{inner}(p_\text{judge}, p_\text{i2t})
@@ -125,7 +125,7 @@ Prompt optimization has demonstrated impact well beyond classification and text 
 - **RAG systems**: DSPy/MIPROv2 optimizes multi-stage retrieval-augmented pipelines. SAMMO compresses and restructures prompts, achieving 40% cost reduction while maintaining accuracy.
 - **Mathematical reasoning**: GEPA improves GPT-4.1-mini from 46.67% to 60% on AIME 2025 through pure prompt optimization.
 
-![GEPA-optimized prompt for NPU kernel generation, demonstrating prompt optimization applied to code generation tasks. The optimized prompt achieves significant performance gains on specialized hardware programming. Source: GEPA (2025).](images/gepa-npu-prompt.png){#fig-gepa-npu}
+![GEPA-optimized prompt for NPU kernel generation, demonstrating prompt optimization applied to code generation tasks. The optimized prompt achieves significant performance gains on specialized hardware programming. Source: GEPA (2025).](Automatic Prompt Optimization/images/gepa-npu-prompt.png){#fig-gepa-npu}
 
 The common thread: each domain provides domain-specific evaluation signals (compiler errors for code, docking scores for molecules, retrieval relevance for RAG) that serve as richer feedback than generic accuracy. This explains why trace-aware methods (TRACE, GEPA with ASI) excel in these settings. The richer the diagnostic feedback, the fewer rollouts needed for effective optimization.
 

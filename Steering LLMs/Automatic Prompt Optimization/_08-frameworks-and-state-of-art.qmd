@@ -90,9 +90,9 @@ For our triage system at full scale (multi-module pipeline with code and prompt 
 
 SAMMO ([Ribeiro et al., 2024](https://arxiv.org/abs/2404.02319)) represents prompts as symbolic DAGs and applies structural mutations (drop section, repeat section, change format) alongside textual mutations.
 
-![SAMMO symbolic prompt program overview. Source: Ribeiro et al. (2024).](images/sammo-overview.png){#fig-sammo}
+![SAMMO symbolic prompt program overview. Source: Ribeiro et al. (2024).](Automatic Prompt Optimization/images/sammo-overview.png){#fig-sammo}
 
-![SAMMO headroom analysis showing where structural prompt transformations matter most. Weaker models benefit more from structural optimization, and RAG pipelines show the most headroom. Source: Ribeiro et al. (2024).](images/sammo-headroom.png){#fig-sammo-headroom}
+![SAMMO headroom analysis showing where structural prompt transformations matter most. Weaker models benefit more from structural optimization, and RAG pipelines show the most headroom. Source: Ribeiro et al. (2024).](Automatic Prompt Optimization/images/sammo-headroom.png){#fig-sammo-headroom}
 
 ### Emerging Methods
 

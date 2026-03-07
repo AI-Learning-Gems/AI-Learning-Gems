@@ -52,7 +52,7 @@ The following table summarizes the key hyperparameters with recommended ranges, 
 
 **Group size ($G$)** is the most impactful hyperparameter. Larger $G$ provides better baseline estimates (lower variance) but increases sampling cost linearly. DeepSeekMath used $G = 64$ because they had massive compute; for most practitioners, $G = 16$ is a good balance. If your reward is binary (0/1) and success rate is around 50%, $G = 16$ gives you enough samples to have meaningful variance in the advantages.
 
-**Learning rate** should be small. GRPO updates are noisy (no critic to smooth them), and large learning rates cause the policy to oscillate. Start with 1e-6 and increase cautiously. If training reward plateaus early, the learning rate may be too high (the model is overshooting optimal policies).
+**Learning rate** should be small. GRPO updates are noisy (no critic to smooth them), and large learning rates cause the policy to oscillate. Start with 1e-6 and increase cautiously. If training reward plateaus early, the learning rate may be too high; the model is overshooting optimal policies.
 
 **KL coefficient ($\beta$)**: For pure RLVR with verifiable rewards, set $\beta = 0$ (or very small, like 0.01). KL regularization is primarily needed to prevent reward model exploitation in RLHF. In RLVR, the verifier cannot be exploited, so KL constraint mainly preserves general capabilities. If you want a specialized model (SQL-only), drop it. If you want to maintain broad capabilities alongside the specific skill, keep a small $\beta$.
 
@@ -103,7 +103,7 @@ After reading all of the above, Ava sets up her pipeline:
 - **Group size**: $G = 16$ (she has 4 A100 GPUs)
 - **Reward**: Multi-signal SQL verifier (execution + syntax + schema, see @sec-rlvr)
 - **Training data**: 12,000 natural-language-to-SQL question pairs with gold SQL answers
-- **Variant**: Dr. GRPO (removes length and std normalization — one-line code change)
+- **Variant**: Dr. GRPO (removes length and std normalization; a one-line code change)
 - **KL coefficient**: $\beta = 0$ (pure RLVR, no need to prevent reward model exploitation)
 - **Learning rate**: 1e-6 with cosine decay
 - **Max generation**: 512 tokens (SQL queries are typically short)

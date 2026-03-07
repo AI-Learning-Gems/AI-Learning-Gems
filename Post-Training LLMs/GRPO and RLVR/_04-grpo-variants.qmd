@@ -20,7 +20,7 @@ Let us examine each bias through the lens of GRPO's objective (@eq-grpo-objectiv
 
 **Bias 2: Question-level difficulty bias.** GRPO normalizes advantages by dividing by $\text{std}(\mathbf{r})$, the standard deviation of the rewards within the group. For questions where all outputs have the same reward (all correct or all incorrect), $\text{std}(\mathbf{r}) \approx 0$, and the advantage magnitude explodes. A numerically stable implementation clamps this to some minimum, but the effective weight of these "trivial" questions is still disproportionately high. Very easy questions (where the model already succeeds on all $G$ outputs) and very hard questions (where it fails on all $G$ outputs) dominate the gradient, even though they carry almost no useful learning signal. Questions of medium difficulty, where some outputs succeed and some fail, get relatively less weight despite being the most informative examples for learning.
 
-**Bias 3: Entropy collapse.** This is not a bias in the mathematical sense but an emergent pathology. PPO's symmetric clipping ($1 - \epsilon$ to $1 + \epsilon$, where $\epsilon$ is typically 0.2) constrains how much any token's probability can change in a single update. When a "good" token already has high probability (say 0.9), the upper clip allows it to go to $0.9 \times 1.2 = 1.08$ (clipped to 1.0 in practice), a near-unlimited increase. But when an "exploration" token has low probability (say 0.01), the upper clip only allows it to go to $0.01 \times 1.2 = 0.012$, a negligibly small increase. Symmetric clipping systematically favors high-probability tokens and prevents low-probability tokens from gaining traction. Over many training steps, the model collapses to a deterministic policy that always generates the same output for a given question.
+**Bias 3: Entropy collapse.** This is not a bias in the mathematical sense but an emergent pathology (see @sec-math-entropy for the definition of Shannon entropy). PPO's symmetric clipping ($1 - \epsilon$ to $1 + \epsilon$, where $\epsilon$ is typically 0.2) constrains how much any token's probability can change in a single update. When a "good" token already has high probability (say 0.9), the upper clip allows it to go to $0.9 \times 1.2 = 1.08$ (clipped to 1.0 in practice), a near-unlimited increase. But when an "exploration" token has low probability (say 0.01), the upper clip only allows it to go to $0.01 \times 1.2 = 0.012$, a negligibly small increase. Symmetric clipping systematically favors high-probability tokens and prevents low-probability tokens from gaining traction. Over many training steps, the model collapses to a deterministic policy that always generates the same output for a given question.
 
 ![GRPO's two biases illustrated. The std normalization reweights questions by difficulty (the size of blue circles), and the length normalization reweights outputs by length (the brightness of orange arrows). Together, they create a biased optimization landscape. Source: Liu et al. (2025), Figure 3.](GRPO and RLVR/images/grpo-bias-illustration.png){#fig-bias-illustration}
 
@@ -28,7 +28,7 @@ Let us now see how three variants address these issues, each with a different ph
 
 ### Dr. GRPO: Remove the Biases Entirely
 
-Dr. GRPO (Liu et al., 2025) takes the most mathematically principled approach: simply *remove* the two normalization terms that cause the biases. The key observation is that the "correct" policy gradient (see @eq-reinforce-baseline) does *not* divide by $|o_i|$ or by $\text{std}(\mathbf{r})$. These normalizations were added to GRPO for practical reasons (numerical stability, comparable loss scales across questions), but they are not required by the theory.
+Dr. GRPO ([Liu et al., 2025](https://arxiv.org/abs/2503.20783)) takes the most mathematically principled approach: simply *remove* the two normalization terms that cause the biases. The key observation is that the "correct" policy gradient (see @eq-reinforce-baseline) does *not* divide by $|o_i|$ or by $\text{std}(\mathbf{r})$. These normalizations were added to GRPO for practical reasons (numerical stability, comparable loss scales across questions), but they are not required by the theory.
 
 The Dr. GRPO objective replaces GRPO's $\hat{A}_{i,t} = \frac{R_i - \text{mean}(\mathbf{R})}{\text{std}(\mathbf{R})}$ with the unnormalized advantage $\tilde{A}_{i,t} = R_i - \text{mean}(\mathbf{R})$, and removes the $\frac{1}{|o_i|}$ length normalization. For implementation, the loss is divided by a global constant (the maximum generation length) instead of the variable response length:
 
@@ -58,7 +58,7 @@ Researchers initially celebrated when models trained with GRPO spontaneously gen
 
 ### DAPO: Four Targeted Fixes
 
-While Dr. GRPO takes a theoretically motivated minimalist approach, DAPO (ByteDance, 2025) takes an engineering-driven approach, addressing each observed problem with a specific technique. The four DAPO innovations are:
+While Dr. GRPO takes a theoretically motivated minimalist approach, DAPO ([Yu et al., 2025](https://arxiv.org/abs/2503.14476)) takes an engineering-driven approach, addressing each observed problem with a specific technique. The four DAPO innovations are:
 
 **1. Clip-Higher (addressing entropy collapse).** DAPO decouples the lower and upper clipping bounds: $\text{clip}(r_{i,t}, 1 - \epsilon_{low}, 1 + \epsilon_{high})$. By setting $\epsilon_{high} > \epsilon_{low}$ (DAPO uses $\epsilon_{low} = 0.1$, $\epsilon_{high} = 0.28$), the algorithm gives low-probability tokens more room to increase their probability. This asymmetric clipping breaks the systematic suppression of exploration tokens and maintains higher entropy throughout training.
 
@@ -86,7 +86,7 @@ This creates a "soft wall" that gradually discourages the model from generating 
 
 ### REINFORCE++: Back to Basics with Better Normalization
 
-REINFORCE++ (Hu et al., 2025) takes yet another approach. Instead of fixing GRPO's group-relative advantage, it returns to the simpler REINFORCE algorithm and adds PPO's stabilization techniques (clipping, KL regularization) without the group-relative baseline. The key innovation is in how advantage normalization is performed.
+REINFORCE++ ([Hu et al., 2025](https://arxiv.org/abs/2501.03262)) takes yet another approach. Instead of fixing GRPO's group-relative advantage, it returns to the simpler REINFORCE algorithm and adds PPO's stabilization techniques (clipping, KL regularization) without the group-relative baseline. The key innovation is in how advantage normalization is performed.
 
 REINFORCE++ normalizes advantages across the *entire batch* rather than per-question. This means the baseline is the average reward across all questions in the batch, not just the group of outputs for a single question. This eliminates the difficulty bias (since there is no per-group std normalization) but introduces a different trade-off: the baseline is less question-specific, potentially increasing variance for individual questions.
 

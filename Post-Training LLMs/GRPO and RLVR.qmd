@@ -18,4 +18,6 @@ filters:
 
 {{< include "GRPO and RLVR/_07-multi-turn-thinking.qmd" >}}
 
+{{< include "GRPO and RLVR/_98-math-background.qmd" >}}
+
 {{< include "GRPO and RLVR/_99-closing.qmd" >}}

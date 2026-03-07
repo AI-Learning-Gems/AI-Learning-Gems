@@ -20,4 +20,6 @@ filters:
 
 {{< include "Automatic Prompt Optimization/_08-frameworks-and-state-of-art.qmd" >}}
 
+{{< include "Automatic Prompt Optimization/_98-math-background.qmd" >}}
+
 {{< include "Automatic Prompt Optimization/_99-closing.qmd" >}}

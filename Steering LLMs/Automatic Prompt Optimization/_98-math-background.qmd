@@ -1,0 +1,251 @@
+## Mathematical Background {#sec-math-background}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Bayesian Optimization — An Intelligent Approach](Optimization/Bayesian%20Optimization%20-%20An%20Intelligent%20Approach%20to%20Expensive%20Black-Box%20Problems.md) | GP surrogates, acquisition functions (EI, UCB) |
+| 2 | [Black-box Optimization](Optimization/Black-box%20optimization.md) | BO and GA applied to threshold optimization |
+| 3 | [Multi-Task Learning as Multi-Objective Optimization](Multi-Objective%20Optimization/1.0.%20Multi-Task%20Learning%20(Deep%20Learning)%20as%20Multi-Objective%20Optimization.md) | Pareto dominance, MGDA, scalarization |
+| 4 | [Multi-Objective Gradient Descent](Multi-Objective%20Optimization/3.%20Multi-Objective%20Gradient%20Descent.md) | MGDA, PCGrad, Pareto stationarity |
+| 5 | [MOO in the Era of LLMs](Multi-Objective%20Optimization/4.%20Multi-Objective%20Optimization%20in%20the%20Era%20of%20Large%20Language%20Models.md) | NSGA-II, crowding distance, prompt-specific MOO |
+| 6 | [Discrete Optimization](Optimization/Discrete%20Optimization%20-%20The%20Ascent%20in%20a%20World%20of%20Steps.md) | Why gradient descent fails in discrete settings |
+
+:::
+
+This appendix provides brief refreshers on the mathematical concepts that appear throughout the chapter. Each subsection explains *what* a concept does, *why* it matters for prompt optimization, and gives the key formula with a worked micro-example. If you are comfortable with all of these, skip ahead. If any feel rusty, the relevant subsection will take two minutes and save you from puzzling over equations later.
+
+### Gradient Descent and the Chain Rule {#sec-math-gd}
+
+Gradient descent is the workhorse of continuous optimization. Given a differentiable loss function $\mathcal{L}(\theta)$ over parameters $\theta \in \mathbb{R}^n$, the gradient $\nabla_\theta \mathcal{L}$ is a vector pointing in the direction of steepest *increase*. The update rule moves opposite to the gradient:
+
+$$
+\theta_{t+1} = \theta_t - \alpha \nabla_\theta \mathcal{L}(\theta_t)
+$$ {#eq-gd}
+
+where $\alpha > 0$ is the learning rate (step size). A large $\alpha$ risks overshooting minima; a small $\alpha$ converges slowly. The loss function $\mathcal{L}$ maps parameters to a scalar measuring "how bad" the model is: cross-entropy for classification, mean squared error for regression, or any differentiable metric.
+
+The **chain rule** enables gradient computation through compositions of functions. For $\mathcal{L} = h(g(f(\theta)))$:
+
+$$
+\frac{\partial \mathcal{L}}{\partial \theta} = \frac{\partial h}{\partial g} \cdot \frac{\partial g}{\partial f} \cdot \frac{\partial f}{\partial \theta}
+$$
+
+This is the mathematical basis for backpropagation in neural networks, and its natural-language analogue is the foundation for textual gradients in @sec-textual-gradients. The key insight TextGrad borrows: if you can propagate "how to improve" backward through a chain of operations, you can optimize early components based on late failures.
+
+**Why this matters for prompt optimization:** The entire chapter is structured around the contrast between continuous gradient descent (where $\nabla_\theta \mathcal{L}$ exists and is informative) and the discrete prompt setting (where it does not). Every algorithm in @sec-first-wave through @sec-evolutionary is a creative workaround for the missing gradient. Understanding what the gradient provides (direction, magnitude, per-parameter specificity) clarifies what textual gradients approximate and what they lose.
+
+**Numerical example.** Suppose $\mathcal{L}(\theta) = (\theta - 3)^2$ with $\theta_0 = 0$ and $\alpha = 0.1$. The gradient is $\nabla_\theta \mathcal{L} = 2(\theta - 3)$. At $\theta_0 = 0$: gradient is $-6$, so $\theta_1 = 0 - 0.1 \times (-6) = 0.6$. At $\theta_1 = 0.6$: gradient is $-4.8$, so $\theta_2 = 0.6 + 0.48 = 1.08$. Each step moves toward the optimum $\theta^* = 3$.
+
+### Bayesian Optimization {#sec-math-bo}
+
+Bayesian optimization (BO) is a strategy for optimizing expensive black-box functions, where each evaluation is costly and no gradient is available. It builds a probabilistic surrogate model of the objective and uses that model to decide where to evaluate next.
+
+The surrogate is typically a **Gaussian Process (GP)**, which models the objective $f(x)$ as a distribution over functions. After observing evaluations $\{(x_i, y_i)\}_{i=1}^n$, the GP provides a posterior mean $\mu(x)$ (prediction of $f(x)$) and posterior variance $\sigma^2(x)$ (uncertainty about $f(x)$) at any unobserved point $x$. Points far from observations have high $\sigma^2$; points near observations have low $\sigma^2$.
+
+An **acquisition function** uses $\mu(x)$ and $\sigma(x)$ to balance exploitation (evaluating where $\mu$ is high) and exploration (evaluating where $\sigma$ is high). Three common choices:
+
+- **Expected Improvement (EI)**: $\text{EI}(x) = \mathbb{E}[\max(f(x) - f^+, 0)]$ where $f^+$ is the best value observed so far. EI is high where the GP predicts a good chance of beating the current best.
+- **Upper Confidence Bound (UCB)**: $\text{UCB}(x) = \mu(x) + \kappa \sigma(x)$. The parameter $\kappa$ controls the exploration-exploitation trade-off. Higher $\kappa$ favors unexplored regions.
+- **Probability of Improvement (PI)**: $\text{PI}(x) = P(f(x) > f^+)$. Simpler than EI but more greedy.
+
+The BO loop: (1) fit GP to observed data, (2) maximize acquisition function to select next evaluation point $x_\text{next}$, (3) evaluate $f(x_\text{next})$, (4) add result to observations, repeat.
+
+**Why this matters for prompt optimization:** InstructZero (@sec-first-wave) uses BO to navigate a continuous soft-prompt space that maps to discrete instructions. MIPROv2 (@sec-frameworks) uses a Tree-structured Parzen Estimator (TPE), a variant of BO, to search the joint space of instructions and demonstrations. The key property: BO is *sample-efficient* (it builds a model of what it has learned and uses that model to choose evaluations intelligently), which matters enormously when each "evaluation" is an expensive batch of LLM inference calls.
+
+**Numerical example.** You have tested 3 prompts with accuracy scores: $\{(p_1, 72\%), (p_2, 78\%), (p_3, 68\%)\}$. The GP fits a smooth curve through these points and estimates uncertainty. At a new candidate $p_4$, the GP predicts $\mu = 80\%$ with $\sigma = 5\%$. EI is high because there is a substantial probability of exceeding the current best of 78%. At another candidate $p_5$, the GP predicts $\mu = 85\%$ with $\sigma = 15\%$. UCB with $\kappa = 2$ gives $85 + 2(15) = 115$ for $p_5$ vs. $80 + 2(5) = 90$ for $p_4$, so UCB would explore $p_5$ first (high uncertainty = high potential).
+
+### Evolutionary Algorithms {#sec-math-ea}
+
+Evolutionary algorithms (EAs) optimize by mimicking natural selection. A **population** of candidate solutions evolves over generations through selection, crossover, and mutation. EAs require no gradients, making them natural candidates for discrete, non-differentiable search spaces like prompt optimization.
+
+The basic loop:
+
+1. **Initialize** a population $P = \{p_1, \ldots, p_N\}$ of $N$ candidates (random or heuristic)
+2. **Evaluate fitness** $f(p_i)$ for each candidate
+3. **Select** parents based on fitness. Common methods: *roulette wheel* (probability $\propto f(p_i)$), *tournament* (pick $k$ random candidates, keep the best), or *rank-based* (probability $\propto$ rank)
+4. **Crossover** (recombination): combine two parents to produce offspring. For bit strings, single-point crossover swaps everything after a random cut point. For prompts, the LLM itself performs crossover ("combine these two prompts")
+5. **Mutation**: randomly perturb offspring. For bit strings, flip random bits. For prompts, the LLM paraphrases or alters random parts
+6. **Replace**: form the next generation from parents and offspring (e.g., keep the top $N$ by fitness)
+7. Repeat steps 2--6 for $T$ generations
+
+**Differential Evolution (DE)** is a variant where mutation uses vector differences between population members: $\mathbf{y} = \mathbf{a} + F(\mathbf{b} - \mathbf{c})$, where $\mathbf{a}$, $\mathbf{b}$, $\mathbf{c}$ are three distinct candidates and $F$ is a scaling factor. EvoPrompt (@sec-evolutionary) translates this to natural language by asking an LLM to identify differences between prompts and apply them to a base prompt.
+
+**Why this matters for prompt optimization:** EvoPrompt, PromptBreeder, and MOPO (@sec-evolutionary, @sec-multi-objective) all use LLMs as crossover and mutation operators on populations of prompts. The EA framework provides the selection pressure and diversity maintenance; the LLM provides the domain-specific recombination logic. Understanding the standard EA vocabulary (population, fitness, selection, crossover, mutation, generation) is necessary to follow these algorithms.
+
+### Multi-Armed Bandits and UCB {#sec-math-ucb}
+
+The multi-armed bandit problem models sequential decision-making under uncertainty. You face $K$ slot machines ("arms"), each with an unknown reward distribution. At each step, you pull one arm and observe a reward. The goal is to maximize cumulative reward by balancing **exploration** (trying arms with uncertain payoffs) and **exploitation** (pulling the arm with the highest estimated payoff).
+
+The **Upper Confidence Bound (UCB1)** algorithm selects the arm with the highest upper confidence bound:
+
+$$
+a^* = \arg\max_a \left[ \hat{\mu}_a + c \sqrt{\frac{\ln t}{N_a}} \right]
+$$ {#eq-ucb1}
+
+where $\hat{\mu}_a$ is the estimated mean reward of arm $a$, $N_a$ is the number of times arm $a$ has been pulled, $t$ is the total number of pulls so far, and $c$ is an exploration constant. The first term exploits high-reward arms; the second explores under-sampled arms, since $\sqrt{\ln t / N_a}$ grows when $N_a$ is small relative to $t$.
+
+**Why this matters for prompt optimization:** ProTeGi (@sec-textual-gradients) uses UCB to allocate evaluation budget across candidate prompts in its beam search. Each candidate prompt is an "arm," its accuracy is the reward, and the UCB formula decides which candidate to evaluate next. PromptAgent (@sec-evolutionary) uses the related UCT formula (UCB applied to tree search) for MCTS. The shared insight: when you have a limited budget for LLM evaluations, you should not evaluate all candidates equally. UCB tells you which ones deserve more attention.
+
+**Numerical example.** Two candidate prompts after 10 evaluations. Prompt A: $\hat{\mu} = 0.82$, pulled 7 times. Prompt B: $\hat{\mu} = 0.78$, pulled 3 times. With $c = 1.0$ and $t = 10$: UCB(A) $= 0.82 + \sqrt{\ln 10 / 7} = 0.82 + 0.57 = 1.39$. UCB(B) $= 0.78 + \sqrt{\ln 10 / 3} = 0.78 + 0.88 = 1.66$. Despite lower estimated accuracy, Prompt B is selected because it has been under-explored.
+
+### Monte Carlo Tree Search {#sec-math-mcts}
+
+Monte Carlo Tree Search (MCTS) is a planning algorithm that builds a search tree incrementally by simulating future outcomes. It is used in game-playing (AlphaGo) and, in prompt optimization, by PromptAgent (@sec-evolutionary).
+
+Each node in the tree represents a state (a prompt version). Each edge represents an action (a prompt refinement). MCTS repeats four phases:
+
+1. **Selection**: Starting from the root, use a tree policy to select child nodes until reaching a leaf. The tree policy is typically **UCT** (Upper Confidence Bound for Trees):
+
+$$
+a^* = \arg\max_a \left[ \frac{Q(s, a)}{N(s, a)} + c \sqrt{\frac{\ln N(s)}{N(s, a)}} \right]
+$$ {#eq-uct}
+
+where $Q(s, a)$ is the cumulative reward from taking action $a$ in state $s$, $N(s, a)$ is the visit count for that state-action pair, $N(s)$ is the visit count for the parent state, and $c$ is the exploration constant. This is UCB1 applied to tree nodes.
+
+2. **Expansion**: Add a new child node (a new prompt refinement)
+3. **Simulation** (rollout): Estimate the value of the new node by simulating future steps (e.g., apply several more refinements and evaluate the result)
+4. **Backpropagation**: Update $Q$ and $N$ for all nodes on the path from root to the expanded node
+
+The key advantage of MCTS over greedy search: it *looks ahead*. Before committing to a refinement, it simulates downstream consequences. If adding neurological symptom keywords helps accuracy now but causes problems three refinements later, MCTS can detect this through simulation.
+
+**Why this matters for prompt optimization:** PromptAgent frames prompt optimization as a planning problem where states are prompts, actions are error-feedback-driven refinements, and rewards are task accuracy. The UCT formula (@eq-uct) is directly applied to navigate the prompt refinement tree, achieving 6--9% improvement over baselines on 12 tasks. Understanding MCTS clarifies how PromptAgent differs from single-trajectory methods (GPO, TextGrad): it explores branching paths rather than a single line.
+
+### Reinforcement Learning Basics {#sec-math-rl}
+
+Reinforcement learning (RL) trains an agent to make sequential decisions by maximizing cumulative reward. The core components:
+
+- **Agent**: the decision-maker (in prompt optimization: the model generating prompt tokens)
+- **Environment**: the system the agent interacts with (in prompt optimization: the frozen target LLM + evaluation pipeline)
+- **State** $s$: the current situation (the prompt generated so far, or the current task input)
+- **Action** $a$: what the agent does (the next token to add to the prompt)
+- **Reward** $r(s, a)$: a scalar feedback signal (task accuracy, reward model score)
+- **Policy** $\pi(a|s)$: the agent's strategy, mapping states to action probabilities
+
+The goal is to find $\pi^*$ that maximizes expected cumulative reward: $\pi^* = \arg\max_\pi \mathbb{E}_\pi [\sum_t \gamma^t r_t]$ where $\gamma \in [0, 1]$ is a discount factor.
+
+**Q-learning** learns a value function $Q(s, a)$ representing the expected cumulative reward of taking action $a$ in state $s$ and then following the optimal policy. The Bellman update:
+
+$$
+Q(s, a) \leftarrow Q(s, a) + \alpha \left[ r + \gamma \max_{a'} Q(s', a') - Q(s, a) \right]
+$$
+
+**Soft Q-learning** adds an entropy bonus to encourage exploration. The agent maximizes reward while keeping its policy stochastic (high entropy), preventing premature convergence to a single action sequence.
+
+**Why this matters for prompt optimization:** RLPrompt (@sec-evolutionary) trains a small policy network via soft Q-learning to generate prompt tokens. MORL-Prompt (@sec-multi-objective) uses soft Q-learning with multi-objective reward functions. ParetoPrompt trains a policy using dominance relationships as preference signals. Understanding the RL framing clarifies why these methods can discover effective but uninterpretable prompts (the policy optimizes token-level actions that humans would never write) and why objective collapse occurs (when naive reward averaging causes the policy to sacrifice minority objectives).
+
+### Pareto Dominance and the Pareto Front {#sec-math-pareto}
+
+When optimizing multiple competing objectives simultaneously, there is typically no single solution that is best on all objectives. Pareto dominance formalizes this trade-off.
+
+Given $m$ objectives $f_1, \ldots, f_m$ to maximize, solution $a$ **Pareto-dominates** solution $b$ (written $a \succ b$) if:
+
+$$
+\forall i \in \{1, \ldots, m\}: f_i(a) \geq f_i(b) \quad \text{and} \quad \exists j: f_j(a) > f_j(b)
+$$
+
+In words: $a$ is at least as good as $b$ on every objective, and strictly better on at least one. A solution is **Pareto-optimal** (or non-dominated) if no other solution dominates it. The set of all Pareto-optimal solutions is the **Pareto front**.
+
+**Weighted-sum scalarization** reduces multi-objective optimization to single-objective: $F(x) = \sum_i w_i f_i(x)$. This is simple but has a fundamental limitation: it can only find solutions on *convex* regions of the Pareto front. If the front is concave (which is common), entire regions of Pareto-optimal solutions are invisible to any weight combination. This limitation motivates evolutionary approaches like NSGA-II.
+
+**Why this matters for prompt optimization:** Every multi-objective method in @sec-multi-objective (EMO-Prompts, MORL-Prompt, MOPO, ParetoPrompt, GEPA) uses Pareto dominance to select which candidate prompts to keep. The concept is also used in GEPA's per-instance Pareto fronts, where each validation example is treated as a separate "objective." Understanding Pareto dominance is prerequisite to understanding why these methods outperform naive weighted averaging.
+
+**Numerical example.** Three triage prompts evaluated on accuracy and safety:
+
+| Prompt | Accuracy | Safety |
+|---|---|---|
+| A | 85% | 70% |
+| B | 80% | 90% |
+| C | 75% | 80% |
+
+$A \succ C$? No: $A$ has higher accuracy but lower safety. $B \succ C$? Yes: $B$ has higher accuracy (80 > 75) *and* higher safety (90 > 80). So $C$ is dominated by $B$ and is not Pareto-optimal. The Pareto front is $\{A, B\}$: you cannot improve accuracy without sacrificing safety, or vice versa.
+
+### Hypervolume Indicator {#sec-math-hvi}
+
+The hypervolume indicator (HVI) measures the quality of a set of solutions $S$ in multi-objective optimization. It computes the volume of objective space that is dominated by at least one solution in $S$ and bounded by a reference point $p_\text{ref}$:
+
+$$
+H(S) = \Lambda\left(\left\{q \in \mathbb{R}^m \mid \exists p \in S: p_\text{ref} \preceq q \preceq p \right\}\right)
+$$
+
+where $\Lambda$ denotes the Lebesgue measure (volume). A larger $H(S)$ means the solution set covers more of the objective space, indicating both better individual solutions and greater spread across the Pareto front.
+
+**Why this matters for prompt optimization:** MORL-Prompt (@sec-multi-objective) uses HVI directly as an RL reward signal: the agent receives higher reward when its generated Pareto front covers more of the objective space. EMO-Prompts uses HVI to evaluate the quality of evolved prompt populations. GEPA's Pareto selection implicitly maximizes diversity in a way related to hypervolume coverage.
+
+**Numerical example.** Two prompts: $A = (85\%, 70\%)$ and $B = (80\%, 90\%)$, with reference point $p_\text{ref} = (60\%, 60\%)$. The dominated region is the L-shaped area between the reference point and the two solutions. $H(\{A, B\}) = (85-60)(70-60) + (80-60)(90-70) = 250 + 400 = 650$ (in percentage-point-squared units). Adding a third prompt $C = (82\%, 82\%)$ would increase the hypervolume by filling in the gap between $A$ and $B$.
+
+### NSGA-II and Crowding Distance {#sec-math-nsga2}
+
+NSGA-II (Non-dominated Sorting Genetic Algorithm II) is the dominant algorithm for evolutionary multi-objective optimization. It combines two mechanisms:
+
+**Non-dominated sorting** partitions the population into fronts:
+
+- **Front 1** (Rank 1): all Pareto-optimal solutions (not dominated by any other)
+- **Front 2** (Rank 2): solutions dominated only by Front 1 members
+- **Front $k$**: solutions dominated only by members of Fronts 1 through $k-1$
+
+Selection prefers lower-ranked fronts (closer to the Pareto front).
+
+**Crowding distance** maintains diversity within each front. For a front of solutions sorted by each objective, the crowding distance of solution $i$ for objective $m$ is:
+
+$$
+I[i]_m = \frac{f_m[i+1] - f_m[i-1]}{f_m^\text{max} - f_m^\text{min}}
+$$
+
+The total crowding distance sums over all objectives: $I[i] = \sum_m I[i]_m$. Solutions with higher crowding distance are in sparser regions of the front and are preferred during selection, preventing the population from clustering at one point on the Pareto front.
+
+The NSGA-II selection rule: between two solutions, prefer the one with (a) lower rank, or (b) if same rank, higher crowding distance.
+
+**Why this matters for prompt optimization:** NSGA-II is the selection mechanism in EMO-Prompts, MOPO, and other evolutionary multi-objective prompt optimizers (@sec-multi-objective). It is the standard way to select which prompts survive to the next generation when you care about multiple objectives. The crowding distance mechanism explains why these methods maintain diverse Pareto fronts rather than converging to a single trade-off point.
+
+### MGDA: Multi-Objective Gradient Descent {#sec-math-mgda}
+
+When multiple objectives have conflicting gradients (the direction that improves one objective worsens another), standard gradient descent cannot satisfy all objectives simultaneously. The **Multiple Gradient Descent Algorithm (MGDA)** finds the best compromise direction.
+
+Given per-objective gradients $\mathbf{g}_1, \ldots, \mathbf{g}_m$ (one gradient per objective), MGDA solves:
+
+$$
+\mathbf{d}^* = \arg\min_{\mathbf{d}} \|\mathbf{d}\|^2 \quad \text{s.t.} \quad \mathbf{d} \in \text{conv}(\mathbf{g}_1, \ldots, \mathbf{g}_m)
+$$
+
+This finds the minimum-norm vector in the convex hull of the per-objective gradients. Geometrically, $\mathbf{d}^*$ is the shortest vector that can be written as a weighted average $\mathbf{d}^* = \sum_i \alpha_i \mathbf{g}_i$ with $\alpha_i \geq 0$ and $\sum_i \alpha_i = 1$. Moving in the direction $-\mathbf{d}^*$ improves all objectives simultaneously (or harms the least, when improvement of all is impossible).
+
+The gradient **cosine similarity** measures conflict between objectives:
+
+$$
+\cos(\varphi_{ij}) = \frac{\mathbf{g}_i \cdot \mathbf{g}_j}{\|\mathbf{g}_i\| \|\mathbf{g}_j\|}
+$$
+
+When $\cos(\varphi_{ij}) < 0$, the gradients point in opposing directions and the objectives actively interfere.
+
+**Why this matters for prompt optimization:** MORL-Prompt (@sec-multi-objective) uses MGDA as one of its three multi-objective reward aggregation strategies. The gradient conflict analysis (cosine similarity, magnitude imbalance, high curvature) in @sec-multi-objective explains why naive objective averaging causes "objective collapse." In the textual gradient setting, the analogous operation is synthesizing critiques from multiple objectives into a single improvement direction, and MGDA provides the formal framework for why this is hard.
+
+### Shapley Values {#sec-math-shapley}
+
+Shapley values come from cooperative game theory and provide a principled way to attribute a team's total payoff to individual members. Given a set of $N$ players and a value function $v(S)$ that assigns a "worth" to each subset (coalition) $S \subseteq N$, the Shapley value of player $i$ is:
+
+$$
+\phi_i(v) = \sum_{S \subseteq N \setminus \{i\}} \frac{|S|!(|N|-|S|-1)!}{|N|!} \cdot \left[v(S \cup \{i\}) - v(S)\right]
+$$ {#eq-shapley-formula}
+
+The term $v(S \cup \{i\}) - v(S)$ is the *marginal contribution* of player $i$ to coalition $S$: how much does the team's performance improve when $i$ joins? The Shapley value averages this marginal contribution over all possible orderings in which players could join the coalition.
+
+Shapley values satisfy four desirable axioms: efficiency (contributions sum to total value), symmetry (equal contributors get equal shares), linearity, and null player (a player contributing nothing gets zero).
+
+The computational challenge: exact computation requires evaluating $v$ for all $2^{|N|}$ subsets. This is exponential in the number of players.
+
+**Why this matters for prompt optimization:** HiveMind (@sec-applications) uses Shapley values to solve the credit assignment problem in multi-agent prompt optimization. When a 4-module pipeline misclassifies a ticket, which module's prompt is at fault? The Shapley value of each module measures its average marginal contribution to the system's performance. Modules with low Shapley values are identified as bottlenecks and receive targeted optimization budget. DAG-Shapley prunes non-viable coalitions by exploiting the pipeline's DAG structure, reducing the exponential cost to something practical.
+
+**Numerical example.** A 3-module pipeline: Retriever (R), Reasoner (E), Checker (C). System accuracy by coalition: $v(\emptyset) = 0$, $v(\{R\}) = 30\%$, $v(\{E\}) = 20\%$, $v(\{C\}) = 10\%$, $v(\{R,E\}) = 65\%$, $v(\{R,C\}) = 40\%$, $v(\{E,C\}) = 35\%$, $v(\{R,E,C\}) = 82\%$. Computing $\phi_R$: average marginal contributions of R across all orderings. In the ordering $(R, E, C)$: $R$ contributes $v(\{R\}) - v(\emptyset) = 30\%$. In $(E, R, C)$: $R$ contributes $v(\{R,E\}) - v(\{E\}) = 45\%$. Averaging over all 6 orderings gives $\phi_R \approx 35.3\%$, $\phi_E \approx 28.3\%$, $\phi_C \approx 18.3\%$. The Retriever contributes most; the Checker contributes least. Optimization budget should be allocated accordingly.
+
+### Bi-Level Optimization {#sec-math-bilevel}
+
+Bi-level optimization problems have a nested structure where the outer problem depends on the solution of an inner problem. The general form:
+
+$$
+\min_{x} \; F(x, y^*(x)) \quad \text{s.t.} \quad y^*(x) = \arg\min_y \; G(x, y)
+$$
+
+The outer objective $F$ depends on the outer variable $x$ and the inner solution $y^*$, which itself depends on $x$. The inner problem must be solved for each candidate $x$.
+
+**Why this matters for prompt optimization:** BLPO (@sec-applications) jointly optimizes a judge prompt (outer variable) and an image-to-text conversion prompt (inner variable). The optimal way to describe an image depends on what the judge is looking for, and the judge's effectiveness depends on receiving well-described images. This circular dependency is precisely the structure bi-level optimization captures. More generally, any setting where one prompt's optimality depends on another prompt's value (e.g., a retriever prompt and a reader prompt in RAG) has bi-level structure.

@@ -20,7 +20,7 @@ The question is: can we formalize this and automate the search?
 
 ### The Formal Problem
 
-In standard machine learning, we optimize a model's parameters $\theta \in \mathbb{R}^n$ by minimizing a differentiable loss function:
+In standard machine learning, we optimize a model's parameters $\theta \in \mathbb{R}^n$ by minimizing a differentiable loss function (see @sec-math-gd for a review of gradient descent and the chain rule):
 
 $$
 \theta^* = \arg\min_{\theta \in \mathbb{R}^n} \; \mathbb{E}_{(x,y) \sim \mathcal{D}} \left[ \mathcal{L}(f_\theta(x), y) \right]

@@ -4,7 +4,7 @@
 
 Let us return to Ava. She started this chapter with a 7B SQL model that was stuck at 55% accuracy on complex queries, unable to learn from its own mistakes. Through the ideas in this chapter, she now has a practical path to improving that model:
 
-1. **GRPO eliminates the critic bottleneck** (@sec-grpo-core). By sampling $G$ outputs per question and using the group's mean reward as a baseline, GRPO provides variance reduction comparable to PPO's learned value function while eliminating 50% of the GPU memory cost. The group-relative advantage naturally adjusts for question difficulty and requires no additional neural network to train.
+1. **GRPO eliminates the critic bottleneck** (@sec-grpo-core). By sampling $G$ outputs per question and using the group's mean reward as a baseline, GRPO provides variance reduction comparable to PPO's learned value function while cutting 50% of the GPU memory cost. The group-relative advantage naturally adjusts for question difficulty and requires no additional neural network to train.
 
 2. **Three biases, three fixes** (@sec-grpo-variants). Vanilla GRPO suffers from length bias (per-output normalization), difficulty bias (per-group std normalization), and entropy collapse (symmetric clipping). Dr. GRPO removes the first two with a one-line code change. DAPO addresses all three plus adds dynamic sampling and overlong reward shaping. REINFORCE++ uses batch-level normalization as an alternative.
 
@@ -38,7 +38,7 @@ Let us return to Ava. She started this chapter with a 7B SQL model that was stuc
 
 **Frameworks and tools:**
 
-- [TRL](https://huggingface.co/docs/trl): HuggingFace Transformers Reinforcement Learning — easiest starting point for GRPO training
+- [TRL](https://huggingface.co/docs/trl): HuggingFace Transformers Reinforcement Learning, the easiest starting point for GRPO training
 - [verl](https://github.com/volcengine/verl): High-performance RL framework from ByteDance (used for DAPO)
 - [Oat](https://github.com/sail-sg/oat): Modular research framework (used for Dr. GRPO)
 - [vLLM](https://github.com/vllm-project/vllm): High-throughput inference engine for efficient group sampling
