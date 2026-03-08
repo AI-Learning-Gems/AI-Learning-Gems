@@ -124,19 +124,50 @@ Vary sentence length deliberately. A paragraph of all-long sentences is exhausti
 
 ---
 
-## RULE 6: Paint a Picture With Precise Common Words
+## RULE 6: Two Writing Modes — Mathematical vs. Narrative
 
-The best technical explanations create a mental image. Prefer concrete, spatial, visual language over abstract hedging.
+Technical chapters alternate between two kinds of prose. Each has different rules for word choice and style.
 
-**Choose the precise common word.** Good writing finds the single word that makes the idea apparent. Prefer words that every English reader (including non-native speakers) understands conceptually: "substitution," "apparent," "overlap," "shortcut," "bottleneck." These are better than idioms ("get the ball rolling"), phrasal verbs ("pick up on"), or vague abstract nouns ("implications," "considerations").
+### 6a. Mathematical/Derivation Paragraphs
 
-| Abstract/Hedging | Concrete/Visual |
+When the content is heavy with equations, derivations, or formal definitions, **simplify the English radically**. Use 8th-to-10th-grade vocabulary. Do not mix complex math with complex English; the reader's cognitive load is already on the math.
+
+**Specifically:**
+- Use short, direct sentences: "This is X." "It means Y." "We plug in Z."
+- Avoid idioms, metaphors, and figurative language entirely.
+- Avoid vague hedging words like "pin down," "nail down," "tease apart." Replace with precise plain language: "estimate precisely," "determine," "separate."
+- State every claim fully and explicitly. If a formula produces three outputs, list all three. If a symbol has a special meaning, say so in plain words.
+- When a concept maps to something the reader already knows (e.g., "this is just logistic regression"), spell out the mapping explicitly: what is $\mathbf{w}$? What is $\mathbf{x}$? What is $y$? Show it in a table or a bullet list, not buried in prose.
+
+**BAD (complex English mixed with math):**
+> The variance-covariance matrix pins down how tightly the data constrain the parameter estimates, teasing apart the individual uncertainties from their joint structure.
+
+**GOOD (simple English, same content):**
+> The variance-covariance matrix tells you two things: how uncertain each parameter estimate is (the diagonal entries), and how the estimates are correlated with each other (the off-diagonal entries).
+
+### 6b. Narrative/Conceptual Paragraphs
+
+When the content is conceptual, motivational, or historical (no equations on screen), you have more freedom with word choice. Here, **precision comes from choosing exactly the right word**, not from formulas.
+
+**Specifically:**
+- Obsess over word choice. The right word conveys meaning that three weaker words cannot. Prefer "bottleneck" over "limiting factor in the pipeline," "brittle" over "not very robust."
+- Idioms and metaphors are fine *if* they are precise and well-placed. "A coin flip" for $P = 0.5$ is clear. "Opening a can of worms" is vague.
+- Connect to the real world. Concrete examples from domains the reader knows (chess ratings, Tinder, coffee taste tests) help abstract concepts land.
+- Use **bold** sparingly (once or twice per section) to mark the single most important takeaway in a passage.
+- Use *italics* for technical terms on first introduction, and for gentle emphasis within a sentence.
+- If a point is truly critical (the one thing a reader must not miss), put it in its own callout block or a blockquote. Do not bury it in a long paragraph.
+
+### 6c. No Marketing Language
+
+In both modes, remove promotional or salesy phrasing. Let the content speak for itself.
+
+| Marketing Language | Plain Alternative |
 |---|---|
-| "The information is propagated through the network" | "The signal flows forward through the network, layer by layer" |
-| "This has implications for feature extraction" | "This means you can tap into any ViT layer for features, early or late, and get useful representations" |
-| "The model leverages the representations" | "The model reads these features and uses them to..." |
-| "The approach has several considerations" | "The approach has two costs: higher memory and slower training" |
-| "It utilizes a mechanism that facilitates..." | "It uses a mechanism that helps..." |
+| "for free" / "you get X for free" | "X is included" / "X comes from the same procedure" |
+| "enormously useful" | "useful" (or just show why) |
+| "elegant and powerful" | (describe what it does; the reader decides if it's elegant) |
+| "per annotation dollar" | "per comparison" |
+| "one of the most thoroughly engineered" | (just say what it provides) |
 
 ---
 
@@ -221,6 +252,25 @@ Standard English transitions ("However," "Therefore," "In contrast," "For exampl
 
 Use the **same word for the same concept** throughout. Do not alternate synonyms for variety. If you introduced something as "the encoder," do not later call it "the model," "the network," "the architecture," and "the system" within the same section. Pick one and stick with it.
 
+### 7f. Vocabulary as a mapping, not a synonym list
+
+When a concept from one domain (e.g., preference modeling) maps onto a well-known concept from another domain (e.g., logistic regression), **state the mapping explicitly as a table or bullet list**, then define which term you will use going forward.
+
+**BAD (terms rotate without a declared mapping):**
+> The solver returns the fitted parameters. The fitting procedure produces coefficients. The logistic regression model gives estimated values.
+
+**GOOD (mapping stated once, then one term used throughout):**
+> Every BT concept maps to a logistic regression counterpart:
+>
+> | BT concept | Logistic regression counterpart |
+> |---|---|
+> | Log-abilities $\lambda_i$ | Trained weights $\mathbf{w}$ |
+> | ... | ... |
+>
+> For the rest of this chapter, we say "trained weights" for the $\hat{\lambda}$ values.
+
+After declaring the mapping, use **only the chosen term** for that concept. Mention alternative names once (in the mapping table or in parentheses) and never again.
+
 ---
 
 ## RULE 8: Preserve Good Pacing and Structure
@@ -236,7 +286,7 @@ This editing pass should ONLY improve prose — never flatten good instructional
 - Transitions between sections ("Now that we understand X, the next question is Y")
 - Running example callbacks ("Returning to our visual search engine...")
 - Advance organizers and concept maps
-- Math Background appendix (`_98-math-background.qmd`) — edit prose inside it, but preserve all formulas, cross-references, and the subsection structure. The same editing rules (Rules 1-11) apply to Math Background prose.
+- Math Background appendix (`_98-math-background.qmd`) — edit prose inside it, but preserve all formulas, cross-references, and the subsection structure. The same editing rules (Rules 1-14) apply to Math Background prose.
 
 **DO NOT merge** short paragraphs into long ones just to reduce paragraph count. Short paragraphs that each contain one idea are correct.
 
@@ -309,6 +359,60 @@ Subsequent mentions in the same section can use just the short name without re-c
 
 ---
 
+## RULE 12: Precision and Explicitness
+
+Every formula, output, and claim must be fully explicit. The reader should never have to infer an unstated step or guess what a symbol means.
+
+**12a. State all outputs.** If a procedure returns three things, list all three with names and definitions. Do not say "it returns the parameters and other useful quantities." Say what those quantities are.
+
+**12b. Show both directions.** If $P(i \succ j) = \sigma(\lambda_i - \lambda_j)$, also state $P(j \succ i) = 1 - \sigma(\lambda_i - \lambda_j) = \sigma(\lambda_j - \lambda_i)$. If the encoding uses $y=1$ for "$i$ beats $j$," also state that $y=0$ means "$j$ beats $i$."
+
+**12c. Trace numbers to their source.** If you state "66.6%", show where it came from: "$1 - 0.334 = 0.666$, or 66.6%." If you reference a standard error, say where in the output it appears. Never introduce a number without showing the computation or the table row it came from.
+
+**12d. Use symbols people already know.** When mapping to logistic regression, use $\mathbf{w}$ for weights and $\mathbf{x}$ for inputs (not novel letters). When mapping to a Python API, reference the actual object name (e.g., "`results` object" not "the output").
+
+**12e. State symbol domains inline.** When introducing or reusing a mathematical symbol, briefly annotate its domain/shape as inline math: $\mathbf{w} \in \mathbb{R}^d$, $\mathbf{x} \in \mathbb{R}^d$, $\theta_i \in (0, \infty)$. This takes only a few characters but immediately tells the reader the structure of each object (is it a scalar? a vector? what dimension?). At the start of a subsection that reuses symbols from earlier, restate the domains in a short phrase (e.g., "where $\mathbf{w} \in \mathbb{R}^C$ is the weight vector") so the reader does not have to scroll back. Do not dedicate a full sentence to this; weave it into the formula introduction.
+
+---
+
+## RULE 13: Recipe Summaries and Reader Orientation
+
+**13a. Recipe-style summaries.** After a complex derivation or multi-step procedure, add a **self-contained summary paragraph** that gives the reader the complete "recipe" in one place. This paragraph should be understandable on its own, without reading the derivation. A reader who skipped the derivation and only read this paragraph should be able to implement the procedure.
+
+**Example:**
+> That is the entire BT model. Train a logistic regression (with no intercept), with the comparison $i \succ j$ encoded as a $+1/-1/0$ input vector and label $y=1$. Predict $P(i \succ j) = \sigma(\lambda_i - \lambda_j)$.
+
+Place recipe summaries after deriving a model or loss function, after explaining a multi-step procedure, or at the end of a subsection that introduced a new method.
+
+**13b. "So far / Now / Why" orientation.** At major transitions (between subsections, between derivation and example, between theory and practice), use a **brief orientation sentence** that tells the reader: (1) what they have seen so far, (2) what comes next, and (3) why. This is especially important when the section switches from example → theory, from theory → code, or from individual results → comparative analysis.
+
+**BAD (abrupt transition):**
+> ### Maximum Likelihood Estimation
+> We observe pairwise comparison data...
+
+**GOOD (oriented transition):**
+> So far, we have seen the output of training. Now we need to understand **how** the weights are trained, i.e. what objective function is being maximized. That is the subject of the next two subsections.
+>
+> ### Maximum Likelihood Estimation
+
+---
+
+## RULE 14: Dense Content Formatting
+
+When a paragraph contains three or more parallel items (results, conditions, outputs, properties), convert it to a **bullet list** or **table** rather than writing it as continuous prose. Dense inline numbers are hard to scan.
+
+**BAD (dense inline):**
+> Check the constraint: $0.493 + 0.099 + (-0.592) = 0$. It holds. Clarity and Sonus are both above average (positive $\hat{\lambda}$); Brio is below average (negative $\hat{\lambda}$). On the original $\theta$ scale, Clarity is about 3 times stronger than Brio.
+
+**GOOD (bullet list for parallel items):**
+> - Checking the constraint: $0.493 + 0.099 + (-0.592) = 0$. It holds.
+> - Clarity and Sonus are both above average (positive $\hat{\lambda}$); Brio is below average (negative $\hat{\lambda}$).
+> - On the $\theta$ scale, Clarity is about 3 times stronger than Brio ($1.64 / 0.55 \approx 2.96$).
+
+Similarly, use tables instead of inline bullet-point numbers when presenting parameter estimates, predicted probabilities, or comparison results.
+
+---
+
 === THE EDITING WORKFLOW ===
 
 **CRITICAL: Do NOT ask the user for confirmation at any step. Execute the entire workflow autonomously.**
@@ -328,19 +432,22 @@ Subsequent mentions in the same section can use just the short name without re-c
 For each section file:
 
 1. **Read the entire file**
-2. **Scan for violations** of Rules 1-11 above
+2. **Scan for violations** of Rules 1-14 above
 3. **Edit paragraph by paragraph:**
    - Apply Rule 1 (one idea per paragraph) — split where needed
    - Apply Rule 2 (no clause chains) — break long sentences
    - Apply Rule 3 (examples get space) — un-bury inline examples
    - Apply Rule 4 (subject-verb proximity) — restructure front-loaded sentences
    - Apply Rule 5 (sentence length variation) — mix short/medium/long
-   - Apply Rule 6 (concrete language) — replace abstract hedging with vivid language
+   - Apply Rule 6 (writing modes) — simplify English in math paragraphs, sharpen word choice in narrative paragraphs
    - Apply Rule 7 (AI tells) — fix em dash overuse, replace banned words, delete filler
    - Apply Rule 8 (preserve pacing) — do NOT compress good structure
    - Apply Rule 9 (tone) — ensure conversational but calibrated
    - Apply Rule 10 (terminology) — ensure consistency
    - Apply Rule 11 (inline citations) — ensure every named work has a linked citation on first mention
+   - Apply Rule 12 (precision) — ensure all outputs, directions, and number sources are explicit
+   - Apply Rule 13 (recipe summaries and orientation) — add self-contained summaries after complex procedures; add "so far / now / why" at major transitions
+   - Apply Rule 14 (dense content formatting) — convert dense inline lists to bullets or tables
 4. **Write the edited file**
 5. Chat: "Edited `[filename]`"
 
@@ -357,7 +464,8 @@ After all sections are edited:
 3. **Check transition quality:** Each section's closing paragraph should connect to the next section's topic
 4. **Check inline citations:** Ensure every named work has a linked citation on first mention per section (Rule 11). Cross-check against the source table at the top of each section.
 5. **Check Math Background references:** If the chapter has a `_98-math-background.qmd` appendix, verify that body sections contain `(see @sec-math-background ...)` forward-references at the first mention of each prerequisite concept covered in the appendix.
-6. Chat: "Consistency pass complete"
+6. **Check writing mode consistency:** In mathematical/derivation paragraphs, verify English is simple and explicit (Rule 6a). In narrative paragraphs, verify word choice is precise and real-world examples are concrete (Rule 6b).
+7. Chat: "Consistency pass complete"
 
 ---
 
@@ -405,6 +513,26 @@ Before marking the editing pass as complete, verify:
 - [ ] All callout boxes preserved (type and title unchanged)
 - [ ] Instructional pacing and structure preserved
 - [ ] Factual content unchanged
+
+**Precision and Explicitness (Rule 12):**
+- [ ] All procedure outputs are explicitly listed and named
+- [ ] Both directions of symmetric relationships are stated
+- [ ] Every number can be traced to a computation or table row
+- [ ] Mappings to known frameworks use standard notation ($\mathbf{w}$, $\mathbf{x}$, etc.)
+- [ ] Symbol domains/shapes are annotated inline ($\mathbf{w} \in \mathbb{R}^d$) and restated briefly at the start of subsections that reuse them
+
+**Structure and Formatting (Rules 13-14):**
+- [ ] Complex procedures end with a self-contained recipe summary
+- [ ] Major transitions have "so far / now / why" orientation sentences
+- [ ] Passages with 3+ parallel items use bullet lists or tables, not dense prose
+- [ ] Bold used sparingly (1-2 per section) for critical takeaways
+- [ ] Italics used for technical terms on first introduction
+
+**Writing Mode (Rule 6):**
+- [ ] Mathematical paragraphs use simple (8th-10th grade) English vocabulary
+- [ ] Narrative paragraphs use precise, carefully chosen words
+- [ ] No marketing language ("for free," "enormously useful," "elegant and powerful")
+- [ ] No vague hedging in math context ("pin down," "tease apart," "nail down")
 
 **Inline Citations (Rule 11):**
 - [ ] Every named paper/method/framework has a linked citation on first mention per section
