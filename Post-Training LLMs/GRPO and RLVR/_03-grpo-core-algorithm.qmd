@@ -37,7 +37,7 @@ $$
 
 So the four correct outputs ($r_i = 1$) each get advantage $(1 - 0.5) / 0.535 = +0.935$, and the four incorrect outputs ($r_i = 0$) each get advantage $(0 - 0.5) / 0.535 = -0.935$. The model is pushed to reinforce the token patterns that led to correct SQL (the proper joins, the correct column selections) and to penalize the patterns that led to failures (missing joins, wrong table references). No critic model needed. The group itself provides the baseline.
 
-This is the **group-relative advantage** that gives GRPO its name. Notice how naturally it handles question difficulty. For an easy question where all 8 outputs are correct ($\mathbf{r} = \{1, 1, 1, 1, 1, 1, 1, 1\}$), the mean is 1 and the standard deviation is 0; all advantages are zero, and the model receives no gradient for this question. This makes sense: if the model already solves this question perfectly, there is nothing to learn. Conversely, for a very hard question where all outputs fail ($\mathbf{r} = \{0, 0, 0, 0, 0, 0, 0, 0\}$), the advantages are again all zero. The model cannot learn when it has no successes to reinforce.
+The resulting quantity is the **group-relative advantage** that gives GRPO its name. Notice how naturally it handles question difficulty. For an easy question where all 8 outputs are correct ($\mathbf{r} = \{1, 1, 1, 1, 1, 1, 1, 1\}$), the mean is 1 and the standard deviation is 0; all advantages are zero, and the model receives no gradient for this question. The zero gradient makes sense: if the model already solves this question perfectly, there is nothing to learn. Conversely, for a very hard question where all outputs fail ($\mathbf{r} = \{0, 0, 0, 0, 0, 0, 0, 0\}$), the advantages are again all zero. The model cannot learn when it has no successes to reinforce.
 
 ::: {.callout-note title="Think Hard: GRPO removes the critic but introduces a new cost: generating G outputs per prompt. Under what conditions is this trade-off favorable?"}
 The trade-off hinges on inference cost versus training cost. Generating $G$ outputs per prompt requires $G$ forward passes through the policy model during the *sampling* phase, which is compute-intensive but memory-light (only one model in memory at a time, used in inference mode). Training the critic in PPO requires a second model in memory *during the training phase*, which is memory-intensive. On modern GPU clusters, generating more outputs is relatively cheap because inference can be parallelized across many GPUs with frameworks like vLLM. Training a second 7B model is much harder to parallelize and requires dedicated GPU memory. The trade-off favors GRPO when: (1) the model is large (so the critic's memory cost is significant), (2) inference infrastructure is available (vLLM, SGLang), and (3) the reward is sparse (only at the end), making the critic's per-token advantage estimates unreliable anyway. In DeepSeekMath's experiments, $G = 64$ outputs per prompt achieved strong results, and the total training cost was substantially lower than PPO because the memory savings allowed larger batch sizes and fewer GPU nodes.
@@ -51,7 +51,7 @@ $$
 \mathcal{J}_{GRPO}(\theta) = \mathbb{E}_{q \sim P(Q), \; \{o_i\}_{i=1}^G \sim \pi_{\theta_{old}}(\cdot \mid q)} \left[ \frac{1}{G}\sum_{i=1}^G\frac{1}{|o_i|} \sum_{t=1}^{|o_i|} \left\{ \min \left[ r_{i,t}(\theta) \hat{A}_{i,t}, \; \text{clip}(r_{i,t}(\theta), 1-\epsilon, 1+\epsilon) \hat{A}_{i,t} \right] - \beta D_{KL}[\pi_\theta \| \pi_{ref}] \right\} \right]
 $$ {#eq-grpo-objective}
 
-This looks dense, so let us unpack each piece:
+The objective looks dense, so let us unpack each piece:
 
 1. **Group sampling**: $\{o_i\}_{i=1}^G \sim \pi_{\theta_{old}}(\cdot \mid q)$ generates $G$ outputs for each question $q$ using the old policy (a snapshot of the model from the previous iteration).
 
@@ -61,15 +61,17 @@ This looks dense, so let us unpack each piece:
 
 4. **Clipping**: $\text{clip}(r_{i,t}, 1-\epsilon, 1+\epsilon)$ constrains the importance ratio, preventing excessively large policy updates. The $\min$ with the clipped version creates a pessimistic bound, just as in PPO.
 
-5. **Per-output normalization**: $\frac{1}{|o_i|}$ divides by the length of each output. This means longer outputs contribute less gradient per token than shorter ones. (We will see in @sec-grpo-variants that this introduces a bias that later variants fix.)
+5. **Per-output normalization**: $\frac{1}{|o_i|}$ divides by the length of each output. The normalization means longer outputs contribute less gradient per token than shorter ones. (We will see in @sec-grpo-variants that this division introduces a bias that later variants fix.)
 
-6. **KL regularization**: $\beta D_{KL}[\pi_\theta \| \pi_{ref}]$ penalizes the policy for deviating from the reference model (see @sec-math-kl-divergence for the definition and properties of KL divergence), using an unbiased KL estimator:
+6. **KL regularization**: $\beta D_{KL}[\pi_\theta \| \pi_{ref}]$ penalizes the policy for deviating from the reference model (see @sec-math-kl-divergence for the definition and properties of KL divergence), using an unbiased estimator:
 
 $$
 D_{KL}[\pi_\theta \| \pi_{ref}] = \frac{\pi_{ref}(o_{i,t} \mid q, o_{i,<t})}{\pi_\theta(o_{i,t} \mid q, o_{i,<t})} - \log \frac{\pi_{ref}(o_{i,t} \mid q, o_{i,<t})}{\pi_\theta(o_{i,t} \mid q, o_{i,<t})} - 1
 $$ {#eq-kl-estimator}
 
-This KL estimator (from Schulman, 2020) is guaranteed to be non-negative. Unlike PPO, which adds the KL penalty inside the reward signal, GRPO adds it directly to the loss. This separation keeps the advantage calculation clean: $\hat{A}_{i,t}$ reflects only the task reward, not the KL penalty.
+This KL estimator (from [Schulman, 2020](http://joschu.net/blog/kl-approx.html)) is guaranteed to be non-negative. Unlike PPO, which adds the KL penalty inside the reward signal, GRPO adds it directly to the loss. The direct-to-loss placement keeps the advantage calculation clean: $\hat{A}_{i,t}$ reflects only the task reward, not the KL penalty.
+
+To summarize the GRPO objective: sample a group of outputs, score them, compute each output's advantage relative to the group mean, then update the policy using a clipped surrogate loss with a KL penalty. The group replaces the critic; the clipping and KL penalty provide the same stability guarantees as PPO.
 
 ![Comparison of the PPO and GRPO training pipelines. PPO requires a policy model, a value model (critic), a reference model, and a reward model. GRPO eliminates the value model by using group-relative advantages. Source: Shao et al. (2024).](GRPO and RLVR/images/ppo-vs-grpo.png){#fig-ppo-vs-grpo}
 
@@ -79,7 +81,7 @@ GRPO supports two reward regimes that give the optimizer different granularity o
 
 **Outcome supervision** assigns a single reward $r_i$ at the end of each output $o_i$. All tokens in the output share the same advantage: $\hat{A}_{i,t} = \tilde{r}_i$ for all $t$. This is the simpler and more common setting. For Ava's SQL task, the output is either correct or incorrect as a whole, so outcome supervision is natural.
 
-**Process supervision** assigns rewards at intermediate steps within the output. If the model structures its reasoning into steps (separated by, say, newline characters), a process reward model can score each step independently. The advantage at token $t$ becomes the sum of normalized rewards from all subsequent steps. This provides finer-grained credit assignment: early steps that set up the correct approach receive more credit than final steps that simply format the output.
+**Process supervision** assigns rewards at intermediate steps within the output. If the model structures its reasoning into steps (separated by, say, newline characters), a process reward model can score each step independently. The advantage at token $t$ then becomes the sum of normalized rewards from all subsequent steps. Step-level scoring provides finer-grained credit assignment: early steps that set up the correct approach receive more credit than final steps that simply format the output.
 
 DeepSeekMath found that GRPO with process supervision (GRPO+PS) outperformed GRPO with outcome supervision (GRPO+OS) on mathematical reasoning tasks, confirming the value of step-level feedback when it is available.
 
@@ -103,7 +105,7 @@ $$
 \frac{G}{G-1} \cdot \tilde{A}_{i,t} = \hat{A}^{RLOO}_{i,t}
 $$ {#eq-rloo-connection}
 
-Since the scaling factor $G/(G-1)$ can be absorbed into the learning rate without affecting optimization dynamics, GRPO's group-relative baseline (without std normalization) is equivalent to the RLOO baseline. This is significant because RLOO is a well-studied, provably unbiased variance reduction technique from the statistics literature. GRPO did not invent a new estimator; it rediscovered an effective one in the context of LLM training.
+Since the scaling factor $G/(G-1)$ can be absorbed into the learning rate without affecting optimization dynamics, GRPO's group-relative baseline (without std normalization) is equivalent to the RLOO baseline. This equivalence is significant because RLOO is a well-studied, provably unbiased variance reduction technique from the statistics literature. GRPO did not invent a new estimator; it rediscovered an effective one in the context of LLM training.
 
 ### The Unified Paradigm: SFT, RFT, DPO, PPO, GRPO
 
@@ -124,7 +126,7 @@ The three key components that distinguish each method are:
 | PPO | $o \sim \pi_\theta$ (real-time) | Learned model | Critic advantage |
 | GRPO | $\{o_i\}_{i=1}^G \sim \pi_\theta$ (groups) | Learned model | Group-relative advantage |
 
-This table reveals the key insight: GRPO differs from Online RFT in that it adjusts the gradient coefficient based on the *magnitude* of the reward, not just its sign. Online RFT uniformly reinforces all correct responses at the same intensity and ignores incorrect ones. GRPO reinforces *above-average* responses more strongly and actively *penalizes* below-average ones. This gradient-coefficient modulation is why GRPO outperforms Online RFT in DeepSeekMath's experiments.
+The table reveals the key insight: GRPO differs from Online RFT in that it adjusts the gradient coefficient based on the *magnitude* of the reward, not just its sign. Online RFT uniformly reinforces all correct responses at the same intensity and ignores incorrect ones. GRPO reinforces *above-average* responses more strongly and actively *penalizes* below-average ones. This gradient-coefficient modulation is why GRPO outperforms Online RFT in DeepSeekMath's experiments.
 
 ::: {.callout-tip title="Self-Explanation Prompt"}
 When would process supervision be preferred over outcome supervision? Think about a task where the intermediate steps matter as much as the final answer. Now think about a task where only the final answer matters (and intermediate steps are just a means to get there). Which one benefits more from process supervision?
@@ -143,7 +145,7 @@ The practical advantage of GRPO becomes clear when you compare the resource requ
 | Reward utilization | Per-token (via critic) | Per-output (uniform advantage) |
 | Math benchmark (MATH) | 51.7% (DeepSeekMath-RL) | 51.7% (DeepSeekMath-RL) |
 
-The memory reduction from removing the critic is approximately 50%, which enables training larger models on the same hardware, or using larger batch sizes (which reduces gradient variance further). The sampling cost increases by a factor of $G$, but inference is highly parallelizable with modern frameworks like vLLM, and the additional outputs provide better gradient estimates.
+Removing the critic reduces memory by approximately 50%. This reduction lets practitioners train larger models on the same hardware, or use larger batch sizes (which reduces gradient variance further). The sampling cost increases by a factor of $G$, but inference is highly parallelizable with modern frameworks like vLLM, and the additional outputs provide better gradient estimates.
 
 For Ava, the choice is clear. With GRPO, she can train her 7B model on a single node with 4 A100 GPUs. With PPO, she would need 8 GPUs or more, and the critic would be difficult to train effectively on her sparse SQL execution rewards.
 

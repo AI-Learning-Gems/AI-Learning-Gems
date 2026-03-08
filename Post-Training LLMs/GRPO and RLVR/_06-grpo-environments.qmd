@@ -11,11 +11,11 @@
 
 :::
 
-Ava now understands the theory behind GRPO and RLVR. But theory alone does not produce a working model. She needs to translate the algorithms into a running training pipeline: choose a framework, configure the reward environment, set hyperparameters, and monitor training. This section provides the practical engineering guide.
+Ava now understands the theory behind GRPO and RLVR. But theory alone does not produce a working model. She needs to translate the algorithms into a running training pipeline: choose a framework, configure the reward environment, set hyperparameters, and monitor training. This section provides that practical engineering guide.
 
 ### The Four Components of a GRPO Pipeline
 
-Every GRPO training setup has four core components. Understanding their interactions is essential for debugging and tuning.
+Every GRPO training setup has four core components. You need to understand how they interact to debug and tune effectively.
 
 **1. The inference engine (sampling).** GRPO requires generating $G$ outputs per prompt, which means the sampling phase dominates training time. Efficient inference is critical. The three leading options are:
 
@@ -25,7 +25,7 @@ Every GRPO training setup has four core components. Understanding their interact
 
 **2. The reward environment (verification).** For RLVR, this is the verifier. For SQL, it is a database execution sandbox. For code, a Docker container running test cases. For math, a symbolic equivalence checker. The reward environment must be deterministic, fast, and isolated (so model-generated code cannot corrupt the training server).
 
-**3. The training engine (optimization).** The framework that computes the GRPO loss and performs gradient updates. The leading options are:
+**3. The training engine (optimization).** The framework that computes the GRPO loss and performs gradient updates. The four leading options are:
 
 - **TRL (Transformers Reinforcement Learning)**: Part of the HuggingFace ecosystem. Easy to configure, integrates with transformers models. Supports GRPO and its variants natively.
 - **verl (Volcano Engine RL)**: High-performance framework from ByteDance. Used in DAPO's production training. Supports advanced features like pipeline scheduling between sampling and training.
@@ -50,11 +50,11 @@ The following table summarizes the key hyperparameters with recommended ranges, 
 | Batch size (prompts) | $B$ | 1024 | 128 | 256 | 128 |
 | PPO epochs per batch | $\mu$ | 1 | 1 | 1 | 1 |
 
-**Group size ($G$)** is the most impactful hyperparameter. Larger $G$ provides better baseline estimates (lower variance) but increases sampling cost linearly. DeepSeekMath used $G = 64$ because they had massive compute; for most practitioners, $G = 16$ is a good balance. If your reward is binary (0/1) and success rate is around 50%, $G = 16$ gives you enough samples to have meaningful variance in the advantages.
+**Group size ($G$)** is the most impactful hyperparameter. A larger $G$ gives better baseline estimates (lower variance) but increases sampling cost linearly. DeepSeekMath used $G = 64$ because they had massive compute; for most practitioners, $G = 16$ is a good balance. If your reward is binary (0/1) and the success rate is around 50%, $G = 16$ gives you enough samples to produce meaningful variance in the advantages.
 
-**Learning rate** should be small. GRPO updates are noisy (no critic to smooth them), and large learning rates cause the policy to oscillate. Start with 1e-6 and increase cautiously. If training reward plateaus early, the learning rate may be too high; the model is overshooting optimal policies.
+**Learning rate** should be small. GRPO updates are noisy (no critic to smooth them), and large learning rates cause the policy to oscillate. Start with 1e-6 and increase cautiously. If training reward plateaus early, the learning rate may be too high: the model is overshooting optimal policies.
 
-**KL coefficient ($\beta$)**: For pure RLVR with verifiable rewards, set $\beta = 0$ (or very small, like 0.01). KL regularization is primarily needed to prevent reward model exploitation in RLHF. In RLVR, the verifier cannot be exploited, so KL constraint mainly preserves general capabilities. If you want a specialized model (SQL-only), drop it. If you want to maintain broad capabilities alongside the specific skill, keep a small $\beta$.
+**KL coefficient ($\beta$)**: For pure RLVR with verifiable rewards, set $\beta = 0$ (or very small, like 0.01). KL regularization primarily prevents reward model exploitation in RLHF. In RLVR, the verifier cannot be exploited, so the KL term mainly preserves general capabilities. If you want a specialized model (SQL-only), drop it. If you want to maintain broad capabilities alongside the specific skill, keep a small $\beta$.
 
 ### Monitoring Training: What to Watch
 
@@ -75,7 +75,7 @@ Ava sets up three dashboards for her GRPO training run. Each tracks metrics that
 **Dashboard 3: Evaluation metrics.**
 
 - **Task accuracy on held-out test set**: The ultimate measure of success. Evaluate every 500-1000 steps.
-- **Pass@k accuracy**: Sample $k$ outputs per test question and report whether *any* are correct. This measures the model's exploration capability, not just its greedy output quality.
+- **Pass@k accuracy**: Sample $k$ outputs per test question and report whether *any* are correct. This metric measures the model's exploration capability, not just its greedy output quality.
 - **Format compliance rate**: What fraction of outputs are in the correct format (valid SQL, parseable JSON, etc.)? This should reach 95%+ early in training.
 
 ::: {.callout-tip title="Self-Explanation Prompt"}
