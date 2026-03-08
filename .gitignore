@@ -9,6 +9,7 @@ _site/
 # Local HTML preview files (should not be committed)
 **/*_files/
 **/*.html
+!_extensions/**/*.html
 
 # IDE / Editor
 .obsidian/

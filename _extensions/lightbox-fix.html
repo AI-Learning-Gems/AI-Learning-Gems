@@ -1,0 +1,25 @@
+<script>
+// Fix mediabag lightbox href mismatch.
+// Quarto's lightbox filter sets <a href="hash.svg"> but Pandoc resolves the
+// <img src> to "_files/mediabag/hash.svg". GLightbox uses the href to load
+// the popup image, causing a 404. We fix all mismatched hrefs then
+// reinitialize GLightbox so it picks up the corrected paths.
+(function () {
+  var anchors = document.querySelectorAll("a.lightbox");
+  var fixed = false;
+  anchors.forEach(function (a) {
+    var img = a.querySelector("img");
+    if (!img) return;
+    var src = img.getAttribute("src");
+    var href = a.getAttribute("href");
+    if (src && href && src !== href) {
+      a.setAttribute("href", src);
+      fixed = true;
+    }
+  });
+  if (fixed && typeof lightboxQuarto !== "undefined") {
+    lightboxQuarto.destroy();
+    lightboxQuarto = GLightbox(lightboxQuarto.settings);
+  }
+})();
+</script>

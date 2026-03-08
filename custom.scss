@@ -1,3 +1,11 @@
 /*-- scss:defaults --*/
 $font-weight-base: 500;
 $font-size-root: 1.1rem;
+
+/*-- scss:rules --*/
+.glightbox-container .gslide-image img {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 10px;
+  background: #fff;
+}

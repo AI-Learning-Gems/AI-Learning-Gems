@@ -634,14 +634,14 @@ local function code_to_figure (conf)
     local image = pandoc.Image(dgr_opt.alt, fname, "", dgr_opt['image-attr'])
 
     -- Create a figure if the diagram has a caption; otherwise return
-    -- just the image.
+    -- just the image in a paragraph so Quarto lightbox can detect it.
     return dgr_opt.caption and
       pandoc.Figure(
         pandoc.Plain{image},
         dgr_opt.caption,
         dgr_opt['fig-attr']
       ) or
-      pandoc.Plain{image}
+      pandoc.Para{image}
   end
 end
 

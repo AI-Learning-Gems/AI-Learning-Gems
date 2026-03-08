@@ -35,9 +35,11 @@ format:
     code-fold: true
     code-summary: "Show code"
     html-math-method: mathjax
+    lightbox: auto
     include-after-body:
       - _extensions/chatbot/include-after.html
       - _extensions/chatbot/assets/chat-script-loader.html
+      - _extensions/lightbox-fix.html
     css: _extensions/chatbot/assets/chat.css
     out-width: "95%"
 

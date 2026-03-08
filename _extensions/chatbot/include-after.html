@@ -1,0 +1,44 @@
+<!-- Chat Interface Container -->
+<div id="gemini-chat-container">
+  <!-- Chat Sidebar (starts hidden; JS calls closeSidebar() on init) -->
+  <div id="gemini-chat-sidebar" class="hidden">
+    <div class="chat-header">
+      <span class="chat-title">AI Assistant</span>
+      <div class="model-selector">
+        <select id="chat-model-select" aria-label="Select AI Model">
+          <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (Free)</option>
+          <option value="z-ai/glm-4.5-air:free">GLM 4.5 Air (Free)</option>
+          <option value="qwen/qwen3-next-80b-a3b-instruct:free">Qwen 3 Next 80B (Free)</option>
+        </select>
+      </div>
+      <button id="close-chat-btn" aria-label="Close Chat"></button>
+    </div>
+    
+    <div id="chat-messages" class="chat-messages">
+      <div class="message system">
+        Select any text on the page and ask a question, or just start typing below.
+      </div>
+    </div>
+
+    <div class="chat-input-area">
+      <div id="current-selection-indicator" class="hidden">
+        <span class="selection-preview"></span>
+        <button id="clear-selection-btn" aria-label="Clear selection">&times;</button>
+      </div>
+      <div class="chat-input-wrapper">
+        <textarea id="chat-input" placeholder="Ask about this page..." rows="2"></textarea>
+        <button id="send-btn" disabled aria-label="Send message"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Action Button -->
+  <button id="gemini-chat-fab" aria-label="Open AI Chat" data-tooltip="Chat with AI">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+    </svg>
+  </button>
+
+  <!-- Selection Popup Button -->
+  <button id="ask-ai-btn">Ask AI</button>
+</div>
