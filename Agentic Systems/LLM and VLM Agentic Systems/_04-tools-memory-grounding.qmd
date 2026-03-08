@@ -15,7 +15,7 @@
 
 ### Priya Needs Hands and a Brain
 
-Priya's research assistant can now reason and act in an interleaved loop (ReAct), explore multiple solution paths (Tree of Thoughts), and learn from its own failures (Reflexion). But it still has three crippling limitations.
+Priya's research assistant can now reason and act in an interleaved loop ([ReAct](https://arxiv.org/abs/2210.03629)), explore multiple solution paths ([Tree of Thoughts](https://arxiv.org/abs/2305.10601)), and learn from its own failures ([Reflexion](https://arxiv.org/abs/2303.11366)). But it still has three crippling limitations.
 
 First, it cannot *do* anything beyond generating text. When it decides "I should search Semantic Scholar for recent RAG papers," it generates a thought about searching, not an actual search. Priya has to manually copy the query, paste it into the API, and feed the results back. The agent reasons well but acts only in her imagination.
 
@@ -31,7 +31,7 @@ The most straightforward way to give an LLM tools is *prompting*: describe the a
 
 But it raises a deep question: why should a *language model* know how to use tools at all? Tool use was not in the pretraining data (or at least, not in a directly usable form). How do we teach it?
 
-[Toolformer](https://arxiv.org/abs/2302.04761) ([Schick et al., NeurIPS 2023](https://arxiv.org/abs/2302.04761)) provides the most elegant answer. The key insight is that an LLM can teach *itself* to use tools through self-supervised learning, without human demonstrations. The method works in three steps.
+Toolformer ([Schick et al., NeurIPS 2023](https://arxiv.org/abs/2302.04761)) provides a satisfying answer. The key insight is that an LLM can teach *itself* to use tools through self-supervised learning, without human demonstrations. The method works in three steps.
 
 **Step 1: Generate candidate API calls.** Given a text dataset, use the LLM with few-shot prompting to annotate each passage with potential API calls. For example, given the text "The Eiffel Tower was completed in 1889," the model might insert a candidate call: "The Eiffel Tower was completed in [QA("When was the Eiffel Tower completed?")] 1889."
 
@@ -53,20 +53,20 @@ Toolformer's results are impressive for a 6.7B parameter model. Using five tools
 
 Prompt-based function calling (the approach used by ChatGPT, Claude, and most commercial systems) works by describing tools in the system prompt and relying on the model's in-context learning ability to generate correct calls. This approach is flexible and requires no fine-tuning, but it has three limitations.
 
-First, every tool description consumes context window tokens. With 5 tools, this is fine. With 500 tools (as in enterprise applications), the tool descriptions alone might consume thousands of tokens, leaving less room for the actual task. [Gorilla](https://arxiv.org/abs/2305.15334) ([Patil et al., 2023](https://arxiv.org/abs/2305.15334)) addresses this by retrieving relevant tool descriptions at inference time, but retrieval-based routing adds complexity.
+First, every tool description consumes context window tokens. With 5 tools, this is fine. With 500 tools (as in enterprise applications), the tool descriptions alone might consume thousands of tokens, leaving less room for the actual task. Gorilla ([Patil et al., arXiv 2023](https://arxiv.org/abs/2305.15334)) addresses this by retrieving relevant tool descriptions at inference time, but retrieval-based routing adds complexity.
 
 Second, prompt-based approaches depend entirely on the model's ability to follow instructions. If the tool's calling convention is unusual or the parameters are complex, the model may generate malformed calls. Toolformer's fine-tuning approach embeds tool-use patterns directly into the weights, making calls more reliable.
 
 Third, and most importantly, Toolformer's self-supervised selection criterion (@eq-toolformer-criterion) ensures that the model only learns to call tools when doing so is *actually helpful*. Prompt-based approaches have no such filter; the model might call tools gratuitously, wasting compute and introducing errors. Gratuitous tool use is a real problem in practice: agents that over-use tools are slower and more error-prone than agents that use tools judiciously.
 
-The industry has converged on a middle ground: prompt-based function calling with structured output formats (JSON schemas that constrain the model's output to valid tool calls). Anthropic's Model Context Protocol (MCP), introduced in late 2024, standardizes this by defining a protocol for LLMs to discover and call tools. The analogy is USB: just as USB standardized hardware peripherals, MCP standardizes tool interfaces for language models. The evolution from Toolformer's self-supervised learning (2023) through prompted function calling (2023-2024) to MCP (2024-2025) traces the field's progression from research proof-of-concept to engineering standard.
+The industry has converged on a middle ground: prompt-based function calling with structured output formats (JSON schemas that constrain the model's output to valid tool calls). Anthropic's [Model Context Protocol (MCP)](https://modelcontextprotocol.io/), introduced in late 2024, standardizes this by defining a protocol for LLMs to discover and call tools. The analogy is USB: just as USB standardized hardware peripherals, MCP standardizes tool interfaces for language models. The evolution from Toolformer's self-supervised learning (2023) through prompted function calling (2023-2024) to MCP (2024-2025) traces the field's progression from research proof-of-concept to engineering standard.
 :::
 
 ### Memory: The Four Types
 
 Reasoning without memory is like solving a jigsaw puzzle while forgetting the pieces you have already placed. You keep redoing work, losing context, and making the same mistakes. Memory is what gives an agent continuity, coherence, and the ability to build on its own past experience.
 
-The cognitive science literature identifies several types of human memory, and the mapping to LLM agents turns out to be remarkably productive. Following [Weng (2023)](https://lilianweng.github.io/posts/2023-06-23-agent/) and [CoALA](https://arxiv.org/abs/2309.02427) ([Sumers et al., TMLR 2024](https://arxiv.org/abs/2309.02427)), we can distinguish four types:
+The cognitive science literature identifies several types of human memory, and the mapping to LLM agents turns out to be remarkably productive. Following [Weng (2023)](https://lilianweng.github.io/posts/2023-06-23-agent/) and CoALA ([Sumers et al., TMLR 2024](https://arxiv.org/abs/2309.02427)), we can distinguish four types:
 
 **Working memory** corresponds to the LLM's context window: the information currently "in mind." It is fast and immediately accessible, but strictly limited in capacity. Even with modern 128K+ token windows, a context window is far too small to hold everything an agent encounters over a multi-day research workflow. Working memory is where the current task state lives: the conversation history, the most recent observations, and the current plan.
 
@@ -74,7 +74,7 @@ The cognitive science literature identifies several types of human memory, and t
 
 **Semantic memory** stores factual knowledge and beliefs: "The Toolformer paper uses GPT-J 6.7B." "Semantic Scholar's API requires an API key." Semantic memory overlaps with the LLM's parametric knowledge (facts learned during pretraining) but also includes knowledge acquired during the agent's operation, stored in an external knowledge base.
 
-**Procedural memory** stores learned skills and routines: "Here is how to search Semantic Scholar," "Here is how to set up a Python virtual environment." [Voyager](https://arxiv.org/abs/2305.16291)'s skill library ([Wang et al., NeurIPS 2023](https://arxiv.org/abs/2305.16291)) is the canonical example: a growing collection of JavaScript functions (for Minecraft) that the agent writes, verifies, and stores for future reuse. Unlike episodic memory (which stores experiences), procedural memory stores *capabilities*.
+**Procedural memory** stores learned skills and routines: "Here is how to search Semantic Scholar," "Here is how to set up a Python virtual environment." Voyager's skill library ([Wang et al., NeurIPS 2023](https://arxiv.org/abs/2305.16291)) is the canonical example: a growing collection of JavaScript functions (for Minecraft) that the agent writes, verifies, and stores for future reuse. Unlike episodic memory (which stores experiences), procedural memory stores *capabilities*.
 
 ```{.d2}
 direction: down
@@ -179,7 +179,7 @@ ltm.pm -> wm: "retrieve relevant\nskills" {
 
 ### Deep Dive: Generative Agents' Memory Architecture
 
-The most sophisticated memory architecture for LLM agents appeared in [Generative Agents](https://arxiv.org/abs/2304.03442) ([Park et al., UIST 2023](https://arxiv.org/abs/2304.03442)), which simulated a virtual town called Smallville populated by 25 AI characters. Each character has its own personality, daily routine, relationships, and goals. The characters wake up, eat breakfast, go to work, have conversations, form opinions, and make plans.
+The most sophisticated memory architecture for LLM agents appeared in Generative Agents ([Park et al., UIST 2023](https://arxiv.org/abs/2304.03442)), which simulated a virtual town called Smallville populated by 25 AI characters. Each character has its own personality, daily routine, relationships, and goals. The characters wake up, eat breakfast, go to work, have conversations, form opinions, and make plans.
 
 The headline result: when the researchers initialized one character, Isabella, with the goal of planning a Valentine's Day party, the agents autonomously spread invitations through word-of-mouth conversations, coordinated on a date and location, and showed up to the party. No orchestration. No script. Pure emergent social behavior from 25 independent agents with good memory.
 
@@ -218,7 +218,7 @@ Third, *when* to retrieve and *how much* to retrieve are design decisions that m
 
 Generative Agents' memory works because each agent's simulation spans hours, not months. But what about Priya's research assistant, which needs to operate across weeks, processing hundreds of papers, thousands of code files, and tens of thousands of interactions? The context window, even at 128K tokens, is nowhere near enough.
 
-[MemGPT](https://arxiv.org/abs/2310.08560) ([Packer et al., ICLR 2024](https://arxiv.org/abs/2310.08560)) addresses this with an operating-systems analogy that is both clever and practical. An operating system provides virtual memory: it makes a small, fast physical memory appear larger by paging data to and from disk. MemGPT applies the same idea to LLMs. The system provides *virtual context management* that makes the LLM's limited context window appear larger by paging information to and from external storage.
+MemGPT ([Packer et al., ICLR 2024](https://arxiv.org/abs/2310.08560)) addresses this with an operating-systems analogy that is both clever and practical. An operating system provides virtual memory: it makes a small, fast physical memory appear larger by paging data to and from disk. MemGPT applies the same idea to LLMs. The system provides *virtual context management* that makes the LLM's limited context window appear larger by paging information to and from external storage.
 
 The architecture has two tiers. The *main context* (analogous to RAM) is what fits in the LLM's context window: the system prompt, recent conversation history, and currently-active information. The *external context* (analogous to disk) is everything else: older conversations, archived facts, long documents, retrieved passages.
 
@@ -235,7 +235,7 @@ This dependency reveals a broader point: the capabilities of LLM agents are *bot
 
 ### The Agent-Computer Interface: Why Design Matters
 
-We have covered what agents can think (reasoning), what they can remember (memory), and what they can do (tools). There is one more dimension that turns out to be at least as important as any of these: *how* the agent interacts with its tools. This dimension is the Agent-Computer Interface (ACI) concept introduced by [SWE-agent](https://arxiv.org/abs/2405.15793) ([Yang et al., NeurIPS 2024](https://arxiv.org/abs/2405.15793)).
+We have covered what agents can think (reasoning), what they can remember (memory), and what they can do (tools). There is one more dimension that turns out to be at least as important as any of these: *how* the agent interacts with its tools. This dimension is the Agent-Computer Interface (ACI) concept introduced by SWE-agent ([Yang et al., NeurIPS 2024](https://arxiv.org/abs/2405.15793)).
 
 The core insight of SWE-agent is a riff on the classic Human-Computer Interaction (HCI) principle: when a user struggles with software, the problem is usually the interface, not the user. The same applies to LLM agents. When an agent fails to edit a file correctly, the problem might not be the model's reasoning ability; it might be that the editing interface does not match how LLMs process text.
 
@@ -249,7 +249,7 @@ SWE-agent redesigned the interface between a coding agent and a computer termina
 
 ![SWE-agent overview: the Agent-Computer Interface (ACI) provides specialized file viewers, search, and edit commands designed for how LLMs process text. Source: Yang et al. (2024), Figure 1.](LLM and VLM Agentic Systems/images/swe-agent-overview.png){#fig-swe-agent-overview}
 
-The results validate the approach. SWE-agent with GPT-4 resolves 12.5% of [SWE-bench](https://arxiv.org/abs/2310.06770) ([Jimenez et al., ICLR 2024](https://arxiv.org/abs/2310.06770)) issues, compared to single-digit percentages for agents using unmodified terminal interfaces. Crucially, many of the improvements come not from better reasoning but from *fewer interface-induced errors*: the agent makes fewer malformed edits, navigates files more efficiently, and recovers from errors faster.
+The results validate the approach. SWE-agent with GPT-4 resolves 12.5% of SWE-bench ([Jimenez et al., ICLR 2024](https://arxiv.org/abs/2310.06770)) issues, compared to single-digit percentages for agents using unmodified terminal interfaces. Crucially, many of the improvements come not from better reasoning but from *fewer interface-induced errors*: the agent makes fewer malformed edits, navigates files more efficiently, and recovers from errors faster.
 
 The ACI paper's deepest insight is that *interface design and model capability are substitutes*. If you have a perfect model, any interface works. If you have an imperfect model (which we always do), a well-designed interface compensates for the model's weaknesses. This substitutability means that investing in interface design can be more cost-effective than investing in a larger model. For Priya, this means her research assistant might work better with a thoughtfully designed set of research tools (structured API wrappers, validated code runners, incremental file editors) than with a more powerful but clumsily interfaced model.
 

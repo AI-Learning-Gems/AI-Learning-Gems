@@ -16,9 +16,9 @@
 
 ### Priya Hits the Wall of Complexity
 
-Priya's single-agent research assistant has grown impressive. It reasons with ReAct, learns from failures with Reflexion, and searches Semantic Scholar. It runs Python code and manages its memory with MemGPT. But she has asked it to do something ambitious: simultaneously find the 20 most-cited papers on RAG from 2023-2025, reproduce three baselines, and write a synthesis.
+Priya's single-agent research assistant has grown impressive. It reasons with [ReAct](https://arxiv.org/abs/2210.03629), learns from failures with [Reflexion](https://arxiv.org/abs/2303.11366), and searches Semantic Scholar. It runs Python code and manages its memory with [MemGPT](https://arxiv.org/abs/2310.08560). But she has asked it to do something ambitious: simultaneously find the 20 most-cited papers on RAG from 2023-2025, reproduce three baselines, and write a synthesis.
 
-The agent struggles. Not because any individual capability is lacking, but because the *orchestration* collapses. When the agent is in the middle of debugging a PyTorch training loop, it loses track of which papers it still needs to read. When it switches from coding back to literature search, it forgets the specific error it was debugging. The context window becomes a war zone of half-finished tasks. The agent's attention (such as it is) ping-pongs between objectives without making sustained progress on any of them.
+The agent struggles. Not because any individual capability is lacking, but because the *orchestration* collapses. When the agent is in the middle of debugging a PyTorch training loop, it loses track of which papers it still needs to read. When it switches from coding back to literature search, it forgets the specific error it was debugging. The context window becomes a war zone of half-finished tasks. The agent's attention ping-pongs between objectives without making sustained progress on any of them.
 
 Priya has an idea. What if, instead of one agent trying to do everything, she creates *specialized* agents? A Researcher that finds and summarizes papers. A Coder that reproduces experiments. An Orchestrator that decides who should work on what and synthesizes the results. Each agent can focus on its own domain, with its own tools and its own memory, while the Orchestrator maintains the big picture.
 
@@ -26,7 +26,7 @@ This division-of-labor approach is the multi-agent paradigm, and it is one of th
 
 ### Why Multiple Agents? The Division of Labor
 
-The fundamental case for multi-agent systems rests on a simple observation: as the number of tools and the complexity of the task increase, a single agent's reliability degrades. An agent with 5 tools and a 3-step task can usually manage. An agent with 50 tools and a 50-step task faces a combinatorial explosion, raising three hard questions. Which tool should it use at each step? How should it handle failures in step 37 that invalidate work from step 12? How does it maintain coherent progress across a task spanning multiple domains (searching the web, editing files, running code, interacting with users)?
+The fundamental case for multi-agent systems rests on a simple observation: as the number of tools and the complexity of the task increase, a single agent's reliability degrades. An agent with 5 tools and a 3-step task can usually manage. An agent with 50 tools and a 50-step task faces a combinatorial explosion, raising three hard questions: (a) which tool should it use at each step? (b) How should it handle failures in step 37 that invalidate work from step 12? (c) How does it maintain coherent progress across a task spanning multiple domains (searching the web, editing files, running code, interacting with users)?
 
 Division of labor addresses this by *narrowing each agent's scope*. A Researcher agent does not need to know about code debugging tools. A Coder agent does not need to know about academic search APIs. By specializing, each agent has a smaller action space, a more focused prompt, and a simpler decision problem. The complexity shifts from the agents to the *communication protocol* between them.
 
@@ -44,13 +44,13 @@ $$
 
 where $b_i^t$ is agent $i$'s belief at round $t$ and $r_j^t$ is agent $j$'s response.
 
-Debate works best when the task has a *verifiable* correct answer (math, factual claims, logical reasoning), because agents can check each other's work against external evidence. It works less well for subjective or creative tasks, where "convergence" might mean all agents drift toward a bland consensus rather than exploring diverse ideas.
+Debate works best when the task has a *verifiable* correct answer (math, factual claims, logical reasoning), because agents can check each other's work against external evidence. Debate works less well for subjective or creative tasks, where "convergence" might mean all agents drift toward a bland consensus rather than exploring diverse ideas.
 
 ::: {.callout-note title="Think Hard: Under what conditions would a multi-agent debate outperform simply asking a single model to self-critique (Reflexion-style)?"}
 
 At first glance, debate and self-critique look similar: both involve generating a response, evaluating it, and revising. The key difference is whether the critique comes from the *same* model instance or a *different* one.
 
-When a single model self-critiques, it tends to be biased toward its own initial answer. It generated that answer for a reason, and its self-critique is conditioned on the same knowledge and biases that produced the original. This self-reinforcement is the "echo chamber" problem: the model is unlikely to catch errors that arise from systematic blind spots.
+When a single model self-critiques, it tends to be biased toward its own initial answer. The model generated that answer for a reason, and its self-critique is conditioned on the same knowledge and biases that produced the original response. This self-reinforcement is the "echo chamber" problem: the model is unlikely to catch errors that arise from systematic blind spots.
 
 Multiple agents, especially if they are prompted with different personas or instructions, introduce *cognitive diversity*. Agent A might approach the problem algebraically while Agent B approaches it geometrically. Their errors are less correlated, so debate is more likely to surface mistakes that self-critique would miss.
 
@@ -59,7 +59,7 @@ However, this diversity comes at a cost: 3-7x more tokens, higher latency, and c
 
 ### Design Pattern 2: Role-Playing with Standard Operating Procedures
 
-MetaGPT ([Hong et al., ICLR 2024](https://arxiv.org/abs/2308.00352)) and ChatDev ([Qian et al., 2023](https://arxiv.org/abs/2307.07924)) take a different approach inspired by organizational design. Instead of agents debating as equals, they assign structured *roles* (Product Manager, Architect, Engineer, QA Tester) and enforce *Standard Operating Procedures* (SOPs) that govern their interactions.
+MetaGPT ([Hong et al., ICLR 2024](https://arxiv.org/abs/2308.00352)) and ChatDev ([Qian et al., 2023](https://arxiv.org/abs/2307.07924)) take a different approach inspired by organizational design. Instead of agents debating as equals, these systems assign structured *roles* (Product Manager, Architect, Engineer, QA Tester) and enforce *Standard Operating Procedures* (SOPs) that govern their interactions.
 
 In MetaGPT's software development pipeline, the Product Manager writes a Product Requirements Document (PRD). The Architect reads the PRD and produces a system design. The Engineer reads the design and writes code. The QA Tester reads the code and writes tests. Each role produces a *structured artifact* (PRD, design doc, code, test suite) that serves as a verifiable checkpoint. If the Architect's design is inconsistent with the PRD, the problem is caught before any code is written.
 
@@ -108,7 +108,7 @@ Magentic-One makes an opinionated choice (centralized orchestration) and builds 
 
 This belief is perhaps the most consequential misconception in the current field. The hype around multi-agent systems has led many teams to build complex multi-agent architectures for tasks that a well-designed single agent could handle better.
 
-The evidence for multi-agent benefits is nuanced. The gains come from *structured communication protocols* (SOPs, ledgers, debate rounds) rather than from having multiple LLM instances per se. A single agent with a well-designed prompt, good tools, and a structured planning step can often match or exceed a multi-agent system on the same task, at a fraction of the token cost.
+The evidence for multi-agent benefits is mixed. The gains come from *structured communication protocols* (SOPs, ledgers, debate rounds) rather than from having multiple LLM instances per se. A single agent with a well-designed prompt, good tools, and a structured planning step can often match or exceed a multi-agent system on the same task, at a fraction of the token cost.
 
 Multi-agent overhead is real: typically 3-7x more tokens than a single-agent approach, because agents must read each other's outputs, coordinate actions, and resolve conflicts. For a task that costs $0.10 with a single agent, the multi-agent version might cost $0.50-0.70. On latency-sensitive tasks, the serialized communication between agents adds significant delay.
 
@@ -238,7 +238,7 @@ The paper's predictive model (cross-validated $R^2 = 0.524$) correctly predicts 
 
 **Category 1: System Design Failures** (pre-execution). Disobeying task specifications (11.8%), step repetitions (15.7%), failing to recognize task completion (12.4%), context loss (2.8%). These design failures stem from poor agent role definitions and workflow design, not from LLM limitations. A simple intervention (improving agent role specifications in ChatDev) yielded a +9.4% success rate improvement with the same model.
 
-**Category 2: Inter-Agent Coordination Failures** (execution). Proceeding on wrong assumptions instead of seeking clarification (6.8%), task derailment (7.4%), mismatches between reasoning and action (13.2%), ignoring other agents' input (1.9%). These coordination failures demand what the authors call "social reasoning," the ability to model other agents' informational needs.
+**Category 2: Inter-Agent Coordination Failures** (execution). Proceeding on wrong assumptions instead of seeking clarification (6.8%), task derailment (7.4%), mismatches between reasoning and action (13.2%), ignoring other agents' input (1.9%). These coordination failures demand what the authors call "social reasoning": the ability to model other agents' informational needs.
 
 **Category 3: Verification Failures** (post-execution). No or incomplete verification (8.2%), incorrect verification (9.1%), premature termination (6.2%). Systems with explicit verifiers (MetaGPT, ChatDev) show fewer total failures, but a verifier alone is not sufficient. Adding a high-level objective verification step to ChatDev yielded a +15.6% task success improvement.
 
