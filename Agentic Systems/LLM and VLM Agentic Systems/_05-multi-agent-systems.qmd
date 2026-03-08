@@ -9,26 +9,28 @@
 | 3 | [MetaGPT (Hong et al., 2023)](https://arxiv.org/abs/2308.00352) | SOP-based multi-agent software development |
 | 4 | [Multi-agent debate (Du et al., 2023)](https://arxiv.org/abs/2305.14325) | Debate improves factuality and reasoning |
 | 5 | [CoALA (Sumers et al., 2023)](https://arxiv.org/abs/2309.02427) | Multi-agent interaction in the CoALA framework |
+| 6 | [Towards a Science of Scaling Agent Systems (Kim et al., 2026)](https://arxiv.org/abs/2512.08296) | 180 configs, 5 architectures, error amplification quantified |
+| 7 | [MAST: Why Do Multi-Agent LLM Systems Fail? (Cemri et al., NeurIPS 2025)](https://arxiv.org/abs/2503.13657) | 14 failure modes, 1600+ traces, systematic MAS failure taxonomy |
 
 :::
 
 ### Priya Hits the Wall of Complexity
 
-Priya's single-agent research assistant has grown impressive. It reasons with ReAct, learns from failures with Reflexion, searches Semantic Scholar, runs Python code, and manages its memory with MemGPT. But she has asked it to do something ambitious: simultaneously find the 20 most-cited papers on RAG from 2023-2025, reproduce three baselines, and write a synthesis.
+Priya's single-agent research assistant has grown impressive. It reasons with ReAct, learns from failures with Reflexion, and searches Semantic Scholar. It runs Python code and manages its memory with MemGPT. But she has asked it to do something ambitious: simultaneously find the 20 most-cited papers on RAG from 2023-2025, reproduce three baselines, and write a synthesis.
 
-The agent struggles. Not because any individual capability is lacking, but because the *orchestration* collapses. When the agent is in the middle of debugging a PyTorch training loop, it loses track of which papers it still needs to read. When it switches from coding back to literature search, it forgets the specific error it was debugging. The context window becomes a war zone of half-finished tasks, and the agent's attention (such as it is) ping-pongs between objectives without making sustained progress on any of them.
+The agent struggles. Not because any individual capability is lacking, but because the *orchestration* collapses. When the agent is in the middle of debugging a PyTorch training loop, it loses track of which papers it still needs to read. When it switches from coding back to literature search, it forgets the specific error it was debugging. The context window becomes a war zone of half-finished tasks. The agent's attention (such as it is) ping-pongs between objectives without making sustained progress on any of them.
 
 Priya has an idea. What if, instead of one agent trying to do everything, she creates *specialized* agents? A Researcher that finds and summarizes papers. A Coder that reproduces experiments. An Orchestrator that decides who should work on what and synthesizes the results. Each agent can focus on its own domain, with its own tools and its own memory, while the Orchestrator maintains the big picture.
 
-This is the multi-agent paradigm, and it is one of the most discussed (and most over-hyped) ideas in the LLM agent field. Let us examine when it actually helps, when it hurts, and what the seminal systems look like.
+This division-of-labor approach is the multi-agent paradigm, and it is one of the most discussed (and most over-hyped) ideas in the LLM agent field. Let us examine when it actually helps, when it hurts, and what the seminal systems look like.
 
 ### Why Multiple Agents? The Division of Labor
 
-The fundamental case for multi-agent systems rests on a simple observation: as the number of tools and the complexity of the task increase, a single agent's reliability degrades. An agent with 5 tools and a 3-step task can usually manage. An agent with 50 tools and a 50-step task faces a combinatorial explosion. Which tool should it use at each step? How should it handle failures in step 37 that invalidate work from step 12? How does it maintain coherent progress across a task that spans multiple domains (searching the web, editing files, running code, interacting with users)?
+The fundamental case for multi-agent systems rests on a simple observation: as the number of tools and the complexity of the task increase, a single agent's reliability degrades. An agent with 5 tools and a 3-step task can usually manage. An agent with 50 tools and a 50-step task faces a combinatorial explosion, raising three hard questions. Which tool should it use at each step? How should it handle failures in step 37 that invalidate work from step 12? How does it maintain coherent progress across a task spanning multiple domains (searching the web, editing files, running code, interacting with users)?
 
 Division of labor addresses this by *narrowing each agent's scope*. A Researcher agent does not need to know about code debugging tools. A Coder agent does not need to know about academic search APIs. By specializing, each agent has a smaller action space, a more focused prompt, and a simpler decision problem. The complexity shifts from the agents to the *communication protocol* between them.
 
-But this shift creates new problems. How do agents coordinate? How do they share information? How does the system avoid duplication of effort? And does the overhead of inter-agent communication outweigh the benefits of specialization? These questions define the multi-agent design space.
+But this shift creates new problems. How do agents coordinate? How do they share information? How does the system avoid duplication of effort? And does the overhead of inter-agent communication outweigh the benefits of specialization? These four questions define the multi-agent design space.
 
 ### Design Pattern 1: Debate
 
@@ -48,7 +50,7 @@ Debate works best when the task has a *verifiable* correct answer (math, factual
 
 At first glance, debate and self-critique look similar: both involve generating a response, evaluating it, and revising. The key difference is whether the critique comes from the *same* model instance or a *different* one.
 
-When a single model self-critiques, it tends to be biased toward its own initial answer. It generated that answer for a reason, and its self-critique is conditioned on the same knowledge and biases that produced the original. This is the "echo chamber" problem: the model is unlikely to catch errors that arise from systematic blind spots.
+When a single model self-critiques, it tends to be biased toward its own initial answer. It generated that answer for a reason, and its self-critique is conditioned on the same knowledge and biases that produced the original. This self-reinforcement is the "echo chamber" problem: the model is unlikely to catch errors that arise from systematic blind spots.
 
 Multiple agents, especially if they are prompted with different personas or instructions, introduce *cognitive diversity*. Agent A might approach the problem algebraically while Agent B approaches it geometrically. Their errors are less correlated, so debate is more likely to surface mistakes that self-critique would miss.
 
@@ -61,7 +63,7 @@ MetaGPT ([Hong et al., ICLR 2024](https://arxiv.org/abs/2308.00352)) and ChatDev
 
 In MetaGPT's software development pipeline, the Product Manager writes a Product Requirements Document (PRD). The Architect reads the PRD and produces a system design. The Engineer reads the design and writes code. The QA Tester reads the code and writes tests. Each role produces a *structured artifact* (PRD, design doc, code, test suite) that serves as a verifiable checkpoint. If the Architect's design is inconsistent with the PRD, the problem is caught before any code is written.
 
-The key insight is that SOPs function as *communication protocols with built-in verification*. Instead of agents passing free-form messages (which can be ambiguous, incomplete, or contradictory), they pass structured documents with expected formats. This drastically reduces coordination failures because each agent knows exactly what to expect from its predecessors and what to produce for its successors.
+The key insight is that SOPs function as *communication protocols with built-in verification*. Instead of agents passing free-form messages (which can be ambiguous, incomplete, or contradictory), they pass structured documents with expected formats. This standardization drastically reduces coordination failures because each agent knows exactly what to expect from its predecessors and what to produce for its successors.
 
 ChatDev extends this with explicit *phase transitions*: the waterfall proceeds from Design to Coding to Testing to Documentation, with human-like dialogue between role-playing agents at each phase boundary. The CEO might say to the CTO: "We need to add authentication." The CTO then discusses implementation details with the Programmer, who writes code and hands it to the Tester.
 
@@ -79,7 +81,7 @@ $$ {#eq-magentic-ledger}
 
 The *task* is the overall objective. The *facts* are what the system has learned so far. The *plan* is the current strategy, broken into steps. The *progress* tracks which steps have been completed and their outcomes. At each turn, the Orchestrator updates the ledger and decides which specialist agent should act next.
 
-The specialist agents are: **WebSurfer** (navigates the web using a browser), **FileSurfer** (reads and navigates local files), **Coder** (writes and executes Python code), and **ComputerTerminal** (executes shell commands). Each specialist is good at one thing and has a focused prompt and tool set.
+The system uses four specialist agents: **WebSurfer** (navigates the web using a browser), **FileSurfer** (reads and navigates local files), **Coder** (writes and executes Python code), and **ComputerTerminal** (executes shell commands). Each specialist excels at one thing and has a focused prompt and tool set.
 
 ![Magentic-One orchestrator architecture. The Orchestrator maintains a ledger (task, facts, plan, progress) and delegates to specialist agents (WebSurfer, FileSurfer, Coder, ComputerTerminal). Source: Fourney et al. (2024), Figure 1.](LLM and VLM Agentic Systems/images/magentic-one-orchestrator.png){#fig-magentic-one-orchestrator}
 
@@ -87,7 +89,9 @@ The specialist agents are: **WebSurfer** (navigates the web using a browser), **
 
 Magentic-One achieves competitive results across multiple benchmarks: it performs on par with or better than other multi-agent systems on GAIA (general AI assistant tasks), WebArena (web navigation), and AssistantBench. Notably, it does this with a modular design where specialist agents can be swapped or upgraded independently.
 
-The comparison with AutoGen ([Wu et al., 2023](https://arxiv.org/abs/2308.08155)) is instructive. AutoGen provides a general-purpose framework for multi-agent conversations, where agents can be arranged in any topology: round-robin, broadcast, hierarchical, or custom. This flexibility is powerful but places the burden of designing the right topology on the developer. Magentic-One makes an opinionated choice (centralized orchestration) and builds specialized tooling around that choice. The trade-off is flexibility versus reliability: AutoGen can express any multi-agent pattern but may require more tuning; Magentic-One provides a proven pattern that works well out of the box for general-purpose tasks.
+The comparison with AutoGen ([Wu et al., 2023](https://arxiv.org/abs/2308.08155)) is instructive. AutoGen provides a general-purpose framework for multi-agent conversations, where agents can be arranged in any topology: round-robin, broadcast, hierarchical, or custom. This flexibility is powerful but places the burden of designing the right topology on the developer.
+
+Magentic-One makes an opinionated choice (centralized orchestration) and builds specialized tooling around that choice. The trade-off is flexibility versus reliability: AutoGen can express any multi-agent pattern but may require more tuning. Magentic-One provides a proven pattern that works well out of the box for general-purpose tasks.
 
 ### Comparing Multi-Agent Architectures
 
@@ -102,7 +106,7 @@ The comparison with AutoGen ([Wu et al., 2023](https://arxiv.org/abs/2308.08155)
 
 ::: {.callout-warning title="Common Misconception: Multi-agent systems are always better than single-agent systems"}
 
-This is perhaps the most consequential misconception in the current field. The hype around multi-agent systems has led many teams to build complex multi-agent architectures for tasks that a well-designed single agent could handle better.
+This belief is perhaps the most consequential misconception in the current field. The hype around multi-agent systems has led many teams to build complex multi-agent architectures for tasks that a well-designed single agent could handle better.
 
 The evidence for multi-agent benefits is nuanced. The gains come from *structured communication protocols* (SOPs, ledgers, debate rounds) rather than from having multiple LLM instances per se. A single agent with a well-designed prompt, good tools, and a structured planning step can often match or exceed a multi-agent system on the same task, at a fraction of the token cost.
 
@@ -210,4 +214,43 @@ orch: "Orchestrated Star" {
 What is the essential difference between MetaGPT's SOP-based approach and Magentic-One's ledger-based orchestration? Consider: who decides what to do next? What artifacts are passed between agents? What happens when an intermediate step fails? MetaGPT's pipeline is rigid but verifiable; Magentic-One's orchestrator is flexible but creates a single point of failure. Which would you choose for Priya's research assistant, and why?
 :::
 
-Multi-agent systems are a powerful tool for managing complexity, but they are not a silver bullet. The real question is whether your task needs the structured communication and role specialization that multi-agent provides, or whether a well-designed single agent with good tools and planning would be simpler, cheaper, and more reliable. As we will see in the next section, the benchmarks provide a sobering reality check on all of these approaches.
+### The Empirical Verdict: When Multi-Agent Helps and When It Hurts
+
+Until late 2025, the question of "does multi-agent actually help?" was answered mostly with anecdotes and small-scale comparisons. Two papers changed this by providing the first rigorous empirical evidence.
+
+"Towards a Science of Scaling Agent Systems" ([Kim et al., Google Research + MIT, 2026](https://arxiv.org/abs/2512.08296)) tested 180 agent configurations across 5 architectures (Single-Agent, Independent MAS, Centralized MAS, Decentralized MAS, Hybrid MAS). The study spanned 3 LLM families (GPT-5, Gemini 2.5, Claude 4) and 4 benchmarks. The results put hard numbers on what the field had only suspected:
+
+| Architecture | Parallelizable tasks (Finance) | Sequential tasks (PlanCraft) | Web navigation |
+|---|---|---|---|
+| Single Agent (baseline) | 0% (reference) | 0% (reference) | 0% (reference) |
+| Centralized MAS | **+80.8%** | **-50.3%** | +0.2% |
+| Decentralized MAS | +74.5% | -41.5% | **+9.2%** |
+| Hybrid MAS | +73.1% | -39.1% | +4.7% |
+| Independent MAS | +57.0% | **-70.1%** | -35.0% |
+
+The central finding: multi-agent systems do *not* uniformly outperform single agents. The benefit is entirely task-dependent. On parallelizable financial reasoning tasks (where different agents can independently analyze revenue, costs, and market trends, then synthesize), centralized MAS improved performance by 80.8%. On sequential planning tasks (where each step depends on the result of the previous step), *every* multi-agent variant degraded performance by 39-70%.
+
+The mechanism behind the degradation is **error amplification**. Independent MAS amplified errors by 17.2x: when agents cannot cross-check each other's work, mistakes propagate and compound. Centralized MAS contained this to 4.4x through orchestrator verification, but still amplified errors compared to a single agent.
+
+The paper's predictive model (cross-validated $R^2 = 0.524$) correctly predicts the optimal architecture for 87% of held-out configurations, suggesting that the right choice is predictable from task properties.
+
+"Why Do Multi-Agent LLM Systems Fail?" (MAST, [Cemri et al., NeurIPS 2025](https://arxiv.org/abs/2503.13657)) complements the Google study by examining *how* multi-agent systems fail. The authors annotated 1,600+ execution traces from 7 popular MAS frameworks and identified 14 failure modes across 3 categories:
+
+**Category 1: System Design Failures** (pre-execution). Disobeying task specifications (11.8%), step repetitions (15.7%), failing to recognize task completion (12.4%), context loss (2.8%). These design failures stem from poor agent role definitions and workflow design, not from LLM limitations. A simple intervention (improving agent role specifications in ChatDev) yielded a +9.4% success rate improvement with the same model.
+
+**Category 2: Inter-Agent Coordination Failures** (execution). Proceeding on wrong assumptions instead of seeking clarification (6.8%), task derailment (7.4%), mismatches between reasoning and action (13.2%), ignoring other agents' input (1.9%). These coordination failures demand what the authors call "social reasoning," the ability to model other agents' informational needs.
+
+**Category 3: Verification Failures** (post-execution). No or incomplete verification (8.2%), incorrect verification (9.1%), premature termination (6.2%). Systems with explicit verifiers (MetaGPT, ChatDev) show fewer total failures, but a verifier alone is not sufficient. Adding a high-level objective verification step to ChatDev yielded a +15.6% task success improvement.
+
+::: {.callout-note title="Think Hard: The error amplification paradox, why do more agents make things worse on sequential tasks?"}
+
+The Google scaling paper reveals a counterintuitive finding: adding agents to sequential tasks degrades performance by up to 70%. Why?
+
+Consider a PlanCraft task (crafting an item in a game). A single agent solves it in 3 turns: look up the recipe, gather materials, craft. A centralized MAS decomposes this into subtasks for different agents. Agent 1 researches the recipe (redundant, since lookup is instantaneous). Agent 2 checks inventory (redundant, since state is visible). Agent 3 executes crafting (the only necessary step). The decomposition generates substantial coordination messages for tasks requiring only a few execution steps, consuming the token budget on coordination rather than reasoning.
+
+This is the *tool-coordination trade-off*: under fixed computational budgets, the tokens spent on inter-agent coordination are tokens *not* spent on actual problem-solving. When the task is simple and sequential, this trade-off is catastrophically bad. When the task is complex and parallelizable, the trade-off is favorable because coordination unlocks genuine information gains.
+
+The practical rule emerging from this research: use multi-agent architectures *only* when the task naturally decomposes into independent subtasks that benefit from parallel execution. For sequential reasoning chains, a single well-designed agent almost always wins.
+:::
+
+Multi-agent systems are a powerful tool for managing complexity, but they are not a silver bullet. The Google and MAST papers transform vague design intuitions into quantified principles. As we will see in the next section, the benchmarks provide a sobering reality check on all of these approaches.

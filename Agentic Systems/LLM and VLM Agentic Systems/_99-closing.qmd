@@ -4,17 +4,17 @@
 
 Let us return to where we started. Priya has spent two weeks building, benchmarking, and iterating on her AI research assistant. She did not get the autonomous super-agent she initially dreamed of. What she got was something more valuable: a deep understanding of what LLM agents can and cannot do, and a practical system that handles the routine parts of her workflow while she focuses on the parts that still require human judgment.
 
-Her final architecture is modest by the standards of this chapter: a ReAct-style agent with Reflexion-inspired error recovery, Semantic Scholar and ArXiv search tools, a Python code interpreter, a MemGPT-like memory system for tracking paper notes across sessions, and a simple task planner that decomposes her high-level goals into manageable steps. No multi-agent orchestration (she found a single well-designed agent with 8 tools was more reliable than three specialist agents). No automated agent design (she hand-tuned the prompts and tools based on failure analysis). No RL training (she used GPT-4 with carefully engineered prompts).
+Her final architecture is modest by the standards of this chapter: a ReAct-style agent with Reflexion-inspired error recovery, Semantic Scholar and ArXiv search tools, a Python code interpreter, and a MemGPT-like memory system for tracking paper notes across sessions. A simple task planner decomposes her high-level goals into manageable steps. No multi-agent orchestration (she found a single well-designed agent with 8 tools was more reliable than three specialist agents). No automated agent design (she hand-tuned the prompts and tools based on failure analysis). No RL training (she used GPT-4 with carefully engineered prompts).
 
-The system succeeds at about 60% of her daily research tasks on the first try, and about 80% with one retry and minimal human guidance. That is a far cry from full autonomy, but it saves her roughly 10 hours per week of tedious searching, summarizing, and code-template writing. She has learned, through hard experience, the lesson that runs through this entire chapter: the value of an agent system is not in what it can do autonomously but in *how it extends human capability*.
+The system succeeds at about 60% of her daily research tasks on the first try, and about 80% with one retry and minimal human guidance. That success rate is a far cry from full autonomy, but it saves her roughly 10 hours per week of tedious searching, summarizing, and code-template writing. She has learned, through hard experience, the lesson that runs through this entire chapter: the value of an agent system is not in what it can do autonomously but in *how it extends human capability*.
 
 ### Key Takeaways
 
-- **An "agent" is defined by its perception-action loop with an environment, not by the model powering it.** The CoALA framework (memory, action space, decision procedure) provides the canonical decomposition. The critical qualitative shift is from a fixed prompt chain to a dynamic agent loop where the LLM decides what to do next based on environmental feedback.
+- **An "agent" is defined by its perception-action loop with an environment, not by the model powering it.** The CoALA framework (memory, action space, decision procedure) canonically decomposes any agent. The critical qualitative shift is from a fixed prompt chain to a dynamic agent loop. In this loop, the LLM decides what to do next based on environmental feedback.
 
 - **ReAct (2022) and Reflexion (2023) are the foundational reasoning papers.** ReAct grounded LLM reasoning in external observations, turning monological chain-of-thought into dialogical reasoning-and-acting. Reflexion introduced verbal self-improvement without weight updates. Together, they define the conceptual substrate on which everything else is built.
 
-- **Tool use evolved from self-supervised learning (Toolformer) through prompted function calling to protocol-level standardization (MCP).** The Agent-Computer Interface (SWE-agent) showed that *interface design* matters as much as model capability. A well-designed interface compensates for model weaknesses; a poorly-designed interface negates model strengths.
+- **Tool use evolved from self-supervised learning (Toolformer) through prompted function calling to protocol-level standards (MCP).** The Agent-Computer Interface (SWE-agent) showed that *interface design* matters as much as model capability. A well-designed interface compensates for model weaknesses; a poorly-designed interface negates model strengths.
 
 - **Memory is the key unsolved challenge.** Working memory (context window) is limited. Long-term memory systems (MemGPT, Generative Agents) are functional but fragile. The field has not yet found its "attention mechanism" moment for agent memory: a simple, general, scalable solution that works across domains.
 
@@ -22,7 +22,7 @@ The system succeeds at about 60% of her daily research tasks on the first try, a
 
 - **The reliability gap is the field's central obstacle.** Agents that score 70% on single trials often drop below 25% when required to succeed consistently ($\text{pass}^k$). Long-horizon tasks expose cascading failures. The compound error problem means that per-step improvements of even a few percentage points have outsized effects on end-to-end success.
 
-- **The most exciting frontiers are training agents with RL** (GRPO with verifiable rewards, where 14B models can beat 671B models), **automated agent design** (ADAS, where meta-agents discover architectures that outperform hand-designed ones), and **agent safety** (where Anthropic's finding of reward hacking generalizing to misalignment shows the risks are concrete, not hypothetical).
+- **The most exciting frontiers are training agents with RL** (GRPO with verifiable rewards, where 14B models can beat 671B models), **automated agent design** (ADAS, where meta-agents discover architectures that outperform hand-designed ones), and **agent safety**. Anthropic's finding that reward hacking generalizes to misalignment shows these risks are concrete, not hypothetical.
 
 ### Completed Concept Map
 
@@ -189,7 +189,7 @@ Test your understanding of the key concepts from this chapter.
 
 **Q5: What is the Agent-Computer Interface (ACI) concept from SWE-agent, and why does it matter?**
 
-*Answer:* The ACI is the interface between an LLM agent and its computational environment, designed specifically for how LLMs process information. Key principles: (1) actions should be simple and composable, (2) feedback should be immediate and informative (including line numbers), and (3) the interface should prevent and recover from errors. It matters because interface design and model capability are *substitutes*: a well-designed interface can improve agent performance more cost-effectively than a larger model. SWE-agent showed that redesigning the terminal interface improved coding agent performance by several multiples, without changing the underlying model.
+*Answer:* The ACI is the interface between an LLM agent and its computational environment, designed specifically for how LLMs process information. Key principles: (1) actions should be simple and composable, (2) feedback should be immediate and informative (including line numbers), and (3) the interface should prevent and recover from errors. The ACI concept matters because interface design and model capability are *substitutes*: a well-designed interface can improve agent performance more cost-effectively than a larger model. SWE-agent showed that redesigning the terminal interface improved coding agent performance by several multiples, without changing the underlying model.
 
 **Q6: Explain the $\text{pass}^k$ metric and what the gap between $\text{pass}^1$ and $\text{pass}^k$ reveals about agent reliability.**
 
@@ -197,7 +197,7 @@ Test your understanding of the key concepts from this chapter.
 
 **Q7: What does ADAS's Meta Agent Search actually search over, and why is code the representation language for agent architectures?**
 
-*Answer:* Meta Agent Search searches over *agent architectures expressed in Python code*. Each candidate is a complete agent program that can be instantiated and evaluated on a task set. Code is the representation language because it is Turing-complete: any possible agent architecture (any combination of reasoning, tool use, memory, and multi-agent interaction) can be expressed as a program. This means the search space is not constrained to predefined templates; it can discover architectures that no human has imagined. The auto-discovered agents outperform hand-designed ones on coding, science, and math, and transfer across domains and models.
+*Answer:* Meta Agent Search searches over *agent architectures expressed in Python code*. Each candidate is a complete agent program that can be instantiated and evaluated on a task set. Code is the representation language because it is Turing-complete: any possible agent architecture (any combination of reasoning, tool use, memory, and multi-agent interaction) can be expressed as a program. This Turing-completeness means the search space is not constrained to predefined templates; it can discover architectures that no human has imagined. The auto-discovered agents outperform hand-designed ones on coding, science, and math. These agents also transfer across domains and models.
 
 :::
 
@@ -205,7 +205,7 @@ Test your understanding of the key concepts from this chapter.
 
 - **Confusing "agentic" with "autonomous."** Using LLMs in a loop with tools is "agentic." Full autonomy without human oversight is a separate (and much harder) goal. Most practical agent systems benefit enormously from human-in-the-loop checkpoints, especially for high-stakes actions.
 
-- **Assuming multi-agent is always better than single-agent.** The evidence shows that multi-agent gains come from structured communication protocols, not from multiple LLM instances. A well-designed single agent with the right tools often outperforms a poorly-designed multi-agent system at lower cost.
+- **Assuming multi-agent is always better than single-agent.** The Google scaling paper (Kim et al., 2026) quantified this precisely: multi-agent systems amplify errors by 17.2x (independent) to 4.4x (centralized). These systems degrade performance by 39-70% on sequential tasks. Multi-agent helps only when tasks naturally decompose into parallelizable subtasks.
 
 - **Treating benchmark scores as deployment readiness.** SWE-bench Verified scores of 53% sound impressive, but these are curated issues with clear test suites. Real codebases have ambiguous issues, missing tests, and dependency conflicts. $\text{pass}^k$ metrics reveal the consistency gap that $\text{pass}^1$ hides.
 
@@ -215,18 +215,24 @@ Test your understanding of the key concepts from this chapter.
 
 ### Curated Resources
 
-The best entry points for continuing your exploration of this field:
+The best entry points for exploring this field further:
 
-- [Lilian Weng: LLM Powered Autonomous Agents](https://lilianweng.github.io/posts/2023-06-23-agent/) -- The best single overview of the field, organized around planning, memory, and tool use. Start here if you have not already.
+- [Lilian Weng: LLM Powered Autonomous Agents](https://lilianweng.github.io/posts/2023-06-23-agent/). The best single overview of the field, organized around planning, memory, and tool use. Start here if you have not already.
 
-- [Shunyu Yao PhD Thesis: Language Agents](https://ysymyth.github.io/papers/Dissertation-finalized.pdf) -- The most rigorous theoretical treatment of language agents, written by the author of ReAct and Tree of Thoughts. Essential reading for researchers.
+- [Shunyu Yao PhD Thesis: Language Agents](https://ysymyth.github.io/papers/Dissertation-finalized.pdf). The most rigorous theoretical treatment of language agents, written by the author of ReAct and Tree of Thoughts. Essential reading for researchers.
 
-- [Andrew Ng's Agentic Design Patterns](https://www.deeplearning.ai/the-batch/agentic-design-patterns-part-2-reflection/) -- The practitioner's introduction. Four clear design patterns (Reflection, Tool Use, Planning, Multi-Agent) with practical guidance.
+- [Andrew Ng's Agentic Design Patterns](https://www.deeplearning.ai/the-batch/agentic-design-patterns-part-2-reflection/). The practitioner's introduction. Four clear design patterns (Reflection, Tool Use, Planning, Multi-Agent) with practical guidance.
 
-- [CoALA paper (Sumers et al., 2023)](https://arxiv.org/abs/2309.02427) -- The field's best unifying framework. Drawing on cognitive science to organize the sprawling agent field.
+- [CoALA paper (Sumers et al., 2023)](https://arxiv.org/abs/2309.02427). The field's best unifying framework, drawing on cognitive science to organize the sprawling agent literature.
 
-- [Awesome Language Agents repository](https://github.com/ysymyth/awesome-language-agents) -- A curated and regularly updated list of papers, maintained by Shunyu Yao. Organized by CoALA categories.
+- [Awesome Language Agents repository](https://github.com/ysymyth/awesome-language-agents). A curated and regularly updated list of papers, maintained by Shunyu Yao. Organized by CoALA categories.
 
-- [SWE-agent paper (Yang et al., 2024)](https://arxiv.org/abs/2405.15793) -- Foundational reading on Agent-Computer Interface design. The insight that interface design matters as much as model capability applies far beyond coding.
+- [Cameron Wolfe: AI Agents from First Principles](https://cameronrwolfe.substack.com/p/ai-agents). The best pedagogical treatment of the LLM-to-agent spectrum. Builds understanding incrementally from tool use through ReAct to autonomous systems.
 
-- [ADAS paper (Hu et al., 2024)](https://arxiv.org/abs/2408.08435) -- The most intellectually provocative paper in the field. Read this to understand the meta-problem of automated agent design.
+- [Towards a Science of Scaling Agent Systems (Kim et al., 2026)](https://arxiv.org/abs/2512.08296). The most rigorous empirical study of when multi-agent helps or hurts. Essential reading for anyone designing multi-agent systems.
+
+- [MAST: Why Do Multi-Agent LLM Systems Fail? (Cemri et al., NeurIPS 2025)](https://arxiv.org/abs/2503.13657). First systematic taxonomy of multi-agent failure modes. 14 modes, 1,600+ annotated traces.
+
+- [SWE-agent paper (Yang et al., 2024)](https://arxiv.org/abs/2405.15793). Foundational reading on Agent-Computer Interface design. The insight that interface design matters as much as model capability applies far beyond coding.
+
+- [ADAS paper (Hu et al., 2024)](https://arxiv.org/abs/2408.08435). The most intellectually provocative paper in the field. Read this to understand the meta-problem of automated agent design.

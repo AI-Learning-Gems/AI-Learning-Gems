@@ -1,0 +1,88 @@
+## Agents in Practice: From Research Abstractions to Products You Use Daily {#sec-agents-in-practice}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Cameron Wolfe: AI Agents from First Principles](https://cameronrwolfe.substack.com/p/ai-agents) | Excellent pedagogical treatment of the LLM-to-agent spectrum; Level 0-3 framework |
+| 2 | [Anthropic: Claude Code documentation](https://docs.anthropic.com/en/docs/agents) | Agentic coding assistant with extended thinking, tool use, self-correction |
+| 3 | [OpenAI: Codex](https://openai.com/index/introducing-codex/) | Cloud-based async coding agent; parallel task execution |
+| 4 | [OpenAI: Operator / Computer-Using Agent](https://openai.com/index/introducing-operator/) | Browser-based computer-use agent for real-world tasks |
+| 5 | [Google: Gemini Deep Research](https://blog.google/products/gemini/google-gemini-deep-research/) | Multi-step research agent with planning and web search |
+| 6 | [Anthropic: Model Context Protocol (MCP)](https://modelcontextprotocol.io/) | Standardized protocol for LLM-tool integration |
+
+:::
+
+### Priya Already Uses Agents Every Day
+
+Here is a confession that might surprise you. If you have used Cursor, Claude Code, ChatGPT with browsing, or Google's Gemini with Deep Research in the past month, you have already been using agentic systems. Not the brittle research prototypes we have been discussing, but polished, production-grade agents that hide their complexity behind a seamless interface.
+
+This timing is not a coincidence. The period from late 2024 to early 2026 saw a rapid transition from "agents as research papers" to "agents as products." The foundational abstractions from Sections 1-5 did not stay in academic papers. ReAct loops, tool use, memory management, multi-agent orchestration, and ACI design were composed, refined, and shipped to millions of users. Understanding how these products work, and what they still cannot do, is the bridge between the research you have learned and the tools you use daily.
+
+### Mapping Products to Foundational Concepts
+
+The table below maps the major agent products to the foundational concepts from this chapter:
+
+| Product | ReAct Loop | Tool Use | Memory | Multi-Agent | ACI Design | Reflexion |
+|---|---|---|---|---|---|---|
+| **Claude Code** | Yes (extended thinking + actions) | Terminal, file editing, search, MCP | Conversation context + CLAUDE.md project memory | No (single agent) | Custom shell interface with confirmation prompts | Yes (self-correction on errors) |
+| **Cursor** | Yes (plan-then-execute) | File editing, terminal, LSP, web search | Tab context + codebase indexing | Yes (background agents for indexing, linting) | Specialized diff-based editor | Partial (lint-based self-correction) |
+| **OpenAI Codex** | Yes (async task execution) | Code sandbox, file I/O, package management | Task-scoped (isolated per task) | Yes (parallel task agents) | Cloud sandbox with git integration | Yes (test-driven self-correction) |
+| **OpenAI Operator** | Yes (observe-think-act on screenshots) | Browser actions (click, type, scroll) | Session-scoped | No (single agent) | OmniParser-style UI tokenization | Partial (retry on failure) |
+| **Google Deep Research** | Yes (plan → search → synthesize loop) | Google Search, web browsing | Research plan + accumulated findings | No (single agent, multi-step) | Structured research plan interface | Yes (evaluates sufficiency of evidence) |
+| **Anthropic Claude (with MCP)** | Yes | Any MCP-connected tool | Conversation context | No | Standardized tool schemas via MCP | Partial |
+
+### Case Study: Claude Code as a Composition of Foundational Concepts
+
+Claude Code is Anthropic's agentic coding assistant, and it is the clearest example of how the foundational concepts from this chapter compose into a production system. Let us decompose it.
+
+**The ReAct loop.** When you give Claude Code a task ("refactor this module to use dependency injection"), it does not generate the answer in a single pass. It enters a loop: it *thinks* about the task (using Anthropic's "extended thinking" capability, which is essentially a long internal chain-of-thought), *acts* (reads files, runs searches, edits code), *observes* the result (checks for errors, reads the updated file), and *repeats*. This loop is the Thought-Action-Observation pattern from @sec-reasoning-and-acting, running in production.
+
+**Tool use via MCP.** Claude Code can read and write files, run terminal commands, search codebases, and interact with external services. Since late 2024, these integrations follow the Model Context Protocol (MCP), Anthropic's open standard for LLM-tool communication. MCP standardizes three things: how tools describe their capabilities (via JSON schemas), how the model calls them (structured function calls), and how results are returned. This protocol-level standardization is the endpoint of the tool-use evolution we traced in @sec-tools-memory-grounding: from Toolformer's self-supervised learning, through prompted function calling, to a protocol-level standard that any tool provider can implement.
+
+**Agent-Computer Interface design.** Claude Code does not interact with a raw terminal. It uses a specialized interface with confirmation prompts for destructive actions: the model must ask permission before running `rm`, writing to files outside the project, or executing network requests. It shows diffs rather than full file rewrites, and validates edits before applying them. These guardrails are exactly the ACI design principles from SWE-agent (@sec-tools-memory-grounding): simple composable actions, immediate feedback, error prevention and recovery.
+
+**Reflexion-style self-correction.** When Claude Code edits a file and the linter reports errors, it reads the error messages, reasons about what went wrong, and generates a fix. This self-correction loop is a lightweight form of the Reflexion pattern from @sec-reasoning-and-acting: observe failure, generate a verbal critique, and use it to improve the next attempt. The difference from the research version is that Claude Code does this within a single session (working memory only), not across trials (no persistent episodic memory of past failures).
+
+**What it lacks.** Claude Code has three notable gaps. It operates as a single agent (no multi-agent orchestration). It has limited long-term memory: no persistent database of project-specific knowledge beyond `CLAUDE.md` files. And it does not plan beyond the current task (no auto-curriculum or subgoal decomposition across sessions). These limitations map directly to the open challenges we identified in earlier sections.
+
+::: {.callout-warning title="Common Misconception: Production agents are fundamentally different from research agents"}
+
+They are not. Claude Code, Cursor, and Codex are compositions of the same foundational abstractions described in this chapter: ReAct loops, tool use, ACI design, and Reflexion-style self-correction. The difference is engineering quality, not conceptual novelty.
+
+What production systems add is *guardrails*: confirmation prompts before destructive actions, rate limiting on API calls, sandboxed execution environments, human-in-the-loop checkpoints. These guardrails are not in the research papers because they are engineering, not research. But they are what makes the difference between a system that works in a demo and a system that works in production.
+
+The implication for researchers: if you understand the foundational concepts in this chapter, you understand how these products work. The remaining gap is systems engineering, not conceptual understanding.
+:::
+
+### The Agentic Spectrum in 2026: Wolfe's Level 0-3
+
+Cameron Wolfe's "AI Agents from First Principles" ([Wolfe, 2025](https://cameronrwolfe.substack.com/p/ai-agents)) offers a clean framework for understanding where each product sits on the agentic spectrum:
+
+**Level 0: Standard LLM.** Text in, text out. No tools, no environment interaction. This level is base ChatGPT or Claude without any features enabled. The model relies entirely on its parametric knowledge.
+
+**Level 1: Tool-augmented LLM.** The model can call external APIs (search, calculator, code interpreter) but follows a simple request-response pattern. ChatGPT with browsing enabled, or Claude with a single MCP tool, operates at this level. The model decides *which* tool to call but does not maintain a multi-step plan.
+
+**Level 2: Problem decomposition.** The model decomposes complex tasks into subtasks and executes them sequentially or in parallel. This level is where ReAct lives: the model plans, acts, observes, and adjusts. Google's Deep Research operates here: it creates a research plan, executes each search step, evaluates whether it has enough evidence, and synthesizes. Cursor's agentic mode also operates here when it reads multiple files, plans edits, and executes them in sequence.
+
+**Level 3: Autonomous operation.** The model operates with minimal human oversight, taking concrete actions (creating files, submitting PRs, browsing the web) on behalf of the user. OpenAI's Codex operates here: it receives a GitHub issue, works independently in a cloud sandbox (often for minutes), and produces a pull request. Operator operates here when it books a flight or fills out a form.
+
+Most "agentic" products in early 2026 operate at Level 2, with occasional forays into Level 3 for well-defined tasks. True Level 3 autonomy across open-ended tasks (Priya's dream of a fully autonomous research assistant) remains out of reach, for the reliability reasons we explored in @sec-real-world-agents.
+
+### Claude Code vs. Codex vs. Cursor: Different Architectural Choices
+
+These three coding agents make instructively different architectural choices that map to the trade-offs we have discussed:
+
+**Claude Code** is a single-agent system with a rich tool set and strong ACI design. It operates in your local terminal, has access to your full file system, and maintains context across a long conversation. Its strength is deep, contextual reasoning within a single session. Its weakness is that it is synchronous: you wait while it works.
+
+**OpenAI Codex** is an asynchronous multi-agent system. Each task runs in an isolated cloud sandbox with its own agent instance. Multiple tasks run in parallel. Its strength is throughput: you can submit 10 issues and get 10 PRs back. Its weakness is isolation: each task agent has no knowledge of the others, and no access to your local environment.
+
+**Cursor** is a hybrid: a primary agent (the chat/composer) with background agents (indexing, linting, autocomplete) that provide supporting intelligence. It integrates tightly with the IDE (Language Server Protocol, syntax highlighting, diff view), giving it the strongest ACI of the three. Its weakness is context management: the agent must work within the IDE's context window and cannot easily reason across an entire large codebase.
+
+These trade-offs are not arbitrary. They reflect the fundamental tension between *depth* (how deeply the agent can reason about one task) and *breadth* (how many tasks it can handle simultaneously). They also reflect the tension between *integration* (how tightly it connects to your workflow) and *isolation* (how safely it can operate without breaking things). There is no single right answer; the best choice depends on the task structure, exactly as the Google scaling paper predicts.
+
+::: {.callout-tip title="Self-Explanation Prompt"}
+Pick one of the agent products you use regularly (Cursor, Claude Code, ChatGPT with tools, Gemini Deep Research). Using the CoALA framework from @sec-what-is-an-agent, identify its memory type (working only? episodic? semantic?), its action space (what internal and external actions can it take?), and its decision procedure (how does it choose what to do next?). Where are the gaps? What capability from this chapter is missing that would make the product noticeably better?
+:::
+
+The products we use daily are existence proofs that the foundational abstractions work. They also reveal, through their limitations, where the field still needs breakthroughs. The next section explores those frontiers: training agents with RL, automating agent design, and the safety challenges that grow more urgent as agents grow more capable.

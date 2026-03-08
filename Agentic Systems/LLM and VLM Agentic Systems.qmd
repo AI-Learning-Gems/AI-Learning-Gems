@@ -9,14 +9,16 @@ filters:
 
 {{< include "LLM and VLM Agentic Systems/_02-what-is-an-agent.qmd" >}}
 
-{{< include "LLM and VLM Agentic Systems/_02-reasoning-and-acting.qmd" >}}
+{{< include "LLM and VLM Agentic Systems/_03-reasoning-and-acting.qmd" >}}
 
-{{< include "LLM and VLM Agentic Systems/_03-tools-memory-grounding.qmd" >}}
+{{< include "LLM and VLM Agentic Systems/_04-tools-memory-grounding.qmd" >}}
 
-{{< include "LLM and VLM Agentic Systems/_04-multi-agent-systems.qmd" >}}
+{{< include "LLM and VLM Agentic Systems/_05-multi-agent-systems.qmd" >}}
 
-{{< include "LLM and VLM Agentic Systems/_05-real-world-agents.qmd" >}}
+{{< include "LLM and VLM Agentic Systems/_06-real-world-agents.qmd" >}}
 
-{{< include "LLM and VLM Agentic Systems/_06-frontiers.qmd" >}}
+{{< include "LLM and VLM Agentic Systems/_07-agents-in-practice.qmd" >}}
+
+{{< include "LLM and VLM Agentic Systems/_08-frontiers.qmd" >}}
 
 {{< include "LLM and VLM Agentic Systems/_99-closing.qmd" >}}

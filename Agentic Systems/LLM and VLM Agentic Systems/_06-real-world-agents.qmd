@@ -19,11 +19,11 @@ Priya's multi-agent research assistant works. On simple tasks, it is impressive:
 
 Then she gives it a real task: "Find the top 20 RAG papers from 2023-2025, reproduce the training pipeline from Lewis et al. (2020) on the Natural Questions dataset, compare its performance against three recent baselines, and write a 5-page synthesis with tables and figures." This is a 50-step workflow that spans multiple days of computation.
 
-The agent crashes at step 23. It successfully downloads 18 papers, fails to find 2 (they are behind paywalls), starts reproducing the baseline, encounters a CUDA out-of-memory error, generates a workaround that introduces a subtle bug, produces results that are 15 points below the reported baseline, does not notice the discrepancy, and writes a synthesis that confidently presents the wrong numbers.
+The agent crashes at step 23. It successfully downloads 18 papers but fails to find 2 (they are behind paywalls). It starts reproducing the baseline, encounters a CUDA out-of-memory error, and generates a workaround that introduces a subtle bug. The resulting numbers are 15 points below the reported baseline. The agent does not notice the discrepancy and writes a synthesis that confidently presents the wrong numbers.
 
 When Priya benchmarks her system more carefully, she finds it succeeds at 45% of "easy" tasks (3-5 steps), 20% of "medium" tasks (10-15 steps), and less than 5% of "hard" tasks (20+ steps). These numbers, it turns out, are representative of the entire field. The gap between what agents *can* do on simple tasks and what they *reliably* do on complex tasks is the central challenge of agentic AI research.
 
-### The Benchmark Landscape
+### The Benchmark Field
 
 The field has developed a rich ecosystem of benchmarks, each measuring different aspects of agent capability. Understanding what they test and what they miss is essential for interpreting the current state of the art.
 
@@ -31,7 +31,9 @@ The field has developed a rich ecosystem of benchmarks, each measuring different
 
 ![AgentBench evaluation framework showing the multi-environment setup and standardized scoring methodology. Source: Liu et al. (2023), Figure 2.](LLM and VLM Agentic Systems/images/agentbench-framework.png){#fig-agentbench-framework}
 
-**AgentBench** ([Liu et al., ICLR 2024](https://arxiv.org/abs/2308.03688)) was the first thorough multi-environment agent benchmark. It tests LLMs across 8 environments: operating system interaction, database manipulation, knowledge graph reasoning, a card game, lateral thinking puzzles, web shopping, web browsing, and a household simulation. The headline finding from 2023 was stark: GPT-4 scored 4.01 out of 8.0 on average, while the best open-source model scored below 1.0. Even GPT-4 could not reliably complete tasks in most environments. AgentBench revealed that general-purpose LLMs, despite their impressive language capabilities, were poor agents.
+**AgentBench** ([Liu et al., ICLR 2024](https://arxiv.org/abs/2308.03688)) was the first thorough multi-environment agent benchmark. It tests LLMs across 8 environments: operating system interaction, database manipulation, knowledge graph reasoning, a card game, lateral thinking puzzles, web shopping, web browsing, and a household simulation.
+
+The headline finding from 2023 was stark: GPT-4 scored 4.01 out of 8.0 on average, while the best open-source model scored below 1.0. Even GPT-4 could not reliably complete tasks in most environments. AgentBench revealed that general-purpose LLMs, despite their impressive language capabilities, were poor agents.
 
 **SWE-bench** ([Jimenez et al., ICLR 2024](https://arxiv.org/abs/2310.06770)) focuses on software engineering: given a real GitHub issue and the associated codebase, the agent must produce a patch that fixes the issue and passes the repository's test suite. The metric is simple:
 
@@ -39,13 +41,15 @@ $$
 \text{Resolve Rate} = \frac{|\{i : \text{all\_tests\_pass}(\text{patch}_i)\}|}{N}
 $$ {#eq-swe-bench-resolve}
 
-On the original SWE-bench (2,294 issues), the best agents resolve around 30% of issues. On SWE-bench Verified (a curated subset of 500 issues vetted by human developers), rates reach up to 53% (OpenHands, late 2025). These numbers sound impressive until you realize: SWE-bench Verified was curated to contain solvable issues with clear test suites. Real codebases contain ambiguous issues, missing tests, and dependency conflicts that curated benchmarks exclude.
+On the original SWE-bench (2,294 issues), the best agents resolve around 30% of issues. On SWE-bench Verified (a curated subset of 500 issues vetted by human developers), rates reach up to 53% (OpenHands, late 2025).
 
-**OSWorld** ([Xie et al., NeurIPS 2024](https://arxiv.org/abs/2404.07972)) tests agents in a real desktop environment: Ubuntu virtual machines with common applications (LibreOffice, Firefox, VS Code, terminal). The agent observes screenshots and issues mouse/keyboard actions to complete tasks like "Create a presentation with these slides" or "Find this information online and paste it into a spreadsheet." This is a remarkably demanding test because it requires visual understanding, multi-application coordination, and long-horizon planning.
+These numbers sound impressive until you realize: SWE-bench Verified was curated to contain solvable issues with clear test suites. Real codebases contain ambiguous issues, missing tests, and dependency conflicts that curated benchmarks exclude.
+
+**OSWorld** ([Xie et al., NeurIPS 2024](https://arxiv.org/abs/2404.07972)) tests agents in a real desktop environment: Ubuntu virtual machines running common applications (LibreOffice, Firefox, VS Code, terminal). The agent observes screenshots and issues mouse/keyboard actions to complete tasks like "Create a presentation with these slides" or "Find this information online and paste it into a spreadsheet." This is a remarkably demanding test. It requires visual understanding, multi-application coordination, and long-horizon planning.
 
 The results are sobering. Humans complete 72.4% of OSWorld tasks. The best agent as of early 2026 (OpenAI's Computer-Using Agent at 38.1%, UltraCUA at 41%) completes less than half of what humans can. And the gap widens dramatically with task complexity: on tasks requiring 5+ steps, agent success rates often drop below 15%.
 
-**$\tau$-bench** ([Yao et al., ICLR 2025](https://arxiv.org/abs/2406.12045)) takes a different approach. Instead of testing agents on isolated tasks, it tests multi-turn interactions between an agent, a user, and a set of tools. The agent must help the user accomplish goals (like booking a flight or managing a retail order) while correctly using the provided tools and following domain-specific policies. This tests not just task completion but *reliability over repeated interactions*.
+**$\tau$-bench** ([Yao et al., ICLR 2025](https://arxiv.org/abs/2406.12045)) takes a different approach. Instead of testing agents on isolated tasks, it tests multi-turn interactions between an agent, a user, and a set of tools. The agent must help the user accomplish goals (like booking a flight or managing a retail order) while correctly using the provided tools and following domain-specific policies. This design tests not just task completion but *reliability over repeated interactions*.
 
 The key metric from $\tau$-bench is $\text{pass}^k$: the probability that an agent succeeds on all $k$ independent trials of the same task:
 
@@ -53,7 +57,7 @@ $$
 \text{pass}^k = P(\text{all } k \text{ independent trials succeed})
 $$ {#eq-pass-k}
 
-This metric is devastating. An agent that achieves 70% $\text{pass}^1$ (succeeds 70% of the time on a single trial) drops to just 24% at $\text{pass}^5$ (succeeds on all 5 trials) if the failures are independent. In practice, they are not fully independent (some tasks are consistently harder), but the qualitative point stands: *occasional success is not reliability*. For any production deployment, you need consistent success, and the gap between $\text{pass}^1$ and $\text{pass}^k$ quantifies how far current agents are from that.
+This $\text{pass}^k$ metric is devastating. An agent that achieves 70% $\text{pass}^1$ (succeeds 70% of the time on a single trial) drops to just 24% at $\text{pass}^5$ (succeeds on all 5 trials) if the failures are independent. In practice, they are not fully independent (some tasks are consistently harder), but the qualitative point stands: *occasional success is not reliability*. For any production deployment, you need consistent success, and the gap between $\text{pass}^1$ and $\text{pass}^k$ quantifies how far current agents are from that.
 
 | Benchmark | Domain | Environment | Best Agent Score | Human Score | Year |
 |---|---|---|---|---|---|
@@ -78,24 +82,24 @@ The ACI insight generalizes beyond coding. In OSWorld, the best-performing agent
 
 This is an appealing belief: if current models are not reliable enough for 50-step tasks, surely the next generation (with more parameters, more training data, better architecture) will be. The evidence does not support this.
 
-Recent failure analysis of agents in OSWorld and $\tau$-bench shows that many failures are not due to reasoning errors (which larger models might fix) but to *structural* problems: the agent loses track of its progress (a context management issue), takes an irreversible wrong action early and cannot recover (an error recovery issue), or misinterprets the environment state due to interface limitations (an ACI issue).
+Recent failure analysis of agents in OSWorld and $\tau$-bench shows that many failures are not due to reasoning errors (which larger models might fix) but to *structural* problems. The agent loses track of its progress (a context management issue). It takes an irreversible wrong action early and cannot recover (an error recovery issue). Or it misinterprets the environment state due to interface limitations (an ACI issue).
 
 Consider a concrete example from OSWorld. An agent is asked to "copy the table from page 3 of this PDF into a LibreOffice Calc spreadsheet." A 32B model fails because it cannot figure out how to navigate to page 3 in the PDF viewer. A 400B model *also* fails because it navigates to page 3 but uses a copy command that captures text without table formatting. The bottleneck is not reasoning capacity; it is the interface between the agent and the PDF viewer.
 
-The $\tau$-bench data makes the same point quantitatively: scaling from GPT-3.5 to GPT-4 improves $\text{pass}^1$ by about 20 percentage points on average, but $\text{pass}^8$ (which measures consistency) improves by only 5-10 points. Larger models are better on average but barely more *reliable*. This suggests that the unreliability has structural causes (interaction design, context management, error recovery) that do not disappear with scale.
+The $\tau$-bench data makes the same point quantitatively: scaling from GPT-3.5 to GPT-4 improves $\text{pass}^1$ by about 20 percentage points on average, but $\text{pass}^8$ (which measures consistency) improves by only 5-10 points. Larger models are better on average but barely more *reliable*. This pattern suggests that the unreliability has structural causes (interaction design, context management, error recovery) that do not disappear with scale.
 :::
 
 ### Computer-Use Agents: The VLM Frontier
 
-The most ambitious agent applications involve direct computer use: agents that see screenshots, move the mouse, type on the keyboard, and operate arbitrary software. This requires Vision-Language Models (VLMs) that can parse complex visual interfaces.
+The most ambitious agent applications involve direct computer use: agents that see screenshots, move the mouse, type on the keyboard, and operate arbitrary software. Direct computer use requires Vision-Language Models (VLMs) that can parse complex visual interfaces.
 
 **CogAgent** ([Hong et al., CVPR 2024](https://arxiv.org/abs/2312.08914)) introduced a dual-resolution encoding for UI understanding. The model processes screenshots at both low resolution (for overall layout understanding) and high resolution (for reading small text and identifying precise click targets). At 18B parameters, CogAgent set early benchmarks for GUI navigation across web and mobile interfaces.
 
 **OmniParser V2** (Microsoft, 2025) took a different approach: instead of training a specialized VLM, it "tokenizes" UI screenshots into structured representations that *any* LLM can understand. OmniParser detects UI elements (buttons, text fields, menus), labels them, and presents them as a structured text description: "Button 1: 'Submit' at position (340, 520). Text field 2: 'Email' at position (340, 460). Dropdown 3: 'Country' at position (340, 400)." This converts the visual problem into a text problem, enabling even text-only LLMs to act as computer-use agents.
 
-**OpenAI's Operator** (launched January 2025) and **Google's Mariner** represent the first production deployments of computer-use agents. Operator uses a Computer-Using Agent (CUA) model that achieves 38.1% on OSWorld and 58.1% on WebArena. It can book flights, order food, fill forms, and navigate complex web applications. But it still requires human oversight for tasks involving personal information, payments, and captchas.
+**OpenAI's Operator** (launched January 2025) and **Google's Mariner** represent the first production deployments of computer-use agents. Operator uses a Computer-Using Agent (CUA) model that achieves 38.1% on OSWorld and 58.1% on WebArena. It can book flights, order food, fill forms, and work through complex web applications. But it still requires human oversight for tasks involving personal information, payments, and captchas.
 
-The hybrid action paradigm of **UltraCUA** (Apple, 2025) represents the current frontier: the agent can choose between GUI actions (clicking, scrolling) and programmatic actions (shell commands, API calls) at each step, selecting the approach that is most efficient for the current subtask. This hybrid approach achieves 41% on OSWorld, the highest published score as of early 2026.
+The hybrid action paradigm of **UltraCUA** (Apple, 2025) represents the current frontier. At each step, the agent can choose between GUI actions (clicking, scrolling) and programmatic actions (shell commands, API calls), selecting whichever approach is most efficient for the current subtask. This hybrid approach achieves 41% on OSWorld, the highest published score as of early 2026.
 
 ::: {.callout-note title="Think Hard: Why is the gap between agent and human performance so large on computer-use tasks?"}
 
@@ -103,22 +107,22 @@ Humans complete 72.4% of OSWorld tasks. The best agents complete about 41%. Why 
 
 Part of the answer is visual understanding. Humans instantly recognize UI layouts, parse dense information screens, and identify interactive elements. Current VLMs still struggle with small text, overlapping elements, and non-standard UI designs. But this is not the main bottleneck.
 
-The deeper problem is *error recovery in long-horizon tasks*. When a human makes a wrong click, they immediately see the unexpected result, recognize the error, and use Ctrl+Z or navigate back. This recovery takes about 2 seconds of human time. When an agent makes a wrong click, it must: (1) observe the new screenshot, (2) recognize that the state does not match its expectation, (3) reason about what went wrong, (4) plan a recovery strategy, and (5) execute the recovery. This process consumes multiple LLM calls, each of which might itself fail. In a 15-step task, even a 10% per-step error rate (with imperfect recovery) leads to a very low overall success rate.
+The deeper problem is *error recovery in long-horizon tasks*. When a human makes a wrong click, they immediately see the unexpected result, recognize the error, and use Ctrl+Z or navigate back. This recovery takes about 2 seconds of human time. When an agent makes a wrong click, it must perform five steps: (1) observe the new screenshot, (2) recognize that the state does not match its expectation, (3) reason about what went wrong, (4) plan a recovery strategy, and (5) execute the recovery. This process consumes multiple LLM calls, each of which might itself fail. In a 15-step task, even a 10% per-step error rate (with imperfect recovery) leads to a very low overall success rate.
 
-This is the *compound error problem*: if each step succeeds with probability $p$ and there are $n$ steps, the overall success rate is approximately $p^n$. At $p = 0.95$ and $n = 15$, you get $0.95^{15} \approx 46\%$. At $p = 0.90$ and $n = 15$, you get $0.90^{15} \approx 21\%$. To achieve 72% overall success on a 15-step task, you need per-step reliability of about 98%. Current agents are nowhere near that.
+This cascading effect is the *compound error problem*: if each step succeeds with probability $p$ and there are $n$ steps, the overall success rate is approximately $p^n$. At $p = 0.95$ and $n = 15$, you get $0.95^{15} \approx 46\%$. At $p = 0.90$ and $n = 15$, you get $0.90^{15} \approx 21\%$. To achieve 72% overall success on a 15-step task, you need per-step reliability of about 98%. Current agents are nowhere near that.
 
-The implication is stark: incremental improvements in per-step accuracy have outsized effects on end-to-end reliability. Going from 90% to 95% per-step accuracy does not sound like much, but for a 15-step task, it nearly doubles the overall success rate (from 21% to 46%). This is why interface design (which prevents errors) and error recovery (which corrects errors cheaply) matter so much.
+The implication is stark: incremental improvements in per-step accuracy have outsized effects on end-to-end reliability. Going from 90% to 95% per-step accuracy does not sound like much, but for a 15-step task, it nearly doubles the overall success rate (from 21% to 46%). This relationship is why interface design (which prevents errors) and error recovery (which corrects errors cheaply) matter so much.
 :::
 
 ### The Four Failure Archetypes
 
 Why do agents fail on long-horizon tasks? Analysis of agent trajectories across multiple benchmarks reveals four recurring failure patterns:
 
-**Premature action without grounding.** The agent acts before fully understanding the task or the environment. Instead of reading the full task description, it starts executing after the first sentence. Instead of exploring the file structure, it opens the first file it finds. This is especially common with aggressive "chain-of-thought" agents that are optimized for speed rather than thoroughness.
+**Premature action without grounding.** The agent acts before fully understanding the task or the environment. Instead of reading the full task description, it starts executing after the first sentence. Instead of exploring the file structure, it opens the first file it finds. This pattern is especially common with aggressive "chain-of-thought" agents that are optimized for speed rather than thoroughness.
 
-**Over-helpfulness.** The agent tries to do more than asked. Given a task to "fix the bug in the login function," it refactors the entire authentication module, introducing new bugs in previously-working code. This is a deep problem because the LLM's training incentivizes being helpful and thorough, but the correct behavior for an agent is often to do the minimum required and stop.
+**Over-helpfulness.** The agent tries to do more than asked. Given a task to "fix the bug in the login function," it refactors the entire authentication module, introducing new bugs in previously-working code. Over-helpfulness is a deep problem because the LLM's training incentivizes being helpful and thorough, but the correct behavior for an agent is often to do the minimum required and stop.
 
-**Context pollution from distractors.** As the context window fills up with observations, tool outputs, and intermediate results, irrelevant information displaces relevant information. The agent "forgets" its original goal because it is buried under 10,000 tokens of error logs from a failed attempt. This is the working memory management problem that MemGPT addresses, but most agents still suffer from it.
+**Context pollution from distractors.** As the context window fills up with observations, tool outputs, and intermediate results, irrelevant information displaces relevant information. The agent "forgets" its original goal because it is buried under 10,000 tokens of error logs from a failed attempt. This accumulation is the working memory management problem that MemGPT addresses, but most agents still suffer from it.
 
 **Fragile execution under load.** The agent works fine on easy tasks but breaks down when the task requires long sequences of actions, complex tool interactions, or recovery from unexpected errors. A coding agent that resolves simple one-file bugs fails catastrophically on bugs that span multiple files with complex dependencies. A web agent that fills simple forms fails on multi-page wizards with validation logic.
 
@@ -126,4 +130,4 @@ Why do agents fail on long-horizon tasks? Analysis of agent trajectories across 
 Why is $\text{pass}^k$ a more meaningful metric than $\text{pass}^1$ for evaluating agent reliability? Think about a production scenario: a customer service agent handling 1,000 requests per day. If $\text{pass}^1 = 70\%$, how many customers experience failures? If the same agent achieves $\text{pass}^5 = 24\%$, what does that tell you about deploying it in production? The gap between these metrics is a direct measure of *consistency*, which is what production systems actually need.
 :::
 
-The benchmarks paint a clear picture: LLM agents are genuinely capable on short-horizon, well-defined tasks, but the reliability gap on long-horizon, complex tasks remains enormous. Closing this gap requires advances not just in model capability but in error recovery, context management, interface design, and evaluation methodology itself. In the next section, we explore the research frontiers that are attacking these problems from new angles: training agents with reinforcement learning, automating the agent design process, and confronting the safety challenges that lurk beneath the surface.
+The benchmarks paint a clear picture: LLM agents are genuinely capable on short-horizon, well-defined tasks, but the reliability gap on long-horizon, complex tasks remains enormous. Closing this gap requires advances not just in model capability but in error recovery, context management, and interface design. In the next section, we explore the research frontiers attacking these problems from new angles: training agents with reinforcement learning, automating the agent design process, and confronting the safety challenges that lurk beneath the surface.
