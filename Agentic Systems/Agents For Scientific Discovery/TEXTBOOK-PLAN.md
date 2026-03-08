@@ -57,6 +57,14 @@
 | 38 | DSBench / DataSciBench (2024) | [ACADEMIC] | arXiv (2024) | 2024 | 2026-03-03 | KEY: Additional benchmarks for LLM agents in data science tasks. |
 | 39 | Awesome-Agents4Science (GitHub) | [COMMUNITY] | github.com | 2024-2025 | 2026-03-03 | KEY: Curated list of papers on AI agents for scientific discovery. |
 | 40 | Awesome-LLM-Agents-Scientific-Discovery (GitHub) | [COMMUNITY] | github.com | 2024-2025 | 2026-03-03 | KEY: Another curated list tracking rapid advancements in this field. |
+| 41 | From Automation to Autonomy: Survey on LLMs in Scientific Discovery (Zheng et al.) | [ACADEMIC] | `arxiv-2505.13259` | May 2025 | 2026-03-08 | KEY: ACL 2025 survey. Defines the Tool→Analyst→Scientist taxonomy. Comprehensive catalog of systems and benchmarks. |
+| 42 | DiscoveryWorld: Virtual Environment for Scientific Discovery Agents (Jansen et al.) | [ACADEMIC] | `arxiv-2406.06769` | Jun 2024 | 2026-03-08 | KEY: NeurIPS 2024 Spotlight. First virtual environment for end-to-end discovery. 120 tasks across 8 themes. Best agent: 38% on easy tasks vs. 66% for human PhDs. |
+| 43 | Automated Statistical Model Discovery with Language Models (Li et al.) | [ACADEMIC] | `arxiv-2402.17879` | Feb 2024 | 2026-03-08 | KEY: ICML 2024. LLM-driven Box's Loop: iteratively proposes and critiques probabilistic programs. No handcrafted DSL or search procedure. |
+| 44 | BoxingGym: Benchmarking Automated Experimental Design and Model Discovery (Gandhi et al.) | [ACADEMIC] | `arxiv-2501.01540` | Jan 2025 | 2026-03-08 | KEY: NeurIPS 2025 Workshop. 10 environments for evaluating LLM agents on experimental design + model discovery. Uses EIG-based evaluation. |
+| 45 | Towards Execution-Grounded Automated AI Research (Si et al.) | [ACADEMIC] | `arxiv-2601.14525` | Jan 2026 | 2026-03-08 | KEY: ICML 2025. Automated executor for LLM research ideas with large-scale GPU experiments. Evolutionary search beats GRPO baseline (69.4% vs 48.0%). RL suffers mode collapse. |
+| 46 | VIPER-R1: VLM-centric Physics Formula Discovery (Liu et al.) | [ACADEMIC] | `arxiv-2508.17380` | Aug 2025 | 2026-03-08 | KEY: Multimodal VLM for equation discovery from trajectory plots. SFT + GRPO training. Agentic inference with symbolic regression tool calling. PhysSymbol benchmark. |
+| 47 | AutoSciLab: Self-Driving Laboratory for Interpretable Discovery (Desai et al.) | [ACADEMIC] | `arxiv-2412.12347` | Dec 2024 | 2026-03-08 | KEY: AAAI 2025. VAE + active learning + directional autoencoder + equation learner. Discovers novel nanophotonics steering principle. |
+| 48 | Automated Model Discovery via Multi-modal & Multi-step Pipeline (Lee et al.) | [ACADEMIC] | `arxiv-2509.25946` | Sep 2025 | 2026-03-08 | KEY: NeurIPS 2025. VLM-based AnalyzerVLM + EvaluatorVLM for automated model discovery. Visual Information Criterion for model evaluation. |
 
 :::
 
@@ -312,6 +320,16 @@ The paradox driving the chapter is this: despite remarkable demonstrations (the 
 2. **D2 diagrams** — taxonomy map, benchmark comparison, pipeline flows
 3. **Python/hvPlot** — benchmark performance comparisons, timeline of papers
 4. **generate_image** — only for custom conceptual illustrations if needed
+
+---
+
+## Out-of-Scope Sources (For Future Chapters)
+
+| Source | Topic | Suggested Chapter |
+|--------|-------|-------------------|
+| [Small Language Models for Efficient Agentic Tool Calling (arxiv-2512.15943)](https://arxiv.org/abs/2512.15943) | Enterprise tool-calling cost optimization with SLMs | "Efficient LLM Deployment" or "Tool-Augmented LLMs" |
+| [CL-bench: A Benchmark for Context Learning (arxiv-2602.03587)](https://arxiv.org/abs/2602.03587) | Evaluating LMs on learning from complex context | "LLM Evaluation and Benchmarking" |
+| [From Word Models to World Models (arxiv-2306.12672)](https://arxiv.org/abs/2306.12672) | LLMs + probabilistic programs for rational reasoning | "LLM and VLM Agentic Systems" (cognitive architectures section) |
 
 ---
 
