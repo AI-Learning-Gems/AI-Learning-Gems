@@ -31,7 +31,7 @@ $$
 \frac{\partial \mathcal{L}}{\partial \theta} = \frac{\partial h}{\partial g} \cdot \frac{\partial g}{\partial f} \cdot \frac{\partial f}{\partial \theta}
 $$
 
-This is the mathematical basis for backpropagation in neural networks, and its natural-language analogue is the foundation for textual gradients in @sec-textual-gradients. The key insight TextGrad borrows: if you can propagate "how to improve" backward through a chain of operations, you can optimize early components based on late failures.
+This composition rule is the mathematical basis for backpropagation in neural networks, and its natural-language analogue is the foundation for textual gradients in @sec-textual-gradients. The key insight TextGrad borrows: if you can propagate "how to improve" backward through a chain of operations, you can optimize early components based on late failures.
 
 **Why this matters for prompt optimization:** The entire chapter is structured around the contrast between continuous gradient descent (where $\nabla_\theta \mathcal{L}$ exists and is informative) and the discrete prompt setting (where it does not). Every algorithm in @sec-first-wave through @sec-evolutionary is a creative workaround for the missing gradient. Understanding what the gradient provides (direction, magnitude, per-parameter specificity) clarifies what textual gradients approximate and what they lose.
 
@@ -51,7 +51,7 @@ An **acquisition function** uses $\mu(x)$ and $\sigma(x)$ to balance exploitatio
 
 The BO loop: (1) fit GP to observed data, (2) maximize acquisition function to select next evaluation point $x_\text{next}$, (3) evaluate $f(x_\text{next})$, (4) add result to observations, repeat.
 
-**Why this matters for prompt optimization:** InstructZero (@sec-first-wave) uses BO to navigate a continuous soft-prompt space that maps to discrete instructions. MIPROv2 (@sec-frameworks) uses a Tree-structured Parzen Estimator (TPE), a variant of BO, to search the joint space of instructions and demonstrations. The key property: BO is *sample-efficient* (it builds a model of what it has learned and uses that model to choose evaluations intelligently), which matters enormously when each "evaluation" is an expensive batch of LLM inference calls.
+**Why this matters for prompt optimization:** InstructZero (@sec-first-wave) uses BO to search a continuous soft-prompt space that maps to discrete instructions. MIPROv2 (@sec-frameworks) uses a Tree-structured Parzen Estimator (TPE), a variant of BO, to search the joint space of instructions and demonstrations. The key property: BO is *sample-efficient* (it builds a model of what it has learned and uses that model to choose evaluations intelligently), which matters enormously when each "evaluation" is an expensive batch of LLM inference calls.
 
 **Numerical example.** You have tested 3 prompts with accuracy scores: $\{(p_1, 72\%), (p_2, 78\%), (p_3, 68\%)\}$. The GP fits a smooth curve through these points and estimates uncertainty. At a new candidate $p_4$, the GP predicts $\mu = 80\%$ with $\sigma = 5\%$. EI is high because there is a substantial probability of exceeding the current best of 78%. At another candidate $p_5$, the GP predicts $\mu = 85\%$ with $\sigma = 15\%$. UCB with $\kappa = 2$ gives $85 + 2(15) = 115$ for $p_5$ vs. $80 + 2(5) = 90$ for $p_4$, so UCB would explore $p_5$ first (high uncertainty = high potential).
 
@@ -101,7 +101,7 @@ $$
 a^* = \arg\max_a \left[ \frac{Q(s, a)}{N(s, a)} + c \sqrt{\frac{\ln N(s)}{N(s, a)}} \right]
 $$ {#eq-uct}
 
-where $Q(s, a)$ is the cumulative reward from taking action $a$ in state $s$, $N(s, a)$ is the visit count for that state-action pair, $N(s)$ is the visit count for the parent state, and $c$ is the exploration constant. This is UCB1 applied to tree nodes.
+where $Q(s, a)$ is the cumulative reward from taking action $a$ in state $s$, $N(s, a)$ is the visit count for that state-action pair, $N(s)$ is the visit count for the parent state, and $c$ is the exploration constant. This formula is UCB1 applied to tree nodes.
 
 2. **Expansion**: Add a new child node (a new prompt refinement)
 3. **Simulation** (rollout): Estimate the value of the new node by simulating future steps (e.g., apply several more refinements and evaluate the result)
@@ -109,7 +109,7 @@ where $Q(s, a)$ is the cumulative reward from taking action $a$ in state $s$, $N
 
 The key advantage of MCTS over greedy search: it *looks ahead*. Before committing to a refinement, it simulates downstream consequences. If adding neurological symptom keywords helps accuracy now but causes problems three refinements later, MCTS can detect this through simulation.
 
-**Why this matters for prompt optimization:** PromptAgent frames prompt optimization as a planning problem where states are prompts, actions are error-feedback-driven refinements, and rewards are task accuracy. The UCT formula (@eq-uct) is directly applied to navigate the prompt refinement tree, achieving 6--9% improvement over baselines on 12 tasks. Understanding MCTS clarifies how PromptAgent differs from single-trajectory methods (GPO, TextGrad): it explores branching paths rather than a single line.
+**Why this matters for prompt optimization:** PromptAgent frames prompt optimization as a planning problem where states are prompts, actions are error-feedback-driven refinements, and rewards are task accuracy. The UCT formula (@eq-uct) is directly applied to traverse the prompt refinement tree, achieving 6--9% improvement over baselines on 12 tasks. Understanding MCTS clarifies how PromptAgent differs from single-trajectory methods (GPO, TextGrad): it explores branching paths rather than a single line.
 
 ### Reinforcement Learning Basics {#sec-math-rl}
 
@@ -146,7 +146,7 @@ $$
 
 In words: $a$ is at least as good as $b$ on every objective, and strictly better on at least one. A solution is **Pareto-optimal** (or non-dominated) if no other solution dominates it. The set of all Pareto-optimal solutions is the **Pareto front**.
 
-**Weighted-sum scalarization** reduces multi-objective optimization to single-objective: $F(x) = \sum_i w_i f_i(x)$. This is simple but has a fundamental limitation: it can only find solutions on *convex* regions of the Pareto front. If the front is concave (which is common), entire regions of Pareto-optimal solutions are invisible to any weight combination. This limitation motivates evolutionary approaches like NSGA-II.
+**Weighted-sum scalarization** reduces multi-objective optimization to single-objective: $F(x) = \sum_i w_i f_i(x)$. This approach is simple but has a fundamental limitation: it can only find solutions on *convex* regions of the Pareto front. If the front is concave (which is common), entire regions of Pareto-optimal solutions are invisible to any weight combination. This limitation motivates evolutionary approaches like NSGA-II.
 
 **Why this matters for prompt optimization:** Every multi-objective method in @sec-multi-objective (EMO-Prompts, MORL-Prompt, MOPO, ParetoPrompt, GEPA) uses Pareto dominance to select which candidate prompts to keep. The concept is also used in GEPA's per-instance Pareto fronts, where each validation example is treated as a separate "objective." Understanding Pareto dominance is prerequisite to understanding why these methods outperform naive weighted averaging.
 
@@ -158,7 +158,7 @@ In words: $a$ is at least as good as $b$ on every objective, and strictly better
 | B | 80% | 90% |
 | C | 75% | 80% |
 
-$A \succ C$? No: $A$ has higher accuracy but lower safety. $B \succ C$? Yes: $B$ has higher accuracy (80 > 75) *and* higher safety (90 > 80). So $C$ is dominated by $B$ and is not Pareto-optimal. The Pareto front is $\{A, B\}$: you cannot improve accuracy without sacrificing safety, or vice versa.
+Does $A \succ C$? No: $A$ has higher accuracy but lower safety. Does $B \succ C$? Yes: $B$ has higher accuracy (80 > 75) *and* higher safety (90 > 80). So $C$ is dominated by $B$ and is not Pareto-optimal. The Pareto front is $\{A, B\}$: you cannot improve accuracy without sacrificing safety, or vice versa.
 
 ### Hypervolume Indicator {#sec-math-hvi}
 
@@ -196,7 +196,7 @@ The total crowding distance sums over all objectives: $I[i] = \sum_m I[i]_m$. So
 
 The NSGA-II selection rule: between two solutions, prefer the one with (a) lower rank, or (b) if same rank, higher crowding distance.
 
-**Why this matters for prompt optimization:** NSGA-II is the selection mechanism in EMO-Prompts, MOPO, and other evolutionary multi-objective prompt optimizers (@sec-multi-objective). It is the standard way to select which prompts survive to the next generation when you care about multiple objectives. The crowding distance mechanism explains why these methods maintain diverse Pareto fronts rather than converging to a single trade-off point.
+**Why this matters for prompt optimization:** NSGA-II is the selection mechanism in EMO-Prompts, MOPO, and other evolutionary multi-objective prompt optimizers (@sec-multi-objective). NSGA-II is the standard way to select which prompts survive to the next generation when you care about multiple objectives. The crowding distance mechanism explains why these methods maintain diverse Pareto fronts rather than converging to a single trade-off point.
 
 ### MGDA: Multi-Objective Gradient Descent {#sec-math-mgda}
 
@@ -208,7 +208,7 @@ $$
 \mathbf{d}^* = \arg\min_{\mathbf{d}} \|\mathbf{d}\|^2 \quad \text{s.t.} \quad \mathbf{d} \in \text{conv}(\mathbf{g}_1, \ldots, \mathbf{g}_m)
 $$
 
-This finds the minimum-norm vector in the convex hull of the per-objective gradients. Geometrically, $\mathbf{d}^*$ is the shortest vector that can be written as a weighted average $\mathbf{d}^* = \sum_i \alpha_i \mathbf{g}_i$ with $\alpha_i \geq 0$ and $\sum_i \alpha_i = 1$. Moving in the direction $-\mathbf{d}^*$ improves all objectives simultaneously (or harms the least, when improvement of all is impossible).
+MGDA finds the minimum-norm vector in the convex hull of the per-objective gradients. Geometrically, $\mathbf{d}^*$ is the shortest vector that can be written as a weighted average $\mathbf{d}^* = \sum_i \alpha_i \mathbf{g}_i$ with $\alpha_i \geq 0$ and $\sum_i \alpha_i = 1$. Moving in the direction $-\mathbf{d}^*$ improves all objectives simultaneously (or harms the least, when improvement of all is impossible).
 
 The gradient **cosine similarity** measures conflict between objectives:
 
@@ -232,7 +232,7 @@ The term $v(S \cup \{i\}) - v(S)$ is the *marginal contribution* of player $i$ t
 
 Shapley values satisfy four desirable axioms: efficiency (contributions sum to total value), symmetry (equal contributors get equal shares), linearity, and null player (a player contributing nothing gets zero).
 
-The computational challenge: exact computation requires evaluating $v$ for all $2^{|N|}$ subsets. This is exponential in the number of players.
+The computational challenge: exact computation requires evaluating $v$ for all $2^{|N|}$ subsets. This cost is exponential in the number of players.
 
 **Why this matters for prompt optimization:** HiveMind (@sec-applications) uses Shapley values to solve the credit assignment problem in multi-agent prompt optimization. When a 4-module pipeline misclassifies a ticket, which module's prompt is at fault? The Shapley value of each module measures its average marginal contribution to the system's performance. Modules with low Shapley values are identified as bottlenecks and receive targeted optimization budget. DAG-Shapley prunes non-viable coalitions by exploiting the pipeline's DAG structure, reducing the exponential cost to something practical.
 

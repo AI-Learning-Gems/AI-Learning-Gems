@@ -98,13 +98,13 @@ SAMMO ([Ribeiro et al., 2024](https://arxiv.org/abs/2404.02319)) represents prom
 
 Several newer frameworks push the boundaries:
 
-**PromptWizard (Microsoft, ACL 2025 Findings)** uses a 4-stage self-evolving mechanism: mutate instructions, score on training data, critique failures, synthesize improvements. It jointly optimizes instructions and few-shot examples, generating chain-of-thought reasoning steps automatically. Improvements across 45 tasks with reduced API cost.
+**PromptWizard ([Agarwal et al., ACL 2025 Findings](https://aclanthology.org/2025.findings-acl.1025/))** uses a 4-stage self-evolving mechanism: mutate instructions, score on training data, critique failures, synthesize improvements. It jointly optimizes instructions and few-shot examples, generating chain-of-thought reasoning steps automatically. Improvements across 45 tasks with reduced API cost.
 
-**PhaseEvo** combines LLM mutation with multi-phase global search, balancing local refinement and global exploration across 35 benchmark tasks.
+**PhaseEvo** ([Cui et al., 2024](https://openreview.net/forum?id=xp2RfmDTQJ)) combines LLM mutation with multi-phase global search, balancing local refinement and global exploration across 35 benchmark tasks.
 
-**C-MOP (February 2026)** enables small 3B-parameter models to surpass larger domain-specific systems by 1.58--3.35% through boundary-aware contrastive sampling and momentum-guided semantic clustering.
+**C-MOP ([Li et al., 2026](https://arxiv.org/abs/2602.10874))** enables small 3B-parameter models to surpass larger domain-specific systems by 1.58--3.35% through boundary-aware contrastive sampling and momentum-guided semantic clustering.
 
-**IAPO (Inference-Aware Prompt Optimization)** jointly optimizes the prompt AND inference configuration (temperature, Best-of-N sampling, top-$p$). This expands the optimization problem beyond prompt text to include deployment parameters. The same prompt performs differently at temperature 0 vs. 0.7; IAPO searches over both simultaneously.
+**IAPO** ([Mahmud et al., 2025](https://arxiv.org/abs/2508.10030)) jointly optimizes the prompt AND inference configuration (temperature, Best-of-N sampling, top-$p$). This expands the optimization problem beyond prompt text to include deployment parameters. The same prompt performs differently at temperature 0 vs. 0.7; IAPO searches over both simultaneously.
 
 ### Framework Comparison
 

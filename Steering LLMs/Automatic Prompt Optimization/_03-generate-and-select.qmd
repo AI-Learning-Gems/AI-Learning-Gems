@@ -15,7 +15,7 @@
 
 The first generation of prompt optimization algorithms (2022--2023) shared a simple but powerful idea: let the LLM itself propose candidate prompts, then use a scoring function to select the best ones. The progression from APE to OPRO to InstructZero traces a path from one-shot proposal to iterative refinement to surrogate-guided search.
 
-To ground this concretely, imagine applying each algorithm to our support ticket triage system. APE would generate 50 candidate instructions for classifying urgency and pick the one with the highest accuracy. OPRO would start with those candidates, but then iteratively refine them, using a meta-prompt that remembers which triage instructions scored well and which scored poorly. InstructZero would navigate a continuous proxy space to find instructions without ever directly searching over discrete text.
+To ground this concretely, imagine applying each algorithm to our support ticket triage system. APE would generate 50 candidate instructions for classifying urgency and pick the one with the highest accuracy. OPRO would start with those candidates, but then iteratively refine them, using a meta-prompt that remembers which triage instructions scored well and which scored poorly. InstructZero would search a continuous proxy space to find instructions without ever directly searching over discrete text.
 
 ### APE: Prompts as Programs to Be Synthesized
 
@@ -49,7 +49,7 @@ $$
 
 Generate an output, critique it, revise it. The critique is the key innovation: the LLM generates natural language feedback about what is wrong with its own answer, then uses that feedback to produce a better answer.
 
-The distinction matters: Self-Refine improves the *output* while keeping the prompt fixed. The prompt itself never changes. This is output-level optimization, not parameter-level optimization. If our triage prompt consistently misclassifies billing complaints, Self-Refine would fix each individual misclassification at inference time, but it would not fix the prompt to prevent future misclassifications. This is an important conceptual boundary. Every method in the rest of this chapter operates at the prompt level: they change the instruction itself, not just the outputs it produces.
+The distinction matters: Self-Refine improves the *output* while keeping the prompt fixed. The prompt itself never changes. This pattern is output-level optimization, not parameter-level optimization. If our triage prompt consistently misclassifies billing complaints, Self-Refine would fix each individual misclassification at inference time, but it would not fix the prompt to prevent future misclassifications. That boundary is important. Every method in the rest of this chapter operates at the prompt level: they change the instruction itself, not just the outputs it produces.
 
 ::: {.callout-warning title="Common Misconception: Self-Refine and TextGrad do the same thing"}
 Both use LLM-generated feedback to improve something. But Self-Refine improves the *output* (the answer to a specific question) while keeping the prompt fixed. TextGrad (@sec-textual-gradients) improves the *prompt* (or any variable in a computation graph) by propagating feedback backward. The optimization target is different: output-level vs. parameter-level. Self-Refine is test-time refinement; TextGrad is compile-time optimization.
@@ -97,15 +97,15 @@ OPRO's ascending sort exploits the recency bias of autoregressive LLMs: tokens n
 
 ### SPO: Dropping the Ground-Truth Requirement
 
-A significant limitation of APE and OPRO is that they require labeled ground truth for scoring: you need $(x, y)$ pairs where $y$ is the correct answer. SPO (Self-Play Preference Optimization) overcomes this via **pairwise LLM comparison**: given two outputs from two candidate prompts, an LLM judge simply picks the better one. This enables prompt optimization for open-ended tasks (creative writing, summarization, customer service quality) where no single correct answer exists.
+A significant limitation of APE and OPRO is that they require labeled ground truth for scoring: you need $(x, y)$ pairs where $y$ is the correct answer. SPO ([Wu et al., ICLR 2025](https://arxiv.org/abs/2405.00675)) overcomes this via **pairwise LLM comparison**: given two outputs from two candidate prompts, an LLM judge simply picks the better one. This enables prompt optimization for open-ended tasks (creative writing, summarization, customer service quality) where no single correct answer exists.
 
-This connects to a broader point: the scoring function $F$ in @eq-apo-objective can itself be a **learned reward model** $R_\varphi$ trained on human preferences. Instead of accuracy, we optimize:
+This scoring function connects to a broader point: the scoring function $F$ in @eq-apo-objective can itself be a **learned reward model** $R_\varphi$ trained on human preferences. Instead of accuracy, we optimize:
 
 $$
 p^* = \arg\max_p \; \mathbb{E}_{y \sim M_T(x; p)} \left[ R_\varphi(p, x, y) \right]
 $$
 
-This links prompt optimization to the RLHF pipeline. **BPO (Black-Box Prompt Optimization)** takes this further by pre-training a lightweight prompt-rewriting model on preference data (pairs of original and human-preferred prompts). Instead of iterative search, BPO learns a *function* from bad prompts to good ones, amortizing the optimization cost. For instance, the user's prompt "Write a story ending with 'Are they really happy?'" gets automatically rewritten by BPO to add "Ensure the story ends with the question without providing a response."
+This preference-based framing links prompt optimization to the RLHF pipeline. **BPO** ([Cheng et al., ACL 2024](https://arxiv.org/abs/2311.04155)) takes this further by pre-training a lightweight prompt-rewriting model on preference data (pairs of original and human-preferred prompts). Instead of iterative search, BPO learns a *function* from bad prompts to good ones, amortizing the optimization cost. For instance, the user's prompt "Write a story ending with 'Are they really happy?'" gets automatically rewritten by BPO to add "Ensure the story ends with the question without providing a response."
 
 ### InstructZero: Bayesian Optimization in Disguise
 

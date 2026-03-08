@@ -22,7 +22,7 @@ $$
 \langle \pi_1^*, \ldots, \pi_k^* \rangle = \arg\max_{\pi_1, \ldots, \pi_k} \; \mathbb{E}_{(x,m) \sim \mathcal{T}} \left[ \mu(\Phi(x; \pi_1, \ldots, \pi_k), m) \right]
 $$ {#eq-multi-prompt}
 
-where $\Phi$ is the compound system with modules $M_1, \ldots, M_k$ each parameterized by prompt $\pi_i$, and $\mu$ is the end-to-end evaluation metric. This is fundamentally harder than single-prompt optimization for three reasons: (a) the search space is the product of per-module prompt spaces (exponentially larger), (b) prompts interact non-linearly (a good extraction prompt may require a specific classifier prompt to work well), and (c) credit assignment is ambiguous (when the system misclassifies a ticket, is the extractor, classifier, or safety checker at fault?).
+where $\Phi$ is the compound system with modules $M_1, \ldots, M_k$ each parameterized by prompt $\pi_i$, and $\mu$ is the end-to-end evaluation metric. This compound problem is fundamentally harder than single-prompt optimization for three reasons: (a) the search space is the product of per-module prompt spaces (exponentially larger), (b) prompts interact non-linearly (a good extraction prompt may require a specific classifier prompt to work well), and (c) credit assignment is ambiguous (when the system misclassifies a ticket, is the extractor, classifier, or safety checker at fault?).
 
 This section explores three frontier applications that each pose distinct challenges extending the standard formulation: multi-agent systems with credit assignment, LLM-as-a-Judge evaluation, and vision-language prompt tuning.
 
@@ -46,7 +46,7 @@ where $v(S)$ is the coalition value (system performance when only agents in $S$ 
 
 Computing exact Shapley values requires evaluating $2^{|N|}$ coalitions, which is exponential. HiveMind's **DAG-Shapley** exploits the DAG structure to prune non-viable coalitions (an agent whose predecessor is excluded cannot contribute), reducing LLM calls by 80%+. The CG-OPO (Contribution-Guided Online Prompt Optimization) algorithm then allocates optimization budget proportionally to each agent's contribution gap.
 
-**GEPA's optimize_anything** takes the most radical approach: treat the entire agent system (code + prompts + control flow) as a single text artifact to be evolved. On the ARC-AGI challenge, GEPA evolved a 10-line stub into a 300+ line agent achieving 89.5% accuracy (vs. 32.5% baseline). This is architecture search, not just prompt optimization: the algorithm discovers not just what the prompt should say, but how the agent should be structured.
+**GEPA's optimize_anything** takes the most radical approach: treat the entire agent system (code + prompts + control flow) as a single text artifact to be evolved. On the ARC-AGI challenge, GEPA evolved a 10-line stub into a 300+ line agent achieving 89.5% accuracy (vs. 32.5% baseline). This strategy is architecture search, not just prompt optimization: the algorithm discovers not just what the prompt should say, but how the agent should be structured.
 
 ::: {.callout-note title="Think Hard: Credit assignment in agents vs. neural networks"}
 The credit assignment problem in multi-agent systems (which module's prompt to blame) is structurally analogous to the credit assignment problem in multi-layer neural networks (which layer's weights to blame). Backpropagation solves the latter by computing exact gradients through the computation graph. Textual backpropagation (TextGrad, TRACE) attempts the same for agent DAGs. But the analogy breaks down: neural network layers compose through differentiable operations, while agent modules compose through discrete text generation. The textual chain rule (@eq-textgrad-chain) accumulates approximation errors at each step, and the "gradient" at module 1 in a 4-module pipeline has been filtered through three rounds of LLM interpretation. HiveMind's Shapley approach sidesteps this by measuring marginal contributions directly (ablation-based), at the cost of exponentially many evaluations. The ideal solution may combine both: use Shapley values to identify *which* module to optimize, then use textual gradients to determine *how* to optimize it.
@@ -70,7 +70,7 @@ $$ {#eq-blpo}
 
 The outer level optimizes the judge prompt given the best image-to-text prompt; the inner level finds the best image-to-text prompt for a given judge prompt. This nesting captures the dependency: the optimal way to describe an image depends on what the judge is looking for.
 
-**SedarEval** takes a different approach: instead of a single generic rubric, it generates self-adaptive rubrics customized per question, mimicking how human examiners create question-specific grading criteria.
+**SedarEval** ([Fan et al., EMNLP 2024 Findings](https://arxiv.org/abs/2501.15595)) takes a different approach: instead of a single generic rubric, it generates self-adaptive rubrics customized per question, mimicking how human examiners create question-specific grading criteria.
 
 The connection to multi-objective optimization (@sec-multi-objective) is direct: a judge evaluating helpfulness, safety, and style is optimizing three objectives simultaneously. The MOPO/ParetoPrompt framework applies directly, with each evaluation criterion as an objective and the Pareto front giving rubric configurations that trade off criteria.
 
@@ -82,7 +82,7 @@ The objectives are fundamentally different. A task prompt optimization targets a
 
 The extension from text-only to multimodal optimization introduces new mathematical structure. Two paradigms have emerged:
 
-**Soft/continuous prompt tuning (CoOp, CoCoOp, VPT)** optimizes continuous embedding vectors prepended to the input of a vision-language model:
+**Soft/continuous prompt tuning** (CoOp ([Zhou et al., IJCV 2022](https://arxiv.org/abs/2109.01134)), CoCoOp ([Zhou et al., CVPR 2022](https://arxiv.org/abs/2203.05557)), VPT) optimizes continuous embedding vectors prepended to the input of a vision-language model:
 
 $$
 \mathbf{c}^* = \arg\min_{\mathbf{c} \in \mathbb{R}^{d \times L}} \; \mathbb{E}_{(x,y)} \left[ \ell(f(x; \mathbf{c}), y) \right]
@@ -102,7 +102,7 @@ Three solution families have emerged:
 - *Regularization*: Add a consistency loss anchoring learned prompts to the frozen pre-trained encoder: $\mathcal{L}_\text{total} = \mathcal{L}_\text{task}(\mathbf{c}) + \lambda \cdot D(f_\text{prompted}(x; \mathbf{c}), f_\text{frozen}(x))$. This is the prompt-optimization analogue of weight decay.
 - *Architectural decoupling (DPC)*: Clone the learnable prompt into two copies (one for base, one for generalization) with separate gradient flows.
 
-A subtle failure mode: **RPO (Read-only Prompt Optimization)** discovered that standard prompt tuning corrupts the frozen VLM's pre-trained representations. Learned prompt tokens interact with original tokens via self-attention, degrading the model's general capabilities. RPO's fix: masked attention where prompts can *read from* original tokens but original tokens *cannot attend to* prompts. This one-way information flow preserves the model's pre-trained knowledge while allowing task adaptation.
+A subtle failure mode: **RPO** ([Lee et al., ICCV 2023](https://arxiv.org/abs/2308.14960)) discovered that standard prompt tuning corrupts the frozen VLM's pre-trained representations. Learned prompt tokens interact with original tokens via self-attention, degrading the model's general capabilities. RPO's fix: masked attention where prompts can *read from* original tokens but original tokens *cannot attend to* prompts. This one-way information flow preserves the model's pre-trained knowledge while allowing task adaptation.
 
 **Discrete/hard prompt optimization for MLLMs** (MPO, [Zhu et al., ICLR 2026 submission](https://arxiv.org/abs/2510.09201)) extends discrete prompt optimization to multimodal inputs, optimizing text prompts and visual prompts jointly across images, videos, and molecular data.
 
