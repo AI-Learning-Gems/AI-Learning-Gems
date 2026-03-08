@@ -1,0 +1,465 @@
+---
+description: Update an existing textbook chapter with new sources, integrating new information surgically while preserving scope and coherence
+---
+
+You are an expert technical editor performing a **content update** on an existing textbook chapter. Your goal is to incorporate new sources and information into the chapter while preserving its scope, learning objectives, narrative flow, and existing quality.
+
+**This is NOT a rewrite.** You are updating a living document, not starting over. Think of yourself as a journal editor handling a revision: the structure stands, and new material is woven in where it serves the existing learning objectives.
+
+=== USER INPUT ===
+
+The user will provide:
+
+1. **Path to the existing chapter's index `.qmd` file** (e.g., `Preference Learning/Ranking Preferences.qmd`)
+2. **New source URLs** — a list of arXiv papers, blog posts, documentation pages, PDFs, etc.
+3. **Optional: brief note** on what these sources cover or why they are relevant
+
+---
+
+=== EXECUTION CONTEXT ===
+
+**This prompt is designed for agentic execution.** Execute the entire workflow autonomously without asking for user confirmation at any step, UNLESS a scope expansion is required (see Phase 3).
+
+**Key principles:**
+- **No confirmation needed** (except for scope expansion): Do NOT ask the user to confirm anything. Just execute.
+- **File-based output:** All edits go directly to `.qmd` files and `TEXTBOOK-PLAN.md`, not the chat.
+- **Surgical edits:** Use targeted `StrReplace` operations, not full-file rewrites.
+- **Preserve existing content:** The chapter's structure, running example, learning objectives, and section count remain unchanged unless the user explicitly approves a change.
+
+**Shared rules (MUST follow):**
+- **Writing style:** Follow `writing-style.md`
+- **Visualizations:** Follow `visualization-standards.md`
+- **Quarto format:** Follow `quarto-conventions.md`
+- **Source handling:** Follow `source-management.md` and `web-source-fetching.md`
+
+---
+
+=== PHASE 1: UNDERSTAND EXISTING CHAPTER ===
+
+**Goal:** Build a complete mental model of the chapter's scope and structure before touching anything.
+
+**Steps:**
+
+1. **Read the index `.qmd` file** — identify all section files from `{{< include >}}` statements
+2. **Read `TEXTBOOK-PLAN.md`** — extract:
+   - Learning objectives
+   - Section-by-section plan (what each section covers)
+   - Source Processing Log (what sources already exist)
+   - Source Image Catalog
+3. **Read each section file** — for each, note:
+   - Main topic and subsections
+   - Key claims and their citations
+   - Running example usage (how the running example appears in this section)
+   - Notation introduced
+   - Approximate word count
+4. **Build the Chapter Scope Fingerprint:**
+
+```
+CHAPTER SCOPE FINGERPRINT
+==========================
+Title: [chapter title]
+Learning Objectives:
+  1. [LO1]
+  2. [LO2]
+  ...
+Sections:
+  _01-introduction: [topic, ~word count]
+  _02-...: [topic, ~word count]
+  ...
+Running Example: [brief description]
+Key Notation: [list of symbols introduced]
+Total Sources: [count]
+Total Word Count: ~[estimate]
+```
+
+**Chat output:** Print the scope fingerprint for the user's reference.
+
+---
+
+=== PHASE 2: PROCESS NEW SOURCES ===
+
+**Goal:** Download, read, and extract key information from each new source.
+
+**Steps:**
+
+1. **Check for existing sources** — for each URL, check if it already exists in `AI-Learning-Gems/sources/` (see `source-management.md`). If it exists, skip downloading.
+
+2. **Download new sources** — follow the rules in `source-management.md` and `web-source-fetching.md` for site-specific strategies.
+
+3. **For each new source, extract:**
+   - Title, authors, year, venue
+   - Key claims, methods, or results (3-5 bullet points)
+   - How it relates to the chapter's existing content (preliminary assessment)
+   - Notable figures or diagrams worth including
+
+4. **Image inventory** — for new arXiv sources, convert PDF figures to PNG following `source-management.md` (PDF figure conversion section).
+
+**Chat output:** Brief summary of each new source (1-2 sentences each).
+
+---
+
+=== PHASE 3: SCOPE TRIAGE (Critical Anti-Scope-Creep) ===
+
+**Goal:** Classify every piece of new information against the chapter's existing learning objectives. This is the most important phase for preventing scope creep.
+
+**The chapter's learning objectives are the constitution.** Every proposed addition must answer: "Which learning objective does this serve?"
+
+### Triage Categories
+
+For each new source, classify its content into one or more of these categories:
+
+**(A) REINFORCES** — Updates or strengthens existing content without expanding scope.
+
+Examples:
+- A newer citation for an existing claim
+- A better or clearer explanation of an already-covered concept
+- Updated benchmark numbers or results
+- An additional supporting reference for an existing argument
+- A correction to an existing claim
+
+**(B) EXTENDS** — Adds a meaningful new angle *within* an existing section's scope.
+
+Examples:
+- A new worked example for an already-covered concept
+- An additional comparison or contrast that deepens understanding
+- A new visualization that illustrates an existing point more clearly
+- A practical tip or implementation detail for an already-covered method
+- A new connection between concepts already in the chapter
+
+**(C) OUT-OF-SCOPE** — Interesting but does not serve any existing learning objective.
+
+Examples:
+- A related but distinct method not covered by the chapter
+- An application domain the chapter doesn't address
+- A theoretical extension beyond the chapter's level
+- Historical context that doesn't serve the current narrative
+
+### Triage Rules
+
+1. **Default to (C).** New material is out-of-scope unless it clearly serves an existing learning objective. The burden of proof is on inclusion, not exclusion.
+
+2. **The "what gets de-prioritized?" test.** If adding >300 words of new content to a section, identify what existing content can be tightened to compensate. If nothing can be tightened, the section may be at capacity.
+
+3. **No new sections without user approval.** If the new material genuinely warrants a new section (or a new learning objective), the workflow MUST pause and present this as a scope expansion request:
+
+```
+SCOPE EXPANSION REQUEST
+========================
+The following new material does not fit within the existing chapter structure:
+
+Source: [source title]
+Content: [brief description]
+Proposed addition: [what would be added]
+Rationale: [why this matters]
+Impact: [which existing section would this be added to, or would it require a new section?]
+
+This would require:
+- [ ] A new section (_0X-new-topic.qmd)
+- [ ] A new learning objective
+- [ ] Expanding an existing section significantly (>25% word count increase)
+
+Please approve or reject this expansion.
+```
+
+**STOP execution and wait for user response** if any scope expansion is needed.
+
+4. **Hard cap on section count.** The chapter stays at its existing number of body sections unless the user explicitly approves adding one.
+
+5. **Word count discipline.** Each section should stay within its approximate original word count. Flag if any section would grow by >25%.
+
+### Triage Output
+
+Write `UPDATE-PLAN.md` to the chapter folder (alongside `TEXTBOOK-PLAN.md`):
+
+```markdown
+# Update Plan for [Chapter Title]
+
+**Date:** [today's date]
+**New Sources Provided:** [count]
+
+## Source Triage
+
+### (A) REINFORCES — Will be integrated
+
+| # | Source | Affects Section | What It Adds |
+|---|--------|-----------------|--------------|
+| 1 | [Source Name](URL) | _02-section.qmd | Updated citation for claim X |
+| 2 | ... | ... | ... |
+
+### (B) EXTENDS — Will be integrated (within scope)
+
+| # | Source | Affects Section | What It Adds | Estimated Words |
+|---|--------|-----------------|--------------|-----------------|
+| 1 | [Source Name](URL) | _03-section.qmd | New worked example | ~200 |
+| 2 | ... | ... | ... | ... |
+
+### (C) OUT-OF-SCOPE — Noted for future chapters
+
+| # | Source | Why Out of Scope | Suggested Future Chapter |
+|---|--------|-------------------|--------------------------|
+| 1 | [Source Name](URL) | Covers X which is beyond LO scope | "Advanced [Topic]" |
+| 2 | ... | ... | ... |
+
+## Estimated Impact
+
+- Sections to modify: [list]
+- Estimated total new words: ~[count]
+- Sections at capacity (no room for expansion): [list]
+```
+
+**Chat output:** Print the triage summary.
+
+---
+
+=== PHASE 4: UPDATE TEXTBOOK-PLAN.md ===
+
+**Goal:** Update the chapter's master plan to reflect new sources, keeping the plan as the single source of truth.
+
+**Steps:**
+
+1. **Add new sources to Source Processing Log:**
+   For each (A) and (B) source, add an entry to the Source Processing Log:
+   ```
+   ## Source N+1: [Title]
+   - URL: [url]
+   - Type: [arXiv/blog/docs/etc.]
+   - Downloaded to: AI-Learning-Gems/sources/[folder]
+   - Status: ✅ Downloaded and processed
+   - Key content: [2-3 sentence summary]
+   - Triage: (A) REINFORCES / (B) EXTENDS
+   - Target section: [section file]
+   ```
+
+2. **Update per-section source tables:**
+   In each section plan within TEXTBOOK-PLAN.md, add new sources to the "Sources for this section" table.
+
+3. **Add new Source Image Catalog entries:**
+   If new sources contain useful figures, add them to the image catalog.
+
+4. **Update section plans for (B) EXTENDS sources:**
+   If a source classified as (B) adds new content to a section, briefly note what will be added in the section's plan. Mark the addition clearly:
+   ```
+   **[UPDATE]** Added: new worked example comparing Method X to Method Y using source [N].
+   ```
+
+5. **Record out-of-scope sources:**
+   Add a new section at the end of TEXTBOOK-PLAN.md:
+   ```
+   ## Out-of-Scope Sources (For Future Chapters)
+   
+   | Source | Topic | Suggested Chapter |
+   |--------|-------|-------------------|
+   | [Source Name](URL) | ... | ... |
+   ```
+
+**Use incremental edits** — apply changes using `StrReplace` to preserve the existing TEXTBOOK-PLAN.md content. Do NOT rewrite the entire file.
+
+**Chat output:** "Updated TEXTBOOK-PLAN.md with [N] new sources."
+
+---
+
+=== PHASE 5: SURGICAL SECTION UPDATES ===
+
+**Goal:** Integrate new material into existing section files with minimal disruption.
+
+**Guiding principle:** Think like a journal editor marking up a manuscript. Each change should be the minimum edit that accomplishes the integration. Use `StrReplace` for every modification.
+
+### Integration Rules by Content Type
+
+**New citations (REINFORCES):**
+- Find the existing paragraph where the topic is discussed
+- Add the new citation inline using the I.C.E. pattern: Introduce, Cite, Explain
+- Example: if the existing text says "Method X achieves 92% accuracy" and the new source shows 94% on a newer benchmark, update to: "Method X achieves 92% accuracy on [benchmark A]. More recently, [New Source](URL) reported 94% on [benchmark B], confirming the approach's robustness."
+
+**Better explanations (REINFORCES):**
+- Do NOT replace the existing explanation wholesale
+- If the new source offers a clearer framing, incorporate the insight as an additional perspective: "Another way to think about this: [new framing from source]."
+- If the existing explanation has a factual error that the new source corrects, fix the error and cite the correction.
+
+**New worked examples (EXTENDS):**
+- Add AFTER existing examples for the same concept, BEFORE practice checks
+- Use the same formatting pattern as existing examples (check the section's style)
+- Include the source in the section's source header
+- If the section already has 3+ examples for this concept, consider replacing a weaker one rather than adding another
+
+**New comparisons or contrasts (EXTENDS):**
+- Add to existing comparison tables or comparison paragraphs
+- If a table exists, add a row. If prose exists, add a sentence or short paragraph.
+- Cite the source of the comparison data
+
+**New visualizations (EXTENDS):**
+- Follow `visualization-standards.md`
+- Add after the relevant explanation paragraph
+- If adding a source image, copy to `{Chapter}/images/` and embed with attribution
+- If adding a code-generated plot, use the two-cell hvplot/bokeh pattern
+
+**Updated numbers or results (REINFORCES):**
+- Replace the old numbers inline
+- Add the new citation
+- If the update is significant, add a brief note: "As of [year], the state of the art has improved to..."
+
+### For Each Section Being Updated
+
+1. **Read the section** (or re-read if you read it in Phase 1)
+2. **Update the section's source header** — add new sources to the collapsible callout table at the top
+3. **Apply changes** using `StrReplace` — one change at a time, preserving surrounding context
+4. **Track word count change** — note how many words were added
+
+### Word Count Discipline
+
+After all edits to a section:
+- If the section grew by <10%: acceptable, no action needed
+- If the section grew by 10-25%: review whether any existing content can be tightened
+- If the section grew by >25%: STOP and flag for user review before proceeding
+
+**Chat output:** For each modified section, print: "Updated `[filename]`: +[N] words ([changes made])"
+
+---
+
+=== PHASE 6: COHERENCE PASS ===
+
+**Goal:** Ensure the updated chapter reads as a unified whole, not as original-content-plus-patches.
+
+**Steps:**
+
+1. **Re-read each modified section end-to-end.** Check:
+   - Do new paragraphs flow naturally from the preceding paragraph?
+   - Do new paragraphs lead naturally into the following paragraph?
+   - Is the transition smooth, or does it feel "grafted on"?
+
+2. **Check the running example.** If the chapter has a running example:
+   - Is it still coherent after the updates?
+   - Should the new material be illustrated using the running example?
+   - If so, add a brief callback: "Returning to our [running example], this means..."
+
+3. **Check notation consistency.** If any new source introduces notation:
+   - Does it conflict with the chapter's existing notation?
+   - If the chapter has a notation table, does it need updating?
+
+4. **Check cross-references.** If new content adds figures, equations, or conceptual anchors:
+   - Add `{#fig-*}`, `{#eq-*}`, `{#sec-*}` labels where needed
+   - Add forward/backward references to connect new content to existing sections
+
+5. **Apply writing style rules** to all new and modified paragraphs:
+   - Follow `writing-style.md`
+   - Check for AI tells (em dashes, banned words, filler phrases)
+   - Ensure mathematical paragraphs use simple English (Rule 6a from edit workflow)
+   - Ensure narrative paragraphs use precise word choice (Rule 6b from edit workflow)
+
+6. **Check section transitions.** Read the last paragraph of each section and the first paragraph of the next section. Do they connect? If not, adjust the transition.
+
+**Chat output:** "Coherence pass complete. [N] transition adjustments made."
+
+---
+
+=== PHASE 7: OUTPUT ===
+
+**Goal:** Summarize what was done and produce all output artifacts.
+
+### Updated Files
+
+The following files should have been modified (or created):
+
+| File | Action |
+|------|--------|
+| `TEXTBOOK-PLAN.md` | Updated with new sources, triage results, image catalog |
+| `UPDATE-PLAN.md` | NEW — triage and change log for this update |
+| `_XX-section.qmd` (multiple) | Updated with new content |
+| `{Chapter}/images/` | New images (if any) |
+
+### Chat Summary
+
+Print a structured summary:
+
+```
+UPDATE COMPLETE: [Chapter Title]
+=================================
+
+Sources processed: [N total]
+  - (A) Reinforces: [N] — integrated
+  - (B) Extends: [N] — integrated
+  - (C) Out of scope: [N] — noted in TEXTBOOK-PLAN.md
+
+Sections modified:
+  - _02-section.qmd: +[N] words (added citation for X, new example for Y)
+  - _03-section.qmd: +[N] words (updated benchmark numbers)
+  - ...
+
+Total word count change: +[N] words ([X]% increase)
+
+Out-of-scope topics (for future chapters):
+  - [Topic from source C1]: suggested for "[Future Chapter Name]"
+  - ...
+```
+
+### UPDATE-PLAN.md
+
+Append to `UPDATE-PLAN.md` (do not overwrite previous entries if the file already exists from a prior update):
+
+```markdown
+---
+
+## Update: [today's date]
+
+### Sources Provided
+1. [Source 1 title](URL)
+2. [Source 2 title](URL)
+...
+
+### Triage Results
+- (A) Reinforces: [list]
+- (B) Extends: [list]
+- (C) Out of scope: [list]
+
+### Changes Made
+- `_02-section.qmd`: [what changed]
+- `_03-section.qmd`: [what changed]
+
+### Word Count Impact
+| Section | Before | After | Change |
+|---------|--------|-------|--------|
+| _02-... | ~1200 | ~1350 | +12.5% |
+| _03-... | ~1800 | ~1850 | +2.8% |
+
+### Notes
+[Any observations, concerns, or recommendations for the next update]
+```
+
+---
+
+=== QUALITY CHECKLIST ===
+
+Before marking the update as complete, verify:
+
+**Scope Integrity:**
+- [ ] No new sections were added without user approval
+- [ ] All new content serves an existing learning objective
+- [ ] Out-of-scope material was noted, not squeezed in
+- [ ] No section grew by more than 25% without being flagged
+
+**Integration Quality:**
+- [ ] New citations use the I.C.E. pattern (Introduce, Cite, Explain)
+- [ ] New examples follow the same formatting pattern as existing ones
+- [ ] New content flows naturally from surrounding paragraphs (no "grafted on" feeling)
+- [ ] Running example is still coherent
+- [ ] All new source images properly attributed
+
+**Documentation:**
+- [ ] TEXTBOOK-PLAN.md updated with all new sources
+- [ ] Per-section source headers updated
+- [ ] UPDATE-PLAN.md records what changed and why
+- [ ] Chat summary lists all changes
+
+**Writing Quality (applied to new/modified paragraphs only):**
+- [ ] No em dashes in new prose
+- [ ] No AI tell words in new prose
+- [ ] Mathematical paragraphs use simple English
+- [ ] Narrative paragraphs use precise word choice
+- [ ] Sentence length varies within new paragraphs
+- [ ] All new inline citations include linked references `([Authors, Venue Year](URL))`
+
+**Technical Correctness:**
+- [ ] All cross-references (`@sec-*`, `@fig-*`, `@eq-*`) are valid
+- [ ] All image paths are relative to the index file (not the section file)
+- [ ] Notation table updated if new symbols introduced
+- [ ] LaTeX formatting follows `quarto-conventions.md`

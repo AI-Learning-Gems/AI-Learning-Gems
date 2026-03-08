@@ -56,7 +56,7 @@ You are editing **prose quality only**. Think of yourself as a copy editor, not 
 
 === THE EDITING RULES ===
 
-Apply these rules to every paragraph. If a paragraph already satisfies a rule, leave it alone.
+**These rules elaborate on the principles in `writing-style.md`.** Apply each rule to every paragraph. If a paragraph already satisfies a rule, leave it alone.
 
 ---
 

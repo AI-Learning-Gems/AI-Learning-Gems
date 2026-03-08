@@ -39,6 +39,8 @@ The user will provide **the path to a `TEXTBOOK-PLAN.md` file** created by the `
 
 All substantive content must be written to **Quarto files (`.qmd`)**. The chat window is ONLY for brief progress updates (1-2 sentences per phase).
 
+**See `quarto-conventions.md` for the canonical reference** on folder structure, index file templates, section file templates, heading levels, `{{< include >}}` syntax, cross-references, and LaTeX formatting. The key points are summarized below.
+
 ### Folder-Based Structure (Why)
 
 Because IDE agents rewrite files from scratch on each edit, a single-file approach causes the entire chapter to be rewritten when editing any section. Instead, use a **folder-based structure** where:
@@ -136,35 +138,13 @@ Content goes here...
 
 ### Per-Section Source Headers (Collapsible)
 
-**Each section should include its own sources** as a collapsible header at the top. This keeps sources close to the content they support.
+**See `quarto-conventions.md`** for the full template and formatting rules.
 
-**Template for each section file:**
+**Each section should include its own sources** as a collapsible header at the top. This keeps sources close to the content they support.
 
 **CRITICAL: The section heading (`##`) MUST come FIRST, then the sources callout inside it.** If the callout is placed *above* the heading, it renders as belonging to the previous section.
 
-```markdown
-## Section Title {#sec-section-name}
-
-::: {.callout-note collapse="true" title="Sources for this section"}
-
-| # | Source | Summary |
-|---|---|---|
-| 1 | [ViT Paper](https://arxiv.org/abs/2010.11929) | Original ViT equations |
-| 2 | [D2L ViT](https://d2l.ai/chapter_attention/vision-transformer.html) | Implementation details |
-
-:::
-
-[Section content...]
-```
-
-**CRITICAL — Attribution for Blog Content:**
-
-Many sources in this project come from independent researchers' blogs (see `.cursor/rules/high-quality-blogs.mdc`). These are original intellectual contributions that MUST be attributed:
-
-- **Source header**: Always list blog posts in the section source table with the author's name: `[Lilian Weng — "Reward Hacking in RL"](URL)`
-- **Figures**: When using images from blog posts, always caption with: `Source: [Author Name], "[Post Title]" ([year]).`
-- **Explanations and framings**: When your explanation is adapted from or inspired by a blog post's framing, say so in the text: *"The following derivation follows Gundersen's treatment in [post title]"* or *"As Olah explains in [post title], ..."*
-- **Never present blog content as original**: If a worked example, analogy, or visual explanation comes from a blog, credit it explicitly
+**See `high-quality-blogs.md`** for the blog attribution rules. Always attribute blog content in source headers, figure captions, and in-text framings.
 
 ### Chat Output Style
 
@@ -189,7 +169,7 @@ Keep chat messages brief. Example:
 While writing a section, you may discover that the downloaded sources from the research phase are insufficient. When this happens:
 
 1. **Search for additional sources** using `search_web`
-2. **Download to the centralized `AI-Learning-Gems/sources/`** using the `authenticated_extract.py` tool (preferred) or methods from `.agent/rules/web-source-fetching.md`:
+2. **Download to the centralized `AI-Learning-Gems/sources/`** using the `authenticated_extract.py` tool (preferred) or methods from `web-source-fetching.md`:
    ```bash
    # For blog posts, Substack, Medium, JS-heavy pages (preferred — handles JS, downloads images):
    conda activate ai-learning-gems && python scripts/authenticated_extract.py "URL"
@@ -514,7 +494,7 @@ These address deep "why" and "how" questions that a curious reader would natural
 
 2. **Filter by difficulty.** Only include concepts above 10th-grade math. Do not explain what a "mean" or "probability" is. Do explain MLE, Bayesian posteriors, the variance of a difference, KL divergence, etc. The threshold: would an upper-division undergraduate ML student need a quick refresher?
 
-3. **Search for existing material.** Before writing from scratch, check the `AI-Learning-Gems/` folder for existing notes on the topic (e.g., `Probability/An Introduction to Bayesian Inference.md`, `Statistics/Estimation/*.md`, `Deep-Learning/KL Divergence vs Cross Entropy.md`). Also search the high-quality blogs registry (`.cursor/rules/high-quality-blogs.mdc`) for excellent treatments. Use these as source material, not as content to copy verbatim.
+3. **Search for existing material.** Before writing from scratch, check the `AI-Learning-Gems/` folder for existing notes on the topic (e.g., `Probability/An Introduction to Bayesian Inference.md`, `Statistics/Estimation/*.md`, `Deep-Learning/KL Divergence vs Cross Entropy.md`). Also search the high-quality blogs registry (`high-quality-blogs.md`) for excellent treatments. Use these as source material, not as content to copy verbatim.
 
 4. **Write brief, intuitive subsections.** Each prerequisite concept gets one subsection (### heading). Each subsection should:
    - Be 150-300 words (brief, not a full tutorial)
@@ -539,507 +519,19 @@ These address deep "why" and "how" questions that a curious reader would natural
 
 === WRITING STYLE ===
 
-**Target reader:** Someone with strong reading comprehension and technical background who is new to this specific topic. Write with depth and precision, not oversimplification.
-
----
-
-### ENGAGING WRITING (Make It Unputdownable)
-
-The best technical textbooks (MacKay, Sutton & Barto, Feynman) are engaging because they use techniques from great non-fiction writing. Apply these:
-
-#### Conversational Tone (Like Explaining to a Smart Friend)
-
-- Write as if you're having a conversation with the reader
-- Address the reader as "you" directly
-- Show enthusiasm: "This is the beautiful part." "Here's where it gets interesting."
-- Acknowledge when something is confusing: "This trips up everyone at first."
-- Be intellectually honest about uncertainty: "We don't fully understand why, but..."
-
-#### Sentence Rhythm and Variety (Gary Provost's Principle)
-
-**Vary sentence length deliberately.** Short sentences punch. Long sentences build momentum and carry the reader through complex ideas with the energy of a crescendo.
-
-- **Short sentences for emphasis:** "That's wrong." "Here's why." "This matters."
-- **Medium sentences for flow:** Carry the main explanation forward.
-- **Long sentences for buildup:** Where appropriate, build momentum.
-- **Deliberate fragments for punch:** "Music." "Exactly." "Finally."
-
-#### Micro-Surprises and Dopamine Hits
-
-Keep readers engaged with small rewards throughout:
-
-| Technique | Example |
-|-----------|---------|
-| **Surprising facts** | "You might expect X, but actually Y" |
-| **Rhetorical questions** | "But wait — how can that be?" |
-| **Vivid analogies** | "Like untangling earbuds — tedious, but oddly revealing" |
-| **Pattern interrupts** | Start a section with something unexpected |
-| **Open loops** | Tease what's coming: "We'll see why this matters in Section 3" |
-| **Enthusiasm markers** | "This is where it gets good." |
-
-#### Motivation Before Formalism
-
-Always answer "why should I care?" BEFORE "how does it work?"
-
-**WRONG (formalism first):**
-> Definition: A confidence interval is a range of values, derived from sample statistics...
-
-**RIGHT (motivation first):**
-> Imagine you measure the heights of 100 people and get an average of 170 cm. But you know that's not *exactly* the true average — you just happened to measure these 100 people. A confidence interval gives you a range...
-
----
-
-### Basic Style Rules
-
-**One idea per paragraph:**
-- Each paragraph should introduce ONE idea and explain it fully
-- If you catch yourself writing "additionally" or "moreover" mid-paragraph, you probably need a new paragraph
-- If a paragraph has multiple ideas, split it and add a bridging sentence between the new paragraphs
-- Target 2-5 sentences per paragraph; 6+ is a warning sign
-
-**Sentence clarity:**
-- Maximum two clauses joined by a comma. Never chain three or more clauses ("X, which Y, allowing Z")
-- Keep subject and verb close — do not front-load long modifiers before the main verb
-- Active voice preferred, but passive is fine when appropriate
-- Prefer 15-25 words per sentence. Long sentences (25-35 words) only when building momentum, maximum one per paragraph
-
-**Examples get their own space:**
-- Never bury a concrete example inside a parenthetical or subordinate clause
-- Examples are the most valuable part of the text — give them their own sentence or line
-- Separate the example from the explanation it illustrates with a clear lead-in
-
-**Vocabulary:**
-- Define every technical term on first use
-- Use the SAME word for the SAME concept throughout (no synonym cycling: "the encoder"/"the model"/"the network"/"the system")
-- Technical jargon is fine if defined; avoid domain-specific jargon that only experts would know
-- Prefer common words: "use" not "utilize," "help" not "facilitate," "start" not "commence"
-
-**Avoid AI writing tells:**
-- No em dashes. Prefer periods (new sentences), commas, colons, or semicolons (for a mental break between two related ideas; at most one semicolon per few sentences). Parentheses are good for reminding and connecting concepts.
-- Do not use these words in figurative/non-technical senses: "delve," "tapestry," "navigate," "landscape," "multifaceted," "leverage," "utilize," "realm," "endeavor," "aforementioned," "pivotal," "underscores." (Technical uses are fine, e.g., "financial leverage," "optimization landscape.")
-- Do not use meta-commentary filler: "It's worth noting that...," "It is important to note that...," "It should be noted that...," "In essence...," "Essentially,...." These talk *about* the text instead of advancing it. Just state the point.
-- Legitimate emphasis transitions are fine: "Interestingly," "Importantly," "Surprisingly," "Crucially" when they serve a genuine rhetorical purpose.
-- Standard logical transitions are fine: "However," "Therefore," "For example," "In contrast," "Moreover" (when genuinely adding a new supporting point, not as paragraph-opening filler).
-- Prefer the precise common word that makes the idea apparent: "substitution," "bottleneck," "shortcut," "overlap" are better than idioms or vague abstractions ("implications," "considerations").
-
-**Chunking:**
-- Group related content logically with visual breaks
-- Clear heading hierarchy: H1 → H2 → H3
-- Use white space between sections to signal chunk boundaries
-
-### CRITICAL: Markdown List Formatting
-
-LLMs often produce malformed lists that break Quarto's visual mode. Follow these rules exactly:
-
-**Bullet points:**
-- Use hyphens (`-`) for bullet points, NOT asterisks (`*`)
-- Each bullet point MUST start on its own line
-- Use exactly ONE space after the hyphen: `- Item` (not `-   Item` or `-Item`)
-- Add a blank line BEFORE the first bullet point
-
-**Numbered lists:**
-- Each numbered item MUST start on its own line
-- Use `1.` format with exactly ONE space after: `1. Item`
-- Add a blank line BEFORE the first numbered item
-
-**Nested lists:**
-- Use 2-space or 4-space indentation for sub-items
-- Each sub-item on its own line
-
-### CRITICAL: Horizontal Rules
-
-**WRONG:** `------------------------------------------------------------------------`
-**CORRECT:** `---`
-
-### CRITICAL: Table Formatting
-
-- Do NOT escape `#` in tables — write `#` not `\#`
-- Column separator dashes should be short: `|---|` not `|---------------|`
-- Header row and separator row must match column count
-- Add blank line before and after tables
+**Follow all rules in `writing-style.md`** for target reader, engaging writing, conversational tone, sentence rhythm, motivation before formalism, basic style rules, two writing modes (mathematical vs narrative), AI tell avoidance, inline citations, and vocabulary consistency.
 
 ---
 
 === MATHEMATICAL CONTENT ===
 
-### LaTeX Formatting (Quarto-Compatible)
-
-**Inline equations:** `$equation$`
-
-**Block equations:**
-```
-$$
-equation
-$$
-```
-
-**Numbered equations:**
-```
-$$
-equation
-$$ {#eq-label}
-```
-
-### CRITICAL: Common LaTeX Mistakes to Avoid
-
-- Use `$...$` for inline math — NOT parentheses `(\theta)`, NOT `\(...\)`
-- Use `$$...$$` for block math — each on its own line
-- Do NOT escape `^` or `_` inside LaTeX — write `$x^2$` not `$x\^2$`
-- Ensure `^` and `_` are directly attached to their base: `$x^2$` not `$x ^2$`
-
-### For Each Significant Equation
-
-1. Show the equation
-2. Explain what each symbol means in plain language
-3. Provide a concrete numerical example
-4. Show a visualization of what the equation represents
+**Follow all LaTeX formatting rules in `quarto-conventions.md`** (LaTeX Formatting section).
 
 ---
 
 === VISUALIZATIONS (Quarto + Python) ===
 
-**Goal:** Your chapter should contain the absolutely perfect picture to explain each concept.
-
-### Visual Priority Order (CRITICAL)
-
-**Follow this order when choosing how to illustrate a concept:**
-
-1. **Source images from downloaded papers** — Check the TEXTBOOK-PLAN.md Source Image Catalog FIRST. These are canonical, authoritative figures that readers expect to see. Copy them to `{Chapter}/images/` and embed.
-2. **D2 diagrams** — for concept maps, flowcharts, and structural diagrams. Always use ELK engine.
-3. **Python/hvplot (bokeh backend)** — for data visualizations, distributions, function plots, and ANY visual that must be numerically accurate.
-4. **Web downloads** — for images not in sources/ (search and download during writing).
-5. **generate_image** — ONLY for decorative/conceptual illustrations where numerical accuracy is irrelevant (e.g., a stylized icon, a non-data artistic illustration). See the warning below.
-
-> **⚠️ NEVER use `generate_image` for plots, charts, graphs, reliability diagrams, bar charts, heatmaps, confusion matrices, or ANY visual that needs to display accurate data. ⚠️**
->
-> LLM image generation tools (e.g. Gemini Imagen, DALL-E) produce visually plausible but **factually incorrect** data in plots. The numbers, axis labels, bar heights, curve shapes, and data points will look reasonable but will be WRONG. This is unacceptable in a textbook.
->
-> **For any visual that contains numerical data, use one of these instead:**
-> - **Source images from papers** — always preferred for canonical results (copy from `sources/`)
-> - **Python code** — generate the plot programmatically with `hvplot` (bokeh backend) or `matplotlib` directly, using real data or carefully constructed synthetic data
-> - **Web download** — find the original published figure online and download it
->
-> The ONLY acceptable use of `generate_image` is for purely conceptual/artistic illustrations where no data accuracy is needed (e.g., a stylized banner image, an abstract concept illustration).
-
-### Choosing the Right Visualization Approach
-
-| Type of Visual | Approach |
-|----------------|----------|
-| **Canonical figures from papers** (architecture diagrams, attention maps, scaling plots) | **Copy from `sources/` — see Source Image Catalog** |
-| **Data plots** (distributions, functions, comparisons) | **Generate with code (hvplot with bokeh backend) — NEVER use `generate_image`** |
-| **Reproducing a paper's plot** (when source image unavailable or low-res) | **Write Python code to recreate it from the paper's reported numbers** |
-| **Simple concept maps** (flowcharts, relationships) | Generate with D2 |
-| **Mathematical diagrams** (geometric, annotated) | Generate with TikZ |
-| **Complex images NOT in sources** (rare) | **Download from web** |
-| **Decorative/conceptual art** (no data accuracy needed) | `generate_image` (ONLY case where this is acceptable) |
-
-**When to use source images vs generate:**
-- **Source image** if: The figure is canonical (architecture diagram, famous result), already exists in `sources/`, and has good resolution
-- **Code-generate (hvplot/bokeh)** if: The visual must be numerically accurate — any plot, chart, graph, distribution, function curve, or data comparison
-- **Download from web** if: The image is not in sources/ and is too complex to generate programmatically
-- **`generate_image`** if: The image is purely decorative/conceptual with NO data, numbers, axes, or quantitative claims
-
----
-
-### For SOURCE IMAGES (from downloaded papers — PREFERRED):
-
-1. Check the TEXTBOOK-PLAN.md **Source Image Catalog** for images assigned to this section
-2. **CRITICAL: Always convert from PDF, never just copy the PNG.** arXiv source PNGs are frequently low-resolution thumbnails (e.g., 586x288px) or blank white placeholders. Even when a PNG exists and looks non-empty, it is almost always a low-DPI version of the PDF. The PDF is the authoritative source.
-   ```bash
-   mkdir -p "{Chapter}/images"
-   pdf_source="AI-Learning-Gems/sources/arxiv-XXXX/figures/figure.pdf"
-   png_source="AI-Learning-Gems/sources/arxiv-XXXX/figures/figure.png"
-   dest="{Chapter}/images/descriptive-name.png"
-   if [ -f "$pdf_source" ]; then
-     magick -density 400 "$pdf_source" -flatten -trim +repage "$dest"
-   elif [ -f "$png_source" ]; then
-     cp "$png_source" "$dest"
-     echo "WARNING: No PDF found, copied PNG directly. Verify resolution."
-   fi
-   ```
-   **Why?** LaTeX \`\includegraphics{figures/teaser}\` picks the PDF (vector, full resolution). PNGs in arXiv sources are low-res fallbacks. Copying the PNG gives a thumbnail (e.g., 586x288); converting the PDF at 400 DPI gives a crisp figure (e.g., 2412x1161). macOS \`sips\` CANNOT rasterize vector PDFs. Always use ImageMagick (\`brew install imagemagick ghostscript\`).
-3. Name descriptively: \`vit-architecture.png\`, \`dino-attention-maps.png\`, \`scaling-vs-data.png\`
-4. Embed with caption and attribution:
-   ```markdown
-   ![Caption describing the figure. Source: Author et al. (Year), Figure N.]([Topic Name]/images/descriptive-name.png){#fig-label}
-   ```
-5. **CRITICAL:** Always attribute the source in the caption. Use the format: `Source: Author et al. (Year), Figure N.`
-6. **CRITICAL:** Do NOT add explicit `width` tags to images (e.g. `width="60%"`, `width="95%"`). Omit the width entirely and let Quarto's global defaults handle the image sizing.
-7. **CRITICAL — image path resolution:** Quarto resolves ALL paths (images, includes) relative to the **index file location**, NOT relative to the section file. Since section files live inside `[Topic Name]/` but the index file is one level up, image paths in section files MUST be prefixed with the folder name: `[Topic Name]/images/filename.png`, NOT `images/filename.png`. If you use bare `images/filename.png`, Quarto will look for the image next to the index file (wrong) instead of inside the chapter folder (correct), resulting in 404 errors.
-
----
-
-### For CANONICAL/COMPLEX IMAGES NOT in sources (download from web):
-
-1. Search the web for the best version of the image
-2. Download to the chapter’s `images/` subfolder
-3. Name descriptively: `transformer-architecture.png`, `attention-mechanism.png`
-4. Reference in markdown: `![Caption. Image Source: URL]([Topic Name]/images/filename.png){#fig-label}`
-5. **CRITICAL:** Do NOT add explicit `width` tags to images (e.g. `width="60%"`, `width="95%"`). Omit the width entirely and let Quarto's global defaults handle the image sizing.
-6. **CRITICAL — image path resolution:** Same rule as source images: paths must be relative to the **index file**, not the section file. Use `[Topic Name]/images/filename.png`, not `images/filename.png`.
-
----
-
-### For DIAGRAMS (structures, flowcharts, concept maps):
-
-> **⚠️ MANDATORY: ALWAYS USE D2 FOR ALL DIAGRAMS ⚠️**
->
-> Do NOT use Mermaid. Do NOT use Graphviz. Use D2 with the ELK engine for ALL concept maps, flowcharts, and structural diagrams.
->
-> D2 produces professional, "LinkedIn-worthy" diagrams with proper shadows, semantic coloring, and clean layouts.
-
----
-
-#### D2 Diagram Standard (REQUIRED)
-
-**Requirements:**
-- Quarto extension: `pandoc-ext/diagram` installed at project root (`_extensions/pandoc-ext/diagram/`)
-- D2 CLI installed
-- **CRITICAL:** The main `.qmd` file MUST include the diagram filter with a RELATIVE PATH to the Lua file:
-  ```yaml
-  ---
-  title: "Your Chapter"
-  filters:
-    - ../_extensions/pandoc-ext/diagram/diagram.lua
-  ---
-  ```
-
----
-
-##### The "Modern SaaS" Theme (Default)
-
-**6 Semantic Color Classes** for complex concept maps:
-
-| Class | Purpose | Stroke Color | Fill Color | Notes |
-|-------|---------|--------------|------------|-------|
-| `input` | Data, observations, givens | `#6366F1` (Indigo) | `#EEF2FF` | |
-| `process` | Transformations, computations | `#10B981` (Emerald) | `#ECFDF5` | |
-| `decision` | Branches, choices, alternatives | `#F59E0B` (Amber) | `#FFFBEB` | |
-| `output` | Final results, conclusions | `#1D4ED8` (Blue) | `#3B82F6` (filled) | |
-| `highlight` | Key concepts, "aha moments" | `#F43F5E` (Rose) | `#FFF1F2` | |
-| `container` | Grouping related nodes | `#D1D5DB` (Gray) | `#F9FAFB` | **Bold header, font-size 16** |
-
----
-
-**Standard D2 Template (MUST USE THIS STYLE):**
-
-```{.d2}
-# =========================================================================
-# 1. LAYOUT CONFIGURATION
-# =========================================================================
-direction: down
-vars: {
-  d2-config: {
-    layout-engine: elk
-  }
-}
-
-# =========================================================================
-# 2. DESIGN SYSTEM (6 Semantic Classes)
-# =========================================================================
-classes: {
-  # Base style for all nodes (card-like with shadow)
-  base: {
-    style: {
-      fill: "white"
-      stroke: "#E5E7EB"
-      stroke-width: 2
-      shadow: true
-      border-radius: 8
-      font-size: 14
-    }
-  }
-  
-  # 1. INPUT: Data, observations, givens (Indigo)
-  input: {
-    style: {
-      stroke: "#6366F1"
-      fill: "#EEF2FF"
-      font-color: "#3730A3"
-    }
-  }
-  
-  # 2. PROCESS: Transformations, computations (Emerald)
-  process: {
-    style: {
-      stroke: "#10B981"
-      fill: "#ECFDF5"
-      font-color: "#065F46"
-    }
-  }
-  
-  # 3. DECISION: Branches, choices (Amber)
-  decision: {
-    style: {
-      stroke: "#F59E0B"
-      fill: "#FFFBEB"
-      font-color: "#92400E"
-    }
-  }
-  
-  # 4. OUTPUT: Results, conclusions (Blue filled)
-  output: {
-    style: {
-      fill: "#3B82F6"
-      stroke: "#1D4ED8"
-      font-color: "white"
-    }
-  }
-  
-  # 5. HIGHLIGHT: Key concepts, emphasis (Rose)
-  highlight: {
-    style: {
-      stroke: "#F43F5E"
-      fill: "#FFF1F2"
-      font-color: "#BE123C"
-      stroke-width: 3
-    }
-  }
-  
-  # 6. CONTAINER: Grouping related nodes (Gray)
-  container: {
-    style: {
-      fill: "#F9FAFB"
-      stroke: "#D1D5DB"
-      font-color: "#1F2937"
-      font-size: 16
-      bold: true
-    }
-  }
-}
-
-# =========================================================================
-# 3. CONTENT (auto-sized nodes with padding)
-# =========================================================================
-# IMPORTANT SIZING RULES:
-# - Do NOT set explicit width/height - D2 auto-sizes nodes to fit text
-# - Add PADDING (spaces) to short labels for minimum width effect
-# - Use \n for line breaks on very long labels
-# - Use label.near: top-left on containers to avoid arrow overlap
-
-ExampleNode: {
-  class: [base; input]
-  label: "        Example Label        "
-}
-```
-
-**Key Styling Rules:**
-
-1. **Use 6 semantic classes:** Assign each node a class based on its role (`input`, `process`, `decision`, `output`, `highlight`, `container`).
-2. **Use `direction: down`** for concept maps (top-to-bottom flow).
-3. **Let D2 auto-size nodes** — add non-breaking spaces as padding for short labels.
-4. **Use shadows & rounded corners:** `shadow: true` and `border-radius: 8`.
-5. **Render Math with LaTeX:** Use `label: |latex ... |` or `label: ||latex ... ||` (double pipes if content contains `|`). Add `shape: rectangle` explicitly for LaTeX nodes.
-6. **Use containers for grouping:** `label.near: top-left` to prevent arrow overlap.
-
----
-
-#### FALLBACK ONLY: Mermaid with ELK
-
-> **⚠️ DO NOT USE MERMAID unless D2 explicitly fails to compile.**
-
-#### LAST RESORT: Graphviz
-
-> **⚠️ DO NOT USE GRAPHVIZ unless both D2 and Mermaid fail.**
-
----
-
-### For PLOTS:
-
-Use **hvplot** with **bokeh backend** (preferred over matplotlib for interactive, properly-sized plots).
-
-> [!CAUTION]
-> **CRITICAL: hvplot + bokeh + Quarto requires a TWO-CELL pattern.**
->
-> Each intermediate hvplot operation (`.hvplot.line()`, `.hvplot.scatter()`, overlay `*`, layout `+`) creates a separate output. Quarto captures ALL of them as sub-figures (a), (b), (c)... with only the last one containing actual content. **You MUST split into two cells:**
->
-> 1. **Cell 1** (`#| output: false`): All imports, computation, and hvplot object construction → suppresses ALL intermediate outputs
-> 2. **Cell 2** (`#| echo: false` + `#| label` + `#| fig-cap`): Uses `bokeh.io.output_notebook()` + `bokeh.io.show(hv.render(...))` to produce exactly ONE unified output
->
-> **Why this pattern is needed:**
-> - Cell 1 suppresses BokehJS initialization AND intermediate plot outputs
-> - Cell 2's `output_notebook()` re-initializes BokehJS (since Cell 1's was suppressed)
-> - `hv.render()` flattens the holoviews Layout into a single bokeh `GridPlot`
-> - `show()` renders it as one unified interactive widget — no sub-figures
->
-> **Additional rules:**
-> - Use **bokeh param names** in hvplot calls: `line_width` (not `linewidth`), `line_dash` (not `linestyle`), `size` for scatter (not `s`)
-> - `width` and `height` work directly with bokeh (unlike matplotlib which ignores them)
->
-> **Three layers of plot options (critical distinction):**
->
-> | Layer | How to apply | What goes here |
-> |-------|-------------|----------------|
-> | **`hvplot_opts`** | `df.hvplot.line(**hvplot_opts, ...)` | `width`, `height`, `grid`, `xlabel`, `ylabel`, `title`, `rot`, `color`, `line_width`, `line_dash`, `size` |
-> | **`hv_opts`** | `.opts(**hv_opts)` chained after hvplot call | `show_grid`, `show_legend`, `gridstyle`, `active_tools`, `toolbar`, `fontsize` |
-> | **`backend_opts`** (rare) | `.opts(backend_opts={...})` | Raw bokeh model properties like `'xgrid.grid_line_alpha': 0.5` |
->
-> **Use two dicts at the top of each code cell:**
-> ```python
-> hvplot_opts = dict(width=700, height=450, grid=True)
-> hv_opts = dict(show_grid=True)
-> ```
-> Then apply BOTH to EVERY hvplot call (including overlays):
-> ```python
-> df.hvplot.line(**hvplot_opts, line_width=2).opts(**hv_opts)
-> ```
-> Override per-plot with: `**{**hvplot_opts, "height": 500}`
->
-> - Wrap sklearn models in `StandardScaler` pipelines to prevent numerical overflow
-> - Use `warnings.filterwarnings("ignore")` and `#| warning: false` to suppress noise
-> - Use `#| error: true` on the computation cell so errors surface even though output is suppressed
-
-**Correct pattern:**
-
-```{python}
-#| output: false
-#| error: true
-#| warning: false
-import warnings
-warnings.filterwarnings("ignore")
-import numpy as np
-import pandas as pd
-import hvplot.pandas
-import holoviews as hv
-hv.extension('bokeh')
-
-## hvplot_opts: kwargs passed directly to df.hvplot.line(), .scatter(), .bar(), etc.
-hvplot_opts = dict(width=700, height=450, grid=True)
-## hv_opts: passed to .opts() on each holoviews element for holoviews/bokeh-level settings
-hv_opts = dict(
-    show_grid=True,
-    default_tools=['hover', 'save', 'pan', 'box_zoom', 'reset', 'wheel_zoom'],
-    active_tools=['pan'],  # wheel_zoom shown but not active by default
-)
-
-x = np.linspace(-5, 5, 200)
-df = pd.DataFrame({'x': x, 'ReLU': np.maximum(0, x), 'Sigmoid': 1/(1+np.exp(-x))})
-df_melted = df.melt(id_vars=['x'], var_name='Function', value_name='f(x)')
-final_plot = df_melted.hvplot.line(
-    x='x', y='f(x)', by='Function',
-    **hvplot_opts,
-    line_width=2,
-).opts(**hv_opts)
-```
-
-```{python}
-#| label: fig-activation
-#| fig-cap: "Activation functions comparison"
-#| echo: false
-#| warning: false
-from bokeh.io import output_notebook, show
-import holoviews as hv
-output_notebook(hide_banner=True)
-show(hv.render(final_plot, backend='bokeh'))
-```
-
-### Visual Design Rules (Mayer's Principles)
-
-- ✅ Integrate labels directly INTO the visual — no separate legends
-- ✅ Place visuals immediately adjacent to related text
-- ✅ Use arrows and annotations to guide attention
-- ✅ Keep visuals simple
-- ❌ No decorative images that do not aid understanding
+**Follow all rules in `visualization-standards.md`** for visual priority order, source image handling, D2 diagram standards (Modern SaaS theme), hvplot/bokeh two-cell pattern, web downloads, and Mayer's visual design principles.
 
 ---
 
@@ -1272,7 +764,7 @@ Chat: "✓ Closing section complete: `_99-closing.qmd`"
 
 1. **Audit:** Scan all body sections and list every mathematical concept that is *used* but not *derived from scratch* in the chapter.
 2. **Filter:** Keep only concepts above 10th-grade math that an upper-division undergraduate ML student might need refreshed (e.g., MLE, Bayesian posteriors, KL divergence, Fisher Information). Drop basics (averages, simple probability).
-3. **Search for existing material:** Look in `AI-Learning-Gems/` for existing notes on each prerequisite topic. Also check the high-quality blogs registry (`.cursor/rules/high-quality-blogs.mdc`).
+3. **Search for existing material:** Look in `AI-Learning-Gems/` for existing notes on each prerequisite topic. Also check the high-quality blogs registry (`high-quality-blogs.md`).
 4. **Write `_98-math-background.qmd`** with one ### subsection per prerequisite concept (150-300 words each). Each subsection: what it does, why it matters *for this chapter*, key formula, brief numerical example, forward-pointer to the relevant body section.
 5. **Update the index file:** Add `{{< include "[Topic Name]/_98-math-background.qmd" >}}` between the last body section and the closing.
 6. **Add forward-references** in body sections: at the first mention of each prerequisite concept, add "(see @sec-math-background for a review of [concept])".

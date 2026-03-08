@@ -31,42 +31,7 @@ The user will describe what they want to understand in plain text. You must extr
 
 === CENTRALIZED SOURCE STORAGE (CRITICAL) ===
 
-**All sources are stored in `AI-Learning-Gems/sources/` — NOT in each chapter folder.**
-
-This is a shared, centralized repository. The same source can be referenced by multiple chapters.
-
-### Source Folder Naming Conventions
-
-| Source Type | Folder Pattern | Example |
-|-------------|---------------|---------|
-| **arXiv papers** | `sources/arxiv-{PAPER_ID}` | `sources/arxiv-2010.11929/` |
-| **Blog posts** | `sources/{domain}/{path}/` | `sources/lilianweng.github.io/posts/2022-06-09-vlm/` |
-| **d2l.ai chapters** | `sources/d2l.ai/{chapter-path}/` | `sources/d2l.ai/chapter_attention-mechanisms-and-transformers/vision-transformer/` |
-| **HuggingFace docs** | `sources/huggingface.co/docs/{path}/` | `sources/huggingface.co/docs/transformers/model_doc/vit/` |
-| **PyTorch docs** | `sources/pytorch.org/{path}/` | `sources/pytorch.org/docs/stable/generated/torch.nn.MultiheadAttention/` |
-| **Other sites** | `sources/{domain}/{path}/` | `sources/distill.pub/2021/gnn-intro/` |
-
-**Blog/site URL → folder name rules:**
-1. Strip `https://` and `http://`
-2. Strip `www.`
-3. Use the remaining URL path as the folder path
-4. Store main content as `content.md` inside the folder
-5. Store images in `images/` subfolder
-
-**arXiv rules:**
-1. Use `arxiv-{PAPER_ID}` (hyphenated)
-2. Download LaTeX source: `curl -sL "https://arxiv.org/src/{PAPER_ID}" -o source.tar.gz && tar -xzf source.tar.gz`
-3. Contains `.tex` files, `images/`, `.bib`
-
-### Checking for Existing Sources
-
-**BEFORE downloading any source, check if it already exists:**
-
-```bash
-ls "AI-Learning-Gems/sources/arxiv-2010.11929/" 2>/dev/null && echo "EXISTS" || echo "NEW"
-```
-
-If a source already exists, skip downloading and reference the existing path.
+**Follow all rules in `source-management.md`** for source storage, folder naming conventions, checking for existing sources, and PDF figure conversion. **Follow `web-source-fetching.md`** for site-specific fetch strategies.
 
 ---
 
@@ -102,7 +67,7 @@ If a source already exists, skip downloading and reference the existing path.
 - Search for original papers that introduced key concepts
 - Find official documentation for algorithms/methods
 
-**PHASE 2B - High-Quality Blog Search (MANDATORY — see `.agent/rules/high-quality-blogs.md`):**
+**PHASE 2B - High-Quality Blog Search (MANDATORY — see `high-quality-blogs.md`):**
 
 Search the curated blog registry for relevant posts. These blogs produce textbook-quality content. Spend at least 2-3 searches here:
 
@@ -121,7 +86,7 @@ site:eugeneyan.com {TOPIC}
 site:bair.berkeley.edu/blog {TOPIC}
 ```
 
-Pick the blogs most relevant to the topic's domain. If you find an excellent blog not in the registry, add it following the instructions in `.agent/rules/high-quality-blogs.md`.
+Pick the blogs most relevant to the topic's domain. If you find an excellent blog not in the registry, add it following the instructions in `high-quality-blogs.md`.
 
 **PHASE 3 - Intuition & Explanation Mining:**
 - Search "[TOPIC] intuition explained"
@@ -159,22 +124,7 @@ Pick the blogs most relevant to the topic's domain. If you find an excellent blo
 
 ### Citation Format
 
-**Inline Citations:** Every significant factual claim needs a citation:
-`[Source Name](URL) (Written: <date>, Accessed: <date>)`
-
-**Exact Quotes:** For major claims, include the exact sentence from the source:
-```
-From [Source Name](URL):
-
-> "Exact quote from the source text [...] continuing relevant portion."
-```
-
-**Source Quality Indicators:**
-- [TEXTBOOK] for established textbooks
-- [ACADEMIC] for peer-reviewed papers
-- [COURSE] for university course materials
-- [TUTORIAL] for educational blogs/videos
-- [COMMUNITY] for forums/discussions
+**Follow the citation rules in `source-management.md`** (Citation Format section) and **`writing-style.md`** (Inline Citations section).
 
 ---
 
@@ -195,7 +145,7 @@ From [Source Name](URL):
 
 After your web searches, you'll have a list of URLs. For each, determine:
 - What type of source is it? (arXiv paper, GitHub docs, tutorial site, etc.)
-- What is the best fetch method? (see lookup table in `.agent/rules/web-source-fetching.md`)
+- What is the best fetch method? (see lookup table in `web-source-fetching.md`)
 
 **STEP 2: Check for Existing Sources (MANDATORY)**
 
@@ -209,69 +159,15 @@ ls "AI-Learning-Gems/sources/arxiv-2010.11929/source.tar.gz" 2>/dev/null && echo
 
 **STEP 3: Download ONLY NEW Sources**
 
-Use the centralized `AI-Learning-Gems/sources/` directory. Refer to `.agent/rules/web-source-fetching.md` for site-specific strategies. **Always verify the folder does not exist before running the download command.**
-
-| Source Type | Command (Run ONLY if folder is NEW) |
-|-------------|---------|
-| **arXiv papers** | `mkdir -p "sources/arxiv-{ID}" && cd "sources/arxiv-{ID}" && curl -sL "https://arxiv.org/src/{ID}" -o source.tar.gz && tar -xzf source.tar.gz && rm source.tar.gz` |
-| **GitHub repos/gists** | `git clone --depth 1 "https://github.com/OWNER/REPO.git" "sources/github.com/OWNER/REPO"` (or `git clone "https://gist.github.com/GIST_ID.git" "sources/gist.github.com/GIST_ID"`) |
-| **Blog posts, Substack, Medium, JS-heavy pages** | `conda activate ai-learning-gems && python scripts/authenticated_extract.py "URL"` (auto-derives output path; add `--profile substack` or `--profile medium` for login-gated sites) |
-| **d2l.ai chapters** | `conda activate ai-learning-gems && python scripts/authenticated_extract.py "https://d2l.ai/{chapter}/{section}.html" -s ".document"` |
-| **Static HTML pages (fast fallback, no JS)** | `conda activate ai-learning-gems && python scripts/webpage_to_md.py "URL" -o "sources/{domain}/{path}/"` |
-| **Single raw file from GitHub** | `mkdir -p "sources/github.com/OWNER/REPO/DIR" && curl -sL "https://raw.githubusercontent.com/OWNER/REPO/BRANCH/PATH" -o "sources/github.com/OWNER/REPO/PATH"` |
+Use the centralized `AI-Learning-Gems/sources/` directory. Refer to `source-management.md` for naming conventions and `web-source-fetching.md` for site-specific strategies. **Always verify the folder does not exist before running the download command.**
 
 **STEP 4: Convert PDF Figures to PNG**
 
-Many arXiv papers include figures as PDFs. Quarto cannot embed PDFs inline, so they must be converted to PNG.
+Follow the PDF figure conversion rules in `source-management.md`.
 
-> **⚠️ IMPORTANT:** PDF figures from arXiv are full-page PDFs with LaTeX margins. You MUST render at high DPI AND trim whitespace. The preferred single-command approach uses ImageMagick + Ghostscript.
+**STEP 5: Validate Converted Images**
 
-```bash
-# PREFERRED: ImageMagick (renders + trims in one step)
-# Install: brew install imagemagick ghostscript
-magick -density 400 images/figure.pdf -trim +repage images/figure.png
-
-# FALLBACK 1: pdftoppm (if ImageMagick/Ghostscript unavailable)
-# Install: brew install poppler
-# NOTE: pdftoppm renders the full page including margins — you MUST trim afterward
-pdftoppm -png -r 400 -singlefile images/figure.pdf images/figure
-# Then trim with magick (if available) or accept the whitespace:
-magick images/figure.png -trim +repage images/figure.png
-
-# FALLBACK 2: sips (macOS-only, last resort)
-# WARNING: sips CANNOT rasterize vector PDFs — it produces blank white PNGs.
-# Only use sips if the PDF contains embedded raster images, not vector graphics.
-sips -s format png images/figure.pdf --out images/figure.png
-```
-
-**Batch convert all PDF figures in an arXiv source:**
-```bash
-find "sources/arxiv-{ID}/" \( -name '*.pdf' \) \( -path '*/images/*' -o -path '*/figs/*' -o -path '*/figures/*' -o -path '*/resources/*' \) | while read f; do
-  outfile="${f%.pdf}"
-  [ ! -f "${outfile}.png" ] && magick -density 400 "$f" -trim +repage "${outfile}.png" && echo "Converted: $f → ${outfile}.png"
-done
-```
-
-**STEP 5: Validate Converted Images (Detect Blank Placeholders)**
-
-> **⚠️ CRITICAL: arXiv LaTeX sources often include blank/white placeholder PNGs.** The real figure content is in the PDF version. After conversion, you MUST validate that PNGs actually contain visible content. A PNG that is a valid image file (correct dimensions, correct format) but renders as entirely white/transparent is a *placeholder*, not a real figure.
-
-```bash
-# Check for suspiciously small PNGs (likely blank placeholders):
-# Real figures are typically >20KB. Blank placeholders are <10KB.
-find "sources/arxiv-{ID}/" \( -path '*/images/*' -o -path '*/figs/*' -o -path '*/figures/*' \) -name '*.png' -size -10k | while read f; do
-  pdf="${f%.png}.pdf"
-  if [ -f "$pdf" ]; then
-    echo "SUSPECT BLANK: $f ($(wc -c < "$f" | tr -d ' ') bytes) — PDF exists, re-converting..."
-    magick -density 400 "$pdf" -trim +repage "$f"
-    echo "  → Re-converted: now $(wc -c < "$f" | tr -d ' ') bytes"
-  else
-    echo "WARNING: $f is <10KB and no PDF fallback exists — may be blank"
-  fi
-done
-```
-
-**Why this happens:** arXiv LaTeX compilation uses PDF figures natively. Some authors include low-quality or empty PNG versions as fallbacks. The `\includegraphics` in the `.tex` file typically references the figure *without* an extension (e.g., `\includegraphics{figures/teaser}`), and LaTeX picks the PDF. When we download the source, we get both the blank PNG and the real PDF. Always prefer converting from PDF via ImageMagick. Do NOT use `sips` on macOS; it cannot rasterize vector PDFs.
+Follow the image validation rules in `source-management.md` (detect blank placeholders).
 
 **STEP 6: Verify Downloads**
 
@@ -631,7 +527,7 @@ Keep chat messages brief. Example:
 ## STEP 2: Download Sources
 
 1. Check for existing sources in `AI-Learning-Gems/sources/` before EVERY download
-2. Download ONLY new sources using appropriate methods (see `.agent/rules/web-source-fetching.md`)
+2. Download ONLY new sources using appropriate methods (see `web-source-fetching.md`)
 3. Verify all downloads (ensure folder is not empty)
 4. Chat: "✓ Sources processed: [N] new downloaded, [M] already existed in repository"
 
