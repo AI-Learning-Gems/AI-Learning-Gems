@@ -288,12 +288,20 @@ The hook must be **immediately understandable** to educated people in ANY countr
 
 ---
 
-**2. Learning objectives** (bullet list)
-- WHY: Explicit goals activate goal-directed attention.
+**2. Chapter Overview — The Narrative Advance Organizer** (8-16 paragraphs)
+- WHY: This IS the advance organizer, in narrative form. See detailed section below.
+- HOW: Substantial narrative that provides the "first pass" through all material. The reader should understand the big picture before encountering any notation or formal objectives.
+
+**3. Learning objectives** (bullet list)
+- WHY: Explicit goals activate goal-directed attention. Placing them after the overview means the reader can connect each objective to the narrative they just read.
 - HOW: State exactly what the reader will be able to DO after reading. Use action verbs: calculate, derive, implement, explain, compare.
 
-**3. Notation table** (table)
-- WHY: Pre-teaching notation reduces extraneous cognitive load (scaffolding research).
+**4. Concept Map** (D2 diagram)
+- WHY: The graphic advance organizer — visual summary of the overview.
+- HOW: Place AFTER learning objectives to give the reader a spatial map of the chapter structure. Shows how all pieces connect visually.
+
+**5. Notation table** (table)
+- WHY: Pre-teaching notation reduces extraneous cognitive load (scaffolding research). Placed last among the front-matter elements so the reader has full narrative and structural context before encountering symbols.
 - HOW: Define ALL mathematical notation upfront. The table MUST have four columns:
 
 | Column | What to include |
@@ -307,27 +315,19 @@ The "Valid Values" column is critical because it tells the reader the *space* th
 
 - **IMPORTANT:** The notation table is in the TEXTBOOK-PLAN.md — use it and extend as needed.
 
-**4. Chapter Introduction — The Narrative Advance Organizer** (8-16 paragraphs)
-- WHY: This IS the advance organizer, in narrative form. See detailed section below.
-- HOW: Substantial narrative that provides the "first pass" through all material.
-
-**5. Concept Map** (D2 diagram)
-- WHY: The graphic advance organizer — visual summary of the introduction.
-- HOW: Place AFTER the narrative introduction. Shows how all pieces connect visually.
-
 ---
 
-### CHAPTER INTRODUCTION (The "First Pass" — CRITICAL)
+### CHAPTER OVERVIEW (The "First Pass" — CRITICAL)
 
 **This is a substantial narrative section (15-20% of total chapter length, ~8-16 paragraphs).**
 
 #### WHY THIS MATTERS (Research Basis)
 
-The Chapter Introduction IS the **advance organizer** — specifically, a narrative/expository advance organizer.
+The Chapter Overview IS the **advance organizer** — specifically, a narrative/expository advance organizer.
 
 > "Advance organizers are introductory materials presented before learning that provide a framework for understanding new information... Students are able to use to build a cognitive structure or scaffold in which they can anchor information." — Ausubel
 
-The Chapter Introduction serves as a **"second pass"** — after reading it, nothing in the detailed sections should come as a great surprise. The reader should be able to:
+The Chapter Overview serves as a **"second pass"** — after reading it, nothing in the detailed sections should come as a great surprise. The reader should be able to:
 - Talk intelligently about the topic at a survey level
 - Make basic decisions about when this topic applies
 - Understand how all the pieces fit together
@@ -378,13 +378,11 @@ The Chapter Introduction serves as a **"second pass"** — after reading it, not
 
 This is NOT wasted space. It's the most valuable part of the chapter for building understanding.
 
-**AFTER the Chapter Introduction, include the Concept Map (D2) as the visual summary.**
-
 ---
 
 ### BODY (Build Understanding)
 
-For EACH major concept, follow this A-G sequence:
+For EACH major concept, follow this A-E sequence:
 
 **Step A: Concrete example FIRST**
 - WHY: The brain learns through pattern recognition across specific instances. Starting with abstraction is backwards.
@@ -402,15 +400,7 @@ For EACH major concept, follow this A-G sequence:
 - WHY: Multiple varied examples force abstraction. The brain identifies what is essential vs. incidental.
 - HOW: Show the same concept with different numbers, context, or framing.
 
-**Step E: Self-explanation prompt**
-- WHY: Chi et al. found learners who explain steps to themselves learn significantly more.
-- HOW: Insert a callout box asking: Why does [step] work? What if [X] were different?
-
-**Step F: Practice check (faded example)**
-- WHY: Faded worked examples outperform both pure examples and pure problems.
-- HOW: Provide a partially-worked problem where the reader fills in 1-2 steps.
-
-**Step G: Transition**
+**Step E: Transition**
 - WHY: Explicit transitions reduce cognitive load by showing how content connects.
 - HOW: "Now that you understand X, we can see why Y follows..."
 
@@ -418,7 +408,7 @@ For EACH major concept, follow this A-G sequence:
 
 ### MISCONCEPTION & THINK HARD CALLOUTS (Slow Down and Address What's Confusing)
 
-These are NOT the same as self-explanation prompts (Step E). Self-explanation prompts ask the *reader* to think. These callouts are where the *author* slows down to address something the reader is likely confused about or curious about.
+These callouts are where the *author* slows down to address something the reader is likely confused about or curious about. They are distinct from the interactive exercises added by the `/exercises-for-textbook-chapter` workflow (which ask the reader to retrieve and generate).
 
 **The TEXTBOOK-PLAN.md contains two lists in "Cross-Cutting Concerns":**
 - **Common Misconceptions** — common misunderstandings about the topic
@@ -595,10 +585,10 @@ Every example must pass the **"15-year-old to 35-year-old test":**
 3. **Label subgoals** — Group steps by purpose
 4. **Include reflection prompts** — "Why did we choose this approach?"
 
-### Fading Sequence
+### Example Variation Sequence
 
 - Examples 1-2: Complete worked solutions with full narrative
-- Example 3: Partial solution with 2-3 steps for reader to complete
+- Example 3: A variation that applies the same concept in a different context
 - Practice problems: Problem statement only (solutions at end)
 
 ---
@@ -620,8 +610,8 @@ Every example must pass the **"15-year-old to 35-year-old test":**
 - [ ] Chapter starts with hook/running example (4-5 paragraphs)
 - [ ] **Hook includes a technical image** that bridges the narrative story and the core technical concept (not decorative — a real diagram from a paper or d2l.ai)
 - [ ] Running example is revisited in EVERY major section
-- [ ] Chapter Introduction is 8-16 paragraphs (narrative advance organizer)
-- [ ] Concept map follows introduction (D2 diagram)
+- [ ] Chapter Overview is 8-16 paragraphs (narrative advance organizer)
+- [ ] Concept map follows learning objectives (D2 diagram), before notation table
 - [ ] Every equation has a concrete numerical example
 - [ ] Every major concept has a visual
 - [ ] **Source images from papers are embedded** where the Source Image Catalog assigns them
@@ -632,8 +622,6 @@ Every example must pass the **"15-year-old to 35-year-old test":**
 - [ ] Examples pass the "15-year-old to 35-year-old test"
 - [ ] **Misconception callouts** (1-2 per body section) — `.callout-warning` explaining why the misconception is wrong and what's right
 - [ ] **Think Hard callouts** (1-3 per body section) — `.callout-note` with thorough plain-language answers, placed contextually
-- [ ] Self-explanation prompts included
-- [ ] Fading sequence applied to examples
 
 **Writing Quality:**
 - [ ] 1,500-2,000 words per section (from depth, not repetition)
@@ -702,10 +690,10 @@ The introduction goes in `_01-introduction.qmd`. It contains:
 
 1. **Sources for this section** (collapsible, at top — only sources used in the introduction, not all chapter sources)
 2. **Hook / Running Example** (4-5 paragraphs) — **MUST include a technical image** that bridges the narrative story and the chapter's core technical concept. Search d2l.ai, original papers, or authoritative sources for a canonical diagram. The image should make the reader think "oh, so THAT's what this looks like technically."
-3. **Learning Objectives** (bullet list)
-4. **Notation Table**
-5. **Chapter Introduction** (8-16 paragraphs — the advance organizer)
-6. **Concept Map** (D2 diagram)
+3. **Chapter Overview** (8-16 paragraphs — the narrative advance organizer)
+4. **Learning Objectives** (bullet list)
+5. **Concept Map** (D2 diagram)
+6. **Notation Table**
 
 **IMPORTANT:** Read the downloaded sources (`view_file`) before writing. Quote exact equations from LaTeX sources.
 
@@ -723,7 +711,7 @@ Chat: "✓ Introduction complete: `_01-introduction.qmd`"
    - Search for additional sources with `search_web`
    - Download to `AI-Learning-Gems/sources/` following naming conventions
    - Chat: "✓ Additional source: `sources/{path}`"
-4. **Write the section** following A-G structure:
+4. **Write the section** following A-E structure:
    - Per-section source header (collapsible)
    - Concrete example FIRST
    - Explanation connecting to example
@@ -732,8 +720,6 @@ Chat: "✓ Introduction complete: `_01-introduction.qmd`"
    - **Misconception callouts** (1-2 per section) — placed where the misconception would naturally arise, using `.callout-warning` with `"Common Misconception: [wrong belief]"` title. Explain why it's wrong, then what's right.
    - **Think Hard callouts** (1-3 per section) — placed right after the concept they relate to, using `.callout-note` with `"Think Hard: [question]"` title. Give thorough plain-language answers.
    - Second worked example
-   - Self-explanation prompt
-   - Fading practice check
    - Transition to next section
 5. **Apply the running example** as specified in the plan
 6. Chat: "✓ Section [N] complete: `_0N-name.qmd` ([X] examples, [Y] visualizations)"

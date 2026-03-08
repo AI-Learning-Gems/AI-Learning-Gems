@@ -1,0 +1,485 @@
+/* ==========================================================================
+   exercises.css — Styling for all 4 interactive exercise types.
+   Integrates with Quarto's cosmo/Bootstrap theme.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Container
+   -------------------------------------------------------------------------- */
+.exercise {
+  position: relative;
+  margin: 1.5rem 0;
+  padding: 1.25rem 1.5rem;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #fafbfc;
+  border-left: 4px solid #6366f1;
+}
+
+.exercise-predict {
+  border-left-color: #f59e0b;
+}
+
+.exercise-order {
+  border-left-color: #10b981;
+}
+
+.exercise-fillin {
+  border-left-color: #3b82f6;
+}
+
+/* --------------------------------------------------------------------------
+   Header
+   -------------------------------------------------------------------------- */
+.exercise-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.exercise-mcq .exercise-header { color: #4f46e5; }
+.exercise-predict .exercise-header { color: #d97706; }
+.exercise-order .exercise-header { color: #059669; }
+.exercise-fillin .exercise-header { color: #2563eb; }
+
+.exercise-icon {
+  font-size: 1.1rem;
+}
+
+/* --------------------------------------------------------------------------
+   Stem (question text)
+   -------------------------------------------------------------------------- */
+.exercise-stem {
+  margin-bottom: 0.75rem;
+}
+
+.exercise-stem p {
+  margin-bottom: 0.25rem;
+}
+
+/* --------------------------------------------------------------------------
+   Options (MCQ and Prediction)
+   -------------------------------------------------------------------------- */
+.exercise-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.exercise-option {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  user-select: none;
+}
+
+.exercise-option:hover:not(.disabled) {
+  border-color: #9ca3af;
+  background: #f3f4f6;
+}
+
+.exercise-option.selected {
+  border-color: #6366f1;
+  background: #eef2ff;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
+.exercise-option.correct {
+  border-color: #16a34a;
+  background: #f0fdf4;
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.15);
+}
+
+.exercise-option.incorrect {
+  border-color: #dc2626;
+  background: #fef2f2;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+}
+
+.exercise-option.disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.option-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: #e5e7eb;
+  color: #374151;
+  font-weight: 700;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.exercise-option.correct .option-label {
+  background: #16a34a;
+  color: #fff;
+}
+
+.exercise-option.incorrect .option-label {
+  background: #dc2626;
+  color: #fff;
+}
+
+.option-text {
+  flex: 1;
+  line-height: 1.45;
+}
+
+/* --------------------------------------------------------------------------
+   Feedback
+   -------------------------------------------------------------------------- */
+.exercise-feedback {
+  margin-top: 0.75rem;
+  padding: 0.9rem 1.1rem;
+  border-radius: 6px;
+  animation: exercise-fade-in 0.3s ease;
+}
+
+.exercise-feedback p:last-child {
+  margin-bottom: 0;
+}
+
+.exercise-feedback-correct {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+.exercise-feedback-incorrect {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.exercise-predict-reveal {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e3a5f;
+}
+
+.exercise-order-feedback,
+.exercise-fillin-feedback {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+@keyframes exercise-fade-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* --------------------------------------------------------------------------
+   Buttons
+   -------------------------------------------------------------------------- */
+.exercise-reveal-btn,
+.exercise-check-btn {
+  display: inline-block;
+  padding: 0.45rem 1.1rem;
+  border-radius: 5px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.exercise-reveal-btn:hover:not(:disabled),
+.exercise-check-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.exercise-reveal-btn:disabled,
+.exercise-check-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.exercise-predict .exercise-reveal-btn {
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.exercise-predict .exercise-reveal-btn:hover:not(:disabled) {
+  background: #fffbeb;
+}
+
+/* --------------------------------------------------------------------------
+   Reset
+   -------------------------------------------------------------------------- */
+.exercise-reset {
+  margin-top: 0.5rem;
+  text-align: right;
+}
+
+.exercise-reset-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  padding: 0.2rem 0;
+}
+
+.exercise-reset-btn:hover {
+  color: #374151;
+}
+
+/* --------------------------------------------------------------------------
+   Ordering list (Parsons / SortableJS)
+   -------------------------------------------------------------------------- */
+.exercise-order-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.75rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.exercise-order-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  cursor: grab;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  user-select: none;
+}
+
+.exercise-order-item:active {
+  cursor: grabbing;
+}
+
+.exercise-order-item.correct {
+  border-color: #16a34a;
+  background: #f0fdf4;
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.15);
+}
+
+.exercise-order-item.incorrect {
+  border-color: #dc2626;
+  background: #fef2f2;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+}
+
+.order-handle {
+  color: #9ca3af;
+  cursor: grab;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.order-handle:active {
+  cursor: grabbing;
+}
+
+/* SortableJS ghost/chosen classes */
+.sortable-ghost {
+  opacity: 0.4;
+  background: #eef2ff;
+  border-color: #6366f1;
+}
+
+.sortable-chosen {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* --------------------------------------------------------------------------
+   Fill-in-the-blank
+   -------------------------------------------------------------------------- */
+.exercise-steps {
+  padding-left: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.exercise-step {
+  margin-bottom: 0.35rem;
+  line-height: 1.6;
+}
+
+.fillin-select {
+  display: inline-block;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  border: 2px solid #6366f1;
+  background: #fff;
+  font-size: 0.9rem;
+  color: #374151;
+  cursor: pointer;
+  min-width: 200px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.fillin-select:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.fillin-select.correct {
+  border-color: #16a34a;
+  background: #f0fdf4;
+}
+
+.fillin-select.incorrect {
+  border-color: #dc2626;
+  background: #fef2f2;
+}
+
+.fillin-select:disabled {
+  opacity: 0.8;
+  cursor: default;
+}
+
+/* --------------------------------------------------------------------------
+   Dark mode (Quarto's Bootstrap dark theme)
+   -------------------------------------------------------------------------- */
+[data-bs-theme="dark"] .exercise {
+  background: #1e1e2e;
+  border-color: #374151;
+}
+
+[data-bs-theme="dark"] .exercise-option {
+  background: #2a2a3d;
+  border-color: #4b5563;
+  color: #e5e7eb;
+}
+
+[data-bs-theme="dark"] .exercise-option:hover:not(.disabled) {
+  background: #333348;
+  border-color: #6b7280;
+}
+
+[data-bs-theme="dark"] .exercise-option.selected {
+  background: #312e81;
+  border-color: #6366f1;
+}
+
+[data-bs-theme="dark"] .exercise-option.correct {
+  background: #14532d;
+  border-color: #16a34a;
+}
+
+[data-bs-theme="dark"] .exercise-option.incorrect {
+  background: #450a0a;
+  border-color: #dc2626;
+}
+
+[data-bs-theme="dark"] .option-label {
+  background: #4b5563;
+  color: #e5e7eb;
+}
+
+[data-bs-theme="dark"] .exercise-feedback-correct {
+  background: #14532d;
+  border-color: #166534;
+  color: #bbf7d0;
+}
+
+[data-bs-theme="dark"] .exercise-feedback-incorrect {
+  background: #450a0a;
+  border-color: #991b1b;
+  color: #fecaca;
+}
+
+[data-bs-theme="dark"] .exercise-predict-reveal {
+  background: #1e3a5f;
+  border-color: #1e40af;
+  color: #bfdbfe;
+}
+
+[data-bs-theme="dark"] .exercise-order-feedback,
+[data-bs-theme="dark"] .exercise-fillin-feedback {
+  background: #14532d;
+  border-color: #166534;
+  color: #bbf7d0;
+}
+
+[data-bs-theme="dark"] .exercise-order-item {
+  background: #2a2a3d;
+  border-color: #4b5563;
+  color: #e5e7eb;
+}
+
+[data-bs-theme="dark"] .exercise-order-item.correct {
+  background: #14532d;
+  border-color: #16a34a;
+}
+
+[data-bs-theme="dark"] .exercise-order-item.incorrect {
+  background: #450a0a;
+  border-color: #dc2626;
+}
+
+[data-bs-theme="dark"] .exercise-reveal-btn,
+[data-bs-theme="dark"] .exercise-check-btn {
+  background: #2a2a3d;
+  border-color: #4b5563;
+  color: #e5e7eb;
+}
+
+[data-bs-theme="dark"] .exercise-reveal-btn:hover:not(:disabled),
+[data-bs-theme="dark"] .exercise-check-btn:hover:not(:disabled) {
+  background: #333348;
+}
+
+[data-bs-theme="dark"] .fillin-select {
+  background: #2a2a3d;
+  border-color: #6366f1;
+  color: #e5e7eb;
+}
+
+[data-bs-theme="dark"] .fillin-select.correct {
+  background: #14532d;
+  border-color: #16a34a;
+}
+
+[data-bs-theme="dark"] .fillin-select.incorrect {
+  background: #450a0a;
+  border-color: #dc2626;
+}
+
+[data-bs-theme="dark"] .sortable-ghost {
+  background: #312e81;
+  border-color: #6366f1;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
+@media (max-width: 600px) {
+  .exercise {
+    padding: 1rem;
+    margin: 1rem 0;
+  }
+
+  .fillin-select {
+    min-width: 160px;
+    font-size: 0.85rem;
+  }
+}

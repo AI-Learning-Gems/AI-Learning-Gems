@@ -47,7 +47,7 @@ You are editing **prose quality only**. Think of yourself as a copy editor, not 
 - Section headings and their `{#sec-*}` labels
 - Callout box types and titles (`.callout-warning`, `.callout-note`, `.callout-tip` — keep the type and title text exactly as-is)
 - Source headers (the collapsible source tables at the top of each section)
-- The A-G instructional structure (example → explanation → visual → example → prompt → practice → transition)
+- The A-E instructional structure (example → explanation → visual → second example → transition)
 - Factual claims, numbers
 - Notation tables — do not change symbols, valid values, or examples. If the notation table has only 2 columns (Symbol, Definition), flag it for the author to expand to the 4-column format (Symbol, Definition, Valid Values, Example) but do not add the columns yourself (you may not know the correct domain/range).
 - Existing inline citations that already have the correct format (see Rule 11)
@@ -279,10 +279,9 @@ This editing pass should ONLY improve prose — never flatten good instructional
 
 **DO NOT remove or compress:**
 - Processing pauses (white space, horizontal rules between sections)
-- Self-explanation prompts (`.callout-tip` boxes)
+- Exercise blocks (`.exercise-mcq`, `.exercise-predict`, `.exercise-order`, `.exercise-fillin`) — edit prose inside them, but keep them
 - Think Hard callouts (`.callout-note` boxes) — edit prose inside them, but keep them
 - Common Misconception callouts (`.callout-warning` boxes) — edit prose inside them, but keep them
-- Faded practice checks
 - Transitions between sections ("Now that we understand X, the next question is Y")
 - Running example callbacks ("Returning to our visual search engine...")
 - Advance organizers and concept maps

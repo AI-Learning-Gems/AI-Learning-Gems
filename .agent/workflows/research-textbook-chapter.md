@@ -382,14 +382,13 @@ Before writing each section plan, **re-read the relevant downloaded sources** (`
 | [D2L ViT Tutorial] | `sources/d2l.ai/.../content.md` | Section "Patch Embedding" | Implementation code |
 
 **Content outline:**
-1. [Subtopic A — with concrete example first (A-G structure)]
+1. [Subtopic A — with concrete example first (A-E structure)]
 2. [Subtopic B — with second worked example]
 3. [Subtopic C — with visualization]
 
 **Key equations:** [List the main equations this section must include]
 **Visualizations:** [List diagrams/plots needed: D2 concept map, hvPlot, downloaded images]
 **Source images to embed:** [List specific images from the Source Image Catalog below, by path]
-**Self-explanation prompts:** [List 1-2 reflection questions for this section]
 ```
 
 Then in the NEXT write, append Section 2 (without repeating the `## Section Plan` heading):

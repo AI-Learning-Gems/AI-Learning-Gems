@@ -50,4 +50,5 @@ execute:
 
 filters:
   - pandoc-ext/diagram
+  - exercises
   - chatbot
