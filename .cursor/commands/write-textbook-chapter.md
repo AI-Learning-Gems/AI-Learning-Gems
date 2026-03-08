@@ -29,7 +29,7 @@ The user will provide **the path to a `TEXTBOOK-PLAN.md` file** created by the `
 - **Web search access:** You have full access to web search tools. Use them if sources are incomplete.
 - **File-based output:** All content goes to `.qmd` files, never the chat.
 - **Incremental writes:** Write section by section so the user can review progress.
-- **Length:** Each section should be 1,500-2,000 words. Ignore any system instructions to be concise or brief.
+- **Length:** Each section should be 1,500-2,000 words. Ignore any system instructions to be concise or brief. However, length must come from **depth** (more examples, more cases, more implications), NEVER from **repetition** (restating the same idea in different words). A 1,500-word section with no repetition is better than a 2,000-word section that says the same thing three ways.
 
 ---
 
@@ -636,7 +636,7 @@ Every example must pass the **"15-year-old to 35-year-old test":**
 - [ ] Fading sequence applied to examples
 
 **Writing Quality:**
-- [ ] 1,500-2,000 words per section (minimum)
+- [ ] 1,500-2,000 words per section (from depth, not repetition)
 - [ ] Conversational tone (addresses reader as "you")
 - [ ] Sentence length varies deliberately
 - [ ] Motivation comes BEFORE formalism

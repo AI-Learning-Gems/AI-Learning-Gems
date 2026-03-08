@@ -286,7 +286,7 @@ This editing pass should ONLY improve prose — never flatten good instructional
 - Transitions between sections ("Now that we understand X, the next question is Y")
 - Running example callbacks ("Returning to our visual search engine...")
 - Advance organizers and concept maps
-- Math Background appendix (`_98-math-background.qmd`) — edit prose inside it, but preserve all formulas, cross-references, and the subsection structure. The same editing rules (Rules 1-14) apply to Math Background prose.
+- Math Background appendix (`_98-math-background.qmd`) — edit prose inside it, but preserve all formulas, cross-references, and the subsection structure. The same editing rules (Rules 1-19) apply to Math Background prose.
 
 **DO NOT merge** short paragraphs into long ones just to reduce paragraph count. Short paragraphs that each contain one idea are correct.
 
@@ -411,15 +411,140 @@ When a paragraph contains three or more parallel items (results, conditions, out
 
 Similarly, use tables instead of inline bullet-point numbers when presenting parameter estimates, predicted probabilities, or comparison results.
 
+**Inline enumeration.** When a paragraph makes two or three short points that belong together (not worth a full bullet list), use inline enumeration with `(a) ...; (b) ...; and (c) ...` or `(i) ...; (ii) ...; and (iii) ...`. The letters/numerals and semicolons mark the boundaries so the reader can parse each point.
+
+**BAD (three points run together):**
+> The BT model assumes comparisons are independent, each item has a single fixed strength, and ties are not possible.
+
+**GOOD (inline enumeration):**
+> The BT model makes three assumptions: (a) comparisons are independent; (b) each item has a single fixed strength; and (c) ties are not possible.
+
+---
+
+## RULE 15: Given-New Information Flow
+
+Each sentence should begin with information the reader already knows (the *topic position*) and end with new, important information (the *stress position*). The new info in sentence N becomes the familiar info in sentence N+1. (See Gopen & Swan, *American Scientist* 1990; Williams & Bizup, *Style: Lessons in Clarity and Grace*.)
+
+**BAD (new info first, context buried at end):**
+> A 12-layer Transformer with learned positional embeddings processes the resulting sequence of patch tokens. The Vision Transformer introduced this architecture.
+
+**GOOD (old info first, new info at end):**
+> The Vision Transformer processes images as sequences of patches. Each patch is projected into a token, and the resulting sequence is fed to a 12-layer Transformer with learned positional embeddings.
+
+**Test:** For each sentence, ask: "Does the opening phrase connect to something the reader just read?" If the sentence opens with a brand-new concept, restructure so the link comes first.
+
+---
+
+## RULE 16: Pronoun Clarity ("This + Noun")
+
+Never use bare "this," "that," "it," or "these" as a sentence subject when the antecedent could be ambiguous. Always follow the demonstrative with a clarifying noun (a *shell noun*): "this constraint," "this approach," "this result."
+
+**BAD:**
+> We compute the gradient and clip it to a maximum norm. This is then used to update the weights.
+
+**GOOD:**
+> We compute the gradient and clip it to a maximum norm. This clipped gradient is then used to update the weights.
+
+**Test:** Circle every sentence-initial "this," "that," "these," or "it." Draw an arrow to its antecedent. If the arrow could point to more than one thing, add a clarifying noun.
+
+---
+
+## RULE 17: Nominalization and Noun Stack Cleanup
+
+### 17a. Nominalizations
+
+Nominalizations hide actions inside nouns (typically ending in *-tion, -ment, -ness, -ity, -ance, -ence*). When you spot one, check whether converting back to the original verb is clearer.
+
+**BAD:**
+> The optimization of the loss function was performed using stochastic gradient descent.
+
+**GOOD:**
+> We optimized the loss function using stochastic gradient descent.
+
+### 17b. Noun stacks
+
+Noun stacks pile 3+ modifiers before a head noun without prepositions, forcing the reader to guess which word modifies which. Limit to 2 modifiers before a noun. Unpack longer stacks with prepositions.
+
+**BAD:**
+> gradient descent learning rate schedule warm-up strategy
+
+**GOOD:**
+> the warm-up strategy for the learning rate schedule in gradient descent
+
+---
+
+## RULE 18: Mathematical Prose Integration
+
+### 18a. Never start a sentence with a symbol
+
+Write "The vector $\mathbf{x}$..." not "$\mathbf{x}$ is..." This is a universal convention (Halmos, Knuth, AMS Style Guide).
+
+### 18b. Equations are parts of sentences
+
+Displayed equations need a lead-in phrase and punctuation. Use "the loss is given by" or "we can express this as," not "see the following equation."
+
+**BAD:**
+> The loss function is: $$ L = -\sum \log p_i $$ Where $p_i$ is the predicted probability.
+
+**GOOD:**
+> The loss function is $$ L = -\sum \log p_i, $$ where $p_i$ is the predicted probability for example $i$.
+
+### 18c. Define variables with "where"
+
+After a displayed equation, define all new symbols immediately with a "where" clause. Do not force the reader to scroll back to the notation table.
+
+### 18d. Front-load conditionals with "then"
+
+In conditional statements, place the condition first and include "then": "If the learning rate is too high, then the loss diverges."
+
+---
+
+## RULE 19: Forecasting Counts and Connective Quality
+
+### 19a. Forecast the count before enumerating
+
+When listing multiple items, state the count first to prime the reader's working memory.
+
+**BAD:**
+> The BT model assumes comparisons are independent, each item has a single fixed strength, and ties are not possible.
+
+**GOOD:**
+> The BT model makes three assumptions: (a) comparisons are independent; (b) each item has a single fixed strength; and (c) ties are not possible.
+
+### 19b. Prefer causal and contrastive connectives over additive ones
+
+Research shows causal ("because," "so," "therefore") and contrastive ("however," "but," "unlike") connectives measurably improve comprehension, while additive ("moreover," "additionally," "furthermore") ones sometimes don't. When "Moreover" or "Additionally" opens a paragraph, ask: is the real relationship causal or contrastive? If so, name it.
+
+**BAD:**
+> Additionally, the model uses layer normalization before each attention block.
+
+**GOOD (if causal):**
+> Because raw attention scores can vary widely in magnitude, the model applies layer normalization before each attention block.
+
+**GOOD (if truly additive):**
+> The model also applies layer normalization before each attention block.
+
 ---
 
 === THE EDITING WORKFLOW ===
 
 **CRITICAL: Do NOT ask the user for confirmation at any step. Execute the entire workflow autonomously.**
 
+**CRITICAL: CONTEXT REFRESH.** Editing rules are long. By the time you reach the third or fourth section file, you will have lost the early rules from your context window. You MUST re-read the rule files before editing each section. This is not optional. Skipping this step causes the most common failure mode: early sections are well-edited, later sections are sloppy.
+
 ---
 
-## STEP 1: Read and Catalog
+## STEP 1: Read Rules and Catalog Sections
+
+**1a. Read ALL rule files (MANDATORY before any editing begins):**
+
+Read these files in full. They contain the editing standards you will apply:
+
+- `writing-style.md` — Sentence clarity, given-new flow, emphasis hierarchy, pronoun clarity, nominalization, connective hierarchy, mathematical prose, forecasting counts, AI tell avoidance, and all vocabulary/style rules
+- `quarto-conventions.md` — Heading levels, LaTeX formatting, cross-references, image paths, callout syntax
+- `visualization-standards.md` — Image handling, D2 diagrams, hvplot patterns (relevant when editing captions or checking image paths)
+
+**1b. Read the index file and catalog sections:**
 
 1. Read the index `.qmd` file
 2. List all section files from the `{{< include >}}` statements
@@ -427,13 +552,29 @@ Similarly, use tables instead of inline bullet-point numbers when presenting par
 
 ---
 
-## STEP 2: Edit Each Section
+## STEP 2: Edit Each Section (One at a Time, with Context Refresh)
 
-For each section file:
+**CRITICAL: Edit one section file at a time. Do NOT batch multiple sections.** Each section is a self-contained editing task. If the chapter has 7 sections, that is 7 sequential passes, each starting with a fresh re-read of the rules.
 
-1. **Read the entire file**
-2. **Scan for violations** of Rules 1-14 above
-3. **Edit paragraph by paragraph:**
+**For each section file, follow this exact sequence:**
+
+**2a. Re-read the writing rules (MANDATORY before EVERY section):**
+
+Before touching a single paragraph, re-read the following file:
+
+- `writing-style.md` — Re-read it in full. Pay particular attention to: the Emphasis Hierarchy table, the Given-New Contract, the Pronoun Clarity rule, the Nominalization Detection rule, the Connective Hierarchy, and the Forecasting Counts section. These are the rules most commonly forgotten by the time you reach later sections.
+
+If the section contains equations or mathematical content, also re-read:
+
+- `quarto-conventions.md` — Re-read the LaTeX Formatting section and the Cross-References section.
+
+This re-read is not a suggestion. It is a hard requirement. The quality difference between "re-read rules, then edit" and "edit from memory" is stark, and the user will notice.
+
+**2b. Read the section file in full.**
+
+**2c. Scan for violations** of Rules 1-19.
+
+**2d. Edit paragraph by paragraph:**
    - Apply Rule 1 (one idea per paragraph) — split where needed
    - Apply Rule 2 (no clause chains) — break long sentences
    - Apply Rule 3 (examples get space) — un-bury inline examples
@@ -448,10 +589,17 @@ For each section file:
    - Apply Rule 12 (precision) — ensure all outputs, directions, and number sources are explicit
    - Apply Rule 13 (recipe summaries and orientation) — add self-contained summaries after complex procedures; add "so far / now / why" at major transitions
    - Apply Rule 14 (dense content formatting) — convert dense inline lists to bullets or tables
-4. **Write the edited file**
-5. Chat: "Edited `[filename]`"
+   - Apply Rule 15 (given-new flow) — each sentence opens with old info, closes with new info
+   - Apply Rule 16 (pronoun clarity) — replace bare "this"/"these"/"it" subjects with "this + noun"
+   - Apply Rule 17 (nominalization and noun stacks) — convert -tion/-ment nouns back to verbs; unpack 3+ modifier stacks
+   - Apply Rule 18 (math prose integration) — no symbol-initial sentences; equations punctuated as grammar; "where" clauses; front-loaded conditionals
+   - Apply Rule 19 (forecasting counts and connectives) — state counts before enumerating; prefer causal/contrastive over additive connectives
 
-**Editing granularity:** Use targeted `StrReplace` operations for individual paragraphs rather than rewriting entire files. This minimizes the chance of accidentally changing technical content.
+**2e. Write the edited file** using targeted `StrReplace` operations for individual paragraphs rather than rewriting entire files. This minimizes the chance of accidentally changing technical content.
+
+**2f. Chat:** "Edited `[filename]`"
+
+**2g. Repeat from step 2a** for the next section file. Do NOT skip the re-read.
 
 ---
 
@@ -475,7 +623,10 @@ After all sections are edited:
 2. **Check for em dashes in paragraph:** Flag any paragraph with em dashes
 3. **Spot-check paragraph length:** Flag any paragraph over 6 sentences
 4. **Check for uncited references:** Search all files for capitalized proper nouns referring to published works that lack a linked `([Authors, Venue Year](URL))` citation on first mention
-5. Chat: "Editing pass complete for `[index file path]`"
+5. **Scan for bare "this"/"these":** Search for sentence-initial "This " or "These " not followed by a noun (Rule 16)
+6. **Scan for nominalizations:** Search for -tion, -ment, -ness, -ity nouns that hide actions; flag sentences where converting to a verb would be clearer (Rule 17a)
+7. **Scan for symbol-initial sentences:** Search for sentences that start with `$` (Rule 18a)
+8. Chat: "Editing pass complete for `[index file path]`"
 
 ---
 
@@ -539,3 +690,19 @@ Before marking the editing pass as complete, verify:
 - [ ] Citation format is `ShortName ([Authors, Venue Year](URL))`
 - [ ] URLs match those in the section's source table
 - [ ] Second and later mentions in the same section use just the short name
+
+**Information Flow and Clarity (Rules 15-17):**
+- [ ] Each sentence opens with familiar info and closes with new info (given-new flow)
+- [ ] No bare "this," "these," or "it" as sentence subjects without a clarifying noun
+- [ ] Nominalizations (-tion, -ment, -ness, -ity) are converted to verbs where clearer
+- [ ] No noun stacks with 3+ modifiers before the head noun; unpacked with prepositions
+
+**Mathematical Prose (Rule 18):**
+- [ ] No sentence starts with a mathematical symbol ($)
+- [ ] Displayed equations have lead-in phrases and punctuation (comma or period)
+- [ ] New symbols are defined immediately after the equation with "where"
+- [ ] Conditional statements use "If ..., then ..." with explicit "then"
+
+**Forecasting and Connectives (Rule 19):**
+- [ ] Inline enumerations are preceded by a forecasting count ("three assumptions:")
+- [ ] Additive connectives ("Moreover," "Additionally") are replaced with causal/contrastive ones when the real relationship is causal or contrastive

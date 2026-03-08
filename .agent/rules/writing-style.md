@@ -64,8 +64,49 @@ Always answer "why should I care?" BEFORE "how does it work?"
 **Sentence clarity:**
 - Maximum two clauses joined by a comma. Never chain three or more clauses ("X, which Y, allowing Z")
 - Keep subject and verb close — do not front-load long modifiers before the main verb
-- Active voice preferred, but passive is fine when appropriate
+- Make the grammatical subject of each sentence the *agent* doing the action, and make the verb *be* the action itself. This is more general than "prefer active voice." A sentence like "The optimization performs gradient updates" is active voice but still unclear because "the optimization" is not really doing anything; the real character is the algorithm or the learner. Write "The algorithm updates the weights via gradient descent."
 - Prefer 15-25 words per sentence. Long sentences (25-35 words) only when building momentum, maximum one per paragraph
+
+**Given-New Contract (information flow):**
+
+Begin each sentence with information the reader already knows (the *topic position*), and end with new, important information (the *stress position*). The new info in sentence N becomes the familiar info in sentence N+1. This creates a chain that pulls the reader forward. (See Gopen & Swan, "The Science of Scientific Writing," *American Scientist* 1990; Williams & Bizup, *Style: Lessons in Clarity and Grace*.)
+
+- **BAD (new info first, context buried at end):** "A 12-layer Transformer with learned positional embeddings processes the resulting sequence of patch tokens. The Vision Transformer introduced this architecture."
+- **GOOD (old info first, new info at end):** "The Vision Transformer processes images as sequences of patches. Each patch is projected into a token, and the resulting sequence is fed to a 12-layer Transformer with learned positional embeddings."
+
+**Pronoun clarity ("this + noun" rule):**
+
+Never use bare "this," "that," "it," or "these" as a sentence subject when the antecedent is ambiguous. Always follow the demonstrative with a clarifying noun (a *shell noun*): "this constraint," "this approach," "this result," "these gradients." Research shows "this + shell noun" accounts for over 40% of demonstrative usage in academic writing because it resolves ambiguity that bare "this" creates.
+
+- **BAD:** "We compute the gradient and clip it to a maximum norm. This is then used to update the weights." (What is "this"? The gradient? The clipping? The computation?)
+- **GOOD:** "We compute the gradient and clip it to a maximum norm. This clipped gradient is then used to update the weights."
+
+**Nominalization detection:**
+
+Nominalizations are verbs or adjectives converted into nouns (typically ending in *-tion, -ment, -ness, -ity, -ance, -ence*). They hide the action inside a noun and force the reader to reconstruct who did what. When you spot a nominalization, check whether the original verb is clearer.
+
+- **BAD:** "The optimization of the loss function was performed using stochastic gradient descent."
+- **GOOD:** "We optimized the loss function using stochastic gradient descent."
+- **BAD:** "The establishment of convergence requires the satisfaction of several conditions."
+- **GOOD:** "To establish convergence, several conditions must be satisfied."
+
+**Noun stack unpacking:**
+
+Noun stacks pile modifiers before a head noun without prepositions, forcing the reader to guess which word modifies which. Limit to 2 modifiers before a noun. If you have 3+, unpack with prepositions.
+
+- **BAD:** "gradient descent learning rate schedule warm-up strategy"
+- **GOOD:** "the warm-up strategy for the learning rate schedule in gradient descent"
+- **BAD:** "pretrained language model fine-tuning data augmentation pipeline"
+- **GOOD:** "the data augmentation pipeline for fine-tuning a pretrained language model"
+
+**Concrete over abstract:**
+
+Prefer concrete nouns and verbs that evoke mental images over abstract equivalents. Dual coding theory (Paivio) shows concrete words are recalled better because they activate both verbal and visual memory systems.
+
+- **BAD:** "The model acquires the capacity to discriminate between visual categories."
+- **GOOD:** "The model learns to tell cat photos from dog photos."
+- **BAD:** "The utilization of attention mechanisms facilitates the identification of relevant features."
+- **GOOD:** "Attention lets the model focus on the pixels that matter."
 
 **Examples get their own space:**
 - Never bury a concrete example inside a parenthetical or subordinate clause
@@ -108,9 +149,114 @@ When the content is conceptual, motivational, or historical (no equations on scr
 - Obsess over word choice. The right word conveys meaning that three weaker words cannot. Prefer "bottleneck" over "limiting factor in the pipeline," "brittle" over "not very robust."
 - Idioms and metaphors are fine *if* they are precise and well-placed. "A coin flip" for $P = 0.5$ is clear. "Opening a can of worms" is vague.
 - Connect to the real world. Concrete examples from domains the reader knows (chess ratings, Tinder, coffee taste tests) help abstract concepts land.
-- Use **bold** sparingly (once or twice per section) to mark the single most important takeaway in a passage.
+- Use **bold** sparingly for emphasis (see "Emphasis and Stress" section below for the full system).
 - Use *italics* for technical terms on first introduction, and for gentle emphasis within a sentence.
 - If a point is truly critical (the one thing a reader must not miss), put it in its own callout block or a blockquote. Do not bury it in a long paragraph.
+
+---
+
+## Emphasis and Stress (Making Key Points Land)
+
+Most sentences in a textbook chapter are load-bearing but not landmark. A few sentences per section, however, carry the core insight: the one thing the reader must walk away with. The techniques below exist to make those sentences *land* rather than get scanned over.
+
+The overarching principle is the **Von Restorff isolation effect**: a stimulus that differs from its surroundings is remembered better. For emphasis to work, it must be rare. If everything is emphasized, nothing is.
+
+### The Emphasis Hierarchy (Use in This Order)
+
+These are ordered from most subtle (and most frequent) to most visually heavy (and most rare).
+
+| Level | Technique | Frequency | When to Use |
+|---|---|---|---|
+| 1. *Italics* | `*word*` | Freely | First introduction of a technical term; gentle stress on a word or short phrase within a sentence |
+| 2. Plain-language restatement | `i.e.`, `that is`, apposition | As needed | After a formal or dense clause, restate it in plain words so the reader gets a second pass at the same idea |
+| 3. Short emphatic sentence | Sentence rhythm | 1-2 per subsection | A short sentence after long ones creates a rhythmic jolt: "That's the key." |
+| 4. **Bold phrase** | `**phrase**` | 1-2 per section | The single most important takeaway in a group of paragraphs; the sentence you'd highlight if you could only highlight one |
+| 5. Standalone summary sentence | Structure | 1 per concept | After a derivation or explanation, a self-contained sentence that captures the whole point in one line |
+| 6. Authority quote | Blockquote | 0-2 per section | A short quote from a foundational source (Halmos, Feynman, a seminal paper) that lends weight to a claim through credibility and memorability |
+| 7. Callout box | `.callout-tip` / `.callout-warning` | 1-3 per section | For points that must not be missed: misconceptions, critical caveats, "Think Hard" questions |
+
+### Bold: The One-Highlight Rule
+
+**Bold exactly one phrase or sentence per cluster of paragraphs that develop a single idea.** If a subsection has three main ideas across nine paragraphs, it gets roughly three bolded phrases, each marking the peak of its cluster.
+
+When you bold a phrase, you are telling the skimming reader: "If you read nothing else in these three paragraphs, read this." That contract only works if you honor it by *not* bolding anything else nearby.
+
+**BAD (too much bold, nothing stands out):**
+> **Self-attention** lets every token attend to every other token. This gives ViTs a **global receptive field** from the very first layer. **CNNs need dozens of layers** to achieve the same thing.
+
+**GOOD (one bold phrase carries the point):**
+> Self-attention lets every token attend to every other token. This gives ViTs a **global receptive field from the very first layer**, something CNNs need dozens of layers to achieve.
+
+Do not bold entire sentences routinely. Bold a *phrase* within a sentence, so the sentence still reads naturally for the non-skimming reader. Reserve full-sentence bold for genuinely climactic points (at most once per section).
+
+### Italics: The Workhorse
+
+Italics do two jobs: (a) marking the first appearance of a technical term ("the *softmax* function"), and (b) providing gentle stress within a sentence ("the model doesn't just classify images; it *understands spatial relationships*"). Italics are subtle enough to use freely. They don't disrupt reading flow, and research confirms they produce less visual disruption than bold.
+
+### Plain-Language Restatement ("i.e." / "that is" / Apposition)
+
+After a formal or dense statement, immediately restate the same idea in concrete, everyday language. This gives the reader two bites at the same concept, which research on elaboration shows improves both recall and deeper comprehension.
+
+Effective patterns:
+
+- **"i.e." or "that is":** "The model minimizes cross-entropy loss, i.e., it tries to make its predicted probabilities match the true labels as closely as possible."
+- **Apposition (renaming):** "The softmax temperature $\tau$, a scalar that controls how peaked or flat the output distribution is, defaults to 1.0."
+- **"In other words":** Use sparingly and only when the restatement is genuinely simpler, not merely a synonym swap.
+- **"Put differently" / "To put it concretely":** Good when shifting register from math to intuition.
+
+The restatement should be *shorter and more concrete* than the original. If it is longer, it's an explanation, not a restatement.
+
+### Repetition That Earns Its Keep (Say It Differently, Not Again)
+
+Repeating a key point improves retention, but only when each repetition adds a new angle or register. Rote repetition ("as we mentioned above") wastes the reader's time and signals padding. *Meaningful* repetition restates the point in a new way that deepens understanding.
+
+The pattern: **state it formally, then state it intuitively, then show it concretely.**
+
+> The posterior is proportional to the product of the prior and the likelihood.
+>
+> In plain terms: your updated belief combines what you believed before with the evidence you just saw.
+>
+> If your prior says "this coin is probably fair" and you observe 8 heads out of 10 flips, the posterior shifts toward "this coin is biased," but doesn't abandon the prior entirely.
+
+That is three statements of the same idea. Each earns its place because it uses a different register (mathematical, intuitive, concrete example). If any of the three were removed, the reader would lose something.
+
+### Authority Quotes (Lending Weight Through Credibility)
+
+A well-placed quote from a recognized authority can do something that your own prose cannot: it signals that this idea has been vetted by the broader community, and it gives the reader a memorable, quotable formulation they may already associate with a trusted name.
+
+**When to use:**
+- When a foundational figure said it better or more memorably than you can
+- When you need to lend credibility to a claim that might seem surprising
+- When a quote captures the *spirit* of a concept in a way that sticks
+
+**Format:**
+
+> "The best notation is no notation; whenever it is possible to avoid the use of a complicated alphabetic apparatus, avoid it." — Paul Halmos, *How to Write Mathematics* (1970)
+
+**Rules for authority quotes:**
+- Keep them short (1-2 sentences). Long block quotes get skipped.
+- Always attribute with author name, work title, and year.
+- Place the quote *after* your own explanation, as reinforcement, not before it as a substitute. The reader should understand the point from your prose; the quote adds weight and memorability.
+- Maximum 1-2 per section. Overuse makes the text feel like a literature review rather than a textbook.
+
+### Structural Emphasis (Whitespace and Isolation)
+
+Sometimes the most effective emphasis is structural: you make a sentence stand out by *where you put it*, not by how you format it.
+
+- **A one-sentence paragraph** after several longer paragraphs creates a rhythmic stop that forces attention. Use this for the single most important takeaway after a complex explanation.
+- **A colon followed by a standalone line** works similarly: "The result is simple: every comparison is an independent coin flip."
+- **White space** (an extra blank line, a horizontal rule) signals a conceptual break that makes the reader pause.
+
+These structural techniques are powerful precisely because they are invisible: the reader feels the emphasis without seeing any formatting. Use one-sentence paragraphs sparingly (at most 1-2 per section) or they lose their punch.
+
+### What NOT to Emphasize
+
+The seductive-details effect (Mayer, Harp & Mayer 1998) shows that interesting-but-irrelevant elaboration actively harms learning by diverting attention from core content. Apply the same discipline to emphasis:
+
+- Do not bold tangential observations, historical asides, or "fun facts"
+- Do not bold definitions (use *italics* for the term being defined; the surrounding sentence is the definition)
+- Do not bold transitions, topic sentences, or section openings (the heading already signals importance)
+- Do not use emphasis to compensate for unclear writing; fix the writing instead
 
 ### No Marketing Language
 
@@ -176,17 +322,20 @@ In both modes, remove promotional or salesy phrasing. Let the content speak for 
 - "Surprisingly, ..." — fine when the result contradicts expectation
 - "Crucially, ..." — fine when the point is load-bearing for what follows
 
-### Transitions
+### Transitions and Connective Hierarchy
 
-Standard English transitions ("However," "Therefore," "In contrast," "For example") are legitimate and should be kept.
+Standard English transitions ("However," "Therefore," "In contrast," "For example") are legitimate and should be kept. Research shows that *causal* and *contrastive* connectives measurably improve comprehension, while *additive* connectives ("moreover," "additionally") sometimes don't. Prefer the connective that names the real logical relationship.
 
-**Transitions that are fine:**
-- "However, ..." / "But ..." — signaling contrast
-- "Therefore, ..." / "Thus, ..." / "As a result, ..." — signaling consequence
-- "For example, ..." / "Specifically, ..." / "To illustrate, ..." — signaling an example
-- "In contrast, ..." / "Conversely, ..." — signaling opposition
-- "First, ... Second, ... Finally, ..." — signaling sequence
-- "Moreover, ..." / "Furthermore, ..." / "Additionally, ..." — fine when genuinely adding a new supporting point, not as paragraph-opening filler
+**High-value connectives (use freely):**
+- **Causal:** "because," "since," "so," "therefore," "as a result" — these tell the reader *why*
+- **Contrastive:** "however," "but," "unlike," "in contrast," "conversely" — these tell the reader *what's different*
+
+**Medium-value connectives (fine when accurate):**
+- **Sequential:** "first, ... second, ... finally, ..." — signaling order
+- **Exemplifying:** "for example," "specifically," "to illustrate" — signaling an instance
+
+**Low-value connectives (replace with the real relationship when possible):**
+- "Moreover, ..." / "Furthermore, ..." / "Additionally, ..." — these say "here is more" but don't say *how* it connects. Often the real relationship is causal or contrastive, and naming it helps the reader more. Use additive connectives only when the relationship genuinely is "here is another independent point."
 
 **Transitions to replace** (these feel robotic when overused):
 
@@ -204,6 +353,38 @@ Use the **same word for the same concept** throughout. Do not alternate synonyms
 ### Vocabulary as a Mapping
 
 When a concept from one domain (e.g., preference modeling) maps onto a well-known concept from another domain (e.g., logistic regression), **state the mapping explicitly as a table or bullet list**, then define which term you will use going forward. After declaring the mapping, use **only the chosen term** for that concept.
+
+---
+
+## Mathematical Prose Integration
+
+These rules govern how equations connect to the surrounding text. They complement the "Mathematical/Derivation Paragraphs" mode above, which covers *vocabulary*; this section covers *mechanics*.
+
+**Never start a sentence with a mathematical symbol.** Write "The vector $\mathbf{x}$..." not "$\mathbf{x}$ is..." This is a universal convention in mathematical writing (Halmos 1970, Knuth 1987, AMS Style Guide).
+
+**Treat displayed equations as grammatical parts of the sentence.** A displayed equation is a noun or clause inside your sentence. It needs a lead-in phrase ("the loss is given by," "we can express this as") and punctuation (a comma if a "where" clause follows, a period if the sentence ends).
+
+- **BAD:** "The loss function is: $$ L = -\sum \log p_i $$ Where $p_i$ is the predicted probability."
+- **GOOD:** "The loss function is $$ L = -\sum \log p_i, $$ where $p_i$ is the predicted probability for example $i$."
+
+**Define variables immediately with "where."** After a displayed equation, list all new symbols with a "where" clause or a compact definition list. Do not make the reader scroll back to the notation table.
+
+**Use lead-in phrases, not bare pointers.** Write "the probability simplifies to" rather than "see the following equation" or "the equation below shows."
+
+**Front-load conditionals with explicit "then."** In conditional statements, place the condition first and include "then" to mark the clause boundary: "If the learning rate is too high, then the loss diverges." Without "then," readers cannot determine where the condition ends until reaching the sentence's end.
+
+---
+
+## Forecasting Counts
+
+When a paragraph or passage will enumerate multiple items, **state the count before listing them**. The count primes the reader's working memory: they know exactly how much to expect and can track their position.
+
+- **BAD:** "The BT model assumes comparisons are independent, each item has a single fixed strength, and ties are not possible."
+- **GOOD:** "The BT model makes three assumptions: (a) comparisons are independent; (b) each item has a single fixed strength; and (c) ties are not possible."
+
+The count ("three assumptions") is the *forecasting sentence*. The inline enumeration `(a) ...; (b) ...; and (c) ...` is the *formatting*. Both are needed. The forecasting count tells the reader how much to allocate; the inline markers tell them where each item's boundary is.
+
+Use this pattern for 2-5 inline items. For 5+ items, switch to a vertical bullet list.
 
 ---
 
