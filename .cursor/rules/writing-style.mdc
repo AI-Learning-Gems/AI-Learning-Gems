@@ -397,6 +397,8 @@ Use this pattern for 2-5 inline items. For 5+ items, switch to a vertical bullet
 
 ## Inline Citations
 
+**Every inline citation MUST be a clickable hyperlink.** A citation without a URL is not a citation; it is a name-drop. The reader must be able to click through to the source.
+
 Every time the text mentions a specific paper, method, framework, benchmark, or other published work by name, the **first mention in each section** must include an inline citation with:
 1. The author(s) (use "et al" for 3+ authors)
 2. The venue and year
@@ -405,6 +407,26 @@ Every time the text mentions a specific paper, method, framework, benchmark, or 
 Subsequent mentions in the same section can use just the short name without re-citing.
 
 **Format:** `ShortName ([Authors, Venue Year](URL))`
+
+### Detecting Unlinked Citations (CRITICAL)
+
+An unlinked citation is any mention of a published work that includes metadata (author names, venue, year) but no clickable URL. These are the most common failure mode in LLM-generated text. Learn to recognize these patterns so you can fix them during both writing and editing:
+
+| Unlinked Pattern (BAD) | What's Wrong | Fix |
+|---|---|---|
+| `RLHF (Christiano et al., 2017)` | Has authors and year but no URL | Add link: `RLHF ([Christiano et al., 2017](https://arxiv.org/abs/1706.03741))` |
+| `PPO (Schulman et al., 2017)` | Same: parenthetical citation without hyperlink | Add link: `PPO ([Schulman et al., 2017](https://arxiv.org/abs/1707.06347))` |
+| `the ReAct framework (Yao et al., NeurIPS 2023)` | Has venue but no URL | Add link: `ReAct ([Yao et al., NeurIPS 2023](https://arxiv.org/abs/2210.03629))` |
+| `TextGrad introduced backpropagation for text` | Named method, no citation at all | Add full citation: `TextGrad ([Yuksekgonul et al., NeurIPS 2024](https://arxiv.org/abs/2406.07496))` |
+| `as shown by Chen et al. (2024)` | Author-year but no link | Add link: `as shown by [Chen et al. (2024)](https://arxiv.org/abs/...)` |
+| `(ICLR 2025)` or `(NeurIPS 2024)` after a method name | Venue-year tag without hyperlink | Look up the paper and add a full linked citation |
+
+**The test is simple:** search the text for these regex-like patterns:
+- Parenthetical with author names and a year: `(AuthorName et al., YYYY)` or `(AuthorName et al. YYYY)` or `(AuthorName, YYYY)`
+- Parenthetical with a venue and year: `(VenueName YYYY)` such as `(NeurIPS 2024)`, `(ICLR 2025)`, `(ACL 2023)`
+- Any of the above that do NOT contain `](http` (i.e., no hyperlink inside)
+
+If any of these patterns appear without a URL, the citation is broken and must be fixed.
 
 **What counts as a "mention" requiring citation:**
 - Named methods/systems (OPRO, ProTeGi, TextGrad, DSPy, EvoPrompt, etc.)

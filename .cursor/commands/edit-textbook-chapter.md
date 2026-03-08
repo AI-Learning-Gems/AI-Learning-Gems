@@ -318,6 +318,8 @@ Similarly, when referencing figures, equations, or sections:
 
 ## RULE 11: Inline Citations Must Include Linked References
 
+**Every inline citation MUST be a clickable hyperlink.** A citation without a URL is not a citation; it is a name-drop.
+
 Every time the text mentions a specific paper, method, framework, benchmark, or other published work by name, the **first mention in each section** must include an inline citation with:
 1. The author(s) (use "et al" for 3+ authors)
 2. The venue and year
@@ -328,6 +330,21 @@ Subsequent mentions in the same section can use just the short name without re-c
 **Where to find citation info:** Each section has a **"Sources for this section"** collapsible callout at the top containing a table with the source name, URL, and venue. Use this table to look up the correct URL, authors, and venue for every reference mentioned in the section's prose. If a reference is mentioned in the prose but not in the source table, search for it in other section source tables or in the `sources/` directory.
 
 **Format:** `ShortName ([Authors, Venue Year](URL))`
+
+### Detecting Unlinked Citations (The Most Common Failure Mode)
+
+LLMs routinely generate citations with author names and years but no hyperlink. These look like real citations but are useless to the reader. You MUST scan for and fix every instance.
+
+**Unlinked patterns to search for and fix:**
+
+| Unlinked Pattern (BAD) | What's Wrong | Fix |
+|---|---|---|
+| `RLHF (Christiano et al., 2017)` | Has authors and year but no URL | Add link: `RLHF ([Christiano et al., 2017](https://arxiv.org/abs/1706.03741))` |
+| `PPO (Schulman et al., 2017)` | Same: parenthetical citation without hyperlink | Add link: `PPO ([Schulman et al., 2017](https://arxiv.org/abs/1707.06347))` |
+| `the ReAct framework (Yao et al., NeurIPS 2023)` | Has venue but no URL | Add link: `ReAct ([Yao et al., NeurIPS 2023](https://arxiv.org/abs/2210.03629))` |
+| `TextGrad introduced backpropagation for text` | Named method, no citation at all | Add full citation: `TextGrad ([Yuksekgonul et al., NeurIPS 2024](https://arxiv.org/abs/2406.07496))` |
+| `as shown by Chen et al. (2024)` | Author-year but no link | Add link: `as shown by [Chen et al. (2024)](https://arxiv.org/abs/...)` |
+| `(ICLR 2025)` or `(NeurIPS 2024)` after a method name | Venue-year tag without hyperlink | Look up the paper and add a full linked citation |
 
 **BAD (name-drop without linked citation):**
 > GEPA (ICLR 2026 Oral) unified reflection on execution traces with Pareto-based candidate selection.
@@ -355,7 +372,7 @@ Subsequent mentions in the same section can use just the short name without re-c
 - References that are already correctly formatted with author, venue, year, AND link
 - Second and later mentions of the same work within the same section
 
-**Test:** Read through each paragraph. For every capitalized proper noun that refers to a published work, check: does the first mention in this section include `([Authors, Venue Year](URL))`? If not, add it using the source table at the top of the section.
+**Test:** Read through each paragraph. For every capitalized proper noun that refers to a published work, check: does the first mention in this section include `([Authors, Venue Year](URL))`? If not, add it using the source table at the top of the section. Then do a regex scan for parentheticals matching `(Name et al., YYYY)` or `(Venue YYYY)` that do NOT contain `](http` — these are unlinked citations that must be fixed.
 
 ---
 
@@ -623,6 +640,7 @@ After all sections are edited:
 2. **Check for em dashes in paragraph:** Flag any paragraph with em dashes
 3. **Spot-check paragraph length:** Flag any paragraph over 6 sentences
 4. **Check for uncited references:** Search all files for capitalized proper nouns referring to published works that lack a linked `([Authors, Venue Year](URL))` citation on first mention
+5. **Scan for UNLINKED citations (CRITICAL):** Search all `.qmd` files for parentheticals that contain author names + year OR venue + year but do NOT contain `](http`. Specifically, search for patterns like `(Name et al., 20` or `(Name et al. 20` or `(NeurIPS 20` or `(ICLR 20` or `(ACL 20` or `(AAAI 20` or `(ICML 20` that are NOT inside a markdown link `[...](...)`. Every match is an unlinked citation that must be fixed by adding the URL.
 5. **Scan for bare "this"/"these":** Search for sentence-initial "This " or "These " not followed by a noun (Rule 16)
 6. **Scan for nominalizations:** Search for -tion, -ment, -ness, -ity nouns that hide actions; flag sentences where converting to a verb would be clearer (Rule 17a)
 7. **Scan for symbol-initial sentences:** Search for sentences that start with `$` (Rule 18a)
@@ -690,6 +708,7 @@ Before marking the editing pass as complete, verify:
 - [ ] Citation format is `ShortName ([Authors, Venue Year](URL))`
 - [ ] URLs match those in the section's source table
 - [ ] Second and later mentions in the same section use just the short name
+- [ ] **No unlinked citations remain:** no parentheticals matching `(Author et al., YYYY)` or `(Venue YYYY)` that lack a `](http` hyperlink inside
 
 **Information Flow and Clarity (Rules 15-17):**
 - [ ] Each sentence opens with familiar info and closes with new info (given-new flow)
