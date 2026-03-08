@@ -13,13 +13,13 @@
 
 Our visual search engine has evolved significantly. You now have a ViT pretrained with MAE on your product catalog, producing excellent visual features that capture texture, shape, and spatial structure. But the system still cannot bridge the gap between what a customer *sees* and what they *say*: When someone types "boho macramé plant hanger," your image encoder has no idea what those words mean. You could build a separate text model, train it on product descriptions, and try to align the two feature spaces. But how do you align representations that were learned independently, in completely different modalities?
 
-CLIP answered this question with an elegant insight: **do not train the encoders separately and align them later. Train them together from the start, using the natural pairing between images and their descriptions as the supervision signal.** The result was a model that could connect any image to any text, enabling zero-shot classification, cross-modal retrieval, and (as we will see in @sec-vlm-zoo) the vision encoder for modern VLMs.
+CLIP ([Radford et al., ICML 2021](https://arxiv.org/abs/2103.00020)) answered this question with a simple but powerful insight: **do not train the encoders separately and align them later. Train them together from the start, using the natural pairing between images and their descriptions as the supervision signal.** The result was a model that could connect any image to any text, enabling zero-shot classification, cross-modal retrieval, and (as we will see in @sec-vlm-zoo) the vision encoder for modern VLMs.
 
 ### The Contrastive Insight: Matching, Not Generating {#sec-contrastive-insight}
 
-Before CLIP, most approaches to vision-language learning were *generative*: given an image, predict the caption word by word. This is expensive. For a single image, the model must autoregressively generate dozens of tokens, each conditioned on all previous tokens, costing $O(L^2)$ for a caption of length $L$. And the learning signal is noisy: captions describe many aspects of an image, and the same image can have many valid captions.
+Before CLIP, most approaches to vision-language learning were *generative*: given an image, predict the caption word by word. Generation is expensive. For a single image, the model must autoregressively generate dozens of tokens, each conditioned on all previous tokens, costing $O(L^2)$ for a caption of length $L$. And the learning signal is noisy: captions describe many aspects of an image, and the same image can have many valid captions.
 
-CLIP's insight is to replace generation with *matching*. Given a batch of $N$ image-text pairs, the task is simply to figure out which text goes with which image. This is a classification problem over $N$ classes, much simpler and more efficient than generating captions. The training signal is cleaner (correct match vs. incorrect match is less ambiguous than "the correct next word"), and each training step processes all $N^2$ potential pairings in the batch simultaneously.
+CLIP's insight is to replace generation with *matching*. Given a batch of $N$ image-text pairs, the task is simply to figure out which text goes with which image. Matching is a classification problem over $N$ classes, much simpler and more efficient than generating captions. The training signal is cleaner (correct match vs. incorrect match is less ambiguous than "the correct next word"), and each training step processes all $N^2$ potential pairings in the batch simultaneously.
 
 ::: {.callout-warning title="Common Misconception: CLIP generates captions for images"}
 CLIP does *not* generate text. It cannot produce a caption, answer a question, or describe an image. CLIP is a **matching** model: given an image and a text string, it computes a similarity score between them. You can use CLIP to rank which of a set of candidate texts best matches an image (zero-shot classification), or which images best match a text query (retrieval), but it cannot *create* novel text. If you want caption generation, you need a generative model like the decoder in BLIP-2 or a full VLM like LLaVA. Confusing "aligns images and text" with "generates text from images" is one of the most common misunderstandings about CLIP, and it matters because it determines whether CLIP alone is sufficient for your application.
@@ -85,7 +85,7 @@ The diagonal entries (bold) are the correct pairings; these should be high. The 
 
 **The temperature parameter $\tau$.** Temperature controls the "peakiness" of the softmax distribution. A low $\tau$ makes the softmax sharper: the model must produce very distinct similarities for correct vs. incorrect pairs. A high $\tau$ produces a flatter distribution, relaxing the requirement. CLIP learns $\tau$ during training (log-parameterized: the model optimizes $\log \tau$ and computes $\tau = \exp(\log \tau)$), initialized to $\tau = 0.07$.
 
-Critically, CLIP clips the temperature to prevent logits from exceeding 100. Without this, training becomes unstable. If $\tau$ becomes too small, the logits $S_{ij}/\tau$ explode, causing numerical overflow in the softmax.
+Critically, CLIP clips the temperature to prevent logits from exceeding 100. Without clipping, training becomes unstable. If $\tau$ becomes too small, the logits $S_{ij}/\tau$ explode, causing numerical overflow in the softmax.
 
 ::: {.callout-note title="Think Hard: Why is the temperature learned, and why clip it?"}
 The optimal temperature depends on the quality of the embedding space, which changes during training. Early in training, embeddings are noisy and similar pairs may have low similarity, so a high $\tau$ keeps the learning signal manageable. As training progresses and the embedding space becomes more structured, a lower $\tau$ provides a sharper learning signal that pushes correct pairs further apart from incorrect ones. Learning $\tau$ lets the model adapt this trade-off automatically.
@@ -102,9 +102,9 @@ As $N$ increases, the InfoNCE loss converges to maximizing a lower bound on the 
 
 ### SigLIP: From Softmax to Sigmoid {#sec-siglip}
 
-CLIP works beautifully, but it has an engineering headache. The InfoNCE loss requires a softmax over the entire batch for each row and column of the similarity matrix. In distributed training across multiple GPUs, this means every GPU must communicate its local embeddings to every other GPU (an "all-gather" operation) to compute the full $N \times N$ matrix. This communication overhead becomes a bottleneck at large batch sizes.
+CLIP works well, but it has an engineering headache. The InfoNCE loss requires a softmax over the entire batch for each row and column of the similarity matrix. In distributed training across multiple GPUs, this means every GPU must communicate its local embeddings to every other GPU (an "all-gather" operation) to compute the full $N \times N$ matrix. This communication overhead becomes a bottleneck at large batch sizes.
 
-**SigLIP** (Zhai et al., 2023) eliminates this by replacing the softmax with a pairwise sigmoid. Instead of asking "which text best matches this image?", SigLIP asks, for *each* image-text pair independently, "does this image match this text?"
+**SigLIP** ([Zhai et al., ICCV 2023](https://arxiv.org/abs/2303.15343)) eliminates this bottleneck by replacing the softmax with a pairwise sigmoid. Instead of asking "which text best matches this image?", SigLIP asks, for *each* image-text pair independently, "does this image match this text?"
 
 The SigLIP loss treats each of the $N^2$ entries in the similarity matrix as an independent binary classification problem:
 
@@ -114,7 +114,7 @@ $$ {#eq-siglip-loss}
 
 where $z_{ij} = +1$ if $i = j$ (matching pair), $z_{ij} = -1$ otherwise, $t = \exp(t')$ is a learned temperature (initialized to $t = 10$), and $b$ is a learned bias (initialized to $b = -10$).
 
-The bias term $b$ is a clever addition. In a batch of $N = 32{,}768$, there are $N = 32{,}768$ positive pairs but $N^2 - N \approx 10^9$ negative pairs, a massive class imbalance. Initializing $b = -10$ starts the model in a regime where it assigns low probability to *all* pairs (both positive and negative), then gradually learns to increase the probability for matching pairs. Without this bias, the overwhelming number of negatives would dominate the gradient early in training.
+The bias term $b$ is a clever addition. In a batch of $N = 32{,}768$, there are $N = 32{,}768$ positive pairs but $N^2 - N \approx 10^9$ negative pairs, a massive class imbalance. Initializing $b = -10$ starts the model in a regime where it assigns low probability to *all* pairs (both positive and negative), then gradually learns to increase the probability for matching pairs. Without the bias term, the overwhelming number of negatives would dominate the gradient early in training.
 
 The key advantages of SigLIP over CLIP's InfoNCE:
 
@@ -125,19 +125,19 @@ The key advantages of SigLIP over CLIP's InfoNCE:
 
 SigLIP-SO400M (a "shape-optimized" 400M-parameter ViT) achieved 83.2% zero-shot on ImageNet, exceeding much larger models.
 
-**SigLIP 2** (2025) extended this further with a unified multi-loss training recipe combining four objectives in two stages:
+**SigLIP 2** ([Tschannen et al., 2025](https://arxiv.org/abs/2502.14786)) extended this further with a unified multi-loss training recipe combining four objectives in two stages:
 
 - **Stage 1 (first 80%)**: SigLIP contrastive loss + LocCa decoder loss. The decoder handles image captioning, referring expression prediction, and grounded captioning via cross-attention to unpooled vision features.
 - **Stage 2 (last 20%)**: Add self-distillation (local-to-global, DINO-style) + masked prediction (MAE-style).
 
-This combination produces a model that excels at *both* image-level semantics (from contrastive learning) and pixel-level localization (from the decoder and self-supervised losses). Previously, these were trade-offs. SigLIP 2 outperforms SigLIP across all model sizes and is backward-compatible: same architecture, just swap the weights.
+This multi-loss combination produces a model that excels at *both* image-level semantics (from contrastive learning) and pixel-level localization (from the decoder and self-supervised losses). Previously, these capabilities were trade-offs. SigLIP 2 outperforms SigLIP across all model sizes and is backward-compatible: same architecture, just swap the weights.
 
 ![SigLIP 2 training recipe. The unified approach combines contrastive, captioning, self-distillation, and masked prediction losses across two training stages. Source: Tschannen et al. (2025), Figure 1.](Vision Transformers and VLMs/images/siglip2-training-recipe.png){#fig-siglip2}
 
 
 ### Zero-Shot Transfer: How It Actually Works {#sec-zero-shot}
 
-One of CLIP's most striking capabilities is **zero-shot classification**: classifying images into categories the model was never explicitly trained on. Here is how it works, mechanically.
+One of CLIP's most notable capabilities is **zero-shot classification**: classifying images into categories the model was never explicitly trained on. Here is how it works, mechanically.
 
 **At test time:**
 
@@ -148,11 +148,11 @@ One of CLIP's most striking capabilities is **zero-shot classification**: classi
 5. Compute cosine similarity between $\mathbf{I}$ and each $\mathbf{T}_k$, scale by $\tau$, and apply softmax to get a probability distribution over classes.
 6. Predict the class with the highest probability.
 
-This is mathematically equivalent to a **multinomial logistic regression classifier** with L2-normalized inputs, L2-normalized weights (the text embeddings serve as the weight vectors), no bias, and temperature scaling. The text encoder acts as a "hypernetwork" that generates classifier weights from natural-language descriptions.
+This procedure is mathematically equivalent to a **multinomial logistic regression classifier** with L2-normalized inputs, L2-normalized weights (the text embeddings serve as the weight vectors), no bias, and temperature scaling. The text encoder acts as a "hypernetwork" that generates classifier weights from natural-language descriptions.
 
 **Prompt engineering matters.** The bare class name "golden retriever" is ambiguous (is it a text label? a sentence fragment?) and does not match the distribution of captions CLIP was trained on. Using the prompt "A photo of a golden retriever" improves ImageNet accuracy by 1.3%. Task-specific prompts help more: "A photo of a golden retriever, a type of pet" for fine-grained categories, "a satellite photo of a {class}" for remote sensing.
 
-**Prompt ensembling** takes this further: average the text embeddings across 80 different prompts ("A photo of a {class}," "A good photo of a {class}," "A photo of the large {class}," etc.) to get a more robust representation. This improves accuracy by an additional 3.5% on ImageNet. Combined, prompt engineering + ensembling boost performance by about 5%.
+**Prompt ensembling** takes this further: average the text embeddings across 80 different prompts ("A photo of a {class}," "A good photo of a {class}," "A photo of the large {class}," etc.) to get a more robust representation. Ensembling improves accuracy by an additional 3.5% on ImageNet. Combined, prompt engineering + ensembling boost performance by about 5%.
 
 ![Zero-shot CLIP vs. few-shot linear probes. Zero-shot CLIP matches the performance of a 4-shot logistic regression classifier on its own features, and roughly matches 16-shot BiT-M on many datasets. Source: Radford et al. (2021), Figure 5.](Vision Transformers and VLMs/images/clip-zero-shot-transfer.png){#fig-zero-shot}
 
@@ -166,17 +166,21 @@ The key results:
 
 CLIP features are *semantic* in a way that pure vision features are not. They encode language-grounded concepts ("vintage," "minimalist," "cozy") that emerge from the alignment with text during training. CLIP "neurons" (directions in the embedding space) correspond to high-level concepts rather than low-level visual features.
 
-But CLIP has clear limitations:
+But CLIP has four clear limitations:
 
 - **Spatial reasoning**: CLIP struggles with "the cat is on the left" vs. "the cat is on the right" because the global pooling (CLS or attention pooling) loses fine-grained spatial information
 - **Counting**: "three apples" vs. "five apples" is difficult because the contrastive objective focuses on what is present, not how many
 - **Negation**: "a photo with no people" is hard because the text encoder may attend to "people" regardless of the negation
 - **Compositionality**: "a red cube on a blue sphere" is challenging because the model may encode the concepts independently rather than in their compositional arrangement
 
-These limitations are intrinsic to the CLIP training objective, which aligns *global* image representations with *global* text representations. More localized vision-language alignment (as in SigLIP 2's LocCa decoder) partially addresses these issues.
+These spatial limitations are intrinsic to the CLIP training objective, which aligns *global* image representations with *global* text representations. More localized vision-language alignment (as in SigLIP 2's LocCa decoder) partially addresses these shortcomings.
 
 ::: {.callout-warning title="Common Misconception: A bigger vision encoder always means a better VLM"}
-It is natural to assume that if you plug a larger, higher-accuracy CLIP model into a VLM, you will get better results. This turns out to be surprisingly wrong. Ablation studies from Idefics2 and Cambrian-1 show that the **training recipe** (how you pretrain the encoder, what losses you use, what data you curate) matters far more than raw encoder size. SigLIP-SO400M (a 400M-parameter encoder trained with sigmoid loss and curated data) consistently outperforms larger ViT-H encoders trained with the standard InfoNCE loss in downstream VLM benchmarks. The reason is that CLIP-style contrastive training optimizes for *image-level* semantic matching, which may discard fine-grained spatial information that VLMs need. Multi-objective training (SigLIP 2's combined contrastive + captioning + self-supervised losses) produces encoders that preserve more of this detail, even at smaller scale. When choosing a vision encoder for a VLM, check its training recipe, not just its parameter count.
+It is natural to assume that if you plug a larger, higher-accuracy CLIP model into a VLM, you will get better results. This assumption turns out to be surprisingly wrong.
+
+Ablation studies from Idefics2 ([Laurençon et al., 2024](https://arxiv.org/abs/2405.02246)) and Cambrian-1 ([Tong et al., 2024](https://arxiv.org/abs/2406.16860)) show that the **training recipe** (how you pretrain the encoder, what losses you use, what data you curate) matters far more than raw encoder size. SigLIP-SO400M (a 400M-parameter encoder trained with sigmoid loss and curated data) consistently outperforms larger ViT-H encoders trained with the standard InfoNCE loss in downstream VLM benchmarks.
+
+The reason: CLIP-style contrastive training optimizes for *image-level* semantic matching, which may discard fine-grained spatial information that VLMs need. Multi-objective training (SigLIP 2's combined contrastive + captioning + self-supervised losses) produces encoders that preserve more of this detail, even at smaller scale. When choosing a vision encoder for a VLM, check its training recipe, not just its parameter count.
 :::
 
 ::: {.callout-tip title="Self-explanation prompt"}

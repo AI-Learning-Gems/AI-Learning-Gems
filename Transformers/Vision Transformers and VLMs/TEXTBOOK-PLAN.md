@@ -78,7 +78,7 @@ Each section of this chapter follows Maya's journey, using her medical imaging p
 | D2L.ai ViT Tutorial | `sources/d2l.ai/.../content.md` | Opening paragraphs | CNN vs ViT framing |
 
 **Content outline:**
-1. Hook: Maya's medical imaging challenge — why CNNs aren't enough
+1. Maya's medical imaging challenge — why CNNs aren't enough
 2. Brief CNN recap (3 paragraphs): convolution as local template matching, feature hierarchies, translation equivariance as inductive bias. Key equation: convolution as $y_{i,j} = \sum_{m,n} K_{m,n} \cdot x_{i+m, j+n}$
 3. Brief Transformer recap (3 paragraphs): self-attention as weighted aggregation over all positions, multi-head attention, $O(n^2)$ complexity. Key equation: $\text{Attention}(Q,K,V) = \text{softmax}\left(\frac{QK^\top}{\sqrt{d_k}}\right)V$
 4. The key insight: "What if we treat image patches as tokens?" — setting up Section 1

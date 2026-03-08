@@ -15,7 +15,7 @@
 
 Let us return to our visual search engine. You have decided to try the ViT approach: chop your product images into patches and feed them through a Transformer. But what exactly does "chop into patches" mean mathematically? How do you turn a grid of RGB pixels into a sequence of tokens that a Transformer can process? And what happens to all the spatial information (the fact that a shoe's sole is *below* its upper, or that a lamp's shade is *above* its base) when you flatten a 2D image into a 1D sequence?
 
-This section answers these questions by walking through the full ViT architecture, equation by equation. We will trace a concrete product image through the forward pass with exact tensor shapes, understand the design choices behind the CLS token and positional embeddings, confront the inductive bias question head-on, and then see how the Swin Transformer addressed ViT's computational limitations for dense prediction tasks.
+This section answers these questions by walking through the full ViT architecture ([Dosovitskiy et al., ICLR 2021](https://arxiv.org/abs/2010.11929)), equation by equation. We will trace a concrete product image through the forward pass with exact tensor shapes, understand the design choices behind the CLS token and positional embeddings, confront the inductive bias question head-on, and then see how the Swin Transformer ([Liu et al., ICCV 2021](https://arxiv.org/abs/2103.14030)) addressed ViT's computational limitations for dense prediction tasks.
 
 ### Step 1: The Patch Embedding — Turning an Image into Tokens {#sec-patch-embedding}
 
@@ -27,29 +27,29 @@ $$
 
 Each patch is a small $16 \times 16 \times 3$ crop of the image. We flatten each patch into a single vector of length $P^2 \cdot C = 16^2 \cdot 3 = 768$, producing a matrix of flattened patches $\mathbf{x}_p \in \mathbb{R}^{N \times (P^2 \cdot C)} = \mathbb{R}^{196 \times 768}$.
 
-Now comes the linear projection. We multiply each flattened patch by a learnable projection matrix $\mathbf{E} \in \mathbb{R}^{(P^2 \cdot C) \times D}$, where $D$ is the Transformer's hidden dimension. For ViT-Base, $D = 768$, so $\mathbf{E} \in \mathbb{R}^{768 \times 768}$. Each flattened patch vector gets projected into a $D$-dimensional embedding, exactly like a word embedding in NLP.
+The next step is the linear projection. We multiply each flattened patch by a learnable projection matrix $\mathbf{E} \in \mathbb{R}^{(P^2 \cdot C) \times D}$, where $D$ is the Transformer's hidden dimension. For ViT-Base, $D = 768$, so $\mathbf{E} \in \mathbb{R}^{768 \times 768}$. Each flattened patch vector gets projected into a $D$-dimensional embedding, exactly like a word embedding in NLP.
 
-Here is a key insight that is easy to miss. This entire patch-flattening-and-projecting operation is **mathematically equivalent to a single 2D convolution** with kernel size $P$ and stride $P$. If you apply a `Conv2d(in_channels=3, out_channels=768, kernel_size=16, stride=16)` to the image, you get exactly the same result as flatten-then-project. The convolution extracts $14 \times 14 = 196$ non-overlapping patches and projects each to 768 dimensions. This equivalence is worth internalizing. The patch embedding is the one and only convolution-like operation in the entire ViT.
+Here is a key insight that is easy to miss. This entire patch-flattening-and-projecting operation is **mathematically equivalent to a single 2D convolution** with kernel size $P$ and stride $P$. If you apply a `Conv2d(in_channels=3, out_channels=768, kernel_size=16, stride=16)` to the image, you get exactly the same result as flatten-then-project. The convolution extracts $14 \times 14 = 196$ non-overlapping patches and projects each to 768 dimensions. This equivalence is worth internalizing: the patch embedding is the one and only convolution-like operation in the entire ViT.
 
 ::: {.callout-warning title="Common Misconception: ViT patch embeddings work the same way as BERT token embeddings"}
-If you are coming from NLP, it is tempting to think that ViT's patch embedding is "just like" BERT's token embedding. It is not, and the difference is fundamental.
+If you are coming from NLP, it is tempting to think that ViT's patch embedding is "just like" BERT's token embedding ([Devlin et al., NAACL 2019](https://arxiv.org/abs/1810.04805)). It is not, and the difference is fundamental.
 
 In BERT, the input is a sequence of **discrete token IDs**: integers indexing into a fixed vocabulary of ~30,000 subwords. The embedding layer is a **lookup table** $\mathbf{W}_e \in \mathbb{R}^{V \times D}$. Given token ID $k$, you retrieve row $k$ of the table. This is equivalent to multiplying a one-hot vector by $\mathbf{W}_e$. Crucially, the input itself carries no "spatial" information. Token ID 7,042 ("dog") and token ID 7,043 ("dogs") are *completely unrelated* as far as the lookup is concerned. The only information comes from the *learned* embedding vector.
 
 In ViT, the input is a sequence of **continuous pixel vectors**: each patch is a $P^2 \cdot C$-dimensional vector of real-valued pixel intensities. The embedding is a **linear projection** $\mathbf{E} \in \mathbb{R}^{(P^2 \cdot C) \times D}$. Given patch vector $\mathbf{x}_p^i$, you compute $\mathbf{x}_p^i \mathbf{E}$. This is a standard matrix multiplication over continuous inputs, not a discrete lookup. Two patches with similar pixel values will produce *similar* embeddings, a property that BERT's discrete lookup does not have.
 
-This distinction matters for how gradients flow during training. In BERT, only the embedding rows corresponding to tokens in the current batch receive gradient updates. If the word "aardvark" does not appear in a batch, its embedding does not change. In ViT, the *entire* projection matrix $\mathbf{E}$ receives gradient updates from every training example, because every patch's continuous pixel values flow through it. This is why ViT's patch embedding can also be implemented as a `Conv2d`: it is a genuine linear transformation of continuous inputs, not a lookup from a finite codebook.
+The continuous-vs-discrete distinction matters for how gradients flow during training. In BERT, only the embedding rows corresponding to tokens in the current batch receive gradient updates. If the word "aardvark" does not appear in a batch, its embedding does not change. In ViT, the *entire* projection matrix $\mathbf{E}$ receives gradient updates from every training example, because every patch's continuous pixel values flow through it. This gradient behavior is why ViT's patch embedding can also be implemented as a `Conv2d`: it is a genuine linear transformation of continuous inputs, not a lookup from a finite codebook.
 :::
 
 ::: {.callout-note title="Think Hard: Is the patch embedding really just a convolution?"}
-Yes. Mathematically, a linear projection of flattened $P \times P$ patches is identical to a `Conv2d` with `kernel_size = stride = P`. But this raises an interesting follow-up: if so, why not use *overlapping* patches (stride < kernel size)? The answer is that overlapping patches would increase the sequence length (more patches) without a proportional increase in information, making the quadratic self-attention cost worse. However, the paper "Early Convolutions Help Transformers See Better" (Xiao et al., 2021) showed that replacing the single large-stride convolution with a stack of 5 small stride-2 $3 \times 3$ convolutions dramatically improves training stability, reducing the AdamW-vs-SGD accuracy gap from 10% to less than 0.2%, while maintaining the same computational cost. The patchify stem's large stride appears to create an optimization bottleneck that a convolutional stem avoids entirely.
+Yes. Mathematically, a linear projection of flattened $P \times P$ patches is identical to a `Conv2d` with `kernel_size = stride = P`. But this equivalence raises an interesting follow-up: if so, why not use *overlapping* patches (stride < kernel size)? The answer is that overlapping patches would increase the sequence length (more patches) without a proportional increase in information, making the quadratic self-attention cost worse. However, [Xiao et al. (NeurIPS 2021)](https://arxiv.org/abs/2106.14881) showed in "Early Convolutions Help Transformers See Better" that replacing the single large-stride convolution with a stack of 5 small stride-2 $3 \times 3$ convolutions dramatically improves training stability, reducing the AdamW-vs-SGD accuracy gap from 10% to less than 0.2%, while maintaining the same computational cost. The patchify stem's large stride appears to create an optimization bottleneck that a convolutional stem avoids entirely.
 :::
 
 ### Step 2: The CLS Token and Positional Embeddings {#sec-cls-positional}
 
 We now have 196 patch embeddings, each a $D$-dimensional vector. But we need to add two more ingredients before feeding them to the Transformer.
 
-**The CLS token.** Borrowed from BERT, the CLS (classification) token is a learnable embedding $\mathbf{x}_\text{class} \in \mathbb{R}^{D}$ that is prepended to the sequence of patch embeddings. It does not correspond to any image patch. Instead, it serves as a global summary token. Through self-attention, the CLS token attends to all 196 patch tokens at every layer, gradually accumulating information about the entire image. At the final layer, the CLS token's output is used as the image representation for classification.
+**The CLS token.** Borrowed from BERT, the CLS (classification) token is a learnable embedding $\mathbf{x}_\text{class} \in \mathbb{R}^{D}$ that is prepended to the sequence of patch embeddings. The CLS token does not correspond to any image patch. Instead, it serves as a global summary token. Through self-attention, the CLS token attends to all 196 patch tokens at every layer, gradually accumulating information about the entire image. At the final layer, the CLS token's output is used as the image representation for classification.
 
 To understand where this idea comes from, it helps to see the original BERT input representation. In BERT, the input to the Transformer encoder is the sum of three embeddings: token embeddings (the content), segment embeddings (which sentence a token belongs to), and positional embeddings (where the token sits in the sequence). The special `<cls>` token is prepended at position 0. Its output representation, having attended to all other tokens through the Transformer encoder's self-attention layers, serves as the aggregate sequence representation for classification tasks.
 
@@ -83,12 +83,12 @@ where $\mathbf{E} \in \mathbb{R}^{(P^2 \cdot C) \times D}$ and $\mathbf{E}_{pos}
 A crucial and perhaps surprising finding from the ViT paper: **1D positional embeddings work just as well as 2D positional embeddings.** The authors tested four variants (no positional embedding, learned 1D, learned 2D, and relative positional embeddings) and found "little to no difference between different ways of encoding positional information," though there was a large gap between having positional embeddings and not having them. The reason is likely that the patch grid is small ($14 \times 14$), making it easy for any encoding strategy to learn the spatial relationships.
 
 ::: {.callout-note title="Think Hard: Why not use global average pooling instead of a CLS token?"}
-This is a natural question, since CNNs typically use global average pooling (GAP) to aggregate spatial features. In ViT, both CLS and GAP achieve comparable classification accuracy. However, there is a subtle but important difference. When using a CLS token, the spatial patch tokens are free to maintain their local spatial information (since aggregation is handled by the CLS token through attention). With GAP, the patch tokens are incentivized to become globally useful, which reduces their spatial specificity. Research by Raghu et al. (2021) showed that ViTs with CLS tokens preserve spatial localization in their patch tokens much better than ViTs with GAP. This property matters enormously for dense tasks like segmentation and object detection, and for VLMs that need to ground language in spatial regions.
+This is a natural question, since CNNs typically use global average pooling (GAP) to aggregate spatial features. In ViT, both CLS and GAP achieve comparable classification accuracy. However, there is a subtle but important difference. When using a CLS token, the spatial patch tokens are free to maintain their local spatial information (since aggregation is handled by the CLS token through attention). With GAP, the patch tokens are incentivized to become globally useful, which reduces their spatial specificity. [Raghu et al. (2021)](https://arxiv.org/abs/2108.08810) showed that ViTs with CLS tokens preserve spatial localization in their patch tokens much better than ViTs with GAP. This localization property matters enormously for dense tasks like segmentation and object detection, and for VLMs that need to ground language in spatial regions.
 :::
 
 ### Step 3: The Transformer Encoder — Processing the Visual Sequence {#sec-vit-encoder}
 
-The input $\mathbf{z}_0 \in \mathbb{R}^{197 \times 768}$ now enters a standard Transformer encoder, with one important modification. ViT uses **pre-normalization** (Layer Norm *before* each sub-layer) rather than the post-normalization from the original 2017 Transformer.
+The input $\mathbf{z}_0 \in \mathbb{R}^{197 \times 768}$ now enters a standard Transformer encoder, with one important modification. ViT uses **pre-normalization** (Layer Norm *before* each sub-layer) rather than the post-normalization from the original Transformer ([Vaswani et al., NeurIPS 2017](https://arxiv.org/abs/1706.03762)).
 
 Each layer $\ell$ consists of two residual blocks. First, multi-head self-attention (MSA) with a residual connection:
 
@@ -133,7 +133,7 @@ The following diagram makes the data flow concrete. Each head independently comp
 ![Multi-head attention. Each head computes scaled dot-product attention with independently learned query, key, and value projections. The heads' outputs are concatenated and linearly projected, allowing the model to jointly attend to information from different representation subspaces at different positions. In ViT-Base, this means 12 parallel attention heads each operating on 64 dimensions. Source: d2l.ai, Figure 11.5.1.](Vision Transformers and VLMs/images/d2l-multi-head-attention.svg){#fig-d2l-multi-head-attention}
 
 ::: {.callout-note title="Think Hard: Why pre-norm instead of post-norm?"}
-The original Transformer (Vaswani et al., 2017) applies LayerNorm *after* the residual addition: $\text{LN}(\text{MSA}(\mathbf{z}) + \mathbf{z})$. ViT instead applies LayerNorm *before*: $\text{MSA}(\text{LN}(\mathbf{z})) + \mathbf{z}$. The key advantage is training stability at scale. With post-norm, the gradient signal must pass through the LayerNorm at every layer, which can cause gradient magnitude issues in deep networks. With pre-norm, the residual connection provides a "clean" gradient highway. The gradient from the loss can flow directly back through the residual path without being modified by LayerNorm. Wang et al. (2019) showed that pre-norm eliminates the need for careful learning rate warmup in deep Transformers. For ViT-22B (the largest dense ViT at 22 billion parameters), training stability required additional techniques like QK-normalization and parallel attention+FFN computation, but pre-norm was a necessary foundation.
+The original Transformer ([Vaswani et al., NeurIPS 2017](https://arxiv.org/abs/1706.03762)) applies LayerNorm *after* the residual addition: $\text{LN}(\text{MSA}(\mathbf{z}) + \mathbf{z})$. ViT instead applies LayerNorm *before*: $\text{MSA}(\text{LN}(\mathbf{z})) + \mathbf{z}$. The key advantage is training stability at scale. With post-norm, the gradient signal must pass through the LayerNorm at every layer, which can cause gradient magnitude issues in deep networks. With pre-norm, the residual connection provides a "clean" gradient highway. The gradient from the loss can flow directly back through the residual path without being modified by LayerNorm. [Wang et al. (2019)](https://arxiv.org/abs/1906.01787) showed that pre-norm eliminates the need for careful learning rate warmup in deep Transformers. For ViT-22B (the largest dense ViT at 22 billion parameters), training stability required additional techniques like QK-normalization and parallel attention+FFN computation, but pre-norm was a necessary foundation.
 :::
 
 ### The Full Architecture at a Glance {#sec-vit-full-architecture}
@@ -142,7 +142,7 @@ The following figure from the original ViT paper shows the complete architecture
 
 ![The Vision Transformer architecture. An image is split into fixed-size patches, each linearly embedded, combined with position embeddings and a CLS token, then processed by a standard Transformer encoder. The CLS token output serves as the image representation. Source: Dosovitskiy et al. (2020), Figure 1.](Vision Transformers and VLMs/images/vit-architecture-overview.png){#fig-vit-architecture}
 
-The d2l.ai textbook presents the same architecture through a slightly different lens, decomposing it into a **stem** (patch embedding + CLS token + positional embeddings), a **body** (the stacked Transformer encoder blocks), and a **head** (the final classification layer). This three-part decomposition cleanly parallels how CNNs are typically described, and makes it easy to see ViT as a drop-in replacement:
+The d2l.ai textbook presents the same architecture through a slightly different lens, decomposing it into a **stem** (patch embedding + CLS token + positional embeddings), a **body** (the stacked Transformer encoder blocks), and a **head** (the final classification layer). This stem-body-head decomposition cleanly parallels how CNNs are typically described, and makes it easy to see ViT as a drop-in replacement:
 
 ![The d2l.ai view of the Vision Transformer. An image is split into nine patches, and a special `<cls>` token plus nine flattened image patches are transformed via patch embedding and $n$ Transformer encoder blocks into ten representations. The `<cls>` representation is then transformed into the output label. Notice the three-part structure: the stem (bottom) converts pixels to tokens, the body (middle) is a standard Transformer encoder, and the head (top) is a simple classifier on the `<cls>` output. Source: d2l.ai, Figure 11.8.1.](Vision Transformers and VLMs/images/d2l-vit-architecture.svg){#fig-d2l-vit-architecture}
 
@@ -165,15 +165,15 @@ Given a 384 $\times$ 384 image with patch size 16, how many patches does ViT pro
 
 Now for the conceptual heart of the ViT story: the role of inductive bias.
 
-A CNN bakes three forms of inductive bias into *every layer*: locality (convolution operates on small spatial neighborhoods), weight sharing (the same filter is applied everywhere), and translation equivariance (shifting the input shifts the output). These biases dramatically reduce the hypothesis space (the set of functions the model considers), making CNNs efficient learners when data is limited.
+A CNN bakes three forms of inductive bias into *every layer*: locality (convolution operates on small spatial neighborhoods), weight sharing (the same filter is applied everywhere), and translation equivariance (shifting the input shifts the output). These three biases dramatically reduce the hypothesis space (the set of functions the model considers), making CNNs efficient learners when data is limited.
 
 ViT has almost none of this. As Dosovitskiy et al. put it:
 
 > "In ViT, only MLP layers are local and translationally equivariant, while the self-attention layers are global. The two-dimensional neighborhood structure is used very sparingly: in the beginning of the model by cutting the image into patches and at fine-tuning time for adjusting the position embeddings for images of different resolution."
 
-This means ViT must learn from scratch that nearby patches tend to be related, that visual features can appear anywhere in the image, and that 2D spatial structure exists. When data is scarce, this is a liability. ViT-Base trained from scratch on ImageNet-1K achieves about 79% top-1 accuracy, while a comparable ResNet-50 reaches 80%. But when pretrained on 300 million images (JFT-300M), ViT-Large reaches 87.8%, handily beating the best CNNs.
+The lack of these biases means ViT must learn from scratch that nearby patches tend to be related, that visual features can appear anywhere in the image, and that 2D spatial structure exists. When data is scarce, this absence is a liability. ViT-Base trained from scratch on ImageNet-1K achieves about 79% top-1 accuracy, while a comparable ResNet-50 reaches 80%. But when pretrained on 300 million images (JFT-300M), ViT-Large reaches 87.8%, handily beating the best CNNs.
 
-The lesson is striking: **at sufficient scale, the flexibility of having no inductive bias outweighs the efficiency of having the right one.** A ViT is free to learn *whatever* spatial structure the data supports, including structures that CNNs cannot easily represent (such as long-range dependencies from layer one). This flexibility comes at the cost of needing more data, but as we will see in @sec-training-vits, self-supervised methods have largely eliminated that cost.
+The lesson is striking: **at sufficient scale, the flexibility of having no inductive bias outweighs the efficiency of having the right one.** A ViT is free to learn *whatever* spatial structure the data supports, including structures that CNNs cannot easily represent (such as long-range dependencies from layer one). That freedom comes at the cost of needing more data, but as we will see in @sec-training-vits, self-supervised methods have largely eliminated that cost.
 
 ::: {.callout-tip title="Self-explanation prompt"}
 Why might ViT's lack of inductive bias actually be an *advantage* at scale? Think about what happens when the "right" inductive bias is subtly wrong, for example, when the relevant visual features are non-local.
@@ -188,7 +188,7 @@ You will often hear people say "ViTs replace convolutions entirely with attentio
 
 The original ViT has one significant limitation: self-attention is $O(n^2)$ in sequence length, and sequence length is $N = HW/P^2$. For a 224 $\times$ 224 image with $P = 16$, $N = 196$. That is manageable. But for high-resolution images (1024 $\times$ 1024) or dense tasks like object detection and segmentation that need multi-scale features, the quadratic cost becomes prohibitive. Furthermore, ViT produces features at a single scale (all 196 tokens have the same spatial resolution), whereas tasks like detection need features at multiple scales (small objects need high-resolution features, large objects need low-resolution features).
 
-The **Swin Transformer** (Liu et al., 2021) solved both problems by introducing two key innovations: **window-based attention** and **hierarchical feature maps through patch merging**.
+The **Swin Transformer** ([Liu et al., ICCV 2021](https://arxiv.org/abs/2103.14030)) solved both problems by introducing two key innovations: **window-based attention** and **hierarchical feature maps through patch merging**.
 
 **Window attention.** Instead of computing attention between all $N$ patches (global MSA), Swin partitions the image into non-overlapping windows of $M \times M$ patches (with default $M = 7$) and computes self-attention only within each window. The complexity changes from:
 
@@ -219,7 +219,7 @@ $$
 \mathbf{z}^{\ell+1} = \text{MLP}(\text{LN}(\hat{\mathbf{z}}^{\ell+1})) + \hat{\mathbf{z}}^{\ell+1}
 $$
 
-The shifted window displacement is $(\lfloor M/2 \rfloor, \lfloor M/2 \rfloor)$ pixels. This means every patch interacts with its neighboring windows every two layers, enabling information flow across the entire image, just with a delay.
+The shifted window displacement is $(\lfloor M/2 \rfloor, \lfloor M/2 \rfloor)$ pixels. This displacement means every patch interacts with its neighboring windows every two layers, enabling information flow across the entire image, just with a delay.
 
 Swin also adds a **relative position bias** $B \in \mathbb{R}^{M^2 \times M^2}$ to the attention computation within each window:
 
@@ -227,7 +227,7 @@ $$
 \text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^\top}{\sqrt{d}} + B\right) V
 $$
 
-This bias is parameterized from a smaller matrix $\hat{B} \in \mathbb{R}^{(2M-1) \times (2M-1)}$ since relative positions along each axis range from $-(M-1)$ to $+(M-1)$. Relative position bias improves top-1 accuracy by 1.2% over no positional encoding, and by 0.8% over absolute positional embeddings.
+The bias term $B$ is parameterized from a smaller matrix $\hat{B} \in \mathbb{R}^{(2M-1) \times (2M-1)}$ since relative positions along each axis range from $-(M-1)$ to $+(M-1)$. Relative position bias improves top-1 accuracy by 1.2% over no positional encoding, and by 0.8% over absolute positional embeddings.
 
 ![Swin Transformer architecture. (a) Hierarchical feature maps with patch merging at each stage. (b) Two consecutive Swin Transformer blocks with regular (W-MSA) and shifted (SW-MSA) window partitioning. Source: Liu et al. (2021), Figure 3.](Vision Transformers and VLMs/images/swin-architecture.png){#fig-swin-architecture}
 
@@ -235,7 +235,7 @@ This bias is parameterized from a smaller matrix $\hat{B} \in \mathbb{R}^{(2M-1)
 
 ![The shifted window approach. In layer $\ell$, regular windows partition the feature map. In layer $\ell+1$, the window grid is shifted by $(\lfloor M/2 \rfloor, \lfloor M/2 \rfloor)$, creating cross-window connections. Source: Liu et al. (2021), Figure 2.](Vision Transformers and VLMs/images/swin-shifted-window.png){#fig-swin-shifted-window}
 
-This hierarchical design made Swin the first Transformer backbone that could serve as a drop-in replacement for ResNets in standard detection (Faster R-CNN, Mask R-CNN) and segmentation (UPerNet) frameworks. Swin-Large pretrained on ImageNet-22K achieved 87.3% top-1 on ImageNet, 58.7 box AP on COCO, and 53.5 mIoU on ADE20K, establishing Transformers as general-purpose vision backbones rather than just classification specialists.
+The hierarchical design made Swin the first Transformer backbone that could serve as a drop-in replacement for ResNets in standard detection (Faster R-CNN, Mask R-CNN) and segmentation (UPerNet) frameworks. Swin-Large pretrained on ImageNet-22K achieved 87.3% top-1 on ImageNet, 58.7 box AP on COCO, and 53.5 mIoU on ADE20K, establishing Transformers as general-purpose vision backbones rather than just classification specialists.
 
 | Variant | $C$ | Layers | Params | FLOPs | ImageNet top-1 |
 |---|---|---|---|---|---|
@@ -247,11 +247,11 @@ This hierarchical design made Swin the first Transformer backbone that could ser
 
 ### Fine-Tuning at Higher Resolution {#sec-fine-tuning-resolution}
 
-One final architectural detail that matters enormously in practice. ViTs are typically pretrained at 224 $\times$ 224 and fine-tuned at higher resolution (384 $\times$ 384 or even 512 $\times$ 512). When you increase the resolution while keeping the patch size fixed, the number of patches increases, from 196 ($14 \times 14$) to 576 ($24 \times 24$) at 384px. This means the positional embedding matrix $\mathbf{E}_{pos}$ no longer has the right number of rows.
+One final architectural detail that matters enormously in practice. ViTs are typically pretrained at 224 $\times$ 224 and fine-tuned at higher resolution (384 $\times$ 384 or even 512 $\times$ 512). When you increase the resolution while keeping the patch size fixed, the number of patches increases, from 196 ($14 \times 14$) to 576 ($24 \times 24$) at 384px. The positional embedding matrix $\mathbf{E}_{pos}$ therefore no longer has the right number of rows.
 
-The solution is **2D bicubic interpolation of positional embeddings**. Reshape the $14 \times 14$ positional embedding grid to a 2D spatial layout, use bicubic interpolation to upsample it to $24 \times 24$, and flatten back. This is the *only* remaining injection of 2D spatial knowledge during ViT fine-tuning, and it works remarkably well. The ViT paper noted: "this resolution adjustment and patch extraction are the only points at which an inductive bias about the 2D structure of the images is manually injected into the Vision Transformer."
+The solution is **2D bicubic interpolation of positional embeddings**. Reshape the $14 \times 14$ positional embedding grid to a 2D spatial layout, use bicubic interpolation to upsample it to $24 \times 24$, and flatten back. This interpolation step is the *only* remaining injection of 2D spatial knowledge during ViT fine-tuning, and it works remarkably well. The ViT paper noted: "this resolution adjustment and patch extraction are the only points at which an inductive bias about the 2D structure of the images is manually injected into the Vision Transformer."
 
-Fine-tuning at higher resolution consistently improves accuracy. DeiT-Base goes from 81.8% at 224px to 83.1% at 384px, because the model sees finer spatial detail with the same architecture.
+Fine-tuning at higher resolution consistently improves accuracy. DeiT-Base ([Touvron et al., ICML 2021](https://arxiv.org/abs/2012.12877)) goes from 81.8% at 224px to 83.1% at 384px, because the model sees finer spatial detail with the same architecture.
 
 ---
 

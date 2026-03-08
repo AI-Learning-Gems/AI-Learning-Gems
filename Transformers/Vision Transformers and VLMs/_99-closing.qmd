@@ -6,13 +6,13 @@ Here are the seven most important insights from this chapter:
 
 - **ViT treats images as sequences of patches**, applying a standard Transformer encoder to vision with minimal modifications. The patch embedding ($\mathbf{z}_0 = [\mathbf{x}_\text{class};\, \mathbf{x}^1_p\mathbf{E};\, \ldots;\, \mathbf{x}^N_p\mathbf{E}] + \mathbf{E}_{pos}$) is mathematically equivalent to a single strided convolution, the *only* convolution-like operation in the entire model.
 
-- **ViTs learn fundamentally different representations than CNNs**: more uniform across layers, with early global information aggregation from layer 1, stronger residual propagation, and better spatial preservation. These are not just "fancier" CNN features; they are qualitatively different.
+- **ViTs learn fundamentally different representations than CNNs**: more uniform across layers, with early global information aggregation from layer 1, stronger residual propagation, and better spatial preservation. These representations are not just "fancier" CNN features; they are qualitatively different.
 
 - **Self-supervised pretraining eliminates the need for massive labeled datasets.** MAE (75% patch masking + reconstruction), DINO (self-distillation with multi-crop), and DeiT (CNN teacher distillation) each solve the data hunger problem from a different angle. DINO's attention maps even produce semantic segmentation without labels.
 
 - **CLIP's contrastive learning connects vision and language** by training image and text encoders to produce similar embeddings for matching pairs and dissimilar embeddings for non-matching pairs. The InfoNCE loss treats each batch as an $N$-way classification problem, and zero-shot classification works by using text embeddings as classifier weights.
 
-- **SigLIP's sigmoid loss removes the need for global batch normalization**, replacing the softmax with pairwise sigmoid classification. This enables better scaling, works with smaller batches, and SigLIP 2's unified multi-loss recipe achieves state-of-the-art across all model sizes.
+- **SigLIP's sigmoid loss removes the need for global batch normalization**, replacing the softmax with pairwise sigmoid classification. This change enables better scaling, works with smaller batches, and SigLIP 2's unified multi-loss recipe achieves state-of-the-art across all model sizes.
 
 - **The VLM architecture is a three-part pipeline**: vision encoder $\to$ connector $\to$ LLM. The connector is the key design choice. Flamingo uses cross-attention, BLIP-2 uses a Q-Former, LLaVA uses a simple MLP, and Cambrian-1 uses a Spatial Vision Aggregator for multiple encoders.
 
@@ -221,15 +221,15 @@ where:
 ::: {.callout-note collapse="true" title="Q2: Why does ViT use pre-norm instead of post-norm?"}
 **Question:** Explain why ViT applies LayerNorm *before* the attention and MLP sub-layers (pre-norm) rather than after (post-norm, as in the original Transformer).
 
-**Answer:** Pre-norm provides a "clean" gradient highway through the residual connections. With post-norm, $\text{LN}(\text{MSA}(\mathbf{z}) + \mathbf{z})$, the gradient must pass through LayerNorm at every layer, which can cause gradient magnitude issues in deep networks. With pre-norm, $\text{MSA}(\text{LN}(\mathbf{z})) + \mathbf{z}$, the residual path provides an unmodified gradient flow directly from the loss to earlier layers. This eliminates the need for careful learning rate warmup and enables stable training of very deep models (including ViT-22B at 22 billion parameters).
+**Answer:** Pre-norm provides a "clean" gradient highway through the residual connections. With post-norm, $\text{LN}(\text{MSA}(\mathbf{z}) + \mathbf{z})$, the gradient must pass through LayerNorm at every layer, which can cause gradient magnitude issues in deep networks. With pre-norm, $\text{MSA}(\text{LN}(\mathbf{z})) + \mathbf{z}$, the residual path provides an unmodified gradient flow directly from the loss to earlier layers. This clean gradient path eliminates the need for careful learning rate warmup and enables stable training of very deep models (including ViT-22B at 22 billion parameters).
 :::
 
 ::: {.callout-note collapse="true" title="Q3: What is the fundamental difference between MAE and DINO?"}
 **Question:** Both MAE and DINO are self-supervised pretraining methods for ViTs. What is the fundamental difference in their training objectives, and what does each method's objective encourage the model to learn?
 
-**Answer:** **MAE** (Masked Autoencoders) uses a *reconstructive* objective: mask 75% of patches and train the model to predict the missing pixel values. This encourages learning of local texture patterns, spatial coherence, and holistic scene structure, because reconstructing masked patches from sparse visible ones requires understanding the overall composition.
+**Answer:** **MAE** (Masked Autoencoders) uses a *reconstructive* objective: mask 75% of patches and train the model to predict the missing pixel values. This objective encourages learning of local texture patterns, spatial coherence, and holistic scene structure, because reconstructing masked patches from sparse visible ones requires understanding the overall composition.
 
-**DINO** (Self-Distillation with No Labels) uses a *contrastive self-distillation* objective: train a student to match a teacher's (EMA of student) output distribution for different augmented views of the same image, including local-to-global correspondences. This encourages learning of semantic invariances, that is, features that are consistent across different crops and views of the same scene. That is why DINO's attention maps produce emergent semantic segmentation.
+**DINO** (Self-Distillation with No Labels) uses a *contrastive self-distillation* objective: train a student to match a teacher's (EMA of student) output distribution for different augmented views of the same image, including local-to-global correspondences. This objective encourages learning of semantic invariances, that is, features that are consistent across different crops and views of the same scene. That is why DINO's attention maps produce emergent semantic segmentation.
 
 In short: MAE learns "what does this image look like?" while DINO learns "what is the same across different views of this scene?"
 :::
@@ -259,9 +259,9 @@ Each of the 8 terms (4 for $I \to T$ + 4 for $T \to I$) is a cross-entropy over 
 ::: {.callout-note collapse="true" title="Q5: Why does SigLIP not need global batch normalization while CLIP does?"}
 **Question:** Explain why SigLIP's sigmoid loss eliminates the need for all-gather operations in distributed training, while CLIP's InfoNCE loss requires them.
 
-**Answer:** CLIP's InfoNCE loss uses a softmax over the entire batch: $\text{softmax}(S_{i,:}/\tau)$ for each image row. The denominator $\sum_{j=1}^{N} \exp(S_{ij}/\tau)$ requires knowing the similarity between image $i$ and *every* text in the batch, including texts on other GPUs. This forces an all-gather to collect all text embeddings on every GPU.
+**Answer:** CLIP's InfoNCE loss uses a softmax over the entire batch: $\text{softmax}(S_{i,:}/\tau)$ for each image row. The denominator $\sum_{j=1}^{N} \exp(S_{ij}/\tau)$ requires knowing the similarity between image $i$ and *every* text in the batch, including texts on other GPUs. This requirement forces an all-gather to collect all text embeddings on every GPU.
 
-SigLIP's sigmoid loss classifies each $(i, j)$ pair *independently*: $\sigma(z_{ij} \cdot (-t \cdot S_{ij} + b))$. There is no normalization over the batch. Each pair's loss depends only on the similarity between that specific image and text, not on any other pair. This means each GPU only needs the embeddings it computes locally (plus embeddings exchanged in a round-robin fashion), with no global synchronization.
+SigLIP's sigmoid loss classifies each $(i, j)$ pair *independently*: $\sigma(z_{ij} \cdot (-t \cdot S_{ij} + b))$. There is no normalization over the batch. Each pair's loss depends only on the similarity between that specific image and text, not on any other pair. This independence means each GPU only needs the embeddings it computes locally (plus embeddings exchanged in a round-robin fashion), with no global synchronization.
 :::
 
 ::: {.callout-note collapse="true" title="Q6: Compare Q-Former (BLIP-2) and MLP (LLaVA) connectors"}
@@ -290,7 +290,7 @@ The Idefics2 finding that autoregressive + LoRA outperforms cross-attention + Lo
 
 **Answer:** Cross-attention layers are powerful but specialized. They provide a fixed mechanism for the LM to access visual features at specific architectural insertion points. With frozen backbones, this specialization is an advantage (cross-attention wins by 6.4 points). But with LoRA, the pretrained LM weights themselves are being adapted. The LM can learn to *directly process* visual tokens that have been projected into its embedding space.
 
-In the autoregressive + LoRA setting, the LM's existing self-attention mechanism processes both visual and text tokens in a single unified stream. LoRA adapts the LM's weights to handle this mixed modality input, effectively repurposing the LM's existing capacity. This is more flexible than dedicated cross-attention layers because: (1) visual-language interaction happens at *every* LM layer through self-attention, not just at the layers where cross-attention was inserted, and (2) the LM can learn arbitrary interactions between visual and text tokens, not just the query-key-value patterns that cross-attention allows.
+In the autoregressive + LoRA setting, the LM's existing self-attention mechanism processes both visual and text tokens in a single unified stream. LoRA adapts the LM's weights to handle this mixed modality input, effectively repurposing the LM's existing capacity. This unified approach is more flexible than dedicated cross-attention layers because: (1) visual-language interaction happens at *every* LM layer through self-attention, not just at the layers where cross-attention was inserted, and (2) the LM can learn arbitrary interactions between visual and text tokens, not just the query-key-value patterns that cross-attention allows.
 
 The +12.9 point LoRA boost for autoregressive (vs. +0.6 for cross-attention) suggests that cross-attention was already near-optimal with frozen weights, while the autoregressive approach had much more to gain from backbone adaptation.
 :::
