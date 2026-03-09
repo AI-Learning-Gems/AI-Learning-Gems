@@ -34,17 +34,6 @@ Here is the puzzle that stopped Priya in her tracks, and the one this chapter wi
 
 ![The architecture of AutoGen Studio, an EMNLP 2024 system demonstration paper. Every accepted demo paper centers on a figure like this: a visual system overview that communicates what the tool does, how its components connect, and where the user interacts. This is the kind of figure Priya needs to create for PromptBench. Source: Dibia et al. (2024), Figure 1.](images/autogen-studio-architecture.png){#fig-hook-architecture}
 
-### Learning Objectives
-
-After completing this chapter, you will be able to:
-
-- Distinguish a system demonstration paper from a main-conference research paper in terms of structure, review criteria, and submission requirements
-- Map your own system to the canonical 6-section structure used by 80%+ of accepted demo papers
-- Frame your tool's value proposition using one of four proven archetypes: Unifier, Democratizer, Gap-Filler, or Ecosystem Builder
-- Design an architecture section that communicates modular components, data flow, and code examples within a tight page budget
-- Choose and combine evaluation strategies (experiments, user studies, adoption metrics, case studies) appropriate for your system's maturity
-- Prepare the full submission package: paper, video, code repository, ethics statement, and limitations section
-
 ### Chapter Introduction
 
 If you have been reading and writing main-conference research papers at ACL, EMNLP, or NAACL, you have internalized a specific template. There is an introduction that identifies a research gap, a methods section that presents an algorithmic contribution, an experiments section that demonstrates state-of-the-art results on benchmarks, and a conclusion. The review process is double-blind. The page limit is eight. And the fundamental question reviewers ask is: "Does this paper advance our scientific understanding of language?"
@@ -78,6 +67,17 @@ Throughout the chapter, we follow Priya as she applies each principle to PromptB
 One important note before we begin. This chapter focuses specifically on the system demonstration track at *CL venues (ACL, EMNLP, NAACL). Other venues have demo tracks too (AAAI, IJCAI, COLING), and while many principles transfer, the specific requirements and conventions differ. We also focus disproportionately on papers from the LLM-tool era (2022-2025), because this is where the field is heading and where most readers of this chapter are likely working. If you are building a traditional NLP toolkit that involves GPU training, the principles still apply, but the specific challenge of demonstrating depth beyond "API wrapper" will be less relevant to you.
 
 Let's start where Priya started: by understanding what, exactly, a system demonstration paper is.
+
+### Learning Objectives
+
+After completing this chapter, you will be able to:
+
+- Distinguish a system demonstration paper from a main-conference research paper in terms of structure, review criteria, and submission requirements
+- Map your own system to the canonical 6-section structure used by 80%+ of accepted demo papers
+- Frame your tool's value proposition using one of four proven archetypes: Unifier, Democratizer, Gap-Filler, or Ecosystem Builder
+- Design an architecture section that communicates modular components, data flow, and code examples within a tight page budget
+- Choose and combine evaluation strategies (experiments, user studies, adoption metrics, case studies) appropriate for your system's maturity
+- Prepare the full submission package: paper, video, code repository, ethics statement, and limitations section
 
 ```{.d2}
 # =========================================================================

@@ -268,3 +268,22 @@ challenges.safety -> scaling.meta: "reward hacking risk" {
 | $\pi_\theta$ | Agent policy parameterized by $\theta$ | @sec-frontiers |
 | $\pi_{\text{ref}}$ | Reference policy for KL regularization | @sec-frontiers |
 | $F(\text{agent})$ | Fitness function for agent architecture search (ADAS) | @sec-frontiers |
+
+::: {.exercise-mcq correct="C"}
+
+Based on the reliability numbers above, what is the *primary* challenge in building LLM-based agents?
+
+- Individual LLM calls are not accurate enough for any task
+- Agents lack access to the right tools (search, code execution, file editing)
+- Errors compound across multi-step workflows, so occasional per-step failures cascade into frequent end-to-end failures
+- The models are too slow to complete long tasks within practical time limits
+
+::: {.feedback-correct}
+Correct! The numbers tell the story: agents that succeed 70% of the time on individual trials drop below 25% when required to succeed consistently. The bottleneck is not any single step but the *compounding* of errors across many steps. A 5% per-step failure rate becomes catastrophic over a 50-step workflow.
+:::
+
+::: {.feedback-incorrect}
+Look again at the numbers. Coding agents score 53% on curated benchmarks, so individual capability exists. The problem is that occasional failures *compound* across multi-step workflows: an agent that succeeds 70% per trial drops below 25% when you need it to succeed consistently across 8 runs. The reliability gap is about error accumulation, not individual step quality.
+:::
+
+:::

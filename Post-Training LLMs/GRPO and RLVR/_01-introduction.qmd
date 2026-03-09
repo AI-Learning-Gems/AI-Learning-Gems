@@ -26,41 +26,6 @@ The result? When researchers at DeepSeek applied this approach to mathematical r
 
 ![The GRPO pipeline generates multiple outputs per question, scores them, uses the group's statistics as a baseline for advantage estimation, and updates the policy without requiring a separate critic model. This is the core mechanism that makes RL practical for LLM training. Source: Shao et al. (2024), Figure 4.](GRPO and RLVR/images/grpo-pipeline.png){#fig-grpo-hook}
 
-### Learning Objectives
-
-After completing this chapter, you will be able to:
-
-- **Explain** the policy gradient theorem and why variance reduction through baselines is critical for RL training of LLMs
-- **Derive** GRPO's objective function from first principles (REINFORCE with a group-relative baseline and PPO-style clipping)
-- **Compare** GRPO against PPO in terms of memory cost, compute requirements, and empirical performance
-- **Identify** the biases in vanilla GRPO (length bias, difficulty bias, entropy collapse) and explain how DAPO, Dr. GRPO, and REINFORCE++ address them
-- **Design** verifiable reward functions for specific tasks (SQL generation, code generation, structured output), including multi-signal rewards
-- **Set up** an end-to-end GRPO training environment using existing frameworks (TRL, verl, OpenRLHF), with appropriate hyperparameters and monitoring
-- **Evaluate** when RLVR is appropriate versus RLHF, and when thinking-model (R1-Zero style) training offers advantages over single-turn training
-
-### Notation
-
-The following notation is used throughout this chapter. All symbols are defined on first use in the text, but this table serves as a reference.
-
-| Symbol | Definition | Valid Values | Example |
-|---|---|---|---|
-| $\pi_\theta$ | Current policy model (the LLM being trained) | Distribution over token sequences | Ava's 7B SQL model |
-| $\pi_{\theta_{old}}$ | Old policy (snapshot before the current update step) | Distribution over token sequences | Policy from previous GRPO iteration |
-| $\pi_{ref}$ | Reference policy (the initial SFT model, used for KL regularization) | Distribution over token sequences | The original SFT-trained SQL model |
-| $q$ | Input prompt or question | Text string | "Top-selling headphones in Northwest last quarter?" |
-| $o, o_i$ | Generated output; the $i$-th output in a group | Token sequence | `SELECT region, SUM(amount) FROM orders JOIN ...` |
-| $o_{i,t}$ | The $t$-th token of the $i$-th output | Single token from vocabulary | `SELECT` (token 1 of output $o_3$) |
-| $G$ | Group size (number of outputs sampled per prompt) | $G \in \{2, 4, 8, 16, 32, 64, \ldots\}$ | $G = 16$ |
-| $r_i, R_i$ | Reward for the $i$-th output | $r_i \in [0, 1]$ for binary; $r_i \in \mathbb{R}$ for continuous | $r_3 = 1$ (correct SQL), $r_4 = 0$ (wrong SQL) |
-| $\mathbf{r}, \mathbf{R}$ | Vector of all rewards in a group: $\{r_1, r_2, \ldots, r_G\}$ | $\mathbf{r} \in \mathbb{R}^G$ | $\mathbf{r} = \{1, 0, 1, 0, 1, 0, 0, 1\}$ |
-| $\hat{A}_{i,t}$ | Estimated advantage for token $t$ of output $i$ | $\hat{A}_{i,t} \in \mathbb{R}$ | $\hat{A}_{3,t} = +0.935$ (correct output) |
-| $r_{i,t}(\theta)$ | Importance sampling ratio: $\frac{\pi_\theta(o_{i,t} \mid q, o_{i,<t})}{\pi_{\theta_{old}}(o_{i,t} \mid q, o_{i,<t})}$ | $r_{i,t} > 0$; typically near 1.0 | $r_{3,5}(\theta) = 1.05$ |
-| $\epsilon$ | Clipping parameter for the PPO/GRPO surrogate objective | $\epsilon > 0$; typically $\epsilon \in [0.1, 0.3]$ | $\epsilon = 0.2$ (symmetric); $\epsilon_{low}=0.1, \epsilon_{high}=0.28$ (DAPO) |
-| $\beta$ | KL divergence coefficient (controls deviation from reference policy) | $\beta \geq 0$ | $\beta = 0.04$ (DeepSeekMath); $\beta = 0$ (RLVR) |
-| $D_{KL}$ | KL divergence between current and reference policy | $D_{KL} \geq 0$ | $D_{KL}[\pi_\theta \| \pi_{ref}] = 3.2$ nats |
-| $R(q, o)$ | Return: total reward for a question-output pair | $R \in \mathbb{R}$ | $R(q, o_3) = 1$ (SQL returned correct results) |
-| $V_\psi$ | Value function (critic network) used in PPO | $V_\psi\colon q \to \mathbb{R}$ | $V_\psi(q) = 0.5$ (expected reward for this question) |
-
 ### Chapter Overview
 
 Before we dive into the technical details, let us build a mental map of the entire territory. The goal of this overview is to give you a "first pass" through every major idea in the chapter, so that nothing in the detailed sections comes as a surprise. By the end of this overview, you should be able to explain GRPO and RLVR at a high level to a colleague, even without the equations.
@@ -84,6 +49,18 @@ Three families of variants emerged to address these problems. DAPO ([Yu et al., 
 **What to expect from the rest of this chapter.** The rest of the chapter builds the full picture in six sections. @sec-policy-gradients establishes the mathematical foundations: the policy gradient theorem, REINFORCE, baselines, and PPO. @sec-grpo-core derives GRPO's objective from first principles and connects it to the unified paradigm of different training methods. @sec-grpo-variants covers the three main GRPO variants (DAPO, Dr. GRPO, REINFORCE++) and when to use each. @sec-rlvr explains the RLVR paradigm and how to design verifiable reward functions. @sec-grpo-environments provides the practical engineering guide: how to set up a training pipeline, choose hyperparameters, and debug common problems. @sec-multi-turn covers multi-turn training, thinking models, and open research directions.
 
 The mathematical content in @sec-policy-gradients and @sec-grpo-core is the most technically demanding. If you are primarily interested in the practical aspects, you can read the overview of each equation (the "what it does" explanation) and skip the derivations without losing the narrative thread. If you want to truly understand *why* GRPO works and *where* its failure modes come from, however, the derivations are worth the effort. The reward function engineering in @sec-grpo-environments is likely the most immediately useful section for practitioners.
+
+### Learning Objectives
+
+After completing this chapter, you will be able to:
+
+- **Explain** the policy gradient theorem and why variance reduction through baselines is critical for RL training of LLMs
+- **Derive** GRPO's objective function from first principles (REINFORCE with a group-relative baseline and PPO-style clipping)
+- **Compare** GRPO against PPO in terms of memory cost, compute requirements, and empirical performance
+- **Identify** the biases in vanilla GRPO (length bias, difficulty bias, entropy collapse) and explain how DAPO, Dr. GRPO, and REINFORCE++ address them
+- **Design** verifiable reward functions for specific tasks (SQL generation, code generation, structured output), including multi-signal rewards
+- **Set up** an end-to-end GRPO training environment using existing frameworks (TRL, verl, OpenRLHF), with appropriate hyperparameters and monitoring
+- **Evaluate** when RLVR is appropriate versus RLHF, and when thinking-model (R1-Zero style) training offers advantages over single-turn training
 
 ```{.d2}
 # =========================================================================
@@ -247,4 +224,46 @@ rl_for_llms: "RL for LLM Training" {
   }
 }
 ```
+
+### Notation
+
+The following notation is used throughout this chapter. All symbols are defined on first use in the text, but this table serves as a reference.
+
+| Symbol | Definition | Valid Values | Example |
+|---|---|---|---|
+| $\pi_\theta$ | Current policy model (the LLM being trained) | Distribution over token sequences | Ava's 7B SQL model |
+| $\pi_{\theta_{old}}$ | Old policy (snapshot before the current update step) | Distribution over token sequences | Policy from previous GRPO iteration |
+| $\pi_{ref}$ | Reference policy (the initial SFT model, used for KL regularization) | Distribution over token sequences | The original SFT-trained SQL model |
+| $q$ | Input prompt or question | Text string | "Top-selling headphones in Northwest last quarter?" |
+| $o, o_i$ | Generated output; the $i$-th output in a group | Token sequence | `SELECT region, SUM(amount) FROM orders JOIN ...` |
+| $o_{i,t}$ | The $t$-th token of the $i$-th output | Single token from vocabulary | `SELECT` (token 1 of output $o_3$) |
+| $G$ | Group size (number of outputs sampled per prompt) | $G \in \{2, 4, 8, 16, 32, 64, \ldots\}$ | $G = 16$ |
+| $r_i, R_i$ | Reward for the $i$-th output | $r_i \in [0, 1]$ for binary; $r_i \in \mathbb{R}$ for continuous | $r_3 = 1$ (correct SQL), $r_4 = 0$ (wrong SQL) |
+| $\mathbf{r}, \mathbf{R}$ | Vector of all rewards in a group: $\{r_1, r_2, \ldots, r_G\}$ | $\mathbf{r} \in \mathbb{R}^G$ | $\mathbf{r} = \{1, 0, 1, 0, 1, 0, 0, 1\}$ |
+| $\hat{A}_{i,t}$ | Estimated advantage for token $t$ of output $i$ | $\hat{A}_{i,t} \in \mathbb{R}$ | $\hat{A}_{3,t} = +0.935$ (correct output) |
+| $r_{i,t}(\theta)$ | Importance sampling ratio: $\frac{\pi_\theta(o_{i,t} \mid q, o_{i,<t})}{\pi_{\theta_{old}}(o_{i,t} \mid q, o_{i,<t})}$ | $r_{i,t} > 0$; typically near 1.0 | $r_{3,5}(\theta) = 1.05$ |
+| $\epsilon$ | Clipping parameter for the PPO/GRPO surrogate objective | $\epsilon > 0$; typically $\epsilon \in [0.1, 0.3]$ | $\epsilon = 0.2$ (symmetric); $\epsilon_{low}=0.1, \epsilon_{high}=0.28$ (DAPO) |
+| $\beta$ | KL divergence coefficient (controls deviation from reference policy) | $\beta \geq 0$ | $\beta = 0.04$ (DeepSeekMath); $\beta = 0$ (RLVR) |
+| $D_{KL}$ | KL divergence between current and reference policy | $D_{KL} \geq 0$ | $D_{KL}[\pi_\theta \| \pi_{ref}] = 3.2$ nats |
+| $R(q, o)$ | Return: total reward for a question-output pair | $R \in \mathbb{R}$ | $R(q, o_3) = 1$ (SQL returned correct results) |
+| $V_\psi$ | Value function (critic network) used in PPO | $V_\psi\colon q \to \mathbb{R}$ | $V_\psi(q) = 0.5$ (expected reward for this question) |
+
+::: {.exercise-mcq correct="C"}
+
+Ava's SFT-trained SQL model plateaus at 55% accuracy on complex queries, even though she has thousands of test questions with known correct answers. What is the fundamental limitation that prevents SFT from using this feedback signal?
+
+- SFT cannot handle multi-table joins or nested subqueries due to context length limits
+- SFT requires a reward model trained on human preferences, which Ava has not built
+- SFT only learns from pre-written correct examples and has no mechanism to learn from the model's own incorrect outputs
+- SFT trains too slowly to iterate on thousands of test questions within a practical timeframe
+
+::: {.feedback-correct}
+Correct! SFT maximizes the probability of given correct outputs but never sees the model's own mistakes. It cannot use a "correct/incorrect" signal from executing the model's generated SQL because it has no mechanism to reinforce or penalize the model's own outputs based on their outcomes. RLVR with GRPO fills exactly this gap.
+:::
+
+::: {.feedback-incorrect}
+Not quite. The limitation is not about model capacity, reward models, or training speed. SFT's fundamental constraint is that it only learns from the pre-written correct examples in the training set. It has no way to generate its own SQL, check whether it is correct, and update accordingly. That is the gap that RL methods like GRPO address: the model generates outputs, a verifier scores them, and the algorithm reinforces what works.
+:::
+
+:::
 

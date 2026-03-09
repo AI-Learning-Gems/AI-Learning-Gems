@@ -32,46 +32,6 @@ This chapter traces the arc from that initial insight to the sophisticated **Vis
 By the end, you will understand not just the architectures but the *design decisions* behind them, and you will be equipped to make informed choices when building your own vision-language systems.
 
 
-### Learning Objectives {#sec-learning-objectives}
-
-After completing this chapter, you will be able to:
-
-- **Derive the ViT architecture mathematically:** Write the patch embedding equation, explain the role of the CLS token and positional embeddings, and trace a concrete image through the full forward pass with exact tensor shapes
-- **Compare ViT and CNN representations:** Articulate the five key differences in how ViTs and CNNs build internal representations, including early global aggregation and uniform layer similarity
-- **Explain self-supervised ViT pretraining:** Describe the MAE, DINO, and DeiT training paradigms, explain *why* each one works (masking ratio, self-distillation, knowledge distillation), and recommend which to use for a given dataset size
-- **Derive the CLIP contrastive loss:** Write the InfoNCE and SigLIP loss functions, explain the role of temperature and batch size, and mechanically walk through zero-shot classification
-- **Evaluate VLM architectures:** Compare cross-attention (Flamingo), Q-Former (BLIP-2), and MLP projection (LLaVA) connectors, identify the key design trade-offs, and cite the empirical evidence for what actually matters
-- **Make informed design choices:** Given a real-world scenario (data budget, compute budget, task requirements), select an appropriate vision encoder, pretraining strategy, and VLM architecture
-
-
-### Notation {#sec-notation}
-
-We will use the following notation consistently throughout this chapter. Refer back to this table whenever you encounter an unfamiliar symbol.
-
-| Symbol | Meaning |
-|---|---|
-| $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$ | Input image (height $\times$ width $\times$ channels) |
-| $\mathbf{x}_p \in \mathbb{R}^{N \times (P^2 \cdot C)}$ | Flattened image patches |
-| $N = HW/P^2$ | Number of patches |
-| $P$ | Patch size (typically 14 or 16 pixels) |
-| $D$ | Transformer hidden dimension |
-| $L$ | Number of Transformer layers |
-| $\mathbf{E} \in \mathbb{R}^{(P^2 \cdot C) \times D}$ | Patch embedding projection matrix |
-| $\mathbf{E}_{pos} \in \mathbb{R}^{(N+1) \times D}$ | Positional embedding matrix (includes CLS position) |
-| $\mathbf{x}_\text{class}$ | Learnable CLS token embedding |
-| $\mathbf{z}_\ell$ | Hidden state at Transformer layer $\ell$ |
-| $\text{MSA}(\cdot)$ | Multi-head self-attention |
-| $\text{LN}(\cdot)$ | Layer normalization |
-| $Q, K, V$ | Query, key, and value matrices in attention |
-| $d_k$ | Dimension of each attention head ($= D / \text{num\_heads}$) |
-| $\tau$ | Temperature parameter (in contrastive learning) |
-| $\text{sim}(\cdot, \cdot)$ | Cosine similarity between two vectors |
-| $\mathbf{I}_i, \mathbf{T}_i$ | Image and text embeddings for the $i$-th pair |
-| $\sigma(\cdot)$ | Sigmoid function |
-| $\mathcal{M}$ | Set of masked patch indices (in MAE) |
-| $\mathbf{Q}_\text{learned}$ | Learned query tokens (in Q-Former / Perceiver Resampler) |
-
-
 ### From Convolutions to Attention — How We Got Here {#sec-chapter-intro}
 
 To understand why Vision Transformers matter, you need to appreciate what came before them and why the field was ready for a fundamental change. This section provides the conceptual scaffolding you will need for the rest of the chapter. Think of it as a "first pass" through the entire terrain, giving you the big picture before we dive into the technical details.
@@ -196,6 +156,18 @@ Some of this will be challenging. The contrastive loss derivations in @sec-clip 
 ::: {.callout-tip title="Before reading on..."}
 Here is a question to prime your thinking: *if you wanted to apply a Transformer to images, what challenges would you anticipate?* Think about sequence length (a 224×224 image has 50,176 pixels), computational cost (self-attention is $O(n^2)$), and the lack of spatial inductive biases. How would you address these? Hold your answers in mind as we dive in. You may be surprised by which of your concerns turn out to matter and which do not.
 :::
+
+
+### Learning Objectives {#sec-learning-objectives}
+
+After completing this chapter, you will be able to:
+
+- **Derive the ViT architecture mathematically:** Write the patch embedding equation, explain the role of the CLS token and positional embeddings, and trace a concrete image through the full forward pass with exact tensor shapes
+- **Compare ViT and CNN representations:** Articulate the five key differences in how ViTs and CNNs build internal representations, including early global aggregation and uniform layer similarity
+- **Explain self-supervised ViT pretraining:** Describe the MAE, DINO, and DeiT training paradigms, explain *why* each one works (masking ratio, self-distillation, knowledge distillation), and recommend which to use for a given dataset size
+- **Derive the CLIP contrastive loss:** Write the InfoNCE and SigLIP loss functions, explain the role of temperature and batch size, and mechanically walk through zero-shot classification
+- **Evaluate VLM architectures:** Compare cross-attention (Flamingo), Q-Former (BLIP-2), and MLP projection (LLaVA) connectors, identify the key design trade-offs, and cite the empirical evidence for what actually matters
+- **Make informed design choices:** Given a real-world scenario (data budget, compute budget, task requirements), select an appropriate vision encoder, pretraining strategy, and VLM architecture
 
 
 ### Concept Map {#sec-concept-map}
@@ -382,3 +354,31 @@ clip_block -> vlm_block: "Aligned vision encoder\n+ LLM backbone" {
   style.stroke: "#1D4ED8"
 }
 ```
+
+
+### Notation {#sec-notation}
+
+We will use the following notation consistently throughout this chapter. Refer back to this table whenever you encounter an unfamiliar symbol.
+
+| Symbol | Meaning |
+|---|---|
+| $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$ | Input image (height $\times$ width $\times$ channels) |
+| $\mathbf{x}_p \in \mathbb{R}^{N \times (P^2 \cdot C)}$ | Flattened image patches |
+| $N = HW/P^2$ | Number of patches |
+| $P$ | Patch size (typically 14 or 16 pixels) |
+| $D$ | Transformer hidden dimension |
+| $L$ | Number of Transformer layers |
+| $\mathbf{E} \in \mathbb{R}^{(P^2 \cdot C) \times D}$ | Patch embedding projection matrix |
+| $\mathbf{E}_{pos} \in \mathbb{R}^{(N+1) \times D}$ | Positional embedding matrix (includes CLS position) |
+| $\mathbf{x}_\text{class}$ | Learnable CLS token embedding |
+| $\mathbf{z}_\ell$ | Hidden state at Transformer layer $\ell$ |
+| $\text{MSA}(\cdot)$ | Multi-head self-attention |
+| $\text{LN}(\cdot)$ | Layer normalization |
+| $Q, K, V$ | Query, key, and value matrices in attention |
+| $d_k$ | Dimension of each attention head ($= D / \text{num\_heads}$) |
+| $\tau$ | Temperature parameter (in contrastive learning) |
+| $\text{sim}(\cdot, \cdot)$ | Cosine similarity between two vectors |
+| $\mathbf{I}_i, \mathbf{T}_i$ | Image and text embeddings for the $i$-th pair |
+| $\sigma(\cdot)$ | Sigmoid function |
+| $\mathcal{M}$ | Set of masked patch indices (in MAE) |
+| $\mathbf{Q}_\text{learned}$ | Learned query tokens (in Q-Former / Perceiver Resampler) |

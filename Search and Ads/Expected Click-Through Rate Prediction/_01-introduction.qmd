@@ -32,43 +32,6 @@ As Priya digs deeper, she discovers this is not a bug in her code. It is a funda
 Through the rest of this chapter, we follow Priya as she traces the root causes of her model's miscalibration and discovers solutions, one by one. She will learn that (a) her training data's negative sampling strategy silently corrupted the model's notion of base rates, (b) her BERT model is inherently overconfident due to the depth and over-parameterization that make it powerful, (c) position bias in her click logs means items shown at the top of search results appear more popular than they actually are, and (d) there are elegant methods, both during and after training, that can fix all of this. Along the way, she will evolve from a simple BERT cross-encoder to a multi-modal transformer that combines text with categorical features like brand, price, and product category. She will also learn the feature engineering practices that make or break real-world CTR models.
 
 
-### Learning Objectives {#sec-learning-objectives}
-
-After completing this chapter, you will be able to:
-
-- **Formulate CTR prediction from raw click data:** Define the CTR estimation problem mathematically, construct training examples from impression logs, and explain why the choice of negatives fundamentally affects both model quality and calibration
-- **Compare model architectures for CTR:** Describe the trade-offs between cross-encoders, late fusion (BERT + tabular MLP), Uni-Attention (BERT4CTR), and foundational architectures like DLRM and DeepFM; select the right architecture given latency, data, and feature constraints
-- **Apply calibration techniques:** Implement temperature scaling, Platt scaling, and isotonic regression as post-hoc calibration methods; apply label smoothing and focal loss during training; and explain why temperature scaling is the recommended default
-- **Diagnose and fix calibration problems:** Read reliability diagrams, compute ECE and Normalized Entropy, apply the downsampling correction formula, and monitor calibration drift in production
-- **Engineer features for product search CTR:** Design feature sets spanning textual, categorical, numerical, and behavioral features, and explain encoding strategies including learned embeddings and target encoding
-- **Account for position bias:** Explain why position bias corrupts click labels, implement Position-Aware Learning (PAL), and apply Inverse Propensity Weighting (IPW) to debias training data
-
-
-### Notation {#sec-notation}
-
-We will use the following notation consistently throughout this chapter. Refer back to this table whenever you encounter an unfamiliar symbol.
-
-| Symbol | Meaning |
-|---|---|
-| $q$ | Search query |
-| $d$ | Document (product) |
-| $c$ | Context (position, device, time, etc.) |
-| $y \in \{0, 1\}$ | Binary click label |
-| $\hat{p}$ or $\hat{y}$ | Predicted click probability (pCTR) |
-| $z$ | Logit (pre-sigmoid output of the model) |
-| $\sigma(\cdot)$ | Sigmoid function: $\sigma(z) = 1/(1+e^{-z})$ |
-| $T$ | Temperature parameter for calibration |
-| $w$ | Negative sampling rate (fraction of negatives kept) |
-| $\epsilon$ | Label smoothing parameter |
-| $\gamma$ | Focal loss focusing parameter |
-| $\alpha$ | Weighting parameter (focal loss or knowledge distillation) |
-| $\text{ECE}$ | Expected Calibration Error |
-| $\text{NE}$ | Normalized Entropy |
-| $\text{BS}$ | Brier Score |
-| $\text{pCTR}$ | Predicted Click-Through Rate |
-| $B_m$ | The $m$-th bin in a reliability diagram |
-
-
 ### The Story of CTR Prediction — From Simple Counts to Calibrated Deep Networks {#sec-chapter-intro}
 
 To understand why calibrated CTR prediction is both important and surprisingly hard, you need to appreciate what "predicting clicks" actually means, why naive approaches fail, and how the field arrived at the sophisticated techniques we will study. This section provides the conceptual scaffolding for the entire chapter, a first pass through the terrain that gives you the big picture before we dive into the technical details.
@@ -143,6 +106,18 @@ Some of the material ahead is straightforward. Temperature scaling, for instance
 ::: {.callout-tip title="Before reading on..."}
 Here is a question to prime your thinking: *if you trained a binary classifier on 50 million examples with a 1% positive rate, and it achieves AUC = 0.85, would you trust its predicted probabilities for an ad auction? What specific things could go wrong with the probabilities, even though the ranking is good?* Hold your answer in mind as we work through the chapter. By the end, you will have a precise checklist of everything that can go wrong, and how to fix each one.
 :::
+
+
+### Learning Objectives {#sec-learning-objectives}
+
+After completing this chapter, you will be able to:
+
+- **Formulate CTR prediction from raw click data:** Define the CTR estimation problem mathematically, construct training examples from impression logs, and explain why the choice of negatives fundamentally affects both model quality and calibration
+- **Compare model architectures for CTR:** Describe the trade-offs between cross-encoders, late fusion (BERT + tabular MLP), Uni-Attention (BERT4CTR), and foundational architectures like DLRM and DeepFM; select the right architecture given latency, data, and feature constraints
+- **Apply calibration techniques:** Implement temperature scaling, Platt scaling, and isotonic regression as post-hoc calibration methods; apply label smoothing and focal loss during training; and explain why temperature scaling is the recommended default
+- **Diagnose and fix calibration problems:** Read reliability diagrams, compute ECE and Normalized Entropy, apply the downsampling correction formula, and monitor calibration drift in production
+- **Engineer features for product search CTR:** Design feature sets spanning textual, categorical, numerical, and behavioral features, and explain encoding strategies including learned embeddings and target encoding
+- **Account for position bias:** Explain why position bias corrupts click labels, implement Position-Aware Learning (PAL), and apply Inverse Propensity Weighting (IPW) to debias training data
 
 
 ### Concept Map {#sec-concept-map}
@@ -349,3 +324,28 @@ eval_block.monitoring -> calibration_block.posthoc: "Recalibrate\non drift" {
   style.stroke-dash: 4
 }
 ```
+
+
+### Notation {#sec-notation}
+
+We will use the following notation consistently throughout this chapter. Refer back to this table whenever you encounter an unfamiliar symbol.
+
+| Symbol | Meaning |
+|---|---|
+| $q$ | Search query |
+| $d$ | Document (product) |
+| $c$ | Context (position, device, time, etc.) |
+| $y \in \{0, 1\}$ | Binary click label |
+| $\hat{p}$ or $\hat{y}$ | Predicted click probability (pCTR) |
+| $z$ | Logit (pre-sigmoid output of the model) |
+| $\sigma(\cdot)$ | Sigmoid function: $\sigma(z) = 1/(1+e^{-z})$ |
+| $T$ | Temperature parameter for calibration |
+| $w$ | Negative sampling rate (fraction of negatives kept) |
+| $\epsilon$ | Label smoothing parameter |
+| $\gamma$ | Focal loss focusing parameter |
+| $\alpha$ | Weighting parameter (focal loss or knowledge distillation) |
+| $\text{ECE}$ | Expected Calibration Error |
+| $\text{NE}$ | Normalized Entropy |
+| $\text{BS}$ | Brier Score |
+| $\text{pCTR}$ | Predicted Click-Through Rate |
+| $B_m$ | The $m$-th bin in a reliability diagram |

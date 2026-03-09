@@ -25,35 +25,26 @@ The answer, as Maya will discover throughout this chapter, is *both*. The demons
 
 This tension between breathtaking demonstrations and sobering benchmark results is the central intellectual puzzle of this chapter. It is not a story of triumph or failure, but of a technology in a fascinating intermediate state: powerful enough to transform how science is done, yet far from ready to replace the scientists doing it.
 
+::: {.exercise-mcq correct="C"}
+
+Maya reads two claims in the same week: (1) The AI Scientist writes complete research papers for under $15, and (2) the best AI agent on DiscoveryBench solves only 25% of real-world discovery tasks. What best explains this apparent contradiction?
+
+- The benchmark tasks are artificially harder than real scientific research, making the low scores misleading.
+- The AI Scientist's papers are low quality and would never pass peer review, so the $15 figure is meaningless.
+- Demonstrations operate in carefully chosen domains where the systems excel, while benchmarks test a broad, unselected range of realistic tasks that expose weaknesses the demos avoid.
+- The benchmarks were designed before these newer systems existed, so they measure outdated capabilities.
+
+::: {.feedback-correct}
+Correct. The AI Scientist's showcase demonstrations are real, but they operate within narrow, well-structured domains (e.g., ML experiments starting from code templates). Benchmarks like DiscoveryBench draw tasks from diverse fields (sociology, biology, chemistry, engineering) and test capabilities the systems were not specifically optimized for. The gap between demos and benchmarks is a selection effect: demos show the best case, benchmarks show the average case.
+:::
+
+::: {.feedback-incorrect}
+Option A is wrong because the benchmark tasks are drawn from actual published research, not artificially inflated problems. Option B is wrong because some AI Scientist papers have passed peer review (v2 had a paper accepted), so the quality is not uniformly poor; the issue is inconsistency across domains. Option D is wrong because newer systems from 2024-2025 were tested on these benchmarks and still scored in the 25-34% range. The real explanation is that impressive demos are selected to showcase strengths, while benchmarks sample broadly and reveal average performance.
+:::
+
+:::
+
 ![The AI Scientist's architecture: a single system that generates research ideas, writes code to test them, runs experiments, produces figures and a complete paper, and even writes an automated peer review, all for less than $15 per paper. This is the full research loop that Maya's colleague described, and the most ambitious vision in the field. Source: Lu et al. (2024), The AI Scientist.](Agents For Scientific Discovery/images/ai-scientist-overview.png){#fig-ai-scientist-hook}
-
-### Learning Objectives
-
-After completing this chapter, you will be able to:
-
-- **Classify** AI agents for science using the Tool → Analyst → Scientist taxonomy and identify where major systems (ChemCrow, DS-Agent, The AI Scientist) sit on this spectrum
-- **Explain** how AI literature-review agents (PaperQA2, Robin) achieve superhuman performance on search tasks, and why multi-agent debate (Google AI co-scientist, VirSci) improves hypothesis generation
-- **Describe** how autonomous experimentation agents operate, from computational code execution (CodeAct, Agent Laboratory) to physical laboratory control (Coscientist, ChemCrow), and articulate the key safety and reliability challenges
-- **Compare** approaches to AI-driven data analysis (case-based reasoning in DS-Agent, grammar-agnostic visualization in LIDA, and symbolic equation discovery in LLM-SR) explaining the trade-offs of each
-- **Analyze** the AI Scientist's end-to-end research automation pipeline (v1 and v2), critically evaluating what works, what fails, and why the automated reviewer outperforms the paper generator
-- **Interpret** benchmark results (DiscoveryBench, ScienceAgentBench, BLADE, MLGym) to assess where AI agents genuinely advance scientific discovery and where they fall short
-- **Evaluate** when to deploy AI research agents in practice, distinguishing between systems ready for augmentation today versus aspirational full-autonomy visions
-
-### Notation
-
-Throughout this chapter, we use the following notation for concepts that appear across multiple sections:
-
-| Symbol | Meaning | Example |
-|--------|---------|---------|
-| $\mathcal{H}$ | Hypothesis space — the set of possible scientific hypotheses an agent can generate | "Drug X inhibits pathway Y in disease Z" |
-| $\mathcal{D}$ | Dataset — the experimental or observational data being analyzed | A table of gene expression values across conditions |
-| $\mathcal{T}$ | Tool set — the collection of external tools available to an agent | $\mathcal{T} = \{\text{web search}, \text{Python executor}, \text{molecular docking}\}$ |
-| $\pi$ | Agent policy — the mapping from observations to actions that defines an agent's behavior | The LLM that decides what to do next given the current research state |
-| $s_t$ | State at time step $t$ — the agent's current observation of the research environment | The contents of the working directory, terminal output, and conversation history |
-| $a_t$ | Action at time step $t$ — what the agent does next | Execute a Python script, search for papers, write a section |
-| $r_t$ | Reward or feedback at time step $t$ — the signal the agent receives after acting | Code execution success, benchmark score, reviewer rating |
-| $f(\cdot)$ | Scientific equation or function being discovered (in symbolic regression) | $f(x) = a \cdot x^2 + b \cdot \sin(cx)$ |
-| $\alpha$ | Type-I error rate — the probability of falsely rejecting a true null hypothesis | In Popper's framework: $\alpha \leq 0.05$ controls false discovery |
 
 ### Chapter Overview
 
@@ -80,6 +71,18 @@ The most ambitious systems attempt to automate the **full research cycle**. The 
 **What to expect from the rest of this chapter.** We will build up the full picture in six sections. @sec-landscape establishes the taxonomy and historical arc, giving you a framework for classifying any AI-for-science system you encounter. @sec-hypothesis covers literature synthesis and hypothesis generation, the intellectual front-end of discovery. @sec-experimentation examines autonomous experimentation, from code execution to robotic chemistry labs. @sec-data-analysis explores data analysis, visualization, and equation discovery (making sense of results). @sec-full-cycle takes a close look at the full-cycle AI Scientist (v1 and v2) and the systems that attempt end-to-end research automation. Finally, @sec-benchmarks critically examines the benchmarks that reveal how well, and how poorly, these systems actually perform. Throughout, we will follow Maya as she evaluates each capability through the lens of her drug repurposing research, grounding abstract architectures in concrete research decisions.
 
 The material in @sec-landscape and @sec-hypothesis is primarily conceptual; you will learn the vocabulary and frameworks for thinking about this field. @sec-experimentation and @sec-data-analysis introduce more technical detail, including the specific architectures and algorithms that make these systems work. @sec-full-cycle is the narrative climax, where all the threads converge in the most ambitious systems. And @sec-benchmarks is the reality check, where we confront the gap between aspiration and achievement. If you are a researcher or practitioner evaluating whether to adopt any of these tools, @sec-benchmarks is likely the section that will most directly inform your decisions.
+
+### Learning Objectives
+
+After completing this chapter, you will be able to:
+
+- **Classify** AI agents for science using the Tool → Analyst → Scientist taxonomy and identify where major systems (ChemCrow, DS-Agent, The AI Scientist) sit on this spectrum
+- **Explain** how AI literature-review agents (PaperQA2, Robin) achieve superhuman performance on search tasks, and why multi-agent debate (Google AI co-scientist, VirSci) improves hypothesis generation
+- **Describe** how autonomous experimentation agents operate, from computational code execution (CodeAct, Agent Laboratory) to physical laboratory control (Coscientist, ChemCrow), and articulate the key safety and reliability challenges
+- **Compare** approaches to AI-driven data analysis (case-based reasoning in DS-Agent, grammar-agnostic visualization in LIDA, and symbolic equation discovery in LLM-SR) explaining the trade-offs of each
+- **Analyze** the AI Scientist's end-to-end research automation pipeline (v1 and v2), critically evaluating what works, what fails, and why the automated reviewer outperforms the paper generator
+- **Interpret** benchmark results (DiscoveryBench, ScienceAgentBench, BLADE, MLGym) to assess where AI agents genuinely advance scientific discovery and where they fall short
+- **Evaluate** when to deploy AI research agents in practice, distinguishing between systems ready for augmentation today versus aspirational full-autonomy visions
 
 ```{.d2}
 # =========================================================================
@@ -264,3 +267,19 @@ benchmarks -> challenges: "reveal" {
   style.font-size: 11
 }
 ```
+
+### Notation
+
+Throughout this chapter, we use the following notation for concepts that appear across multiple sections:
+
+| Symbol | Meaning | Example |
+|--------|---------|---------|
+| $\mathcal{H}$ | Hypothesis space — the set of possible scientific hypotheses an agent can generate | "Drug X inhibits pathway Y in disease Z" |
+| $\mathcal{D}$ | Dataset — the experimental or observational data being analyzed | A table of gene expression values across conditions |
+| $\mathcal{T}$ | Tool set — the collection of external tools available to an agent | $\mathcal{T} = \{\text{web search}, \text{Python executor}, \text{molecular docking}\}$ |
+| $\pi$ | Agent policy — the mapping from observations to actions that defines an agent's behavior | The LLM that decides what to do next given the current research state |
+| $s_t$ | State at time step $t$ — the agent's current observation of the research environment | The contents of the working directory, terminal output, and conversation history |
+| $a_t$ | Action at time step $t$ — what the agent does next | Execute a Python script, search for papers, write a section |
+| $r_t$ | Reward or feedback at time step $t$ — the signal the agent receives after acting | Code execution success, benchmark score, reviewer rating |
+| $f(\cdot)$ | Scientific equation or function being discovered (in symbolic regression) | $f(x) = a \cdot x^2 + b \cdot \sin(cx)$ |
+| $\alpha$ | Type-I error rate — the probability of falsely rejecting a true null hypothesis | In Popper's framework: $\alpha \leq 0.05$ controls false discovery |

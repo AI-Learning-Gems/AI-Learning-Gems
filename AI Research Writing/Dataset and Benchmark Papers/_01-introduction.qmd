@@ -29,33 +29,6 @@ But the stakes are higher than career strategy. Mei's benchmark, if published we
 This chapter guides you through the full picture: what D&B papers are, how they differ from Research papers and System Demo papers, what makes a strong contribution, and how to write one. Each section revisits Dr. Chen's dilemma to provide concrete, grounded examples. By the end, you will understand why her benchmark is indeed a separate paper, what it needs to contain, and how to frame it for the NeurIPS D&B track. You will also understand why the entire ML community has decided that data work deserves its own venue, and why that decision matters more than ever in an era of large language models, autonomous agents, and benchmark contamination.
 
 
-### Learning Objectives
-
-After completing this chapter, you will be able to:
-
-- **Distinguish** D&B papers from Research papers and System Demo papers in terms of what constitutes the primary contribution, how review criteria differ, and which venue is appropriate for which type of work
-- **Identify** the landscape of venues that accept D&B work (NeurIPS D&B track, KDD D&B track, ACL/EMNLP main track resource papers, DMLR journal) and their specific requirements
-- **Structure** a dataset paper using the canonical template: motivation, data collection methodology, documentation, baseline experiments, ethical considerations
-- **Design** a benchmark following the three properties of a strong benchmark: natural tasks, automatic evaluability, and calibrated difficulty
-- **Articulate** why D&B work is becoming more critical in the LLM and agentic AI era, including the evaluation crisis, benchmark contamination, and the data-centric AI paradigm
-- **Prepare** a competitive D&B submission including the paper, hosted dataset, Croissant metadata, baseline code, and ethics statement
-
-
-### Notation
-
-This chapter is primarily conceptual and does not involve heavy mathematical notation. However, a few terms and abbreviations will appear repeatedly:
-
-| Symbol / Abbreviation | Meaning | Example |
-|---|---|---|
-| **D&B** | Datasets & Benchmarks (the track/paper type) | "The NeurIPS D&B track" |
-| **κ** (kappa) | Cohen's kappa or Fleiss' kappa, inter-annotator agreement metrics | κ = 0.78 indicates "substantial agreement" |
-| **α** (alpha) | Krippendorff's alpha, another inter-annotator agreement metric | α > 0.67 is typically the minimum for reliable annotation |
-| **pass@k** | Probability that at least one of *k* generated code samples passes all test cases | pass@1 = 0.12 means 12% of single-attempt generations are correct |
-| **IAA** | Inter-annotator agreement | "The IAA for our dataset was κ = 0.82" |
-| ***CL venues** | ACL, EMNLP, NAACL, COLING, EACL (computational linguistics conferences) | "System demo papers at *CL venues" |
-| **CFP** | Call for Papers | "Check the CFP for submission guidelines" |
-
-
 ### Chapter Introduction {#sec-chapter-intro}
 
 To understand why Datasets & Benchmarks papers exist as a distinct category, you need to appreciate a fundamental asymmetry in how machine learning research has historically been valued. For the better part of two decades, prestige, citations, and career advancement in ML and NLP flowed through a single channel: algorithmic novelty. The incentive structure was clear. You took an existing benchmark (say, GLUE for natural language understanding, or ImageNet for image classification), proposed a new model, a new training procedure, or a new architectural modification, and showed that it achieved state-of-the-art results. The paper that *created* GLUE ([Wang et al., ICLR 2019](https://arxiv.org/abs/1804.07461)) was certainly cited, but it was cited as infrastructure, as something you used on the way to your real contribution: the model. The researchers who built GLUE, who designed the tasks, who curated the evaluation data, who built the leaderboard, who maintained the dataset over years? Their work was "service" work, not "research" work, in the eyes of the community.
@@ -79,6 +52,18 @@ For Dr. Chen, this picture is clarifying. Her multilingual reasoning benchmark (
 The rest of this chapter walks through the details. @sec-track-comparison provides a thorough comparison of D&B papers, Research papers, and System Demo papers: what each track values, how review criteria differ, and how to decide which track is right for your work. @sec-anatomy-dataset dissects the canonical structure of a dataset paper, from the introduction to the ethics statement, with worked examples from best-paper winners. @sec-anatomy-benchmark does the same for benchmark papers, including Ofir Press's influential framework of three properties that every strong benchmark should have (natural, automatically evaluatable, challenging) and the pressing challenge of benchmark contamination. @sec-why-db-matters steps back to explain why D&B work has become more critical than ever in 2023–2026, driven by LLM benchmark saturation, agentic AI evaluation gaps, and the data-centric AI paradigm shift. Finally, @sec-how-to-write provides a practical guide to writing a competitive D&B submission, including submission logistics, writing tips, common rejection reasons, and a worked example of a complete submission package.
 
 Throughout these sections, we return to Dr. Chen's journey. Each section applies its concepts to her multilingual reasoning benchmark, gradually transforming her initial dilemma into a concrete, well-structured submission. By the end, you will not only understand the D&B field; you will know how to work within it.
+
+
+### Learning Objectives
+
+After completing this chapter, you will be able to:
+
+- **Distinguish** D&B papers from Research papers and System Demo papers in terms of what constitutes the primary contribution, how review criteria differ, and which venue is appropriate for which type of work
+- **Identify** the landscape of venues that accept D&B work (NeurIPS D&B track, KDD D&B track, ACL/EMNLP main track resource papers, DMLR journal) and their specific requirements
+- **Structure** a dataset paper using the canonical template: motivation, data collection methodology, documentation, baseline experiments, ethical considerations
+- **Design** a benchmark following the three properties of a strong benchmark: natural tasks, automatic evaluability, and calibrated difficulty
+- **Articulate** why D&B work is becoming more critical in the LLM and agentic AI era, including the evaluation crisis, benchmark contamination, and the data-centric AI paradigm
+- **Prepare** a competitive D&B submission including the paper, hosted dataset, Croissant metadata, baseline code, and ethics statement
 
 
 ```{.d2}
@@ -213,3 +198,18 @@ benchmark -> why: "Why does this matter?"
 why -> how: "How do I write it?"
 how -> submit: "Submit!"
 ```
+
+
+### Notation
+
+This chapter is primarily conceptual and does not involve heavy mathematical notation. However, a few terms and abbreviations will appear repeatedly:
+
+| Symbol / Abbreviation | Meaning | Example |
+|---|---|---|
+| **D&B** | Datasets & Benchmarks (the track/paper type) | "The NeurIPS D&B track" |
+| **κ** (kappa) | Cohen's kappa or Fleiss' kappa, inter-annotator agreement metrics | κ = 0.78 indicates "substantial agreement" |
+| **α** (alpha) | Krippendorff's alpha, another inter-annotator agreement metric | α > 0.67 is typically the minimum for reliable annotation |
+| **pass@k** | Probability that at least one of *k* generated code samples passes all test cases | pass@1 = 0.12 means 12% of single-attempt generations are correct |
+| **IAA** | Inter-annotator agreement | "The IAA for our dataset was κ = 0.82" |
+| ***CL venues** | ACL, EMNLP, NAACL, COLING, EACL (computational linguistics conferences) | "System demo papers at *CL venues" |
+| **CFP** | Call for Papers | "Check the CFP for submission guidelines" |

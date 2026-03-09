@@ -31,46 +31,6 @@ Here is the thing nobody tells you about prompt engineering: you are solving an 
 
 Over the past four years (2022--2026), researchers have developed increasingly sophisticated algorithms that treat prompts as parameters to be optimized, feedback as gradients, and LLMs themselves as both the system being tuned and the optimizer doing the tuning. This chapter traces the full arc of that story.
 
-### Learning Objectives
-
-After completing this chapter, you will be able to:
-
-- Formalize prompt optimization as a mathematical optimization problem and explain why classical gradient descent does not apply
-- Describe the generate-and-select paradigm (APE, OPRO, InstructZero) and explain the role of the meta-prompt in iterative optimization
-- Explain how "textual gradients" work in ProTeGi, TextGrad, and TRACE, and how they relate (and don't relate) to numerical gradients
-- Compare evolutionary approaches (EvoPrompt, GPO, PromptAgent) and articulate the trade-offs between population-based exploration and single-trajectory refinement
-- Define Pareto dominance, hypervolume indicator, and NSGA-II, and apply them to multi-objective prompt optimization problems (MOPO, MORL-Prompt, ParetoPrompt, GEPA)
-- Explain credit assignment in multi-agent prompt optimization (HiveMind), judge prompt optimization (BLPO), and vision-language prompt tuning (CoOp, MPO)
-- Select the right prompt optimization framework (DSPy, TextGrad, TRACE, GEPA) for a given use case
-
-### Notation
-
-| Symbol | Definition | Valid Values | Example |
-|---|---|---|---|
-| $p$, $\rho$ | Prompt / instruction (text string) | $p \in \mathcal{P}$ (any natural language string) | "Classify this ticket's urgency as low, medium, or high" |
-| $\mathcal{P}$ | Prompt space (set of all possible prompts) | Discrete, combinatorial ($\lvert\mathcal{P}\rvert$ is finite but vast) | All English instructions up to 500 tokens |
-| $p^*$ | Optimal prompt that maximizes the scoring function | $p^* \in \mathcal{P}$ | The best triage instruction found by OPRO |
-| $M_T$ | Task model: the LLM performing the task | Any LLM | GPT-4, Llama 3, Claude |
-| $M_O$ | Optimizer model: the LLM proposing prompt improvements | Any LLM (can be same as $M_T$) | GPT-4 generating candidate triage instructions |
-| $F$, $f$, $\mu$ | Metric / scoring function: $F\colon \text{outputs} \to \mathbb{R}$ | $F \in [0, 1]$ (typically) | $F = \text{accuracy} = 0.84$ |
-| $S(p)$ | Accuracy score of prompt $p$: $S\colon \mathcal{P} \to [0,1]$ | $S(p) \in [0, 1]$ | $S(\text{triage prompt v3}) = 0.84$ |
-| $\mathcal{D}$ | Dataset of input-output examples | Set of $(x, y)$ pairs | 500 labeled support tickets |
-| $(x, y)$ | Input-output example pair | $x \in \text{inputs}$, $y \in \text{labels}$ | ("Account charged twice...", "high") |
-| $\partial \mathcal{L} / \partial v$ | Textual gradient of loss $\mathcal{L}$ w.r.t. variable $v$ | Natural language string | "The prompt lacks neurological symptom keywords" |
-| $\nabla_f$ | Textual gradient operator for function $f$ | LLM call producing critique text | TextGrad's backward pass through one edge |
-| $\Phi$ | Compound AI system (multi-module pipeline) | DAG of modules | Extractor $\to$ Classifier $\to$ Safety Checker |
-| $\pi_i$ | Prompt for module $i$ in a multi-module system | $\pi_i \in \mathcal{P}$ | $\pi_1$ = extraction prompt, $\pi_2$ = classification prompt |
-| $f_i$ | $i$-th objective function (multi-objective setting) | $f_i\colon \mathcal{P} \to \mathbb{R}$ | $f_1 = \text{accuracy}$, $f_2 = \text{safety}$, $f_3 = \text{conciseness}$ |
-| $a \succ b$ | Solution $a$ Pareto-dominates solution $b$ | Boolean relation | Prompt A (85% acc, 90% safe) $\succ$ Prompt B (80% acc, 85% safe) |
-| $H(S)$ | Hypervolume indicator of solution set $S$ | $H(S) \geq 0$ | $H(\{\text{prompt A, prompt B}\}) = 650$ |
-| $B$ | Optimization budget (number of LLM calls allowed) | $B \in \{1, 2, 3, \ldots\}$ | $B = 500$ calls for MIPROv2 |
-| $\text{ASI}$ | Actionable Side Information (diagnostic feedback) | Structured text (errors, traces, scores) | Compiler error from a CUDA kernel attempt |
-| $\phi_i$ | Shapley value for agent/module $i$ | $\phi_i \in \mathbb{R}$; $\sum_i \phi_i = v(N)$ | $\phi_\text{Retriever} = 35.3\%$ of total system accuracy |
-| $\mathbf{c}$ | Continuous soft prompt ($L$ learnable vectors of dim $d$) | $\mathbf{c} \in \mathbb{R}^{d \times L}$ | 16 vectors of dimension 512 prepended to CLIP input |
-| $R_\varphi(P, x, y)$ | Reward model score (learned from human preferences) | $R_\varphi \in \mathbb{R}$ (higher = better) | $R_\varphi = 0.92$ for a helpful, safe response |
-| $W$ | Beam width in beam search | $W \in \{1, 2, 3, \ldots\}$ | $W = 4$ parallel prompt candidates in ProTeGi |
-| $\cos(\varphi_{ij})$ | Gradient cosine similarity between objectives $i$ and $j$ | $\cos(\varphi_{ij}) \in [-1, 1]$ | $\cos(\varphi_{\text{acc, safe}}) = -0.3$ (conflicting) |
-
 ### The Story of Prompt Optimization
 
 To understand where the field stands today, it helps to understand the problem it grew out of. The rise of large language models in 2020--2022 created a new kind of engineering bottleneck. These models could do remarkable things, but their performance was exquisitely sensitive to how you asked. The instruction was the interface, and the interface was fragile.
@@ -78,6 +38,25 @@ To understand where the field stands today, it helps to understand the problem i
 Researchers noticed this fragility early. On the GSM8K math benchmark, the prompt "Let's think step by step" achieved 71.8% accuracy with PaLM 2-L. A seemingly minor rephrasing to "Take a deep breath and work on this problem step-by-step" jumped to 80.2%. That is an 8.4 percentage point swing from what a human would consider a trivial edit. For our support ticket system, imagine that rephrasing "Assess the urgency of this ticket" to "Carefully evaluate the emotional tone and practical impact of this message, then assign an urgency level" changes your accuracy from 72% to 84%. The words matter, and we cannot predict which words will matter, or why.
 
 This observation motivated a question: if the choice of prompt has such a large impact on performance, and if humans are poor at predicting which prompts work best, can we automate the search? The answer, developed across dozens of papers from 2022 to 2026, is yes, and the methods are surprisingly elegant.
+
+::: {.exercise-mcq correct="C"}
+
+The section describes OPRO finding that "Let's think step by step" scored 71.8% and "Take a deep breath and work on this problem step-by-step" scored 80.2% on GSM8K. An ML engineer argues: "This just means we need longer, more detailed prompts. If I keep adding specificity, accuracy will keep climbing." Why is this reasoning flawed?
+
+- Because longer prompts exceed the model's context window, causing truncation
+- Because the model has a fixed set of memorized prompt templates from pretraining, and only those will work
+- Because the prompt-to-performance mapping is non-linear and rugged: adding detail can *degrade* accuracy (as the triage example shows, where a more detailed prompt caught more cases but also introduced 6 new safety failures)
+- Because all prompts converge to the same accuracy given enough evaluation examples
+
+::: {.feedback-correct}
+Correct! The triage example at the start of the section directly illustrates this: a more detailed prompt improved accuracy from 72% to 84% but *simultaneously* introduced 6 new safety-critical failures. The relationship between prompt detail and performance is not monotonically increasing. It is rugged and unpredictable, with small edits causing large swings in both directions. This non-linearity is exactly what makes manual search inadequate and motivates algorithmic approaches.
+:::
+
+::: {.feedback-incorrect}
+Not quite. The flaw is not about context windows, memorized templates, or convergence. The section's own triage example shows the problem: adding detail (mentioning emotional tone, financial impact, repeated contacts) improved accuracy from 72% to 84% but *also caused 6 safety-critical misses*. More detail does not monotonically improve performance. The prompt-to-performance mapping is rugged and non-linear, which is the central motivation for automated prompt optimization.
+:::
+
+:::
 
 The first insight came from APE ([Zhou et al., ICLR 2023](https://arxiv.org/abs/2211.01910), November 2022) and was beautifully simple: ask the LLM itself to propose instructions, then score each one and keep the best. This framing (prompts as programs to be synthesized) unlocked the entire field. But it was a one-shot process with no iterative refinement. OPRO ([Yang et al., ICLR 2024](https://arxiv.org/abs/2309.03409), September 2023) added memory: a "meta-prompt" containing the history of previous attempts and their scores, allowing the optimizer to learn from its own trajectory. The results were striking, but the feedback was limited to a scalar score. The optimizer knew a prompt scored 78%, but not why.
 
@@ -89,6 +68,20 @@ But all of these methods optimized a single metric. Real-world prompts must bala
 
 The story has two more dimensions. First, prompt optimization has expanded beyond single prompts to multi-module systems (agent pipelines where credit assignment becomes the bottleneck), evaluation rubrics (optimizing the judge, not just the examinee), and vision-language models (where prompts live in continuous embedding space). Second, production frameworks (DSPy, TextGrad, TRACE, GEPA's `optimize_anything`) now package these algorithms for real-world deployment, each built around a different programming abstraction.
 
+::: {.exercise-predict correct="B"}
+
+The introduction described four waves of prompt optimization: generate-and-select (APE, OPRO), textual gradients (ProTeGi, TextGrad), evolutionary (EvoPrompt, GPO), and multi-objective (MOPO, GEPA). Before reading the chapter roadmap, predict: what is the *one common thread* that connects all four waves?
+
+- Each wave uses a fundamentally different optimization algorithm (gradient descent, evolutionary search, Bayesian optimization), so there is no single thread
+- All four waves increasingly rely on the LLM itself as the core optimization subroutine; the difference is *what information* the LLM receives to guide its search
+- Each successive wave requires more training data and compute, so the thread is increasing cost
+
+::: {.predict-reveal}
+**The answer is B.** The text will explain that all four paradigms use LLMs as the core subroutine: proposing candidates (APE), providing feedback (TextGrad), performing crossover and mutation (EvoPrompt), and reflecting on execution traces (GEPA). The differentiating question is shifting from "which algorithm?" to "what information does the optimizer LLM receive, and how is its search guided?" This convergence is one of the chapter's key takeaways.
+:::
+
+:::
+
 ### What to Expect
 
 This chapter is organized as a progression from simpler to more sophisticated methods, mirroring the historical development of the field. @sec-problem formalizes the optimization problem and introduces the APO taxonomy as a roadmap. @sec-first-wave covers the first generation of generate-and-select methods (APE, OPRO, InstructZero). @sec-textual-gradients traces the development of textual gradients from ProTeGi through TextGrad to TRACE. @sec-evolutionary covers evolutionary and search-based approaches (EvoPrompt, GPO, PromptAgent). @sec-multi-objective is a dedicated deep-dive into multi-objective prompt optimization (NSGA-II, MOPO, MORL-Prompt, ParetoPrompt, GEPA). @sec-applications explores frontier applications: multi-agent systems, LLM-as-a-Judge, and multimodal prompt tuning. @sec-frameworks surveys the production frameworks and provides a decision guide for practitioners.
@@ -96,6 +89,18 @@ This chapter is organized as a progression from simpler to more sophisticated me
 Each section revisits our support ticket triage system. By the end, you will see it evolve from a single fragile prompt into a multi-module pipeline with multi-objective optimization, credit assignment across modules, and production-ready deployment. The mathematics scales with the ambition, from simple argmax formulations to Pareto fronts and Shapley values.
 
 A few things will be challenging. The textual gradient analogy (@sec-textual-gradients) sounds elegant but breaks down under scrutiny; we will be honest about where and why. Multi-objective optimization (@sec-multi-objective) requires comfort with Pareto dominance and hypervolume indicators, which we will build from first principles. The most common misconception to watch for: "textual gradients are actual mathematical gradients." They are not. They are natural language critiques that serve an analogous function (providing directional improvement information) but operate in a fundamentally different space. We will return to this distinction repeatedly.
+
+### Learning Objectives
+
+After completing this chapter, you will be able to:
+
+- Formalize prompt optimization as a mathematical optimization problem and explain why classical gradient descent does not apply
+- Describe the generate-and-select paradigm (APE, OPRO, InstructZero) and explain the role of the meta-prompt in iterative optimization
+- Explain how "textual gradients" work in ProTeGi, TextGrad, and TRACE, and how they relate (and don't relate) to numerical gradients
+- Compare evolutionary approaches (EvoPrompt, GPO, PromptAgent) and articulate the trade-offs between population-based exploration and single-trajectory refinement
+- Define Pareto dominance, hypervolume indicator, and NSGA-II, and apply them to multi-objective prompt optimization problems (MOPO, MORL-Prompt, ParetoPrompt, GEPA)
+- Explain credit assignment in multi-agent prompt optimization (HiveMind), judge prompt optimization (BLPO), and vision-language prompt tuning (CoOp, MPO)
+- Select the right prompt optimization framework (DSPy, TextGrad, TRACE, GEPA) for a given use case
 
 ```{.d2}
 # =========================================================================
@@ -281,6 +286,30 @@ Evo.GPO -> MOO.GEPA: "adds evolution\n+ Pareto" {
 }
 ```
 
-::: {.callout-tip title="Self-Explanation Prompt"}
-Before reading on, consider: if the prompt space is discrete and infinite, and the scoring function is non-differentiable, what approaches from classical optimization might still apply? Think about methods that do not require gradients.
-:::
+### Notation
+
+| Symbol | Definition | Valid Values | Example |
+|---|---|---|---|
+| $p$, $\rho$ | Prompt / instruction (text string) | $p \in \mathcal{P}$ (any natural language string) | "Classify this ticket's urgency as low, medium, or high" |
+| $\mathcal{P}$ | Prompt space (set of all possible prompts) | Discrete, combinatorial ($\lvert\mathcal{P}\rvert$ is finite but vast) | All English instructions up to 500 tokens |
+| $p^*$ | Optimal prompt that maximizes the scoring function | $p^* \in \mathcal{P}$ | The best triage instruction found by OPRO |
+| $M_T$ | Task model: the LLM performing the task | Any LLM | GPT-4, Llama 3, Claude |
+| $M_O$ | Optimizer model: the LLM proposing prompt improvements | Any LLM (can be same as $M_T$) | GPT-4 generating candidate triage instructions |
+| $F$, $f$, $\mu$ | Metric / scoring function: $F\colon \text{outputs} \to \mathbb{R}$ | $F \in [0, 1]$ (typically) | $F = \text{accuracy} = 0.84$ |
+| $S(p)$ | Accuracy score of prompt $p$: $S\colon \mathcal{P} \to [0,1]$ | $S(p) \in [0, 1]$ | $S(\text{triage prompt v3}) = 0.84$ |
+| $\mathcal{D}$ | Dataset of input-output examples | Set of $(x, y)$ pairs | 500 labeled support tickets |
+| $(x, y)$ | Input-output example pair | $x \in \text{inputs}$, $y \in \text{labels}$ | ("Account charged twice...", "high") |
+| $\partial \mathcal{L} / \partial v$ | Textual gradient of loss $\mathcal{L}$ w.r.t. variable $v$ | Natural language string | "The prompt lacks neurological symptom keywords" |
+| $\nabla_f$ | Textual gradient operator for function $f$ | LLM call producing critique text | TextGrad's backward pass through one edge |
+| $\Phi$ | Compound AI system (multi-module pipeline) | DAG of modules | Extractor $\to$ Classifier $\to$ Safety Checker |
+| $\pi_i$ | Prompt for module $i$ in a multi-module system | $\pi_i \in \mathcal{P}$ | $\pi_1$ = extraction prompt, $\pi_2$ = classification prompt |
+| $f_i$ | $i$-th objective function (multi-objective setting) | $f_i\colon \mathcal{P} \to \mathbb{R}$ | $f_1 = \text{accuracy}$, $f_2 = \text{safety}$, $f_3 = \text{conciseness}$ |
+| $a \succ b$ | Solution $a$ Pareto-dominates solution $b$ | Boolean relation | Prompt A (85% acc, 90% safe) $\succ$ Prompt B (80% acc, 85% safe) |
+| $H(S)$ | Hypervolume indicator of solution set $S$ | $H(S) \geq 0$ | $H(\{\text{prompt A, prompt B}\}) = 650$ |
+| $B$ | Optimization budget (number of LLM calls allowed) | $B \in \{1, 2, 3, \ldots\}$ | $B = 500$ calls for MIPROv2 |
+| $\text{ASI}$ | Actionable Side Information (diagnostic feedback) | Structured text (errors, traces, scores) | Compiler error from a CUDA kernel attempt |
+| $\phi_i$ | Shapley value for agent/module $i$ | $\phi_i \in \mathbb{R}$; $\sum_i \phi_i = v(N)$ | $\phi_\text{Retriever} = 35.3\%$ of total system accuracy |
+| $\mathbf{c}$ | Continuous soft prompt ($L$ learnable vectors of dim $d$) | $\mathbf{c} \in \mathbb{R}^{d \times L}$ | 16 vectors of dimension 512 prepended to CLIP input |
+| $R_\varphi(P, x, y)$ | Reward model score (learned from human preferences) | $R_\varphi \in \mathbb{R}$ (higher = better) | $R_\varphi = 0.92$ for a helpful, safe response |
+| $W$ | Beam width in beam search | $W \in \{1, 2, 3, \ldots\}$ | $W = 4$ parallel prompt candidates in ProTeGi |
+| $\cos(\varphi_{ij})$ | Gradient cosine similarity between objectives $i$ and $j$ | $\cos(\varphi_{ij}) \in [-1, 1]$ | $\cos(\varphi_{\text{acc, safe}}) = -0.3$ (conflicting) |
