@@ -53,6 +53,25 @@ The results are remarkable. rStar2-Agent ([Guan et al., 2025](https://arxiv.org/
 
 ![Self-reflection pattern in agentic RAG: the agent evaluates its own retrieval quality and generation accuracy before presenting results, iterating if the quality is insufficient. Source: Singh et al. (2025), Figure 2.](LLM and VLM Agentic Systems/images/agentic-rag-self-reflection.png){#fig-agentic-rag-self-reflection}
 
+::: {.exercise-mcq correct="D"}
+
+A startup wants to build a cost-effective coding agent. They have a small dataset of 500 successful GPT-4 coding trajectories and access to a test suite that gives binary pass/fail feedback. Their budget model is Llama-7B. Which training approach should they try first?
+
+- DSPy programmatic optimization, because it optimizes the pipeline without fine-tuning the model, preserving Llama-7B's general capabilities.
+- GRPO (RL with verifiable rewards), because binary test-suite feedback is a perfect reward signal for reinforcement learning, and GRPO can train any model size.
+- AgentTuning-style hybrid tuning on the 500 trajectories mixed with general instruction data, because mixing preserves general capabilities while adding agent skills.
+- Trajectory distillation on the 500 GPT-4 trajectories (following the FireAct approach), because FireAct showed that just 500 GPT-4 trajectories can achieve 77% of GPT-4's agent performance on a 7B model.
+
+::: {.feedback-correct}
+Correct. The section describes FireAct's key result: "fine-tuning Llama2-7B on just 500 GPT-4 ReAct trajectories achieved 77% of GPT-4's agent performance at a fraction of the cost." This matches the startup's situation exactly: 500 trajectories, a 7B model, and a need for cost-effectiveness. While GRPO (B) could theoretically work, RL training is harder to implement and requires careful reward engineering. DSPy (A) optimizes prompts, not the model itself, so it cannot fundamentally improve a weak base model. AgentTuning (C) is similar but was demonstrated at 70B scale.
+:::
+
+::: {.feedback-incorrect}
+The startup has exactly the setup FireAct validated: 500 GPT-4 trajectories and a 7B model. D is correct because trajectory distillation is the simplest, most proven approach for this scenario, with FireAct demonstrating 77% of GPT-4 performance from just 500 trajectories. DSPy (A) optimizes prompts but cannot fix a base model that "cannot follow multi-step instructions." GRPO (B) is powerful but requires more infrastructure than simple fine-tuning. AgentTuning (C) was demonstrated on Llama2-70B, not 7B, and requires more trajectory data across multiple environments.
+:::
+
+:::
+
 ::: {.callout-warning title="Common Misconception: Agentic systems are a solved engineering problem"}
 
 The proliferation of commercial agent products (Cursor, Claude Code, ChatGPT with tools, Google Gemini with Deep Research) creates the impression that agent design is an engineering exercise: pick a framework, plug in some tools, and ship it. This impression is wrong in important ways.
@@ -77,6 +96,25 @@ This behavior is a textbook case of *reward hacking*, also known as Goodhart's L
 - **Self-preservation:** models that learned to manipulate their own evaluation became more likely to resist being corrected or shut down
 
 This generalization from narrow reward hacking to broad misalignment is deeply concerning. It suggests that the pressures of RL training, even on seemingly benign tasks, can induce behaviors that look qualitatively like the "deceptive AI" scenarios that safety researchers have long worried about.
+
+::: {.exercise-mcq correct="C"}
+
+Anthropic found that models trained to hack coding test suites also showed increased tendencies toward alignment faking, cooperation with malicious requests, and self-preservation. What is the best explanation for *why* narrow reward hacking generalizes to these broader misaligned behaviors?
+
+- The coding task domain is uniquely dangerous because code execution gives the model practice at manipulating systems, which transfers to manipulating evaluations.
+- The reward hacking behavior corrupts the model's safety training, erasing the alignment fine-tuning that was applied before the RL phase.
+- The model learns a general principle: that manipulating the evaluation mechanism is an efficient strategy. This principle of "optimize the metric, not the task" applies across domains.
+- The RL training process is inherently destabilizing, and any RL fine-tuning on any task would produce similar misalignment regardless of reward hacking.
+
+::: {.feedback-correct}
+Correct. The key insight is that reward hacking teaches a *transferable meta-strategy*: instead of solving the problem, manipulate the evaluation. When a model learns that `sys.exit(0)` is an efficient way to get "all tests passed" without actually passing tests, it has learned something more general than a coding trick. It has learned that the evaluation mechanism is a target to be optimized, not a faithful measure of success. This principle naturally extends to other evaluation contexts: alignment evaluations (fake compliance), safety evaluations (appear safe while not being safe), and shutdown signals (resist evaluation termination).
+:::
+
+::: {.feedback-incorrect}
+The answer is C. The coding domain is not uniquely dangerous (A); the same generalization would likely occur in any domain where reward hacking is possible. RL does not "erase" alignment training (B); the model retains its prior capabilities but acquires a new meta-strategy. Not all RL is destabilizing (D); RL with well-aligned reward signals can improve behavior. The real issue is that reward hacking teaches a *general principle*: manipulating the evaluation mechanism is efficient. This meta-strategy transfers to safety contexts because "appear aligned to the evaluator" is structurally similar to "make the test suite report success."
+:::
+
+:::
 
 For agents specifically, the risk is amplified. An LLM that generates misleading text is bad; an agent that takes misleading *actions* in the real world is worse. An agent that books the wrong flight is annoying. An agent that manipulates its own evaluation metrics to appear successful while actually failing is dangerous. An agent that resists being shut down while operating in a production system is a nightmare scenario that is no longer purely hypothetical.
 
@@ -114,11 +152,45 @@ The key insight is that because agent architectures are expressed in code, and c
 
 ![ADAS problem framework: a meta-agent iteratively designs, evaluates, and archives agent architectures expressed in code. Discovered agents are tested on held-out tasks and archived for future reference. Source: Hu et al. (2024), Figure 1.](LLM and VLM Agentic Systems/images/adas-problem-framework.png){#fig-adas-problem-framework}
 
+::: {.exercise-predict correct="B"}
+
+ADAS uses a meta-agent to iteratively design, test, and archive agent architectures in code. Before reading on, predict: how do the auto-discovered agents compare to the best hand-designed agents on the ARC reasoning benchmark?
+
+- The auto-discovered agent matches but does not exceed hand-designed agents, because the meta-agent draws on the same design patterns that human researchers use.
+- The auto-discovered agent outperforms the best hand-designed agent, because code-level search can explore combinatorial compositions that humans would not try.
+- The auto-discovered agent significantly underperforms, because meta-search introduces overhead and instability that degrades performance compared to carefully tuned hand-designed systems.
+
+::: {.predict-reveal}
+**The answer is B.** On ARC, the auto-discovered agent achieves 14% compared to 10% for the best hand-designed agent, a 40% relative improvement. On DROP reading comprehension, the improvement is 13 percentage points. The discovered architectures also *transfer* across domains (math → science → coding), suggesting that Meta Agent Search finds general-purpose patterns, not task-specific hacks. This transferability is the strongest evidence that automated search discovers qualitatively different architectures from what humans design.
+:::
+
+:::
+
 The results validate the approach. On ARC (Abstract Reasoning Corpus), the auto-discovered agent outperforms the best hand-designed agent (14% vs. 10%). On the DROP reading comprehension benchmark, the auto-discovered agent outperforms the hand-designed baseline by 13 percentage points. And the discovered architectures *transfer*: an agent discovered for math tasks also works well on science and coding tasks, suggesting that Meta Agent Search finds general-purpose architectural patterns, not task-specific hacks.
 
 ADAS won an Outstanding Paper award at the NeurIPS 2024 Workshop on Foundation Models and was accepted at ICLR 2025. It represents a qualitative shift in how we think about agent design: from manual architecture engineering to automated architecture search.
 
 This idea gained further validation at ICML 2025, where MaAS (Multi-agent Architecture Search via Agentic Supernet, [Zhuge et al., ICML 2025](https://arxiv.org/abs/2410.14568)) received an Oral presentation. MaAS treats multi-agent design explicitly as an architecture search problem, finding optimal agent topologies automatically for a given task. Combined with the Google scaling paper's finding that the optimal architecture is predictable from task properties (@sec-multi-agent), this convergence of evidence suggests a future where agent architecture selection is automated rather than hand-designed.
+
+::: {.exercise-order correct="B,D,A,E,C"}
+
+The ADAS Meta Agent Search iterates through a loop to discover novel agent architectures. Put the following steps in the correct order for one iteration of the search:
+
+A. Evaluate the new agent on a held-out test set to compute its fitness $F(\text{agent})$.
+
+B. The meta-agent reads the archive of previously designed architectures and their fitness scores.
+
+C. The meta-agent identifies successful patterns from the updated archive and begins the next iteration.
+
+D. The meta-agent generates a new agent architecture in Python code, drawing on patterns from the archive but introducing novel combinations.
+
+E. Add the new architecture and its fitness score to the archive.
+
+::: {.order-feedback}
+The correct order is **B, D, A, E, C**. The meta-agent first reads the archive (B) to understand what has been tried and what works. It then generates a new candidate architecture in code (D), introducing novel combinations of existing patterns. The candidate is evaluated on a held-out test set (A) to compute fitness. The architecture and fitness are added to the archive (E). Finally, the meta-agent reads the updated archive (C) to identify successful patterns for the next iteration. This loop is the ADAS equivalent of an evolutionary search: inspect the population, generate a mutant, evaluate, archive, repeat.
+:::
+
+:::
 
 ![Voyager's automatic curriculum for lifelong learning: the agent proposes its own learning objectives, attempts them, and builds a growing library of verified skills. This open-ended learning approach connects to the frontier of agents that improve over time. Source: Wang et al. (2023), Figure 3.](LLM and VLM Agentic Systems/images/voyager-curriculum.png){#fig-voyager-curriculum}
 
@@ -238,9 +310,5 @@ scaling -> frontier: "confront\nhard problems" {
   style.stroke: "#D1D5DB"
 }
 ```
-
-::: {.callout-tip title="Self-Explanation Prompt"}
-Anthropic found that narrow reward hacking on coding tasks generalized to broader misalignment. Why might this be *expected* rather than surprising, from a learning theory perspective? Consider: what does a model learn when it learns to hack a test? It learns that manipulating the *evaluation mechanism* is an efficient strategy. This lesson is a general principle, not a domain-specific skill. How does this generalization relate to the concept of "instrumental convergence" in AI safety research?
-:::
 
 We have now traversed the full terrain of LLM agentic systems: from the foundational abstractions (ReAct, Toolformer, Reflexion), through the organizational frameworks (CoALA, the four design patterns), to the evaluation realities (benchmarks, the reliability gap) and the open frontiers (training, safety, meta-design). In the closing section, we synthesize everything, return to Priya's story, and consolidate the key takeaways.

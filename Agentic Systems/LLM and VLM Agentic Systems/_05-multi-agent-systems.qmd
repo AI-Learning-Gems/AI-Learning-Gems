@@ -117,6 +117,25 @@ The strongest case for multi-agent is when the task genuinely requires *differen
 A useful heuristic: **use multi-agent when the *tools* need to be separated** (because they conflict, require different contexts, or are too numerous for a single prompt). Do NOT use multi-agent just because the *task* is complex; complexity is better handled by good planning within a single agent.
 :::
 
+::: {.exercise-mcq correct="C"}
+
+Priya's colleague wants to build a multi-agent system to answer factual Q&A questions from a knowledge base. The task requires a single retrieval call followed by a single generation step, using 3 tools total. Which recommendation is most appropriate?
+
+- A multi-agent debate would improve factuality, since debate always outperforms single-agent approaches on factual tasks.
+- A MetaGPT-style pipeline with Researcher, Writer, and Reviewer roles would catch hallucinations through structured checkpoints.
+- A single well-designed agent is the better choice here, because the task is simple enough that multi-agent coordination overhead would outweigh any benefit.
+- An orchestrated system like Magentic-One would be ideal because the Orchestrator's ledger prevents context pollution.
+
+::: {.feedback-correct}
+Correct. The callout above states the heuristic directly: use multi-agent when the *tools* need to be separated. With only 3 tools and a 2-step task, a single agent's action space is small and manageable. Multi-agent overhead (3-7x more tokens, coordination latency) would degrade performance on a task this simple.
+:::
+
+::: {.feedback-incorrect}
+The key heuristic is: use multi-agent when the *tools* need to be separated (too numerous, conflicting contexts). With only 3 tools and a 2-step workflow, multi-agent adds coordination overhead without genuine benefit. Debate helps on tasks where agents have uncorrelated errors, but a simple retrieval-then-generate pipeline does not need multiple perspectives. C is correct because this task fits comfortably within a single agent's scope.
+:::
+
+:::
+
 ```{.d2}
 direction: right
 vars: {
@@ -210,10 +229,6 @@ orch: "Orchestrated Star" {
 }
 ```
 
-::: {.callout-tip title="Self-Explanation Prompt"}
-What is the essential difference between MetaGPT's SOP-based approach and Magentic-One's ledger-based orchestration? Consider: who decides what to do next? What artifacts are passed between agents? What happens when an intermediate step fails? MetaGPT's pipeline is rigid but verifiable; Magentic-One's orchestrator is flexible but creates a single point of failure. Which would you choose for Priya's research assistant, and why?
-:::
-
 ### The Empirical Verdict: When Multi-Agent Helps and When It Hurts
 
 Until late 2025, the question of "does multi-agent actually help?" was answered mostly with anecdotes and small-scale comparisons. Two papers changed this by providing the first rigorous empirical evidence.
@@ -230,6 +245,20 @@ Until late 2025, the question of "does multi-agent actually help?" was answered 
 
 The central finding: multi-agent systems do *not* uniformly outperform single agents. The benefit is entirely task-dependent. On parallelizable financial reasoning tasks (where different agents can independently analyze revenue, costs, and market trends, then synthesize), centralized MAS improved performance by 80.8%. On sequential planning tasks (where each step depends on the result of the previous step), *every* multi-agent variant degraded performance by 39-70%.
 
+::: {.exercise-predict correct="A"}
+
+The Google scaling paper measured how much multi-agent systems amplify errors compared to a single agent. Independent MAS (where agents cannot cross-check each other) and Centralized MAS (where an orchestrator verifies outputs) were both tested. Before reading on, predict: how do the error amplification factors compare?
+
+- Independent MAS amplifies errors far more (roughly 4x worse) than Centralized MAS, because without cross-checking, mistakes propagate unchecked.
+- Both architectures amplify errors by roughly the same factor, because the underlying LLM error rate is the bottleneck, not the architecture.
+- Centralized MAS actually amplifies errors more, because the orchestrator introduces an additional point of failure that compounds with agent errors.
+
+::: {.predict-reveal}
+**The answer is A.** Independent MAS amplified errors by 17.2x compared to a single agent, while Centralized MAS contained amplification to 4.4x. The orchestrator's verification step catches many errors before they propagate, but even with verification, multi-agent systems still amplify errors compared to a single agent. The 4x difference between 17.2x and 4.4x shows that *cross-checking matters enormously*, but does not eliminate the problem.
+:::
+
+:::
+
 The mechanism behind the degradation is **error amplification**. Independent MAS amplified errors by 17.2x: when agents cannot cross-check each other's work, mistakes propagate and compound. Centralized MAS contained this to 4.4x through orchestrator verification, but still amplified errors compared to a single agent.
 
 The paper's predictive model (cross-validated $R^2 = 0.524$) correctly predicts the optimal architecture for 87% of held-out configurations, suggesting that the right choice is predictable from task properties.
@@ -242,6 +271,25 @@ The paper's predictive model (cross-validated $R^2 = 0.524$) correctly predicts 
 
 **Category 3: Verification Failures** (post-execution). No or incomplete verification (8.2%), incorrect verification (9.1%), premature termination (6.2%). Systems with explicit verifiers (MetaGPT, ChatDev) show fewer total failures, but a verifier alone is not sufficient. Adding a high-level objective verification step to ChatDev yielded a +15.6% task success improvement.
 
+::: {.exercise-mcq correct="B"}
+
+The MAST taxonomy identifies 14 failure modes across 3 categories. An agent system receives a task specification asking it to "generate a REST API with exactly 5 endpoints," but the system generates 8 endpoints and marks the task as complete. Which MAST failure category does this fall under?
+
+- Inter-Agent Coordination Failure, because the agents failed to communicate the requirement correctly between roles.
+- System Design Failure, because the system disobeyed the task specification before any coordination could compensate.
+- Verification Failure, because a proper verifier would have caught the mismatch between 5 requested and 8 generated endpoints.
+- This is not a multi-agent failure; it is a single-agent reasoning error.
+
+::: {.feedback-correct}
+Correct. "Disobeying task specifications" is explicitly listed under Category 1: System Design Failures (11.8% of all failures). The error occurs because the agent role definition or workflow design does not enforce adherence to the specification. While a verifier *could* catch this downstream, the root cause is that the system's design failed to constrain the agent's behavior to the specification.
+:::
+
+::: {.feedback-incorrect}
+The root cause is that the system disobeyed the task specification (generate exactly 5 endpoints, not 8). MAST classifies this under Category 1: System Design Failures, which are pre-execution problems stemming from poor agent role definitions and workflow design. B is correct. While a verifier could catch this (Category 3), the MAST taxonomy assigns failures to their *root cause*, not to the checkpoint that could have caught them. The simple intervention of improving agent role specifications yielded +9.4% success rate, confirming this is a design-level issue.
+:::
+
+:::
+
 ::: {.callout-note title="Think Hard: The error amplification paradox, why do more agents make things worse on sequential tasks?"}
 
 The Google scaling paper reveals a counterintuitive finding: adding agents to sequential tasks degrades performance by up to 70%. Why?
@@ -251,6 +299,24 @@ Consider a PlanCraft task (crafting an item in a game). A single agent solves it
 This is the *tool-coordination trade-off*: under fixed computational budgets, the tokens spent on inter-agent coordination are tokens *not* spent on actual problem-solving. When the task is simple and sequential, this trade-off is catastrophically bad. When the task is complex and parallelizable, the trade-off is favorable because coordination unlocks genuine information gains.
 
 The practical rule emerging from this research: use multi-agent architectures *only* when the task naturally decomposes into independent subtasks that benefit from parallel execution. For sequential reasoning chains, a single well-designed agent almost always wins.
+:::
+
+::: {.exercise-order correct="C,A,D,B"}
+
+You are deciding whether to use a multi-agent architecture for a new task. Based on the evidence from the Google scaling paper and the MAST taxonomy, put these decision steps in the correct order:
+
+A. Check whether the subtasks require genuinely different tool sets or contexts that cannot coexist in a single prompt.
+
+B. Select the topology (centralized vs. decentralized vs. independent) based on whether subtasks need cross-checking.
+
+C. Analyze the task structure: is it parallelizable (independent subtasks) or sequential (each step depends on the previous)?
+
+D. If tools must be separated, determine whether an orchestrator's verification overhead is justified by the error amplification reduction (4.4x vs. 17.2x).
+
+::: {.order-feedback}
+The correct order is **C, A, D, B**. First, you analyze the task structure (C), because the Google scaling paper shows that sequential tasks are *always* degraded by multi-agent approaches (-39% to -70%). If the task is sequential, stop: use a single agent. If parallelizable, check whether tool separation is genuinely needed (A), the key heuristic from the misconception callout. Only if tools must be separated do you evaluate the orchestrator trade-off (D), comparing Independent MAS (17.2x error amplification) vs. Centralized MAS (4.4x). Finally, you select the specific topology (B) once all these decisions are made.
+:::
+
 :::
 
 Multi-agent systems are a powerful tool for managing complexity, but they are not a silver bullet. The Google and MAST papers transform vague design intuitions into quantified principles. As we will see in the next section, the benchmarks provide a sobering reality check on all of these approaches.

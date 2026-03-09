@@ -104,6 +104,21 @@ agent_loop -> cognitive_agent: "add internal\nstate management" {
 }
 ```
 
+::: {.exercise-order correct="B,D,A,C"}
+
+Arrange these system types from *least* to *most* autonomous on the agentic spectrum:
+
+- A. Agent Loop (LLM decides actions dynamically based on observations)
+- B. LLM Call (single text-in, text-out invocation)
+- C. Cognitive Agent (memory, reasoning, planning, and learning)
+- D. Prompt Chain (fixed sequence of LLM calls)
+
+::: {.order-feedback}
+**Correct order: B, D, A, C.** The spectrum runs from a single LLM call (no environment interaction) through a prompt chain (fixed multi-step sequence) to an agent loop (dynamic control flow with environment feedback) and finally to a cognitive agent (which adds persistent internal state, planning, and learning). The critical qualitative jump is from prompt chain to agent loop: that is where fixed control flow becomes dynamic.
+:::
+
+:::
+
 Here is where it gets interesting. The transition from "prompt chain" to "agent loop" is the critical qualitative shift. A prompt chain has a fixed control flow: do step 1, then step 2, then step 3, regardless of what happens. An agent loop has a *dynamic* control flow: the LLM observes the result of each action and decides what to do next, which might include repeating a step, trying a different approach, or stopping early. This dynamic control flow is what gives agents their power (they can adapt to unexpected situations) and their fragility (they can get stuck in loops, take wrong turns, or drift off-task).
 
 ### Historical Lineage: From STRIPS to LLM Agents
@@ -130,6 +145,9 @@ The most rigorous attempt to organize the LLM agent field is CoALA ([Sumers et a
 
 What makes CoALA powerful as a framework is its generality. You can express virtually any LLM agent system as a specific instantiation of these three components. Consider three examples. ReAct ([Yao et al., ICLR 2023](https://arxiv.org/abs/2210.03629)) is an agent with minimal memory (just the context window), an action space that includes both reasoning (thoughts) and external actions (API calls), and a decision procedure that alternates between them. Generative Agents ([Park et al., UIST 2023](https://arxiv.org/abs/2304.03442)) is an agent with rich long-term memory (observation streams, reflection trees, daily plans), an action space that includes social interactions and movement, and a decision procedure that retrieves relevant memories using a weighted scoring function. Voyager ([Wang et al., NeurIPS 2023](https://arxiv.org/abs/2305.16291)) is an agent whose long-term memory includes a growing library of executable code (procedural memory), with a decision procedure driven by an automatic curriculum.
 
+
+![The CoALA action space taxonomy. Agents have internal actions (reasoning, retrieval, learning) that operate on memory, and external actions (grounding) that interact with the environment. Source: Sumers et al. (2023), Figure 5.](LLM and VLM Agentic Systems/images/coala-action-space.png){#fig-coala-action-space}
+
 ::: {.callout-note title="Think Hard: How does the CoALA decision cycle differ from a simple while-loop calling an LLM?"}
 
 At first glance, the CoALA decision cycle might look like a dressed-up version of `while not done: action = llm(context); result = execute(action)`. But there are three crucial structural differences.
@@ -139,6 +157,27 @@ First, CoALA explicitly separates *internal* and *external* actions. A simple lo
 Second, CoALA's decision procedure is not a flat loop but a *hierarchical* process. The agent can plan at multiple levels of abstraction: a high-level plan decomposes a goal into subgoals, each subgoal triggers its own inner loop of reasoning and action, and the results propagate back up. This hierarchical structure enables agents to handle complex, long-horizon tasks that a flat loop cannot.
 
 Third, and most subtly, the memory management in CoALA is itself an *action*. The agent actively decides what to store in long-term memory, what to retrieve, and what to forget. In a simple while-loop, memory management is implicit (the context window fills up and old content falls off). In CoALA, memory management is a first-class concern that the agent reasons about. This active memory control is the key idea behind systems like MemGPT ([Packer et al., ICLR 2024](https://arxiv.org/abs/2310.08560)), which we will explore in @sec-tools-memory-grounding.
+
+
+:::
+
+::: {.exercise-mcq correct="C"}
+
+In the CoALA framework, an agent that *generates a chain-of-thought trace before deciding which API to call* is performing which combination of action types?
+
+- A. Two external actions (reasoning is always external because it produces text output)
+- B. Two internal actions (both reasoning and API calls happen inside the agent's "head")
+- C. An internal action (reasoning) followed by an external action (API call)
+- D. An external action (API call) followed by an internal action (reasoning about the result)
+
+::: {.feedback-correct}
+Correct. CoALA distinguishes *internal* actions (reasoning, retrieval, learning) that do not affect the environment from *external* actions (tool calls, messages, file writes) that do. Generating a thought trace is an internal action; calling an API is an external action. This separation is what makes ReAct's Thought-Action-Observation loop structurally meaningful.
+:::
+
+::: {.feedback-incorrect}
+The key distinction in CoALA is between internal and external actions. Reasoning (generating thoughts) is an internal action because it does not change the environment and can be "undone." Calling an API is an external action because it has real-world consequences. The correct answer is C: an internal action followed by an external action.
+:::
+
 :::
 
 ### Four Agentic Design Patterns (The Practitioner's Lens)
@@ -162,9 +201,42 @@ This is the most common misunderstanding about the field. Yes, the simplest agen
 The loop is necessary but not sufficient. Saying "agents are just LLMs in a while loop" is like saying "neural networks are just matrix multiplications in a loop." Technically true, profoundly uninformative.
 :::
 
+::: {.exercise-mcq correct="B"}
+
+A developer builds a system that (1) takes a user question, (2) calls an LLM to extract search keywords, (3) queries a database with those keywords, and (4) calls the LLM again to generate an answer from the retrieved documents. The system always executes these four steps in the same order. This system is best classified as which level on the agentic spectrum?
+
+- A. LLM Call, because the LLM is doing all the reasoning
+- B. Prompt Chain, because the control flow is fixed regardless of intermediate results
+- C. Agent Loop, because the system uses a tool (the database) and feeds results back to the LLM
+- D. Cognitive Agent, because it has a form of semantic memory (the database)
+
+::: {.feedback-correct}
+Correct. The defining feature of a prompt chain is a *fixed* control flow: step 1, then step 2, then step 3, then step 4, regardless of what happens at each step. Even though this system uses a tool and feeds results back, it never *decides* what to do next. It always follows the same four-step recipe. An agent loop would need dynamic control flow where the LLM's output at one step determines which step comes next.
+:::
+
+::: {.feedback-incorrect}
+The key distinction is *who controls the flow*. This system always executes the same four steps in the same order. The LLM never decides "I should try a different search" or "I need more information, let me search again." That fixed control flow makes it a prompt chain (answer B), not an agent loop. Using a tool is necessary but not sufficient for agent status; the system must also have dynamic, observation-dependent control flow.
+:::
+
+:::
+
 ### Where the Field Stands: A Taxonomy
 
 To ground all of this in concrete systems, here is how the major systems from 2022-2026 map onto the agentic spectrum:
+
+::: {.exercise-predict correct="B"}
+
+Before looking at the taxonomy table below: SWE-agent (2024) is a coding agent that resolves real GitHub issues. It uses GPT-4, has a specialized file-editing interface, but stores no information between tasks. Where on the agentic spectrum would you place it?
+
+- A. Prompt Chain, because it follows a fixed sequence of file-read, edit, test steps
+- B. Agent Loop, because it dynamically decides actions based on observations but has no long-term memory
+- C. Cognitive Agent, because it uses sophisticated tool interfaces and solves complex multi-step problems
+
+::: {.predict-reveal}
+**The answer is B.** SWE-agent operates as an agent loop: it dynamically chooses what to do next (open a file, search for a definition, edit code, run tests) based on the observations it receives. However, it has only working memory (the context window) with no persistent episodic, semantic, or procedural memory across tasks. Its sophistication comes from interface design (the ACI), not from memory or learning. This illustrates that an agent loop with a well-designed interface can be surprisingly capable even without the full cognitive agent stack.
+:::
+
+:::
 
 | System | Year | Memory | Action Space | Decision Procedure | Autonomy Level |
 |---|---|---|---|---|---|
@@ -178,10 +250,5 @@ To ground all of this in concrete systems, here is how the major systems from 20
 | [Magentic-One](https://arxiv.org/abs/2411.04468) (Fourney et al.) | 2024 | Working + ledger | Multi-agent delegation | Orchestrator-directed | Multi-Cognitive Agent |
 | [ADAS](https://arxiv.org/abs/2408.08435) (Hu et al.) | 2024 | Archive of agent designs | Code generation of agents | Meta-search | Meta-Agent |
 
-![The CoALA action space taxonomy. Agents have internal actions (reasoning, retrieval, learning) that operate on memory, and external actions (grounding) that interact with the environment. Source: Sumers et al. (2023), Figure 5.](LLM and VLM Agentic Systems/images/coala-action-space.png){#fig-coala-action-space}
-
-::: {.callout-tip title="Self-Explanation Prompt"}
-Look at the taxonomy table above. What is the minimum set of capabilities an LLM system needs before you would call it an "agent" rather than a "pipeline"? Where would you draw the line, and why?
-:::
 
 This taxonomy gives us the conceptual vocabulary we need for the rest of the chapter. In the next section, we will explore the *reasoning* dimension: how ReAct, Tree of Thoughts, and Reflexion gave agents the ability to think, explore, and learn. These are the papers that, more than any others, launched the field of LLM agents.

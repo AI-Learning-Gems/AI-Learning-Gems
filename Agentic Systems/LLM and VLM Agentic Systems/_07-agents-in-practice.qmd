@@ -32,6 +32,25 @@ The table below maps the major agent products to the foundational concepts from 
 | **Google Deep Research** | Yes (plan → search → synthesize loop) | Google Search, web browsing | Research plan + accumulated findings | No (single agent, multi-step) | Structured research plan interface | Yes (evaluates sufficiency of evidence) |
 | **Anthropic Claude (with MCP)** | Yes | Any MCP-connected tool | Conversation context | No | Standardized tool schemas via MCP | Partial |
 
+::: {.exercise-mcq correct="C"}
+
+When Claude Code encounters a linter error after editing a file, it reads the error message, reasons about the cause, and generates a fix. Which foundational concept from this chapter does this behavior most directly instantiate?
+
+- ReAct, because the agent is alternating between thinking and acting in a loop.
+- Agent-Computer Interface (ACI) design, because the linter provides structured error feedback that the agent can parse.
+- Reflexion, because the agent observes a failure, generates a verbal critique, and uses that critique to improve its next attempt.
+- Tool use via MCP, because the linter is an external tool that the agent calls through a standardized protocol.
+
+::: {.feedback-correct}
+Correct. The section explicitly states: "When Claude Code edits a file and the linter reports errors, it reads the error messages, reasons about what went wrong, and generates a fix. This self-correction loop is a lightweight form of the Reflexion pattern." While the linter does provide feedback through the ACI (B), the *behavior* of observing failure, generating a critique, and improving is Reflexion. The ReAct loop (A) is the broader think-act-observe cycle; Reflexion is specifically about learning from failure.
+:::
+
+::: {.feedback-incorrect}
+The key behavior described is: observe failure → reason about what went wrong → generate a fix. This is the Reflexion pattern from @sec-reasoning-and-acting, not simply the ReAct loop (which is the broader think-act-observe cycle). The ACI (B) provides the *mechanism* for receiving error feedback, but the *behavioral pattern* of self-correction from failure is Reflexion. MCP (D) governs tool communication, not self-correction behavior. C is correct.
+:::
+
+:::
+
 ### Case Study: Claude Code as a Composition of Foundational Concepts
 
 Claude Code is Anthropic's agentic coding assistant, and it is the clearest example of how the foundational concepts from this chapter compose into a production system. Let us decompose it.
@@ -55,6 +74,26 @@ What production systems add is *guardrails*: confirmation prompts before destruc
 The implication for researchers: if you understand the foundational concepts in this chapter, you understand how these products work. The remaining gap is systems engineering, not conceptual understanding.
 :::
 
+::: {.exercise-order correct="D,B,A,E,C"}
+
+When Claude Code receives the instruction "refactor this module to use dependency injection," it executes a multi-step process. Put the following steps in the order Claude Code performs them:
+
+A. Observe the result: check for linter errors and verify the edited file is correct.
+
+B. Act: read the relevant files, run codebase searches, and edit the code.
+
+C. If errors were found in step A, reason about what went wrong and generate a fix (Reflexion-style self-correction), then return to step A.
+
+D. Think: use extended thinking (internal chain-of-thought) to plan the refactoring approach.
+
+E. If no errors, present the completed changes and ask for confirmation before proceeding to the next edit.
+
+::: {.order-feedback}
+The correct order is **D, B, A, E, C**. Claude Code's loop is: (D) Think using extended thinking to plan, (B) Act by reading/searching/editing, (A) Observe the result (check for errors), (E) present changes if clean, or (C) self-correct via Reflexion if errors are found and loop back. This is the Thought-Action-Observation pattern from ReAct, with Reflexion-style self-correction on failure and ACI-style confirmation prompts before destructive actions.
+:::
+
+:::
+
 ### The Agentic Spectrum in 2026: Wolfe's Level 0-3
 
 Cameron Wolfe's "AI Agents from First Principles" ([Wolfe, 2025](https://cameronrwolfe.substack.com/p/ai-agents)) offers a clean framework for understanding where each product sits on the agentic spectrum:
@@ -69,6 +108,25 @@ Cameron Wolfe's "AI Agents from First Principles" ([Wolfe, 2025](https://cameron
 
 Most "agentic" products in early 2026 operate at Level 2, with occasional forays into Level 3 for well-defined tasks. True Level 3 autonomy across open-ended tasks (Priya's dream of a fully autonomous research assistant) remains out of reach, for the reliability reasons we explored in @sec-real-world-agents.
 
+::: {.exercise-mcq correct="B"}
+
+Google's Gemini Deep Research creates a research plan, executes web searches for each topic, evaluates whether it has gathered enough evidence, revises its plan if needed, and produces a synthesis. According to Wolfe's Level 0-3 framework, which level does this product primarily operate at?
+
+- Level 1 (Tool-augmented LLM), because Deep Research's core capability is calling Google Search as an external tool.
+- Level 2 (Problem decomposition), because it decomposes the research task into subtasks and executes them with plan-observe-adjust cycles.
+- Level 3 (Autonomous operation), because it operates with minimal human oversight and takes concrete actions on behalf of the user.
+- Between Level 2 and Level 3, because it plans autonomously but operates in read-only mode without taking real-world actions.
+
+::: {.feedback-correct}
+Correct. The section places Deep Research at Level 2: "Google's Deep Research operates here: it creates a research plan, executes each search step, evaluates whether it has enough evidence, and synthesizes." Level 2 is defined by problem decomposition and sequential/parallel execution with plan-observe-adjust. While Deep Research has some Level 3 characteristics (operating without step-by-step human approval), its read-only nature (search and synthesis, no execution) and the explicit research plan interface keep it at Level 2.
+:::
+
+::: {.feedback-incorrect}
+The defining characteristic of Level 2 is *problem decomposition*: the model decomposes complex tasks into subtasks and executes them with planning and adjustment. Deep Research does exactly this by creating a research plan, executing searches, evaluating evidence sufficiency, and synthesizing. Level 1 (A) is simpler: single tool calls without multi-step planning. Level 3 (C) involves taking concrete real-world actions (creating files, submitting PRs, browsing and acting). Deep Research operates in read-only mode, so it is not Level 3. B is correct.
+:::
+
+:::
+
 ### Claude Code vs. Codex vs. Cursor: Different Architectural Choices
 
 These three coding agents make instructively different architectural choices that map to the trade-offs we have discussed:
@@ -81,8 +139,18 @@ These three coding agents make instructively different architectural choices tha
 
 These trade-offs are not arbitrary. They reflect the fundamental tension between *depth* (how deeply the agent can reason about one task) and *breadth* (how many tasks it can handle simultaneously). They also reflect the tension between *integration* (how tightly it connects to your workflow) and *isolation* (how safely it can operate without breaking things). There is no single right answer; the best choice depends on the task structure, exactly as the Google scaling paper predicts.
 
-::: {.callout-tip title="Self-Explanation Prompt"}
-Pick one of the agent products you use regularly (Cursor, Claude Code, ChatGPT with tools, Gemini Deep Research). Using the CoALA framework from @sec-what-is-an-agent, identify its memory type (working only? episodic? semantic?), its action space (what internal and external actions can it take?), and its decision procedure (how does it choose what to do next?). Where are the gaps? What capability from this chapter is missing that would make the product noticeably better?
+::: {.exercise-predict correct="A"}
+
+A team needs to fix 15 independent bugs across a large codebase, each requiring 5-10 minutes of agent work. Before reading on, predict: which of the three coding agent architectures (Claude Code, OpenAI Codex, Cursor) would complete this workload fastest?
+
+- OpenAI Codex, because it runs tasks in parallel with isolated sandbox agents, so all 15 bugs can be worked on simultaneously.
+- Claude Code, because its deep contextual reasoning within a single session allows it to fix bugs faster per-bug than parallelized approaches.
+- Cursor, because its tight IDE integration gives it the strongest ACI, reducing per-step error rates and thus overall time.
+
+::: {.predict-reveal}
+**The answer is A.** The section describes OpenAI Codex's key strength as throughput: "you can submit 10 issues and get 10 PRs back." Each task runs in an isolated cloud sandbox with its own agent instance. For 15 *independent* bugs (no dependencies between them), Codex's parallelism is ideal. Claude Code would process them sequentially (it is synchronous: "you wait while it works"), and Cursor operates within a single IDE session. The trade-off is that Codex's isolation means no cross-task context sharing, which would matter if the bugs were related, but the independence condition makes this irrelevant here.
+:::
+
 :::
 
 The products we use daily are existence proofs that the foundational abstractions work. They also reveal, through their limitations, where the field still needs breakthroughs. The next section explores those frontiers: training agents with RL, automating agent design, and the safety challenges that grow more urgent as agents grow more capable.
