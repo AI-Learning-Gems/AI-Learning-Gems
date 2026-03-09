@@ -305,13 +305,10 @@ The practical rule emerging from this research: use multi-agent architectures *o
 
 You are deciding whether to use a multi-agent architecture for a new task. Based on the evidence from the Google scaling paper and the MAST taxonomy, put these decision steps in the correct order:
 
-A. Check whether the subtasks require genuinely different tool sets or contexts that cannot coexist in a single prompt.
-
-B. Select the topology (centralized vs. decentralized vs. independent) based on whether subtasks need cross-checking.
-
-C. Analyze the task structure: is it parallelizable (independent subtasks) or sequential (each step depends on the previous)?
-
-D. If tools must be separated, determine whether an orchestrator's verification overhead is justified by the error amplification reduction (4.4x vs. 17.2x).
+- Check whether the subtasks require genuinely different tool sets or contexts that cannot coexist in a single prompt.
+- Select the topology (centralized vs. decentralized vs. independent) based on whether subtasks need cross-checking.
+- Analyze the task structure: is it parallelizable (independent subtasks) or sequential (each step depends on the previous)?
+- If tools must be separated, determine whether an orchestrator's verification overhead is justified by the error amplification reduction (4.4x vs. 17.2x).
 
 ::: {.order-feedback}
 The correct order is **C, A, D, B**. First, you analyze the task structure (C), because the Google scaling paper shows that sequential tasks are *always* degraded by multi-agent approaches (-39% to -70%). If the task is sequential, stop: use a single agent. If parallelizable, check whether tool separation is genuinely needed (A), the key heuristic from the misconception callout. Only if tools must be separated do you evaluate the orchestrator trade-off (D), comparing Independent MAS (17.2x error amplification) vs. Centralized MAS (4.4x). Finally, you select the specific topology (B) once all these decisions are made.

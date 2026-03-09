@@ -78,15 +78,11 @@ The implication for researchers: if you understand the foundational concepts in 
 
 When Claude Code receives the instruction "refactor this module to use dependency injection," it executes a multi-step process. Put the following steps in the order Claude Code performs them:
 
-A. Observe the result: check for linter errors and verify the edited file is correct.
-
-B. Act: read the relevant files, run codebase searches, and edit the code.
-
-C. If errors were found in step A, reason about what went wrong and generate a fix (Reflexion-style self-correction), then return to step A.
-
-D. Think: use extended thinking (internal chain-of-thought) to plan the refactoring approach.
-
-E. If no errors, present the completed changes and ask for confirmation before proceeding to the next edit.
+- Observe the result: check for linter errors and verify the edited file is correct.
+- Act: read the relevant files, run codebase searches, and edit the code.
+- If errors were found in step A, reason about what went wrong and generate a fix (Reflexion-style self-correction), then return to step A.
+- Think: use extended thinking (internal chain-of-thought) to plan the refactoring approach.
+- If no errors, present the completed changes and ask for confirmation before proceeding to the next edit.
 
 ::: {.order-feedback}
 The correct order is **D, B, A, E, C**. Claude Code's loop is: (D) Think using extended thinking to plan, (B) Act by reading/searching/editing, (A) Observe the result (check for errors), (E) present changes if clean, or (C) self-correct via Reflexion if errors are found and loop back. This is the Thought-Action-Observation pattern from ReAct, with Reflexion-style self-correction on failure and ACI-style confirmation prompts before destructive actions.

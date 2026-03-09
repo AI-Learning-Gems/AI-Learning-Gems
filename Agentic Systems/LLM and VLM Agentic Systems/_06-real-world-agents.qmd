@@ -147,12 +147,12 @@ This cascading effect is the *compound error problem*: if each step succeeds wit
 The implication is stark: incremental improvements in per-step accuracy have outsized effects on end-to-end reliability. Going from 90% to 95% per-step accuracy does not sound like much, but for a 15-step task, it nearly doubles the overall success rate (from 21% to 46%). This relationship is why interface design (which prevents errors) and error recovery (which corrects errors cheaply) matter so much.
 :::
 
-::: {.exercise-fillin correct="B"}
+::: {.exercise-fillin}
 
 The compound error formula states that for $n$ sequential steps, each succeeding with probability $p$, the overall success rate is approximately $p^n$. Walk through this calculation for a realistic scenario:
 
-1. A web agent must complete a 10-step form-filling task. Each step succeeds with probability $p = 0.92$. The overall success rate is $0.92^{10} \approx$ {BLANK|A: 65%|B: 43%|C: 78%}.
-2. The team improves per-step accuracy to $p = 0.97$ using a better ACI. The new overall success rate is $0.97^{10} \approx 74\%$.
+1. A web agent must complete a 10-step form-filling task, where each step succeeds with probability 0.92. The overall success rate is approximately: {B|A: 65%|B: 43%|C: 78%}
+2. The team improves per-step accuracy to 0.97 using a better ACI. The new overall success rate is $0.97^{10} \approx 74\%$.
 3. The improvement from 92% to 97% per-step (just 5 percentage points) changed the end-to-end success rate from the value in Step 1 to 74%, a gain of roughly 31 percentage points.
 
 ::: {.fillin-feedback}

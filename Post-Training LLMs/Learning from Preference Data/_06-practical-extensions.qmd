@@ -46,10 +46,10 @@ The weights can be set by equal weighting ($w_k = 1/K$), ordered weighting (rank
 
 In the descriptive approach to multi-criteria preferences, you learn weights $w_k$ by fitting a logistic regression of per-criterion skill differences against overall preference annotations. The fitted weights turn out to be $w_{\text{clarity}} = 1.2$, $w_{\text{warmth}} = 0.4$, $w_{\text{shrillness}} = -0.9$. What does the negative weight for shrillness tell you?
 
-- [A] The BT model for shrillness failed to converge, so the weight is meaningless.
-- [B] Higher shrillness scores *decrease* the probability of being preferred overall; annotators penalize shrill-sounding engines.
-- [C] Shrillness should be dropped from the model because negative weights indicate multicollinearity.
-- [D] The scale of the shrillness BT model is inverted, so the weight must be flipped to positive before interpretation.
+- The BT model for shrillness failed to converge, so the weight is meaningless.
+- Higher shrillness scores *decrease* the probability of being preferred overall; annotators penalize shrill-sounding engines.
+- Shrillness should be dropped from the model because negative weights indicate multicollinearity.
+- The scale of the shrillness BT model is inverted, so the weight must be flipped to positive before interpretation.
 
 ::: {.feedback-correct}
 Correct! The descriptive model is $P(i \succ j \mid \text{Overall}) = \sigma(\sum_k w_k \cdot (\hat{\lambda}_i^k - \hat{\lambda}_j^k))$. A negative $w_{\text{shrillness}}$ means that a *higher* shrillness skill score (i.e., being more shrill) makes the engine *less* likely to be preferred overall. The data reveals that annotators penalize shrillness when forming their overall judgment.
@@ -103,9 +103,9 @@ A common error is to assume that a high BT score means a confident ranking. The 
 
 You have 10 annotators evaluating 20 TTS engines. You plan to model annotator heterogeneity. The fixed-effects model estimates a separate bias $\delta_{ik}$ for every annotator-item pair, which gives $(C-1)(K-1) = 19 \times 9 = 171$ extra parameters. Before reading further: what is the main practical problem with this approach?
 
-- [A] The fixed-effects model cannot produce p-values for the global skill estimates.
-- [B] The fixed-effects model requires annotators to evaluate every possible pair of engines, which is infeasible.
-- [C] The model has nearly as many parameters as unique data points, so it will overfit badly and produce unreliable estimates.
+- The fixed-effects model cannot produce p-values for the global skill estimates.
+- The fixed-effects model requires annotators to evaluate every possible pair of engines, which is infeasible.
+- The model has nearly as many parameters as unique data points, so it will overfit badly and produce unreliable estimates.
 
 ::: {.predict-reveal}
 **The answer is C.** With 20 engines there are $\binom{20}{2} = 190$ unique pairs. The fixed-effects model adds 171 parameters on top of the 19 global skill parameters, totaling 190 parameters, which approaches the number of unique pairs. The model is nearly saturated: it can explain the training data perfectly by memorizing annotator-specific biases rather than learning generalizable skill estimates. The random-effects model solves this by treating annotator biases as draws from a shared distribution $\mathcal{N}(0, \tau_i^2)$, estimating only the variance $\tau_i^2$ per engine instead of a separate $\delta_{ik}$ per annotator-engine combination.
@@ -137,10 +137,10 @@ When $\eta_0 = 1$ (no tie zone), this reduces to the standard BT model. Larger $
 
 In Davidson's (1970) tie model, the tie probability is proportional to $\sqrt{\theta_i \theta_j}$. What does this imply about when ties are most likely?
 
-- [A] Ties are most likely between two high-quality engines of similar strength, and least likely when one engine is much stronger than the other.
-- [B] Ties are equally likely for all pairs, because the square root normalizes for differences in engine strength.
-- [C] Ties are most likely when both engines are low-quality, because $\sqrt{\theta_i \theta_j}$ is smallest when both parameters are small.
-- [D] Ties are most likely between one strong and one weak engine, because the geometric mean balances their scores.
+- Ties are most likely between two high-quality engines of similar strength, and least likely when one engine is much stronger than the other.
+- Ties are equally likely for all pairs, because the square root normalizes for differences in engine strength.
+- Ties are most likely when both engines are low-quality, because $\sqrt{\theta_i \theta_j}$ is smallest when both parameters are small.
+- Ties are most likely between one strong and one weak engine, because the geometric mean balances their scores.
 
 ::: {.feedback-correct}
 Correct! The term $\sqrt{\theta_i \theta_j}$ is the geometric mean of the two strength parameters. It is maximized when both $\theta_i$ and $\theta_j$ are large and similar. Two closely-matched, high-quality engines sound nearly identical, so annotators cannot distinguish them. A large strength gap (one high, one low) makes the product smaller and the winner obvious, so ties are rare.
@@ -186,10 +186,10 @@ The conceptual leap from @eq-contextual-bt to the neural reward model is replaci
 
 Arrange these steps in the correct order for building a contextual BT model from scratch:
 
-- [A] Construct a feature vector $\phi(x)$ for each input text (e.g., is_question, text_length, has_numbers).
-- [B] Interpret the fitted $\hat{\beta}_{i,\text{feature}}$ coefficients as engine-specific strengths and weaknesses per input type.
-- [C] Fit standard (non-contextual) BT models to confirm that engine rankings vary across input types.
-- [D] Fit the contextual model $P(i \succ j \mid x) = \sigma((\lambda_i - \lambda_j) + \phi(x)^T(\beta_i - \beta_j))$ using a GLM solver.
+- Construct a feature vector $\phi(x)$ for each input text (e.g., is_question, text_length, has_numbers).
+- Interpret the fitted $\hat{\beta}_{i,\text{feature}}$ coefficients as engine-specific strengths and weaknesses per input type.
+- Fit standard (non-contextual) BT models to confirm that engine rankings vary across input types.
+- Fit the contextual model $P(i \succ j \mid x) = \sigma((\lambda_i - \lambda_j) + \phi(x)^T(\beta_i - \beta_j))$ using a GLM solver.
 
 ::: {.order-feedback}
 **Correct order: C, A, D, B.** You first check whether context matters at all by fitting standard BT models on subsets (e.g., questions vs. statements) and observing that rankings differ (C). Then you define the feature representation $\phi(x)$ for each input (A). Next you fit the contextual model, which estimates base skills $\lambda_i$ and interaction coefficients $\beta_i$ jointly (D). Finally, you interpret the fitted coefficients to diagnose engine-specific strengths and weaknesses (B). Skipping step C risks adding complexity (context features) when the rankings do not actually vary by input type.

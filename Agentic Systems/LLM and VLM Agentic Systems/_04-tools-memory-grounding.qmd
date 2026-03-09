@@ -252,12 +252,12 @@ Second, *retrieval scoring* must combine multiple signals. Pure semantic similar
 Third, *when* to retrieve and *how much* to retrieve are design decisions that most implementations get wrong. Retrieving too often clutters working memory with irrelevant context. Retrieving too little leaves the agent ignorant of critical past experience. The threshold-based reflection trigger in Generative Agents is a principled approach: reflect when enough important things have happened that a synthesis would be valuable.
 :::
 
-::: {.exercise-fillin correct="B"}
+::: {.exercise-fillin}
 
 Generative Agents retrieves memories using a scoring function that combines three factors. Complete the missing factor:
 
 1. **Recency**: exponential decay so recent observations score higher
-2. **{A|A: Frequency — how often this memory has been retrieved before|B: Importance — LLM-rated significance of the observation on a 1-10 scale|C: Specificity — how detailed and concrete the observation is}**
+2. {B|A: Frequency — how often this memory has been retrieved before|B: Importance — LLM-rated significance of the observation on a 1-10 scale|C: Specificity — how detailed and concrete the observation is}
 3. **Relevance**: cosine similarity between the memory embedding and the current query embedding
 
 ::: {.fillin-feedback}
@@ -274,9 +274,14 @@ MemGPT ([Packer et al., ICLR 2024](https://arxiv.org/abs/2310.08560)) addresses 
 
 The architecture has two tiers. The *main context* (analogous to RAM) is what fits in the LLM's context window: the system prompt, recent conversation history, and currently-active information. The *external context* (analogous to disk) is everything else: older conversations, archived facts, long documents, retrieved passages.
 
-The crucial innovation is that the LLM itself manages the paging. MemGPT gives the agent function-calling access to three memory management operations: `core_memory_save(text)` writes important information from the main context to persistent storage; `core_memory_search(query)` retrieves relevant information from external storage and loads it into the main context; and `conversation_search(query)` searches through archived conversation history. The LLM learns to use these operations proactively: when it detects that the context window is getting full, it archives less-important information; when it realizes it needs information from a past interaction, it retrieves it.
+The crucial innovation is that the LLM itself manages the paging. MemGPT gives the agent function-calling access to three memory management operations: 
+1. `core_memory_save(text)` writes important information from the main context to persistent storage; 
+2. `core_memory_search(query)` retrieves relevant information from external storage and loads it into the main context; and 
+3. `conversation_search(query)` searches through archived conversation history. 
 
-::: {.callout-note title="Think Hard: What would break in MemGPT's design if the LLM could not reliably generate function calls to manage its own memory?"}
+The LLM **learns** to use these operations proactively: when **it** detects that the context window is getting full, it archives less-important information; when **it** realizes it needs information from a past interaction, it retrieves it.
+
+::: {.callout-note title="Think Hard: What would break in MemGPT's design, if the LLM could not reliably generate function calls to manage its own memory?"}
 
 Everything. MemGPT's entire design depends on the LLM correctly deciding *when* to page information in and out and *what* to page. If the model fails to save important information before it scrolls out of the context window, that information is lost forever. If the model fails to retrieve relevant past context when answering a question, it gives incorrect or incomplete answers. If the model pages in irrelevant information, it wastes precious context window space.
 

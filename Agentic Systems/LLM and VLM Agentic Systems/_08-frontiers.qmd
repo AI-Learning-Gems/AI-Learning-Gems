@@ -176,15 +176,11 @@ This idea gained further validation at ICML 2025, where MaAS (Multi-agent Archit
 
 The ADAS Meta Agent Search iterates through a loop to discover novel agent architectures. Put the following steps in the correct order for one iteration of the search:
 
-A. Evaluate the new agent on a held-out test set to compute its fitness $F(\text{agent})$.
-
-B. The meta-agent reads the archive of previously designed architectures and their fitness scores.
-
-C. The meta-agent identifies successful patterns from the updated archive and begins the next iteration.
-
-D. The meta-agent generates a new agent architecture in Python code, drawing on patterns from the archive but introducing novel combinations.
-
-E. Add the new architecture and its fitness score to the archive.
+- Evaluate the new agent on a held-out test set to compute its fitness $F(\text{agent})$.
+- The meta-agent reads the archive of previously designed architectures and their fitness scores.
+- The meta-agent identifies successful patterns from the updated archive and begins the next iteration.
+- The meta-agent generates a new agent architecture in Python code, drawing on patterns from the archive but introducing novel combinations.
+- Add the new architecture and its fitness score to the archive.
 
 ::: {.order-feedback}
 The correct order is **B, D, A, E, C**. The meta-agent first reads the archive (B) to understand what has been tried and what works. It then generates a new candidate architecture in code (D), introducing novel combinations of existing patterns. The candidate is evaluated on a held-out test set (A) to compute fitness. The architecture and fitness are added to the archive (E). Finally, the meta-agent reads the updated archive (C) to identify successful patterns for the next iteration. This loop is the ADAS equivalent of an evolutionary search: inspect the population, generate a mutant, evaluate, archive, repeat.

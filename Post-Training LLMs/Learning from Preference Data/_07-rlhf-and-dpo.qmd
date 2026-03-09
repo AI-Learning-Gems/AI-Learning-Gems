@@ -95,10 +95,10 @@ There is a subtle tension at the heart of the RLHF pipeline, highlighted by the 
 
 A reward model achieves 75% pairwise preference accuracy on a held-out test set. A colleague suggests also tracking the "average absolute reward" across test prompts as a quality metric. Why is this second metric uninformative?
 
-- [A] Average absolute reward is only meaningful for models trained with PPO, not for standalone reward models.
-- [B] The test set is too small to produce a reliable average; you would need at least 10K examples.
-- [C] Average absolute reward reflects how long the model's outputs are, not how good they are.
-- [D] The BT model has scale indeterminacy: adding a constant to all rewards changes the average but does not change any pairwise preference. Absolute reward values are arbitrary.
+- Average absolute reward is only meaningful for models trained with PPO, not for standalone reward models.
+- The test set is too small to produce a reliable average; you would need at least 10K examples.
+- Average absolute reward reflects how long the model's outputs are, not how good they are.
+- The BT model has scale indeterminacy: adding a constant to all rewards changes the average but does not change any pairwise preference. Absolute reward values are arbitrary.
 
 ::: {.feedback-correct}
 Correct! The BT loss $-\log \sigma(R_\theta(x, y_w) - R_\theta(x, y_l))$ depends only on reward *differences*. You can add any constant $c$ to all reward outputs without changing the loss, the gradients, or the model's preference rankings. The absolute average $\mathbb{E}[R_\theta(x, y)]$ shifts by $c$ and carries no information about model quality. Only differences (or a normalized reference like $R_\theta(y) - \mathbb{E}_{\hat{y} \sim \pi_{SFT}}[R_\theta(\hat{y})]$) are meaningful.
@@ -120,9 +120,9 @@ One practical difficulty of RLHF is the four-model memory problem. During PPO tr
 
 The RLHF pipeline uses PPO to optimize the policy against the learned reward model $R_\phi$. The reward model was trained on *pairwise* comparisons ("Is $y_w$ better than $y_l$?"), which means it only learns to get reward *differences* right. But PPO treats $R_\phi(x, y)$ as an *absolute* scalar. Before reading the "Think Hard" box below: what problem does this pairwise-absolute mismatch cause during PPO training?
 
-- [A] PPO converges to a policy that always copies the reference model $\pi_{ref}$, because the absolute reward has no meaningful zero point.
-- [B] PPO reads meaning into reward magnitudes that were never calibrated, causing training instability when the reward model assigns arbitrary absolute scales.
-- [C] PPO cannot compute gradients through the reward model, because pairwise comparisons are non-differentiable.
+- PPO converges to a policy that always copies the reference model $\pi_{ref}$, because the absolute reward has no meaningful zero point.
+- PPO reads meaning into reward magnitudes that were never calibrated, causing training instability when the reward model assigns arbitrary absolute scales.
+- PPO cannot compute gradients through the reward model, because pairwise comparisons are non-differentiable.
 
 ::: {.predict-reveal}
 **The answer is B.** The reward model was trained to rank pairs correctly (get the *sign* of $R_\theta(x, y_w) - R_\theta(x, y_l)$ right), but PPO treats the absolute value $R_\phi(x, y) = 5.0$ very differently from $R_\phi(x, y) = 3.0$. Since the pairwise BT loss has scale indeterminacy, the reward model never learned what "5.0 vs. 3.0" means in absolute terms. PPO's policy gradient amplifies these uncalibrated magnitudes, leading to instability. The P3O method addresses this by keeping the entire pipeline pairwise. DPO sidesteps the problem entirely by never extracting an absolute reward, working only with log-probability *ratios*.
@@ -178,10 +178,10 @@ The slogan from Rafailov et al.: **"Your language model is secretly a reward mod
 
 Complete the DPO derivation by filling in the missing quantities:
 
-1. The optimal policy for the KL-constrained RLHF objective is: $\pi^*(y \mid x) = \frac{1}{Z(x)} \pi_{ref}(y \mid x) \exp(\frac{1}{\beta} r(x, y))$.
-2. Rearranging gives the reward: $r(x, y) = \beta \log \frac{\pi^*(y \mid x)}{\pi_{ref}(y \mid x)} +$ {A|A: $\beta \log Z(x)$|B: $\beta \cdot D_{KL}(\pi^* \| \pi_{ref})$|C: $\log \pi_{ref}(y \mid x)$}.
-3. Substituting into the BT preference model $\sigma(r(x,y_w) - r(x,y_l))$, the term from step 2 cancels because it is a {B|A: function of $(y_w, y_l)$ that sums to zero|B: prompt-dependent constant shared by both rewards|C: negligibly small quantity that can be dropped}.
-4. The DPO "logit" is: $\beta \left(\log \frac{\pi_\theta(y_w \mid x)}{\pi_{ref}(y_w \mid x)} -\right.$ {C|A: $R_\phi(x, y_l)$|B: $\log \pi_\theta(y_l \mid x)$|C: $\left.\log \frac{\pi_\theta(y_l \mid x)}{\pi_{ref}(y_l \mid x)}\right)$}.
+1. The optimal policy for the KL-constrained RLHF objective is the Boltzmann distribution shown in the derivation above.
+2. Rearranging gives the reward as the log-ratio of optimal and reference policies, plus what additional term? {A|A: the partition function term|B: the KL divergence between policies|C: the log of the reference policy}
+3. Substituting into the BT preference model, the term from step 2 cancels because it is a {B|A: function of the two responses that sums to zero|B: prompt-dependent constant shared by both rewards|C: negligibly small quantity that can be dropped}.
+4. The DPO "logit" is the difference of two log-probability ratios. The second ratio (for the dispreferred response) is: {C|A: the explicit reward model score|B: only the log-probability under the trainable policy|C: the log-probability ratio of the trainable and reference policies for the dispreferred response}.
 
 ::: {.fillin-feedback}
 **Step 2: A.** Taking the log of the optimal policy equation and rearranging gives $r(x, y) = \beta \log \frac{\pi^*(y \mid x)}{\pi_{ref}(y \mid x)} + \beta \log Z(x)$. The partition function $Z(x)$ absorbs the normalization constant.
@@ -199,10 +199,10 @@ Complete the DPO derivation by filling in the missing quantities:
 
 Arrange these DPO limitations in order from most fundamental (inherent to the mathematical formulation) to most contingent (depends on implementation choices):
 
-- [A] DPO is sensitive to the learning rate schedule used during fine-tuning.
-- [B] Likelihood displacement: decreasing $\pi_\theta(y_l \mid x)$ can inadvertently increase the probability of other undesirable outputs.
-- [C] DPO cannot use unpaired binary feedback ("this response was good"), only explicit $(y_w, y_l)$ pairs.
-- [D] DPO's implicit reward $\beta \log(\pi_\theta / \pi_{ref})$ is harder to inspect and audit than an explicit reward model's output.
+- DPO is sensitive to the learning rate schedule used during fine-tuning.
+- Likelihood displacement: decreasing $\pi_\theta(y_l \mid x)$ can inadvertently increase the probability of other undesirable outputs.
+- DPO cannot use unpaired binary feedback ("this response was good"), only explicit $(y_w, y_l)$ pairs.
+- DPO's implicit reward $\beta \log(\pi_\theta / \pi_{ref})$ is harder to inspect and audit than an explicit reward model's output.
 
 ::: {.order-feedback}
 **Correct order: D, B, C, A.** The inability to inspect implicit rewards (D) is baked into DPO's design: there is no explicit $R_\phi$ to query, so understanding *why* the model prefers a response requires reconstructing the implicit reward from log-probability ratios. Likelihood displacement (B) is a mathematical consequence of optimizing a softmax distribution: probability mass must go somewhere, and reducing $P(y_l)$ redistributes mass to all other outputs, including undesirable ones. The paired-data requirement (C) follows from the BT preference model that DPO inherits, though methods like KTO remove this constraint by changing the loss function. Learning rate sensitivity (A) is a practical engineering concern common to all fine-tuning methods, not specific to DPO's formulation.

@@ -87,9 +87,9 @@ For MLE, the variance-covariance matrix is the inverse of the **Fisher Informati
 
 Complete the variance-of-difference calculation. Given $\text{Var}(\hat{\lambda}_A) = 0.040$, $\text{Var}(\hat{\lambda}_B) = 0.036$, and $\text{Cov}(\hat{\lambda}_A, \hat{\lambda}_B) = 0.012$:
 
-1. The formula is: $\text{Var}(\hat{\lambda}_A - \hat{\lambda}_B) = \text{Var}(\hat{\lambda}_A) + \text{Var}(\hat{\lambda}_B) - 2\text{Cov}(\hat{\lambda}_A, \hat{\lambda}_B)$
-2. Substituting: $\text{Var}(\hat{\lambda}_A - \hat{\lambda}_B) = 0.040 + 0.036 - 2(0.012) =$ {B|A: 0.076 (forgot to subtract the covariance)|B: 0.052|C: 0.064 (subtracted covariance only once)}
-3. The SE of the difference is $\sqrt{0.052} \approx 0.228$
+1. The formula is: Var(difference) = Var(A) + Var(B) - 2 Cov(A, B)
+2. Substituting the values 0.040 + 0.036 - 2(0.012), the result is: {B|A: 0.076 (forgot to subtract the covariance)|B: 0.052|C: 0.064 (subtracted covariance only once)}
+3. The SE of the difference is the square root of 0.052, which is approximately 0.228
 
 ::: {.fillin-feedback}
 **Correct: B.** The calculation is $0.040 + 0.036 - 2(0.012) = 0.076 - 0.024 = 0.052$. Option A (0.076) reflects the common error of ignoring the covariance term entirely, which would overestimate the SE. Option C (0.064) reflects subtracting the covariance only once instead of twice. The factor of 2 in $-2\text{Cov}$ is essential because both terms in the difference contribute a copy of the covariance.

@@ -42,10 +42,10 @@ The deeper historical significance of Thurstone's model is that it established t
 
 Thurstone's model and Bradley-Terry both predict preference probabilities from latent quality differences. In practice, rankings produced by the two models are nearly identical. Why?
 
-- [A] Both models use the logistic sigmoid as their link function; the difference is only in how they parameterize variance.
-- [B] The Gaussian CDF (Thurstone's probit link) and the logistic CDF (BT's logit link) differ by less than 2% everywhere, so the predicted probabilities are nearly interchangeable.
-- [C] Thurstone's model reduces exactly to BT under all parameter settings, making them mathematically equivalent.
-- [D] Both models assume Gumbel-distributed noise, which is why McFadden's conditional logit recovers the same formula.
+- Both models use the logistic sigmoid as their link function; the difference is only in how they parameterize variance.
+- The Gaussian CDF (Thurstone's probit link) and the logistic CDF (BT's logit link) differ by less than 2% everywhere, so the predicted probabilities are nearly interchangeable.
+- Thurstone's model reduces exactly to BT under all parameter settings, making them mathematically equivalent.
+- Both models assume Gumbel-distributed noise, which is why McFadden's conditional logit recovers the same formula.
 
 ::: {.feedback-correct}
 Correct! The standard normal CDF $\Phi(z)$ and the logistic sigmoid $\sigma(z)$ (after appropriate scaling by $\pi/\sqrt{3}$) differ by less than 2% at every point. Because the link functions are nearly identical, the two models produce virtually the same preference probabilities and rankings from the same data. The choice between probit (Thurstone) and logit (BT) is driven by computational convenience, not predictive power.
@@ -75,9 +75,9 @@ IIA often holds approximately, but it fails spectacularly in the famous "red bus
 
 Before reading further: under Luce's Choice Axiom (strict IIA), the car and red bus currently split 50/50. An identical blue bus is added. What does the model predict?
 
-- [A] Each of the three options gets exactly 33.3%, because IIA preserves the ratio $P(\text{car})/P(\text{red bus}) = 1$ and distributes probability proportionally.
-- [B] The car keeps 50%, and the two buses split the remaining 50% (25% each), because rational commuters treat the buses as substitutes.
-- [C] The blue bus gets 0% because it is identical to the red bus, and the model collapses duplicate items.
+- Each of the three options gets exactly 33.3%, because IIA preserves the ratio $P(\text{car})/P(\text{red bus}) = 1$ and distributes probability proportionally.
+- The car keeps 50%, and the two buses split the remaining 50% (25% each), because rational commuters treat the buses as substitutes.
+- The blue bus gets 0% because it is identical to the red bus, and the model collapses duplicate items.
 
 ::: {.predict-reveal}
 **The answer is A.** IIA dictates that adding the blue bus does not change the *ratio* of choice probabilities between car and red bus. Since $u(\text{car})/u(\text{red bus}) = 1$ and $u(\text{blue bus}) = u(\text{red bus})$, the model predicts $P = 1/3$ for each option. But this is obviously wrong: real commuters treat the two buses as near-substitutes and split roughly 50% car, 25% red bus, 25% blue bus (option B). This mismatch is precisely why IIA is considered a limitation of Luce's axiom. Extensions like nested logit handle this by grouping similar options into "nests."
@@ -151,10 +151,10 @@ This family comes from social choice theory: given a set of "voters" (annotators
 
 Arrange these ranking methods from **least robust** to **most robust** in handling intransitive (cyclic) preference data:
 
-- [A] PageRank / Rank Centrality
-- [B] Kemeny-Young
-- [C] Bradley-Terry
-- [D] Copeland / Ranked Pairs
+- PageRank / Rank Centrality
+- Kemeny-Young
+- Bradley-Terry
+- Copeland / Ranked Pairs
 
 ::: {.order-feedback}
 **Correct order: C, A, D, B.**
@@ -202,10 +202,10 @@ Despite these alternatives, BT remains the default choice for most preference le
 
 Ryan (2024) showed that Copeland and Ranked Pairs outperform Elo/BT for ranking LLMs when evaluators are noisy and heterogeneous. Yet BT remains the standard for training RLHF reward models. What is the primary reason BT is preferred for reward model training?
 
-- [A] BT is computationally cheaper than Copeland, which is NP-hard to compute.
-- [B] BT handles intransitive preferences better than Condorcet methods, so it produces cleaner training signals.
-- [C] BT assigns per-item Elo scores, and Elo scores can be directly plugged into the reward model as initial weights.
-- [D] BT's logistic loss $-\log \sigma(r_w - r_l)$ is identical to the reward model's training objective, giving a direct bridge from preference theory to neural network optimization.
+- BT is computationally cheaper than Copeland, which is NP-hard to compute.
+- BT handles intransitive preferences better than Condorcet methods, so it produces cleaner training signals.
+- BT assigns per-item Elo scores, and Elo scores can be directly plugged into the reward model as initial weights.
+- BT's logistic loss $-\log \sigma(r_w - r_l)$ is identical to the reward model's training objective, giving a direct bridge from preference theory to neural network optimization.
 
 ::: {.feedback-correct}
 Correct! The reward model in RLHF is trained with the BT loss: $-\log \sigma(r_\theta(y_w) - r_\theta(y_l))$. This is exactly the BT logistic likelihood, but with a neural network $r_\theta$ replacing per-item parameters. This identity means the entire statistical theory of BT (consistency, Fisher information, confidence intervals) transfers directly to the neural reward model. No other ranking method provides this differentiable bridge.

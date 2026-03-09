@@ -29,9 +29,9 @@ The downside is cost: $\binom{C}{2}$ possible pairs grows quadratically. For $C 
 
 You need to rank 20 TTS engines. A colleague argues: "Absolute ratings (1-5 scale) need only $20 \times 5 \times 3 = 300$ annotations, while all-pairs comparison needs $190 \times 5 \times 3 = 2{,}850$. The 10x cost difference makes absolute ratings the clear winner." Before reading further, what is the most likely outcome?
 
-- [A] The absolute ratings produce a tighter ranking because each engine is evaluated independently, avoiding comparison-order effects.
-- [B] The pairwise comparisons produce a more accurate ranking despite the higher cost, because inter-annotator calibration differences corrupt the absolute scale in ways that cannot be averaged away.
-- [C] Both produce equally accurate rankings, so absolute ratings win on efficiency.
+- The absolute ratings produce a tighter ranking because each engine is evaluated independently, avoiding comparison-order effects.
+- The pairwise comparisons produce a more accurate ranking despite the higher cost, because inter-annotator calibration differences corrupt the absolute scale in ways that cannot be averaged away.
+- Both produce equally accurate rankings, so absolute ratings win on efficiency.
 
 ::: {.predict-reveal}
 **The answer is B.** The 10x cost argument is misleading because it ignores data *quality*. Absolute ratings suffer from a calibration problem: one annotator's "4" is another annotator's "3." This inconsistency is systematic (not random noise), so averaging over more annotators does not fully remove it. Pairwise comparisons sidestep calibration entirely: "A or B?" requires no internal scale. Research shows that $O(N \log N)$ pairwise labels match $O(N)$ absolute labels per item in ranking accuracy, and each pairwise label is more informative. The real comparison is not 300 vs. 2,850; with a circulant design ($k=2$), you can get a connected comparison graph with only 600 annotations, far fewer than the naive all-pairs count.
@@ -68,10 +68,10 @@ The most practical approach is a **circulant tournament design**. Arrange the $C
 
 A circulant tournament design with $C = 20$ engines and $k = 2$ neighbors produces 40 pairs (vs. 190 for all pairs). A colleague suggests saving further by using $k = 1$ (20 pairs). What is the main risk of this reduction?
 
-- [A] The comparison graph becomes disconnected, so the BT model cannot be fitted at all.
-- [B] Each engine appears in only 1 comparison, making the design unbalanced.
-- [C] The graph is connected but has no redundancy: a single noisy comparison can propagate errors across the entire ranking.
-- [D] The $k = 1$ design violates the circulant structure because 20 is an even number.
+- The comparison graph becomes disconnected, so the BT model cannot be fitted at all.
+- Each engine appears in only 1 comparison, making the design unbalanced.
+- The graph is connected but has no redundancy: a single noisy comparison can propagate errors across the entire ranking.
+- The $k = 1$ design violates the circulant structure because 20 is an even number.
 
 ::: {.feedback-correct}
 Correct! With $k = 1$, the comparison graph forms a single cycle (each engine compared to one neighbor in each direction), which is connected. So the BT model can be fitted. But the graph is a single chain wrapped into a circle: every path between two distant engines passes through many intermediate comparisons. One noisy result on that path distorts the inferred skill difference between the endpoints. With $k = 2$, there are redundant paths, so the ranking is robust to individual noisy comparisons.
@@ -115,10 +115,10 @@ Both criteria work well. The outcome uncertainty heuristic is simpler and nearly
 
 Arrange the following steps in the correct order for an adaptive pair selection experiment:
 
-- [A] Fit the BT model to the initial data and compute outcome uncertainty for all remaining candidate pairs.
-- [B] Report final rankings with confidence intervals from the converged model.
-- [C] Run a sparse static design (e.g., $k=2$ circulant) to ensure graph connectivity and provide warm-start data.
-- [D] Iteratively select the most uncertain pair, collect its annotation, re-fit the model, and repeat until the budget is exhausted.
+- Fit the BT model to the initial data and compute outcome uncertainty for all remaining candidate pairs.
+- Report final rankings with confidence intervals from the converged model.
+- Run a sparse static design (e.g., $k=2$ circulant) to ensure graph connectivity and provide warm-start data.
+- Iteratively select the most uncertain pair, collect its annotation, re-fit the model, and repeat until the budget is exhausted.
 
 ::: {.order-feedback}
 **Correct order: C, A, D, B.** The warm-start phase (C) is essential because the BT model requires a connected comparison graph; without it, some items would have undefined scores. Fitting the model to this initial data (A) produces the first set of uncertainty estimates. The active learning loop (D) then greedily selects the most informative pair at each step, re-fitting after each new annotation so that uncertainty estimates stay current. Finally (B), the converged model produces the ranking. Skipping C and jumping directly to D would fail because there is no fitted model to compute uncertainty from.
