@@ -1,4 +1,4 @@
-## Agents in the Real World {#sec-real-world-agents}
+## The Reliability Gap: Why Agents Fail {#sec-real-world-agents}
 
 ::: {.callout-note collapse="true" title="Sources for this section"}
 
