@@ -71,3 +71,54 @@ The user asked for 1-2 new sections and restructuring. Here is the proposed plan
 
 - The renumbering is necessary because inserting _07-agents-in-practice between real-world-agents and frontiers requires shifting. However, to minimize file renames and disruption, an alternative is to keep all existing files as-is and just insert the new section at position 7 (between _05 and _06). This avoids touching 6 filenames.
 - The user's concern about "babyishness" is best addressed by (a) the new agents-in-practice section that connects theory to tools everyone uses, and (b) deepening the multi-agent section with the Google/MAST empirical evidence.
+
+---
+
+## Update: 2026-03-09
+
+### Sources Provided
+User requested deep coverage of:
+1. MCP protocol (architecture, wire format, how LLMs actually use it)
+2. Function-calling APIs (OpenAI, Anthropic, Google, Qwen) 
+3. Agent configuration patterns (AGENTS.md, CLAUDE.md, SKILL.md, .cursor/rules/)
+4. Context engineering (Karpathy, Anthropic, LangChain)
+5. Production engineering concepts (guardrails, observability, sandboxing)
+
+### Sources Researched (44 web searches + 9 full-text fetches)
+1. [Anthropic: Building Effective Agents (Dec 2024)](https://anthropic.com/engineering/building-effective-agents)
+2. [Anthropic: Effective Context Engineering (Sep 2025)](https://anthropic.com/engineering/effective-context-engineering-for-ai-agents)
+3. [Anthropic: Effective Harnesses for Long-Running Agents (Nov 2025)](https://anthropic.com/engineering/effective-harnesses-for-long-running-agents)
+4. [MCP Specification: Architecture](https://modelcontextprotocol.io/specification/2024-11-05/architecture)
+5. [Braintrust: Canonical Agent Architecture (Aug 2025)](https://braintrust.dev/blog/agent-while-loop)
+6. [Chip Huyen: Agents (Jan 2025)](https://huyenchip.com/2025/01/07/agents.html)
+7. [LangChain: Context Engineering for Agents (Jun 2025)](https://blog.langchain.com/context-engineering-for-agents)
+8. [Google A2A and MCP: Complementary (Apr 2025)](https://google.github.io/A2A/topics/a2a-and-mcp/)
+9. [OpenAI: Structured Outputs (Aug 2024)](https://openai.com/index/introducing-structured-outputs-in-the-api/)
+
+### Triage Results
+- (A) Reinforces: All 9 sources reinforce existing chapter themes (tool use evolution, memory, reliability)
+- (B) Extends: MCP, AGENTS.md, Skills, context engineering are new topics requiring a new section
+- (C) Out of scope: None
+
+### Changes Made
+- `_01-introduction.qmd`: Updated chapter overview to mention engineering stack section; added learning objective for MCP/AGENTS.md/context engineering
+- `_04-tools-memory-grounding.qmd`: Expanded MCP callout with forward reference to @sec-engineering-stack; replaced vague USB analogy with concrete description
+- NEW `_07-engineering-stack.qmd`: ~3000 words covering function calling evolution, MCP deep dive (architecture, wire format, 3 primitives, how LLMs use it), AGENTS.md/CLAUDE.md/Skills, context engineering, guardrails, trajectory evaluation
+- `_07-agents-in-practice.qmd` → `_08-agents-in-practice.qmd`: Renamed; expanded Claude Code case study with CLAUDE.md hierarchy, Skills, MCP integration, long-running session management (~700 new words)
+- `_08-frontiers.qmd` → `_09-frontiers.qmd`: Renamed only
+- `LLM and VLM Agentic Systems.qmd`: Updated include order for new numbering
+- `_99-closing.qmd`: Added engineering stack takeaway bullet; added 4 new curated resources (Anthropic guides, MCP spec, Braintrust)
+
+### Word Count Impact
+| Section | Before | After | Change |
+|---------|--------|-------|--------|
+| _01-introduction | ~2800 | ~2900 | +3.6% |
+| _04-tools-memory | ~3500 | ~3550 | +1.4% |
+| _07-engineering-stack | 0 | ~3000 | NEW |
+| _08-agents-in-practice | ~2000 | ~2700 | +35% |
+| _99-closing | ~2400 | ~2600 | +8.3% |
+
+### Notes
+- The _08-agents-in-practice section grew by 35% due to the Claude Code engineering stack expansion. This is above the 25% threshold noted in the update protocol, but justified because the original Claude Code case study was intentionally sparse on engineering details ("What it lacks" was only one paragraph). The expanded version fills a genuine gap.
+- Cross-references use @sec-* labels which are independent of file numbering, so the renumbering does not break any internal links.
+- The new _07 section uses 4 exercises (1 predict, 2 MCQ, 1 ordering implicit in the flow) and 2 D2 diagrams.

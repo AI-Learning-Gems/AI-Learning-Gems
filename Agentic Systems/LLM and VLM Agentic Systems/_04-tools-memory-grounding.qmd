@@ -78,7 +78,7 @@ Second, prompt-based approaches depend entirely on the model's ability to follow
 
 Third, and most importantly, Toolformer's self-supervised selection criterion (@eq-toolformer-criterion) ensures that the model only learns to call tools when doing so is *actually helpful*. Prompt-based approaches have no such filter; the model might call tools gratuitously, wasting compute and introducing errors. Gratuitous tool use is a real problem in practice: agents that over-use tools are slower and more error-prone than agents that use tools judiciously.
 
-The industry has converged on a middle ground: prompt-based function calling with structured output formats (JSON schemas that constrain the model's output to valid tool calls). Anthropic's [Model Context Protocol (MCP)](https://modelcontextprotocol.io/), introduced in late 2024, standardizes this by defining a protocol for LLMs to discover and call tools. The analogy is USB: just as USB standardized hardware peripherals, MCP standardizes tool interfaces for language models. The evolution from Toolformer's self-supervised learning (2023) through prompted function calling (2023-2024) to MCP (2024-2025) traces the field's progression from research proof-of-concept to engineering standard.
+The industry has converged on a middle ground: prompt-based function calling with *structured output formats* (JSON schemas that constrain the model's output to valid tool calls via constrained decoding). By 2024, every major provider (OpenAI, Anthropic, Google) offered native function-calling APIs with schema enforcement, and Anthropic's [Model Context Protocol (MCP)](https://modelcontextprotocol.io/), introduced in late 2024, standardized this further by defining an open protocol for LLMs to discover and call tools at runtime. MCP uses JSON-RPC 2.0 to let any AI application connect to any tool server through a single standard, reducing the N x M integration problem (N apps times M tools) to N + M. We cover MCP's architecture, wire format, and the broader engineering stack (AGENTS.md, CLAUDE.md, Skills) in detail in @sec-engineering-stack. The evolution from Toolformer's self-supervised learning (2023) through prompted function calling (2023-2024) to MCP (2024-2025) traces the field's progression from research proof-of-concept to engineering standard.
 :::
 
 ### Memory: The Four Types
@@ -275,11 +275,14 @@ MemGPT ([Packer et al., ICLR 2024](https://arxiv.org/abs/2310.08560)) addresses 
 The architecture has two tiers. The *main context* (analogous to RAM) is what fits in the LLM's context window: the system prompt, recent conversation history, and currently-active information. The *external context* (analogous to disk) is everything else: older conversations, archived facts, long documents, retrieved passages.
 
 The crucial innovation is that the LLM itself manages the paging. MemGPT gives the agent function-calling access to three memory management operations: 
-1. `core_memory_save(text)` writes important information from the main context to persistent storage; 
-2. `core_memory_search(query)` retrieves relevant information from external storage and loads it into the main context; and 
-3. `conversation_search(query)` searches through archived conversation history. 
 
-The LLM **learns** to use these operations proactively: when **it** detects that the context window is getting full, it archives less-important information; when **it** realizes it needs information from a past interaction, it retrieves it.
+- `core_memory_save(text)` writes important information from the main context to persistent storage; 
+
+- `core_memory_search(query)` retrieves relevant information from external storage and loads it into the main context; and 
+
+- `conversation_search(query)` searches through archived conversation history. 
+
+The LLM learns to use these operations **proactively**: when **it** detects that the context window is getting full, it archives less-important information; when **it** realizes it needs information from a past interaction, it retrieves it.
 
 ::: {.callout-note title="Think Hard: What would break in MemGPT's design, if the LLM could not reliably generate function calls to manage its own memory?"}
 

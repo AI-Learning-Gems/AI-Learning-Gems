@@ -22,6 +22,8 @@ The system succeeds at about 60% of her daily research tasks on the first try, a
 
 - **The reliability gap is the field's central obstacle.** Agents that score 70% on single trials often drop below 25% when required to succeed consistently ($\text{pass}^k$). Long-horizon tasks expose cascading failures. The compound error problem means that per-step improvements of even a few percentage points have outsized effects on end-to-end success.
 
+- **The engineering stack matters as much as the model.** The [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) standardizes how agents discover and call tools, reducing the N x M integration problem to N + M. Agent configuration files (AGENTS.md, CLAUDE.md, Skills) provide persistent procedural memory across sessions. Context engineering (curating the right tokens at each step) determines agent success more than prompt engineering alone. Production reliability requires guardrails, trajectory evaluation, and observability at every step.
+
 - **The most exciting frontiers are training agents with RL** (GRPO with verifiable rewards, where 14B models can beat 671B models), **automated agent design** ([ADAS](https://arxiv.org/abs/2408.08435), where meta-agents discover architectures that outperform hand-designed ones), and **agent safety**. Anthropic's finding that reward hacking generalizes to misalignment shows these risks are concrete, not hypothetical.
 
 ### Completed Concept Map
@@ -236,3 +238,11 @@ The best entry points for exploring this field further:
 - [SWE-agent paper (Yang et al., 2024)](https://arxiv.org/abs/2405.15793). Foundational reading on Agent-Computer Interface design. The insight that interface design matters as much as model capability applies far beyond coding.
 
 - [ADAS paper (Hu et al., 2024)](https://arxiv.org/abs/2408.08435). The most intellectually provocative paper in the field. Read this to understand the meta-problem of automated agent design.
+
+- [Anthropic: Building Effective Agents (Dec 2024)](https://www.anthropic.com/engineering/building-effective-agents). Anthropic's engineering guide to agentic systems. Five workflow patterns, the "start simple" principle, and tool design best practices. The single most practical resource for builders.
+
+- [Anthropic: Effective Context Engineering for AI Agents (Sep 2025)](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents). Context engineering as the successor to prompt engineering. Context rot, attention budgets, compaction, and just-in-time retrieval strategies.
+
+- [MCP Specification](https://modelcontextprotocol.io/specification/). The official specification for the Model Context Protocol. Essential reading for understanding how agents connect to tools at the protocol level.
+
+- [Braintrust: The Canonical Agent Architecture (Aug 2025)](https://braintrust.dev/blog/agent-while-loop). The while loop with tools pattern that underlies Claude Code, OpenAI Agents SDK, and most production agents. Clear treatment of tool design and context engineering in practice.
