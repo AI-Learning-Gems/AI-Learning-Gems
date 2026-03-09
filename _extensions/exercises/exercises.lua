@@ -267,8 +267,15 @@ local function handle_fillin(div)
     exercise_text = exercise_text .. item_text
 
     -- Check if this item contains the fill-in syntax {CORRECT|A: ...|B: ...|C: ...}
-    local fillin_match = item_text:match("{([^}]+)}")
-    if fillin_match and fillin_match:find("|") then
+    -- Iterate all {…} matches because LaTeX like $x^{10}$ also contains braces.
+    local fillin_match = nil
+    for candidate in item_text:gmatch("{([^}]+)}") do
+      if candidate:find("|") then
+        fillin_match = candidate
+        break
+      end
+    end
+    if fillin_match then
       -- Parse: first element is correct answer label, rest are options
       local parts = {}
       for part in fillin_match:gmatch("[^|]+") do

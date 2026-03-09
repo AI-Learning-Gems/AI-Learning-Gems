@@ -287,6 +287,18 @@ Complete the missing component in [this derivation/process/mapping]:
 
 ---
 
+## CRITICAL: Exercise Syntax Pitfalls (Read `exercise-syntax.md`)
+
+The Lua filter that powers exercises is sensitive to Pandoc's AST parsing. Violations produce exercises that render as raw text, fail to submit, or crash with JS errors. **Read the full `exercise-syntax.md` rule file** (in `.agent/rules/` or `.cursor/rules/exercise-syntax.mdc`). The most common mistakes:
+
+1. **Options as standalone paragraphs** (`A. text` with blank lines between) instead of bullet list (`- text` on consecutive lines). The filter only finds BulletList nodes. Paragraphs are invisible to it.
+2. **Letter prefixes on options** (`- A) text`, `- [A] text`). `A)` triggers Pandoc's ordered list parser, producing `<ol type="A">`. `[A]` renders as literal bracket text, duplicating the auto-assigned label. Do not use any prefix format.
+3. **Fill-in `{...}` wrapped in bold/italic** (`**{B|A: ...|B: ...}**`). Formatting hides the braces from the Lua pattern matcher.
+4. **LaTeX braces on the same numbered step as a fill-in blank** (`$x^{10}$ {B|...}`, `$\hat{\lambda}$ {B|...}`). The filter matches LaTeX braces first and misses the fill-in pattern. Move math to a different step, or rewrite using plain English.
+5. **Blank lines between bullet items** splits one BulletList into multiple BulletLists. Keep items on consecutive lines.
+
+---
+
 === EXERCISE BUDGET & PLACEMENT STRATEGY ===
 
 ## Per-Section Budget
@@ -357,8 +369,9 @@ The highest-value questions are those that:
 
 ### 1a. Re-read the exercise workflow (MANDATORY before EVERY section)
 
-Before touching a single paragraph, re-read this workflow file. Pay particular attention to:
+Before touching a single paragraph, re-read this workflow file AND the exercise syntax rules file (`exercise-syntax.md` in `.agent/rules/` or `.cursor/rules/exercise-syntax.mdc`). Pay particular attention to:
 - The 4 exercise types and their Quarto syntax
+- The **exercise syntax pitfalls** (bullet list format, no letter prefixes, fill-in restrictions on bold/LaTeX)
 - The placement rules (especially: MCQ after concepts, Prediction Prompt before surprising results, Ordering for processes, Fill-in after worked examples)
 - The design rules for each type (one concept per question, plausible distractors, explanatory feedback)
 - What makes a good exercise question (core insight not trivia, force discrimination, reference running example)
@@ -467,8 +480,11 @@ Before marking the workflow as complete, verify:
 - [ ] All exercises use the correct Quarto div syntax (`::: {.exercise-TYPE ...}` ... `:::`)
 - [ ] All exercises have a blank line before and after the outer `:::` delimiters
 - [ ] The `correct` attribute uses capital letters matching list order (A, B, C, D)
-- [ ] Options use Quarto bullet list syntax (`- text`), not HTML
-- [ ] Fill-in blanks use `{LETTER|A: text|B: text|C: text}` syntax
+- [ ] Options use Quarto bullet list syntax (`- text`), NOT HTML, NOT standalone paragraphs, NOT lettered paragraphs
+- [ ] Options are on consecutive lines with NO blank lines between them
+- [ ] Options do NOT have letter prefixes (`A)`, `B)`, `A.`, `B.`) — labels are auto-assigned
+- [ ] Fill-in blanks use `{LETTER|A: text|B: text|C: text}` syntax with NO bold/italic wrapping
+- [ ] Fill-in blanks do NOT share a numbered list item with LaTeX that contains braces (e.g., `$x^{10}$`)
 - [ ] Ordering `correct` attribute is a comma-separated letter sequence (e.g., `"C,A,D,B"`)
 
 **Cleanup Quality:**

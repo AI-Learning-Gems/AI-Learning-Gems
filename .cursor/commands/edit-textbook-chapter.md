@@ -279,7 +279,7 @@ This editing pass should ONLY improve prose — never flatten good instructional
 
 **DO NOT remove or compress:**
 - Processing pauses (white space, horizontal rules between sections)
-- Exercise blocks (`.exercise-mcq`, `.exercise-predict`, `.exercise-order`, `.exercise-fillin`) — edit prose inside them, but keep them
+- Exercise blocks (`.exercise-mcq`, `.exercise-predict`, `.exercise-order`, `.exercise-fillin`) — edit prose inside them, but keep them. **Do NOT change the structural syntax** (bullet list format, `{...|...}` fill-in patterns, `correct="..."` attributes, nested feedback div classes). If you edit prose inside an exercise, verify the result still follows the syntax rules in `exercise-syntax.md` / `.cursor/rules/exercise-syntax.mdc`.
 - Think Hard callouts (`.callout-note` boxes) — edit prose inside them, but keep them
 - Common Misconception callouts (`.callout-warning` boxes) — edit prose inside them, but keep them
 - Transitions between sections ("Now that we understand X, the next question is Y")
@@ -681,6 +681,7 @@ Before marking the editing pass as complete, verify:
 - [ ] All callout boxes preserved (type and title unchanged)
 - [ ] Instructional pacing and structure preserved
 - [ ] Factual content unchanged
+- [ ] Exercise blocks preserved with correct structural syntax (bullet list options, `{...|...}` fill-in patterns, `correct` attributes, nested feedback divs all intact per `exercise-syntax.md`)
 
 **Precision and Explicitness (Rule 12):**
 - [ ] All procedure outputs are explicitly listed and named
