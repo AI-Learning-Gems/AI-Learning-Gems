@@ -28,6 +28,25 @@ When the code fails (and it frequently does, especially for complex scientific c
 
 CodeAct became the foundation of **OpenHands** (formerly OpenDevin), an open-source platform for building coding agents. OpenHands provides the sandboxed execution environment, the observation-action loop infrastructure, and pre-built tools for file manipulation, web browsing, and terminal interaction that other scientific agents can build upon. When we discuss systems like Agent Laboratory or SELA below, keep in mind that they typically run *on top of* a CodeAct-style execution substrate. The ability to write and execute code is not their invention but their inherited foundation.
 
+::: {.exercise-mcq correct="C"}
+
+Why does CodeAct use executable Python code, rather than structured JSON commands, as the action language for LLM agents?
+
+- Python executes faster than JSON parsers on modern hardware, reducing agent latency.
+- LLMs were pre-trained primarily on Python code, so they generate Python more fluently than JSON.
+- Code is strictly more expressive than JSON (supporting variables, loops, error handling, and library access) and produces observable output that enables self-debugging.
+- JSON cannot represent scientific data types like arrays and matrices, whereas Python can.
+
+::: {.feedback-correct}
+Correct. CodeAct's key insight is that Python is a *strictly more expressive* action language: anything expressible in JSON can be expressed in Python, but Python additionally provides control flow, function definitions, error handling, and access to the full scientific Python ecosystem. Crucially, code execution produces observable output (error tracebacks, print statements) that the agent can read and react to, enabling autonomous self-debugging.
+:::
+
+::: {.feedback-incorrect}
+Option A is wrong: the advantage is expressiveness, not execution speed. Option B captures a partial truth but fluency is not CodeAct's stated rationale; the argument is about what the language *can express*. Option D is factually incorrect: JSON handles arrays and nested structures fine. The correct answer is C: code provides variables, loops, library access, and observable error output that JSON cannot support.
+:::
+
+:::
+
 For Maya, CodeAct represents the first concrete capability she could adopt today. Her computational experiments (molecular docking simulations, gene expression analyses, statistical tests) involve running Python and R scripts that she currently writes and debugs manually. A CodeAct-based agent could, in principle, take a natural language description of an analysis ("Run differential expression analysis between the disease and control samples, correcting for multiple comparisons, and export the top 50 genes as a table") and autonomously write, debug, and execute the corresponding code. The practical question is whether the agent's code would be correct and scientifically sound, a question that benchmarks are beginning to answer, as we will see in @sec-benchmarks.
 
 ### Structured Search Over Experiment Space
@@ -43,6 +62,20 @@ $$UCB(s) = \bar{v}(s) + c \cdot \sqrt{\frac{\ln N(s_{parent})}{N(s)}}$$
 where $\bar{v}(s)$ is the average observed performance of pipeline configurations descended from node $s$, $N(s)$ is the number of times node $s$ has been visited, $N(s_{parent})$ is the number of times the parent has been visited, and $c$ is an exploration constant that controls the tradeoff between exploration and exploitation.
 
 This formula tells SELA to favor nodes that have either (a) high average performance (the first term) or (b) been under-explored relative to their siblings (the second term). The result is a systematic exploration of the pipeline space that avoids two failure modes of naive approaches: pure random search (which wastes compute on unpromising configurations) and pure greedy search (which gets stuck in local optima).
+
+::: {.exercise-predict correct="B"}
+
+SELA applies Monte Carlo Tree Search (MCTS) to explore ML pipeline configurations, balancing exploration and exploitation via the UCB formula. On a benchmark of 20 diverse datasets, how do you think SELA performed against strong baselines (including traditional AutoML systems like Auto-sklearn)?
+
+- A 40-55% win rate: a modest improvement, since traditional AutoML systems are already highly optimized.
+- A 65-80% win rate: a substantial advantage, with the win rate increasing as more MCTS iterations were allowed.
+- A 90%+ win rate: MCTS completely dominated all baselines.
+
+::: {.predict-reveal}
+**The answer is B.** SELA achieved a **65-80% win rate** across 20 datasets, and the win rate increased with more compute (more MCTS iterations). This is substantial but not overwhelming: MCTS provides a principled way to explore fundamentally different pipeline strategies (avoiding the irreversibility trap of greedy refinement), but traditional AutoML is still competitive when the best pipeline is near the default configuration.
+:::
+
+:::
 
 On a benchmark of 20 diverse datasets, SELA achieved a **65-80% win rate** against strong baselines including single-pass LLM agents, iterative LLM agents, and traditional AutoML systems like Auto-sklearn. The win rate increased with the compute budget (more MCTS iterations), demonstrating the scalable benefit of structured search.
 
@@ -127,6 +160,3 @@ The *Nature* publication of Coscientist included extensive discussion of these s
 
 The key lesson from Agent Laboratory is that the most cost-effective approach is not full autonomy but strategic automation: let the AI handle the time-consuming mechanical work while the human provides strategic judgment at critical decision points.
 
-::: {.callout-note title="Self-Explanation Prompt"}
-Why might tree-search (SELA) produce better results than iterative refinement alone for ML experiments? Consider the structure of the experiment configuration space. What makes it similar to Go (where MCTS was transformative) and different from a simple optimization surface?
-:::

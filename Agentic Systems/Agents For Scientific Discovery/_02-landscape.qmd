@@ -14,6 +14,21 @@
 
 ### Three Ages of AI in Science
 
+::: {.exercise-order correct="C,A,D,B"}
+
+Arrange these developments in chronological order, from earliest to most recent:
+
+- GPT-4 is combined with 18 chemistry tools (ChemCrow), allowing a single LLM to decide which tool to use and when during a research task.
+- A multi-agent system (Robin) autonomously discovers a drug repurposing candidate for macular degeneration, executing the full pipeline from literature review to candidate ranking in days.
+- AlphaFold predicts protein structures with atomic accuracy, revolutionizing structural biology, but researchers must still manually decide when and how to use it.
+- The AI Scientist writes complete research papers autonomously for under $15, including code, experiments, figures, and peer review.
+
+::: {.order-feedback}
+**Correct order: C, A, D, B.** AlphaFold (2020-2021, Pre-LLM Era) was a specialized instrument that did one task superbly but required humans for everything else. ChemCrow (April 2023, Tool-Augmented Era) marked the shift to LLMs as integration layers that could choose among tools. The AI Scientist (August 2024) and Robin (2025) belong to the Agentic Era, where systems drive multi-step research with increasing autonomy. This progression illustrates the three ages: AI as specialized instrument, AI as versatile assistant, AI as semi-autonomous researcher.
+:::
+
+:::
+
 To understand where we are, it helps to understand how we got here. The history of AI in scientific research can be divided into three distinct eras, each defined by a qualitative shift in the relationship between the AI system and the human researcher. Maya's own career, spanning the mid-2010s to the present, runs neatly through all three.
 
 **The Pre-LLM Era (before 2023): AI as Specialized Instrument.** In this era, machine learning models served as precision instruments for specific prediction tasks within the scientific workflow. AlphaFold predicted protein structures from amino acid sequences. Graph neural networks predicted molecular properties. Random forests classified cell types from single-cell RNA sequencing data. These tools were powerful (AlphaFold's impact on structural biology was genuinely revolutionary), but they operated within tight boundaries. A researcher needed to do four things: (a) know the tool existed; (b) format their data into the tool's expected input; (c) interpret the output in the context of their research question; and (d) decide what to do next based on the results. The AI did one thing superbly; the researcher did everything else.
@@ -62,6 +77,25 @@ The key signature of Level 2 is *tactical autonomy*: the system makes a sequence
 
 The key signature of Level 3 is *strategic autonomy*: the system chooses *what* to investigate, not just *how*. This is also where the most dramatic failures occur, because strategic decisions require the kind of scientific judgment that current LLMs struggle with most: distinguishing important problems from trivial ones, recognizing when a result is "too good to be true," and understanding the context that makes a finding significant.
 
+::: {.exercise-mcq correct="B"}
+
+A researcher gives an AI system a dataset of clinical trial results and asks it to "find anything interesting." The system autonomously explores the data, identifies a surprising correlation, formulates a hypothesis, designs a follow-up experiment, and writes a research proposal. Where does this system fall on the Tool, Analyst, Scientist taxonomy?
+
+- Level 1 (Tool), because the human provided the dataset and initiated the task.
+- Level 3 (Scientist), because the system chose what to investigate and proposed its own research direction.
+- Level 2 (Analyst), because the system performed a multi-step workflow on a given dataset.
+- Level 3 (Scientist), because the system wrote a research proposal rather than just returning results.
+
+::: {.feedback-correct}
+Correct. The defining feature of Level 3 is *strategic autonomy*: the system decides *what* to investigate, not just *how*. Here, the human provided data but did not specify a target variable, hypothesis, or evaluation metric. The system independently identified a research question and designed an experiment. That is the hallmark of Level 3.
+:::
+
+::: {.feedback-incorrect}
+Option A is wrong: providing data does not make every downstream system Level 1. Level 1 means the AI handles a single well-defined task, not open-ended exploration. Option C is tempting because the system does perform multiple steps, but Level 2 requires a *constrained pipeline* with a human-defined goal. Here the system chose its own goal. Option D identifies the wrong distinguishing feature: writing a proposal is an output format, not what defines autonomy level.
+:::
+
+:::
+
 ::: {.callout-warning title="Common Misconception: Higher levels are always better"}
 It is tempting to view this taxonomy as a ladder where Level 3 is the goal and Levels 1 and 2 are mere stepping stones. This framing is misleading. For many practical research scenarios, a Level 2 system that reliably automates data analysis (like DS-Agent, which achieves 100% task completion with GPT-4 on Kaggle datasets) is far more useful than a Level 3 system that attempts the full research cycle but succeeds only 25-34% of the time (as benchmarks show). The right level depends on the task, the risk tolerance, and the value of human judgment in the loop. Maya does not need an AI that replaces her. She needs an AI that saves her six months on literature review while she applies her irreplaceable domain expertise to evaluating the hypotheses.
 :::
@@ -84,6 +118,20 @@ With the taxonomy and building blocks in hand, we can now draw a map of the curr
 
 First, there is a clear **diagonal** from lower-left (Level 1 tools targeting single steps) to upper-right (Level 3 systems targeting the full cycle). Most existing systems cluster along this diagonal, suggesting that autonomy level and workflow scope tend to scale together.
 
+::: {.exercise-predict correct="B"}
+
+Based on what you have learned about the three autonomy levels, which level do you think currently achieves the *highest success rates* on standardized benchmarks?
+
+- Level 1 (Tool), because narrow tools are the most reliable at their specific tasks.
+- Level 2 (Analyst), because constrained multi-step workflows with human-defined goals hit a sweet spot of capability and reliability.
+- Level 3 (Scientist), because full-cycle systems have the most sophisticated architectures and the most compute.
+
+::: {.predict-reveal}
+**The answer is B.** Level 2 systems are the current sweet spot. DS-Agent achieves 100% task completion on Kaggle datasets; PaperQA2 demonstrates superhuman literature search. Level 3 systems like The AI Scientist generate the most excitement but score only 25-34% on broad benchmarks. The reason is structural: Level 2 systems receive a human-defined problem (eliminating the hardest part of research, *choosing what to investigate*), then operate within a constrained space where evaluation criteria are clear. Level 3 systems must simultaneously decide *what* to investigate and *how*, and errors in problem selection cascade through every subsequent step.
+:::
+
+:::
+
 Second, there is notable **density at Level 2**, the analyst level, where the most practically successful systems live. DS-Agent, PaperQA2, LIDA, SELA, and ChemCrow are all Level 2 systems that have demonstrated reliable, measurably valuable performance on real-world tasks. The Level 3 systems (AI Scientist, Robin, Google co-scientist) generate the most excitement but are also the most contested. Their successes are dramatic; their failure rates, as we will see in @sec-benchmarks, remain high.
 
 ::: {.callout-note title="Think Hard: Why the 'analyst' level is the current sweet spot"}
@@ -94,6 +142,3 @@ This asymmetry mirrors a well-known phenomenon in human research: senior scienti
 
 **Where Maya fits.** After learning this taxonomy, Maya realizes that her current use of LLMs is solidly Level 1 (brainstorming, coding assistance). She sees that Level 2 tools like PaperQA2 (for literature synthesis) and DS-Agent (for data analysis) could immediately accelerate her work without requiring her to trust an AI with strategic decisions. The Level 3 systems (Robin, Google co-scientist, AI Scientist) are intriguing but not ready for her high-stakes drug repurposing work, where a false positive could waste months of wet-lab validation time. This calibrated assessment, choosing the right autonomy level for the task and risk, is exactly what the taxonomy is designed to enable.
 
-::: {.callout-note title="Self-Explanation Prompt"}
-Where does your own use of LLMs for research fall on the Tool → Analyst → Scientist spectrum? What capabilities would need to improve most for agents to move reliably from the Analyst to the Scientist level?
-:::

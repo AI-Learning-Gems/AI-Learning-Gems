@@ -27,6 +27,25 @@ Before we examine specific benchmark results, we need to understand why evaluati
 
 These challenges mean that benchmark results for scientific agents should be interpreted with more nuance than benchmark results for, say, image classifiers. A "25% success rate" on DiscoveryBench is not comparable to "25% accuracy" on ImageNet. The tasks are harder, the evaluation is noisier, and partial success is more common (and more useful) than the binary metric suggests.
 
+::: {.exercise-mcq correct="C"}
+
+Why is evaluating AI research agents fundamentally harder than evaluating AI systems for well-defined tasks like code completion or question answering?
+
+- Scientific tasks take longer to execute, so evaluation is more expensive in compute time.
+- Scientific benchmarks have fewer test cases, making statistical significance harder to achieve.
+- Scientific tasks are open-ended (multiple valid approaches), compositional (requiring chaining capabilities where accuracy decomposes multiplicatively), and resist binary scoring (partial credit is common but hard to measure).
+- Current LLMs are not yet large enough to handle scientific reasoning, so evaluation results are unreliable.
+
+::: {.feedback-correct}
+Correct. Three structural challenges make scientific evaluation qualitatively different: (1) *open-endedness* with multiple valid approaches, (2) *compositionality* where $0.8^5 = 33\%$ end-to-end accuracy even with 80% per-step accuracy, and (3) *partial credit* that binary metrics cannot capture. These challenges exist regardless of model size.
+:::
+
+::: {.feedback-incorrect}
+Option A is about cost, not evaluation difficulty. Option B is partially true but not the fundamental issue. Option D conflates model capability with evaluation design. The correct answer is C: the three structural challenges make this a qualitatively different evaluation problem.
+:::
+
+:::
+
 ### DiscoveryBench: The Data-Driven Discovery Benchmark
 
 **DiscoveryBench** ([Majumder et al., 2024](https://arxiv.org/abs/2407.01725)) was the first benchmark to formalize the task of *data-driven scientific discovery*: not just data analysis or code generation, but the full process of taking a dataset and discovering a meaningful insight from it. This distinction matters: writing code to compute a correlation is data analysis; realizing that the correlation reveals an unexpected biological mechanism is data-driven discovery.
@@ -109,6 +128,20 @@ The tasks ranged from relatively structured (improve accuracy on CIFAR-10 by mod
 
 MLGym defined **13 open-ended ML research tasks**, covering areas from low-rank approximation to feature selection to novel optimization algorithms. The tasks were designed to test not just ML engineering skill but *research creativity*: the ability to generate novel hypotheses about how to improve performance.
 
+::: {.exercise-predict correct="B"}
+
+MLGym (Meta, 2025) created the first Gym-style environment for ML research tasks. It tested whether frontier models (GPT-4, Claude 3.5 Sonnet) can perform genuine ML *research*: not just applying methods but generating novel hypotheses and architectures. What do you think the headline finding was?
+
+- Frontier models generated novel hypotheses and architectures that significantly outperformed human baselines.
+- Frontier models could find better hyperparameters but could not generate novel hypotheses, algorithms, or substantial architectural improvements.
+- Frontier models failed completely, performing no better than random search on all tasks.
+
+::: {.predict-reveal}
+**The answer is B.** Frontier models excelled at *optimization within a known framework* (trying different learning rates, adding dropout, adjusting batch size) but did not propose structurally different approaches (new loss functions, novel architectural motifs, creative data augmentation strategies). This distinction between parameter tuning and hypothesis generation is a key bottleneck for the field.
+:::
+
+:::
+
 **The headline finding was sobering:** frontier models (GPT-4, Claude 3.5 Sonnet) could **find better hyperparameters** (outperforming default configurations through systematic search) but **could not generate novel hypotheses, algorithms, architectures, or substantial improvements.** The models excelled at optimization within a known framework (try learning rate 0.001 instead of 0.01, add dropout, adjust batch size) but did not propose structurally different approaches (a new loss function, a novel architectural motif, a creative data augmentation strategy). This finding directly challenges the most ambitious claims in the field. If frontier LLMs cannot generate novel ML research ideas even in a controlled environment with clear feedback signals, then the path to AI-driven scientific breakthroughs is longer than the headline demonstrations suggest.
 
 ::: {.callout-warning title="Common Misconception: More parameters equals better scientific reasoning"}
@@ -139,6 +172,21 @@ Understanding this gap is essential for making informed decisions about when to 
 | BoxingGym | 2025 | 10 envs | Psychology, ecology | LLM baselines | Suboptimal | LLMs choose experiments far below Bayesian optimal |
 | MLGym | 2025 | 13 | ML | GPT-4 / Claude 3.5 | Better params only | Frontier models cannot generate novel hypotheses |
 
+::: {.exercise-order correct="D,A,C,B"}
+
+The benchmarks test progressively harder scientific capabilities. Arrange these four capabilities from **easiest** (where agents perform best) to **hardest** (where agents struggle most):
+
+- Generating correct code for a specific scientific analysis (ScienceAgentBench: 34.3% success)
+- Generating novel hypotheses and algorithms (MLGym: frontier models failed entirely)
+- Extracting data-driven discoveries from datasets (DiscoveryBench: 25% success)
+- Performing basic data analyses and computing descriptive statistics (BLADE: agents handle these adequately)
+
+::: {.order-feedback}
+**Correct order: D, A, C, B.** Basic analysis (D) is easiest: agents reliably compute statistics and distributions. Scientific code generation (A, 34.3%) is next. Data-driven discovery (C, 25%) is harder because it requires choosing *which* analysis to run. Novel hypothesis generation (B) is hardest: frontier models could not do it at all. This reveals a capability gradient: execution > task completion > insight extraction > creative ideation.
+:::
+
+:::
+
 ::: {.callout-note title="Think Hard: The best agents solve only 25-42% of benchmark tasks. Is this glass half-full or half-empty?"}
 The answer depends on your frame of reference.
 
@@ -151,6 +199,3 @@ The honest assessment lies between these perspectives: AI research agents are us
 
 **Where Maya stands at the end of the chapter.** Maya now has a complete, realistic picture of the field. She knows that PaperQA2 can accelerate her literature review to superhuman speed. She knows that DS-Agent can help with data analysis, and that LIDA can generate visualizations. She knows that Agent Laboratory can reduce her overall research costs by 84%. But she also knows that even the best agents solve only 25-42% of realistic scientific tasks, that their analyses tend toward the superficial, and that their most impressive demonstrations may not generalize to her specific domain. Her conclusion, and the chapter's conclusion, is that the right approach is *selective augmentation*: deploy AI agents where they are demonstrably reliable (literature search, routine coding, visualization), maintain human oversight where they are not (hypothesis evaluation, result interpretation, scientific judgment), and watch the benchmarks closely for signs that the reliability frontier is advancing. The AI will not write her next paper for fifteen dollars. But it might save her six months of literature review, and that is transformative enough to be getting on with.
 
-::: {.callout-note title="Self-Explanation Prompt"}
-Why might an agent perform well on synthetic benchmark tasks but poorly on real-world scientific problems? The best agents solve only 25-42% of benchmark tasks: is this glass half-full or half-empty? What rate of improvement would be needed for these systems to be practically useful for your own research workflow?
-:::

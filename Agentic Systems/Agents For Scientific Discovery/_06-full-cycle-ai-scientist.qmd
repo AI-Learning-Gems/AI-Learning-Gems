@@ -31,6 +31,22 @@ The system operated in five sequential phases:
 
 **Phase 5: Automated Peer Review.** In perhaps the most meta aspect of the entire system, the AI Scientist also played the role of *reviewer*: it evaluated the finished paper using a structured rubric (similar to those used by ML conferences like NeurIPS and ICML), scoring the paper on novelty, significance, soundness, and clarity. This automated review served as both a quality filter and a signal for which papers were worth improving through additional revision cycles.
 
+::: {.exercise-fillin}
+
+The AI Scientist v1 operates in five sequential phases. Fill in the missing phase:
+
+1. **Idea Generation** — brainstorm research questions, evaluate for novelty/feasibility/significance
+2. **Experiment Implementation** — translate the selected idea into code by modifying a human-authored template
+3. {B|A: Literature Review and Citation — search for and synthesize relevant prior work|B: Experiment Execution and Analysis — run code, analyze results, generate figures and tables|C: Hypothesis Refinement — use review to iteratively improve the research question}
+4. **Paper Writing** — write a complete LaTeX paper with introduction, methods, results, discussion
+5. **Automated Peer Review** — evaluate the paper using a structured rubric
+
+::: {.fillin-feedback}
+**Correct: B (Experiment Execution and Analysis).** After implementing the code (Phase 2), the system must actually *run* it, execute multiple runs with different hyperparameters, analyze results for statistical significance, and generate publication-quality figures. Option A (Literature Review) is actually part of Phase 4 (Paper Writing), where the system uses Semantic Scholar's API. Option C (Hypothesis Refinement) is not a separate phase in v1; the system commits to one idea after Phase 1.
+:::
+
+:::
+
 ### What Fifteen Dollars Buys You
 
 The outputs of the AI Scientist were, by any measure, a mixed bag. Honestly examining both the successes and failures is more informative than celebrating the headline.
@@ -40,6 +56,25 @@ The outputs of the AI Scientist were, by any measure, a mixed bag. Honestly exam
 **The failures were equally genuine, and instructive.** The literature reviews were often superficial: the system cited real papers but did not engage deeply with their findings or correctly position the new work relative to them. The experiment execution sometimes produced buggy results that the system failed to detect, including numerical errors, incorrect baselines, or results that looked plausible but were artifacts of implementation mistakes. Most seriously, the system occasionally made claims in the paper that were not fully supported by the experimental evidence. These are the kind of overstatements that human peer reviewers routinely catch, but identifying them requires deep reading and domain knowledge. Several generated papers contained "the notorious numerical hallucination problem," where specific numbers in the text did not match the numbers in the accompanying figures or tables.
 
 These failure modes are not crippling, but they are structurally important. They reveal that the *format* of scientific communication (the flow of a paper, the structure of an argument, the visual design of figures) is something LLMs can reproduce competently, while the *substance* of scientific reasoning (ensuring claims are supported, identifying subtle errors, positioning contributions accurately in the existing literature) is something they handle unevenly at best.
+
+::: {.exercise-mcq correct="B"}
+
+The AI Scientist's automated reviewer achieves near-human accuracy at predicting paper quality, while paper *generation* is more uneven. Why is evaluation easier than generation for LLM-based systems?
+
+- The reviewer uses a more powerful LLM than the paper generator.
+- Evaluation requires checking focused, answerable properties (Are claims supported? Are baselines appropriate?), while generation requires simultaneously satisfying all quality properties while constructing a novel argument, a harder combinatorial challenge.
+- The reviewer is fine-tuned on human review data, while the paper generator uses only zero-shot prompting.
+- Evaluation is a classification task (good vs. bad), which LLMs are fundamentally better at than open-ended text generation.
+
+::: {.feedback-correct}
+Correct. The asymmetry is structural, not about model choice. A reviewer can decompose the task into focused checks: "Is claim X supported by evidence Y?" Each check is answerable in isolation. The generator must satisfy *all* properties simultaneously while constructing a novel argument. This is the same asymmetry that explains why chess engines could evaluate positions before they could play at master level.
+:::
+
+::: {.feedback-incorrect}
+Option A is wrong: the same underlying LLM is used for both. Option C is wrong: the reviewer uses a structured rubric, not fine-tuned weights. Option D oversimplifies: review is not binary classification but structured scoring across multiple dimensions. The correct answer is B: evaluation decomposes into focused checks, while generation is a combinatorial challenge.
+:::
+
+:::
 
 ::: {.callout-note title="Think Hard: Why does the AI Scientist's automated reviewer achieve near-human performance while the paper generation has significant shortcomings?"}
 This asymmetry (good evaluation, mediocre generation) is not accidental. It reflects a well-understood principle in both AI and human cognition: *evaluation is easier than generation.*
@@ -69,6 +104,20 @@ The milestone achievement of v2 was that a paper generated entirely by the syste
 AI Scientist v1 and v2 both generate ideas and execute them, but they treat each paper as a standalone attempt. A natural question is whether the system can *learn from its own experimental results* to generate better ideas over time. **Execution-Grounded Automated AI Research** ([Si et al., ICML 2025](https://arxiv.org/abs/2601.14525)) directly investigates this question at scale, building an automated executor that implements LLM-generated research ideas as code, launches parallel GPU experiments, and feeds the results back to the idea generator.
 
 Si et al. studied two realistic AI research environments: LLM pre-training (optimizing nanoGPT training recipes) and post-training (improving GRPO-based reinforcement learning). The system sampled hundreds of ideas from frontier LLMs, implemented each as code, ran the experiments, and collected performance metrics. Two learning algorithms were compared for improving idea generation from this execution feedback.
+
+::: {.exercise-predict correct="A"}
+
+Si et al. (ICML 2025) built a system that implements LLM-generated research ideas as code, runs experiments, and feeds results back to improve idea generation. They compared evolutionary search (variation + selection + recombination) with reinforcement learning from execution reward. Which approach performed better?
+
+- Evolutionary search dominated: it found ideas that significantly outperformed baselines, while RL suffered from diversity collapse (converging on safe, mediocre ideas).
+- RL dominated: gradient-based optimization found better ideas faster.
+- Both performed comparably: the search algorithm mattered less than the quality of the underlying LLM.
+
+::: {.predict-reveal}
+**The answer is A.** Evolutionary search found a post-training method improving accuracy from 48.0% to 69.4% and a pre-training recipe that nearly halved training time. RL suffered from *diversity collapse*: it improved average reward but not the upper bound, because models converged on safe, simple ideas rather than exploring novel directions. RL optimizes for *expected* performance, which penalizes high-variance exploration. But the most valuable scientific ideas are precisely the high-variance ones.
+:::
+
+:::
 
 **Evolutionary search** proved remarkably sample-efficient. Starting from a population of LLM-generated ideas, the system applied variation (mutating successful ideas), selection (keeping top performers), and recombination (merging elements from different successful approaches). Within just ten search epochs, evolutionary search found a post-training method that significantly outperformed the GRPO baseline (69.4% vs. 48.0% accuracy), and a pre-training recipe that cut nanoGPT training time nearly in half (19.7 minutes vs. 35.9 minutes). These are not trivial improvements; they represent the kind of gains that would earn a workshop paper if discovered by a human researcher.
 
@@ -121,6 +170,3 @@ A paper that has a correct structure, plausible experiments, and incremental res
 
 **Where Maya stands after this section.** Maya can now see the full spectrum of approaches. At one extreme, The AI Scientist offers complete autonomy: she could feed in her drug repurposing topic and potentially receive a draft paper, but she would need to extensively verify every claim, check every analysis, and validate every citation. At the other extreme, Agent Laboratory offers structured augmentation: the AI would accelerate her literature review, help design and run computational experiments, and draft sections of her report, but she would provide feedback at each stage, maintaining quality control. In between, Robin and Google's AI co-scientist offer targeted autonomy in hypothesis generation. They might identify drug repurposing candidates that she would not have found through manual literature review, but she would still need to validate them through her own computational and experimental work. Given the stakes of her research (false positives waste months of wet-lab effort), Maya would likely choose the Agent Laboratory approach for her next project, supplementing her literature review with PaperQA2 or Robin to surface AI-generated candidates that she evaluates herself.
 
-::: {.callout-note title="Self-Explanation Prompt"}
-What role does human feedback play in Agent Laboratory, and at what point (if ever) might this become unnecessary? Consider what types of human judgments are most valuable (problem selection? methodology review? interpretation of results?) and how you would measure whether an AI system had become reliable enough at each type to remove the human from the loop.
-:::

@@ -32,6 +32,25 @@ In the **deployment phase**, when DS-Agent encounters a new data science task, i
 
 The results were striking: DS-Agent achieved a **100% task completion rate** with GPT-4 on a benchmark of Kaggle-style data science tasks. Every task was completed successfully, and the solutions were competitive with expert human solutions. The same GPT-4 model, without the CBR knowledge base, achieved significantly lower performance. The knowledge base, not the model's inherent capabilities, was the critical factor.
 
+::: {.exercise-mcq correct="D"}
+
+DS-Agent achieves 100% task completion with GPT-4 on Kaggle-style data science tasks. What is the primary advantage of its case-based reasoning (CBR) approach over simply prompting the same GPT-4 model to "analyze this dataset"?
+
+- CBR fine-tunes GPT-4's weights on Kaggle data, permanently improving its data science capabilities.
+- CBR restricts GPT-4 to only use scikit-learn, preventing it from wasting time on inappropriate libraries.
+- CBR breaks the analysis into smaller subtasks, each handled by a separate specialized LLM.
+- CBR provides an explicit, retrievable library of expert strategies indexed by data characteristics, so the model matches proven approaches to specific problem types rather than relying on diffuse, implicit knowledge from pre-training.
+
+::: {.feedback-correct}
+Correct. The core advantage is making expert knowledge *explicit and retrievable*. Without CBR, GPT-4 draws on implicit statistical patterns from pre-training. CBR supplies a structured library of "when the data looks like X, approach Y works because Z," extracted from expert Kaggle solutions. This is analogous to the difference between asking an analyst to reason from memory versus handing them a handbook indexed by problem type.
+:::
+
+::: {.feedback-incorrect}
+Option A is wrong: CBR operates at inference time through retrieval, not by fine-tuning weights. Option B is wrong: CBR does not restrict library choices. Option C describes a multi-agent architecture, which is not how DS-Agent works. The correct answer is D: CBR converts diffuse pre-training knowledge into an explicit, indexed knowledge base that reliably matches strategies to data characteristics.
+:::
+
+:::
+
 ::: {.callout-note title="Think Hard: How does DS-Agent's case-based reasoning differ from simply prompting an LLM to 'analyze this dataset'?"}
 The difference is both subtle and profound. When you prompt an LLM to "analyze this dataset," the model draws on statistical patterns learned during pre-training: it knows, in a loose sense, that classification tasks often benefit from ensemble methods, that time series data needs trend-deseasonalization, that class-imbalanced datasets need oversampling or weighted losses. But this knowledge is *diffuse*, encoded implicitly across billions of parameters, and the model has no reliable mechanism for selecting the right approach for a specific dataset's characteristics. DS-Agent's case-based reasoning makes this knowledge *explicit and retrievable*: a structured library of "when the data looks like X, approach Y works well because Z." This is analogous to the difference between asking a junior data scientist "How would you analyze this?" (they draw on hazy memories of textbook techniques) versus giving them a handbook of successful approaches indexed by problem type (they retrieve and adapt proven solutions). The handbook does not make the junior data scientist smarter, but it dramatically improves their effectiveness. The same principle applies to LLMs: explicit knowledge injection through retrieval outperforms implicit knowledge extraction through prompting, especially for tasks that require matching strategies to specific data characteristics.
 :::
@@ -66,6 +85,20 @@ The deepest form of scientific discovery is not describing what happens or predi
 2. **Coefficient optimization**: for each proposed skeleton, an external optimizer (typically scipy's `curve_fit` or similar) fits the numerical coefficients ($a$, $b$, $c$, $n$ in the example above) to minimize the prediction error on the data.
 
 3. **Evolutionary refinement**: the best-performing skeletons are fed back to the LLM along with their performance metrics, and the LLM proposes variations, modifying terms, adding corrections, or combining successful subexpressions. This cycle repeats, with each generation producing progressively better-fitting equations.
+
+::: {.exercise-predict correct="C"}
+
+LLM-SR combines the LLM's scientific priors with evolutionary optimization to discover equations. How do you think it performs on *out-of-distribution* tasks (equations the LLM likely never saw during training)?
+
+- It outperforms on in-distribution tasks but performs worse on out-of-distribution tasks, because its priors bias it toward known equation types.
+- It performs comparably to traditional methods on both in-distribution and out-of-distribution tasks.
+- It outperforms on both in-distribution *and* out-of-distribution tasks, suggesting the LLM captures structural regularities in scientific equations that generalize beyond memorized forms.
+
+::: {.predict-reveal}
+**The answer is C.** LLM-SR outperformed traditional symbolic regression on both in-distribution and out-of-distribution tasks. The out-of-distribution result is the most significant finding: it suggests the LLM has learned not specific equations but *structural regularities* in the space of scientific equations (e.g., that exponential decay terms appear in kinetic systems, that periodic terms suggest oscillatory phenomena). These structural priors narrow the search space without preventing discovery of genuinely new equations.
+:::
+
+:::
 
 LLM-SR outperformed prior state-of-the-art symbolic regression methods on a benchmark of scientific equation discovery tasks, including both in-distribution (equations similar to those in the LLM's training data) and, critically, *out-of-distribution* tasks (equations that the LLM had likely never seen). The out-of-distribution performance is the most significant result, because it suggests that the LLM's contribution is not mere memorization of known equations but a genuine understanding of the *structure* of mathematical relationships in science. The model knows, for example, that exponential decay terms commonly appear in kinetic systems, or that periodic terms suggest oscillatory phenomena.
 
@@ -119,6 +152,3 @@ It is easy to dismiss chart understanding as a secondary capability; after all, 
 
 **Where Maya stands after this section.** Maya now has a concrete picture of how AI agents could help with her data analysis workflow. DS-Agent's CBR approach could help her systematically build ML models for predicting drug-protein interactions, using strategies from expert data scientists rather than relying on her own limited ML expertise. LIDA or DataVoyager could accelerate the creation of publication-quality figures, turning hours of matplotlib tweaking into minutes of natural language interaction. LLM-SR could potentially discover mathematical relationships in her dose-response data that she might miss with standard curve-fitting approaches. And Box's Loop could automatically discover the appropriate statistical model for her complex, non-standard dose-response data, rather than forcing her to choose from a textbook menu of standard models. The key realization is that each of these tools addresses a different aspect of the data analysis challenge, and the most effective approach would combine them: DS-Agent for ML modeling, Box's Loop for statistical modeling, LIDA for visualization, LLM-SR for equation discovery, and her own domain expertise for interpretation.
 
-::: {.callout-note title="Self-Explanation Prompt"}
-How does DS-Agent's case-based reasoning differ from simply prompting an LLM to "analyze this dataset"? Why might LLM-SR's incorporation of scientific priors lead to better out-of-domain generalization than pure symbolic regression? Consider what kind of "knowledge" is being brought to bear in each case, and where that knowledge comes from.
-:::
