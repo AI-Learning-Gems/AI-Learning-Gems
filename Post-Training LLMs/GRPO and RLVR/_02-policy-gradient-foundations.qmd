@@ -54,8 +54,23 @@ $$
 
 The baseline vanishes in expectation: it does not bias the gradient, but it *does* reduce variance. If $B(q)$ is close to the true expected reward, then the advantage $R - B$ is small in magnitude, and the gradient variance drops dramatically. Outputs that are about as good as expected get near-zero advantage (little gradient signal). Only outputs that are *surprisingly* good or bad produce large gradients. This selective amplification is exactly the signal a learning algorithm wants.
 
-::: {.callout-tip title="Self-Explanation Prompt"}
-Why does subtracting a baseline from the return not change the *expected* gradient? What would happen if the baseline depended on the current action $o_t$ (not just the state $q, o_{<t}$)?
+::: {.exercise-mcq correct="B"}
+
+Subtracting a baseline $B(q)$ from the reward does not bias the policy gradient. Which mathematical property is *directly* responsible for this unbiasedness?
+
+- The baseline $B(q)$ is chosen to equal the expected reward, so the subtracted term is zero on average
+- The expected value of the score function $\nabla_\theta \log \pi_\theta(o_t \mid q, o_{<t})$ over actions is zero, so multiplying it by any action-independent constant yields zero in expectation
+- The gradient of the baseline with respect to $\theta$ is zero because $B(q)$ does not depend on $\theta$
+- The baseline cancels out when summing over all tokens in the output sequence
+
+::: {.feedback-correct}
+Correct! The score function (gradient of log-probability) has zero expectation over the action distribution: $\sum_{o_t} \pi_\theta(o_t) \nabla_\theta \log \pi_\theta(o_t) = \nabla_\theta \sum_{o_t} \pi_\theta(o_t) = \nabla_\theta 1 = 0$. Multiplying this zero-expectation quantity by any action-independent baseline $B(q)$ still yields zero in expectation. The baseline need not equal the expected reward for unbiasedness to hold; any function of $q$ alone works.
+:::
+
+::: {.feedback-incorrect}
+Not quite. The key property is that the score function $\nabla_\theta \log \pi_\theta(o_t \mid q, o_{<t})$ has zero expectation when averaged over all possible actions $o_t$. This follows from $\nabla_\theta \sum_{o_t} \pi_\theta(o_t) = \nabla_\theta 1 = 0$. Because the score function averages to zero, multiplying it by *any* action-independent quantity $B(q)$ still averages to zero. Option A is tempting but wrong: unbiasedness holds for any baseline, not just $B(q) = \mathbb{E}[R]$.
+:::
+
 :::
 
 The best possible baseline is the expected reward itself: $B(q) = \mathbb{E}_{o \sim \pi_\theta}[R(q, o)]$. In practice, we do not know this expectation, so we estimate it. This leads directly to the idea of a **value function**.
@@ -94,9 +109,42 @@ $$ {#eq-ppo-kl-reward}
 
 This combination of clipping plus KL regularization makes PPO remarkably stable in practice. PPO became the dominant algorithm for RLHF training of LLMs, used by OpenAI for ChatGPT, Anthropic for Claude, and many others.
 
+::: {.exercise-mcq correct="D"}
+
+Consider a token $o_t$ with positive advantage ($\hat{A}_t > 0$) and an importance sampling ratio of $r_t(\theta) = 1.35$ with clipping parameter $\epsilon = 0.2$. What happens to the gradient contribution from this token in PPO's clipped objective?
+
+- The gradient is amplified because the policy is moving in the right direction and the ratio exceeds $1 + \epsilon$
+- The gradient is zeroed out because the ratio is outside the clipping range
+- The gradient is set to exactly $1.2 \cdot \hat{A}_t$ by substituting the clipped ratio
+- The gradient is clipped: the objective uses $1.2 \cdot \hat{A}_t$ instead of $1.35 \cdot \hat{A}_t$, limiting the reward for moving too far from the old policy
+
+::: {.feedback-correct}
+Correct! When $\hat{A}_t > 0$ and $r_t > 1 + \epsilon$, the $\min$ operator selects the clipped term $\text{clip}(r_t, 0.8, 1.2) \cdot \hat{A}_t = 1.2 \cdot \hat{A}_t$, which is smaller than the unclipped $1.35 \cdot \hat{A}_t$. The objective stops increasing once the ratio exceeds $1 + \epsilon$, so the policy gets no additional reward for moving further in that direction. The gradient with respect to $\theta$ becomes zero in the clipped region because the clipped term is constant with respect to $\theta$.
+:::
+
+::: {.feedback-incorrect}
+Not quite. With positive advantage and $r_t = 1.35 > 1 + 0.2 = 1.2$, the $\min$ in PPO's objective compares $1.35 \cdot \hat{A}_t$ (unclipped) with $1.2 \cdot \hat{A}_t$ (clipped). Since $\hat{A}_t > 0$, the clipped term is smaller, so the $\min$ selects the clipped term. This caps the objective at $1.2 \cdot \hat{A}_t$, and since the clipped value is a constant (independent of $\theta$), the gradient with respect to $\theta$ is zero in this region. The policy is not rewarded for moving further from $\pi_{\theta_{old}}$.
+:::
+
+:::
+
 ### The LLM-Specific Challenge: Why PPO's Cost Matters
 
 For Ava, PPO's stability is appealing, but its memory cost is prohibitive. Her setup looks like this:
+
+::: {.exercise-predict correct="C"}
+
+Before looking at the table below: how many separate neural network models must be held in GPU memory simultaneously during standard PPO training of an LLM?
+
+- 2 models (the policy being trained and a reference policy)
+- 3 models (policy, critic, and reference)
+- 4 models (policy, critic, reference, and reward model)
+
+::: {.predict-reveal}
+**The answer is 4 models.** PPO requires the policy $\pi_\theta$, a critic $V_\psi$ of comparable size for advantage estimation, a frozen reference model $\pi_{ref}$ for the KL penalty, and a reward model $r_\phi$ to score outputs. For a 7B parameter LLM, that is roughly 28B parameters (about 56 GB in fp16) before counting optimizer states and activations. This massive memory footprint is precisely what motivates GRPO's critic-free design.
+:::
+
+:::
 
 | Component | Model Size | GPU Memory |
 |---|---|---|
@@ -122,6 +170,17 @@ The cost and difficulty of training a critic sets up the central motivation for 
 In traditional RL (like Atari games or robotic control), rewards arrive at nearly every step: a game score increments after collecting a coin, or a robot receives a small penalty for each timestep it has not reached the goal. The value function can learn from dense reward signals, attributing value changes to specific state transitions. In LLM generation, the reward is *sparse*: it only arrives after the complete output is generated. A SQL query might be 200 tokens long, but the reward is a single binary signal at the end. The value function must learn to predict, at token position 50 of a 200-token query, whether the final query will execute correctly. To make that prediction, the value function needs an implicit understanding of SQL semantics, query planning, and database structure. It must essentially solve the same problem as the policy itself, but without the benefit of generating the actual SQL. In practice, value functions for LLM RL often converge slowly and provide noisy estimates, which is why critic-free methods like GRPO have proven competitive.
 :::
 
-::: {.callout-tip title="Self-Explanation Prompt"}
-PPO requires four models in GPU memory during training: policy, critic, reference, and reward model. If you could remove *two* of these while maintaining training quality, which two would you remove and why? (Hint: GRPO removes one, and RLVR replaces another with something cheaper.)
+::: {.exercise-fillin}
+
+Complete the missing step in the evolution from REINFORCE to GRPO:
+
+1. **REINFORCE**: Weight each token's gradient by the raw reward $R(q, o)$. Problem: extremely high variance.
+2. {B|A: Add a clipped surrogate objective to constrain policy updates|B: Subtract a baseline $B(q)$ from the reward to get the advantage $A = R - B$, reducing variance without introducing bias|C: Sample $G$ outputs per prompt and use the group mean as the baseline}
+3. **Actor-Critic (PPO)**: Train a neural network $V_\psi$ to serve as the baseline, plus clip the importance ratio for stability. Problem: the critic doubles memory cost.
+4. **GRPO**: Replace the learned critic with the group mean of $G$ sampled outputs, achieving variance reduction without a separate model.
+
+::: {.fillin-feedback}
+**Correct: B.** The crucial conceptual step between raw REINFORCE and actor-critic methods is the introduction of a baseline. Any baseline $B(q)$ that is independent of the current action reduces variance without biasing the gradient. The actor-critic paradigm (step 3) then makes the baseline *learnable* via a neural network. GRPO (step 4) makes it *empirical* via group statistics. Option A (clipping) is a PPO-specific stability mechanism, not the foundational variance-reduction step. Option C describes GRPO's specific implementation, skipping the general baseline concept.
+:::
+
 :::

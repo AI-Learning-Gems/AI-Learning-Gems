@@ -18,6 +18,19 @@ Instead of training a separate neural network to predict the expected reward for
 
 Let us walk through a concrete example. Ava's model receives the question: "What were the total sales by region last quarter?" She samples $G = 8$ SQL queries. After executing each against the database:
 
+::: {.exercise-predict correct="B"}
+
+Before reading the worked example below: suppose Ava's model generates $G = 8$ SQL queries for a question, and all 8 happen to return the correct answer (reward = 1). What advantage does each output receive under GRPO's group-relative normalization?
+
+- Each output gets advantage $+1.0$ because the reward is 1
+- Each output gets advantage $0$ because all rewards are identical, so there is no variation within the group
+
+::: {.predict-reveal}
+**The answer is 0.** When all rewards are identical, $\text{mean}(\mathbf{r}) = 1$ and $\text{std}(\mathbf{r}) = 0$. The numerator $r_i - \text{mean}(\mathbf{r}) = 0$ for every output. GRPO produces zero gradient for this question: if the model already solves it perfectly, there is nothing to learn. The same happens when all outputs fail. GRPO only generates a learning signal when there is variation within the group, which is why it naturally focuses on "medium difficulty" questions.
+:::
+
+:::
+
 | Output # | SQL Query (abbreviated) | Correct? | Reward |
 |---|---|---|---|
 | $o_1$ | `SELECT region, SUM(amount) FROM orders JOIN ...` | Yes | 1 |
@@ -71,9 +84,44 @@ $$ {#eq-kl-estimator}
 
 This KL estimator (from [Schulman, 2020](http://joschu.net/blog/kl-approx.html)) is guaranteed to be non-negative. Unlike PPO, which adds the KL penalty inside the reward signal, GRPO adds it directly to the loss. The direct-to-loss placement keeps the advantage calculation clean: $\hat{A}_{i,t}$ reflects only the task reward, not the KL penalty.
 
+::: {.exercise-mcq correct="A"}
+
+In the GRPO objective, the per-output normalization term $\frac{1}{|o_i|}$ divides the loss by the length of each output. What is the practical consequence of this normalization?
+
+- Longer incorrect outputs are penalized less per token than shorter ones, incentivizing the model to pad failing outputs with extra tokens
+- It ensures that all outputs contribute equally to the gradient regardless of their length
+- It amplifies the gradient for short outputs, causing the model to prefer short answers
+- It has no practical consequence because the advantage already accounts for output length
+
+::: {.feedback-correct}
+Correct! Dividing by $|o_i|$ means that a 200-token incorrect output receives half the per-token penalty of a 100-token incorrect output with the same reward. The model can reduce its penalty by generating longer failing outputs, even if the extra tokens are meaningless. This length bias is one of the key problems that later variants (Dr. GRPO, DAPO) fix by removing or modifying the $\frac{1}{|o_i|}$ normalization.
+:::
+
+::: {.feedback-incorrect}
+Not quite. The $\frac{1}{|o_i|}$ term divides the total loss contribution of each output by its length. For outputs with negative advantage (incorrect), this means longer outputs receive a *smaller* penalty per token. A 200-token wrong answer is penalized half as much per token as a 100-token wrong answer. The model can exploit this by padding failing outputs with unnecessary tokens, reducing the per-token gradient signal. This "length bias" is a known issue that GRPO variants address.
+:::
+
+:::
+
 To summarize the GRPO objective: sample a group of outputs, score them, compute each output's advantage relative to the group mean, then update the policy using a clipped surrogate loss with a KL penalty. The group replaces the critic; the clipping and KL penalty provide the same stability guarantees as PPO.
 
 ![Comparison of the PPO and GRPO training pipelines. PPO requires a policy model, a value model (critic), a reference model, and a reward model. GRPO eliminates the value model by using group-relative advantages. Source: Shao et al. (2024).](GRPO and RLVR/images/ppo-vs-grpo.png){#fig-ppo-vs-grpo}
+
+::: {.exercise-order correct="D,A,C,B,E"}
+
+Arrange these steps of a single GRPO training iteration in the correct order:
+
+- Score all $G$ outputs with the reward function to get $\{r_1, \ldots, r_G\}$
+- Compute the clipped surrogate loss using the importance ratios and advantages, then update $\theta$ via gradient descent
+- Compute group-relative advantages: $\hat{A}_i = (r_i - \text{mean}(\mathbf{r})) / \text{std}(\mathbf{r})$
+- Sample a batch of questions $q$ and generate $G$ outputs per question using $\pi_{\theta_{old}}$
+- Add the KL penalty $\beta D_{KL}[\pi_\theta \| \pi_{ref}]$ to the loss
+
+::: {.order-feedback}
+**Correct order: D, A, C, B, E.** First, sample questions and generate $G$ outputs per question using the old policy snapshot (D). Second, score all outputs with the reward function (A). Third, compute advantages from the group statistics (C). Fourth, compute the clipped surrogate loss using importance ratios $r_{i,t}(\theta) = \pi_\theta / \pi_{\theta_{old}}$ and the advantages (B). Finally, add the KL divergence penalty against the reference model and perform the gradient update (E). The KL term is added to the loss (not the reward), which is why it comes after the surrogate loss computation.
+:::
+
+:::
 
 ### Outcome Supervision vs. Process Supervision
 
@@ -128,9 +176,25 @@ The three key components that distinguish each method are:
 
 The table reveals the key insight: GRPO differs from Online RFT in that it adjusts the gradient coefficient based on the *magnitude* of the reward, not just its sign. Online RFT uniformly reinforces all correct responses at the same intensity and ignores incorrect ones. GRPO reinforces *above-average* responses more strongly and actively *penalizes* below-average ones. This gradient-coefficient modulation is why GRPO outperforms Online RFT in DeepSeekMath's experiments.
 
-::: {.callout-tip title="Self-Explanation Prompt"}
-When would process supervision be preferred over outcome supervision? Think about a task where the intermediate steps matter as much as the final answer. Now think about a task where only the final answer matters (and intermediate steps are just a means to get there). Which one benefits more from process supervision?
+::: {.exercise-mcq correct="C"}
+
+The unified paradigm table shows that Online RFT and GRPO both sample from the current policy $\pi_\theta$ in real time. What is the key difference in how they use the reward signal?
+
+- Online RFT uses a learned reward model while GRPO uses rule-based rewards
+- GRPO generates multiple outputs per prompt while Online RFT generates only one
+- Online RFT assigns a binary gradient coefficient (1 for correct, 0 for incorrect), while GRPO assigns a continuous gradient coefficient proportional to how much above or below the group mean each output scored
+- GRPO adds KL regularization while Online RFT does not
+
+::: {.feedback-correct}
+Correct! The gradient coefficient is the crucial difference. Online RFT treats all correct outputs identically (coefficient 1) and discards incorrect outputs entirely (coefficient 0). GRPO uses the group-relative advantage as a continuous coefficient: an output that scored well above the group mean gets a larger positive coefficient than one that barely beat the mean, and outputs below the mean receive negative coefficients that actively push the model away from those patterns. This finer-grained signal is why GRPO consistently outperforms Online RFT.
 :::
+
+::: {.feedback-incorrect}
+Not quite. Both methods can use the same type of reward function, and while GRPO does generate groups, the deeper distinction is in the gradient coefficient. Online RFT uses a binary coefficient: 1 if correct, 0 if incorrect. GRPO uses the group-relative advantage as a continuous coefficient that reflects *how much better or worse* each output was compared to the group mean. A barely-correct output gets a small positive push; a clearly-above-average output gets a large push; and incorrect outputs get actively penalized rather than simply ignored. This continuous modulation gives GRPO a richer learning signal from the same data.
+:::
+
+:::
+
 
 ### Memory and Compute Comparison
 

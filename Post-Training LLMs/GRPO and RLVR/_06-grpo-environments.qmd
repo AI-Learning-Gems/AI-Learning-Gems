@@ -36,6 +36,21 @@ Every GRPO training setup has four core components. You need to understand how t
 
 ![The RL infrastructure for DeepSeek-R1 training, showing the interaction between sampling (inference), reward computation, and policy update stages. Source: Guo et al. (2025), Figure 5.](GRPO and RLVR/images/rl-infra.png){#fig-rl-infra}
 
+::: {.exercise-order correct="B,D,A,C"}
+
+Arrange the four steps of a single GRPO training iteration in the correct order:
+
+- Compute group-relative advantages and clip the policy gradient update
+- Sample $G$ candidate outputs per prompt using the inference engine
+- Apply gradient update to the policy network weights
+- Score each candidate output using the reward environment (verifier)
+
+::: {.order-feedback}
+**Correct order: B, D, A, C.** The inference engine first generates $G$ outputs per prompt. Each output is then scored by the reward environment. The group-relative advantages are computed from these scores and used to form the clipped policy gradient. Finally, the gradient update is applied to the policy weights. Scoring must happen before advantage computation (you need the rewards to compute advantages), and the gradient update is always the last step.
+:::
+
+:::
+
 ### Hyperparameter Guide
 
 The following table summarizes the key hyperparameters with recommended ranges, drawn from published experiments across DeepSeekMath, Dr. GRPO, and DAPO:
@@ -56,7 +71,40 @@ The following table summarizes the key hyperparameters with recommended ranges, 
 
 **KL coefficient ($\beta$)**: For pure RLVR with verifiable rewards, set $\beta = 0$ (or very small, like 0.01). KL regularization primarily prevents reward model exploitation in RLHF. In RLVR, the verifier cannot be exploited, so the KL term mainly preserves general capabilities. If you want a specialized model (SQL-only), drop it. If you want to maintain broad capabilities alongside the specific skill, keep a small $\beta$.
 
+::: {.exercise-mcq correct="C"}
+
+You are training a math model with GRPO. Your reward is binary (0 or 1) and the current success rate is about 30%. You set $G = 4$. What is the most likely problem with this configuration?
+
+- The learning rate will be too high for such a small group
+- The KL divergence from the reference model will explode
+- Most groups will contain all-zero rewards, producing zero advantage for every sample and wasting that entire batch
+- The clip epsilon will be too tight, preventing any policy update
+
+::: {.feedback-correct}
+Correct! With a 30% success rate and $G = 4$, the probability that all four samples fail is $(0.7)^4 \approx 0.24$. That means roughly one in four prompts produces a group where every output receives reward 0, making all advantages exactly zero. These "uninformative prompts" contribute nothing to learning. With $G = 64$, the probability of all failures drops to $(0.7)^{64} \approx 10^{-10}$, making uninformative prompts effectively impossible.
+:::
+
+::: {.feedback-incorrect}
+Not quite. The core issue with small $G$ and low success rates is that many groups will have *identical* rewards (all zeros), producing zero advantage for every sample in the group. These uninformative prompts waste compute. With $G = 4$ and 30% success rate, about 24% of groups will be all-zero. Increasing $G$ to 16 or 64 makes it far more likely that each group contains at least one success, producing meaningful gradient signal.
+:::
+
+:::
+
 ### Monitoring Training: What to Watch
+
+::: {.exercise-predict correct="B"}
+
+Before reading further: which single metric would be the earliest warning sign that your GRPO-trained model is collapsing to a narrow set of outputs?
+
+- Mean reward per batch suddenly dropping
+- Entropy of the token distribution falling rapidly
+- KL divergence from reference model increasing steadily
+
+::: {.predict-reveal}
+**The answer is B.** Entropy collapse, where the model's token distribution becomes sharply peaked, is the earliest signal. A model heading toward collapse first loses diversity in its outputs (low entropy) before the reward metrics visibly degrade. KL divergence increasing (option C) indicates the policy is drifting from the reference model, which is expected during training and not inherently a failure. Mean reward dropping (option A) is a late signal that appears after the damage is done.
+:::
+
+:::
 
 Ava sets up three dashboards for her GRPO training run. Each tracks metrics that diagnose different potential issues.
 
@@ -78,9 +126,6 @@ Ava sets up three dashboards for her GRPO training run. Each tracks metrics that
 - **Pass@k accuracy**: Sample $k$ outputs per test question and report whether *any* are correct. This metric measures the model's exploration capability, not just its greedy output quality.
 - **Format compliance rate**: What fraction of outputs are in the correct format (valid SQL, parseable JSON, etc.)? This should reach 95%+ early in training.
 
-::: {.callout-tip title="Self-Explanation Prompt"}
-Why is it important to monitor correct and incorrect response lengths *separately* during GRPO training? What specific failure mode does each trend indicate, and which GRPO variant would you use to address it?
-:::
 
 ### Common Failure Modes and Fixes
 
@@ -93,6 +138,25 @@ Why is it important to monitor correct and incorrect response lengths *separatel
 | Model finds reward shortcuts | Reward function too simple | Add auxiliary signals; increase verification rigor |
 | Training OOM (out of memory) | $G$ too large; model too large | Reduce $G$; use gradient checkpointing; smaller batch |
 | Very slow training | Sampling bottleneck | Use vLLM for inference; pipeline sampling and training |
+
+::: {.exercise-mcq correct="D"}
+
+During training, you observe the following symptoms: the model's greedy outputs for different prompts are nearly identical, reward has stopped improving, and the response length is very short. Consulting the failure modes table, what is the most likely diagnosis and fix?
+
+- Length bias: the model is penalizing long outputs. Switch to Dr. GRPO.
+- Reward shortcuts: the model found a simple pattern that always scores well. Add auxiliary reward signals.
+- Learning rate too high: the policy is oscillating. Reduce $\eta$ by 2-5x.
+- Entropy collapse: the model's output distribution has become degenerate. Use DAPO's Clip-Higher and reduce $\eta$.
+
+::: {.feedback-correct}
+Correct! Identical outputs across different prompts is the hallmark of entropy collapse: the model's token-level probability distribution has become so peaked that it generates the same (or nearly the same) sequence regardless of the input. The fix is two-fold: DAPO's Clip-Higher mechanism prevents the policy from concentrating too much probability on any single token sequence, and reducing the learning rate slows the collapse process.
+:::
+
+::: {.feedback-incorrect}
+Not quite. The key symptom here is that the model generates *the same output for all prompts*. This points to entropy collapse, not length bias (which manifests as incorrect responses growing longer) or reward oscillation (which shows up as wild reward swings). Entropy collapse means the model's token distribution has become degenerate. The fix is DAPO's Clip-Higher (which prevents the policy from becoming too peaked) combined with a reduced learning rate.
+:::
+
+:::
 
 ### Ava's SQL Setup: A Concrete Example
 
