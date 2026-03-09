@@ -28,7 +28,26 @@ A quick numerical example: if two TTS engines have log-abilities $\lambda_C = 0.
 
 The sigmoid appears everywhere in this chapter because it converts a real-valued "score difference" into a probability. In the Bradley-Terry model (@sec-bradley-terry), the preference probability $P(i \succ j) = \sigma(\lambda_i - \lambda_j)$ is a sigmoid of the skill difference. In the DPO loss (@sec-rlhf-dpo), the log-probability ratio passes through a sigmoid.
 
-A useful property: the derivative is $\sigma'(z) = \sigma(z)(1 - \sigma(z))$. The gradient is largest when $\sigma(z) = 0.5$ (when $z = 0$ and the model is most uncertain). Gradient-based optimization therefore focuses updates on the cases where the model is least confident. This is the mathematical basis for adaptive pair selection in @sec-data-collection.
+A useful property: the derivative is $\sigma'(z) = \sigma(z)(1 - \sigma(z))$. The gradient is largest when $\sigma(z) = 0.5$ (when $z = 0$ and the model is most uncertain). Gradient-based optimization therefore focuses updates on the cases where the model is least confident. This property is the mathematical basis for adaptive pair selection in @sec-data-collection.
+
+::: {.exercise-mcq correct="C"}
+
+If $P(\text{Clarity} \succ \text{Brio}) = \sigma(\lambda_C - \lambda_B) = 0.73$, what is $P(\text{Brio} \succ \text{Clarity})$?
+
+- $\sigma(\lambda_C - \lambda_B) = 0.73$ (the same probability)
+- $1 - 0.73 = 0.27$, but this cannot be expressed as a sigmoid
+- $1 - 0.73 = 0.27 = \sigma(\lambda_B - \lambda_C)$, using the symmetry property $\sigma(-z) = 1 - \sigma(z)$
+- $\sigma(\lambda_B - \lambda_C) = \sigma(-1.0) \approx 0.5$
+
+::: {.feedback-correct}
+Correct! The symmetry property $\sigma(-z) = 1 - \sigma(z)$ means the two probabilities always sum to 1, and each can be written as a sigmoid of the skill difference. Since $\lambda_C - \lambda_B = 1.0$, we get $P(\text{Brio} \succ \text{Clarity}) = \sigma(-1.0) = 1/(1 + e^1) \approx 0.27$.
+:::
+
+::: {.feedback-incorrect}
+Not quite. The key property is that $\sigma(-z) = 1 - \sigma(z)$. So $P(\text{Brio} \succ \text{Clarity}) = \sigma(\lambda_B - \lambda_C) = \sigma(-(\lambda_C - \lambda_B)) = 1 - \sigma(\lambda_C - \lambda_B) = 1 - 0.73 = 0.27$. Both directions are expressible as sigmoids; flipping the comparison just negates the argument.
+:::
+
+:::
 
 ### Maximum Likelihood Estimation
 
@@ -44,9 +63,9 @@ In practice, we maximize the **log-likelihood** $\ell(\theta) = \log \mathcal{L}
 
 A concrete example: suppose you flip a coin 10 times and see 7 heads. The likelihood of the data given a heads-probability $p$ is $\mathcal{L}(p) = p^7(1-p)^3$. Taking the log and maximizing gives $\hat{p}_{MLE} = 7/10 = 0.70$, the sample proportion. BT works the same way, but the "coin" is the matchup between two engines and the "heads probability" is $\sigma(\lambda_i - \lambda_j)$.
 
-For the Bradley-Terry model, each pairwise comparison is a Bernoulli trial with probability $P(i \succ j) = \sigma(\lambda_i - \lambda_j)$. The log-likelihood of all comparisons is the sum of the log-probabilities of each observed outcome (see @eq-bt-loglik). MLE finds the $\hat{\lambda}$ values that best explain the observed win-loss pattern. This is the mathematical foundation for @sec-bradley-terry.
+For the Bradley-Terry model, each pairwise comparison is a Bernoulli trial with probability $P(i \succ j) = \sigma(\lambda_i - \lambda_j)$. The log-likelihood of all comparisons is the sum of the log-probabilities of each observed outcome (see @eq-bt-loglik). MLE finds the $\hat{\lambda}$ values that best explain the observed win-loss pattern. This procedure is the mathematical foundation for @sec-bradley-terry.
 
-A key property of MLEs is **asymptotic normality**: for large enough samples, the MLE is approximately normally distributed around the true parameter value, with variance equal to the inverse of the **Fisher Information Matrix** (see the next subsection). This is why we can construct confidence intervals for BT parameters using the formula $\hat{\lambda}_i \pm 1.96 \times \text{SE}(\hat{\lambda}_i)$.
+A key property of MLEs is **asymptotic normality**: for large enough samples, the MLE is approximately normally distributed around the true parameter value, with variance equal to the inverse of the **Fisher Information Matrix** (see the next subsection). This asymptotic result is why we can construct confidence intervals for BT parameters using the formula $\hat{\lambda}_i \pm 1.96 \times \text{SE}(\hat{\lambda}_i)$.
 
 ### The Variance-Covariance Matrix and Standard Errors
 
@@ -60,9 +79,23 @@ $$
 \text{Var}(\hat{\lambda}_i - \hat{\lambda}_j) = \text{Var}(\hat{\lambda}_i) + \text{Var}(\hat{\lambda}_j) - 2\text{Cov}(\hat{\lambda}_i, \hat{\lambda}_j)
 $$
 
-A numerical example: suppose $\text{Var}(\hat{\lambda}_C) = 0.031$, $\text{Var}(\hat{\lambda}_S) = 0.029$, and $\text{Cov}(\hat{\lambda}_C, \hat{\lambda}_S) = 0.008$. Then $\text{Var}(\hat{\lambda}_C - \hat{\lambda}_S) = 0.031 + 0.029 - 2(0.008) = 0.044$. Notice the positive covariance *reduced* the variance of the difference. This is why overlapping individual CIs do not necessarily mean the difference is non-significant; you must compute the CI of the difference directly (see @sec-bradley-terry).
+A numerical example: suppose $\text{Var}(\hat{\lambda}_C) = 0.031$, $\text{Var}(\hat{\lambda}_S) = 0.029$, and $\text{Cov}(\hat{\lambda}_C, \hat{\lambda}_S) = 0.008$. Then $\text{Var}(\hat{\lambda}_C - \hat{\lambda}_S) = 0.031 + 0.029 - 2(0.008) = 0.044$. Notice the positive covariance *reduced* the variance of the difference. This reduction is why overlapping individual CIs do not necessarily mean the difference is non-significant; you must compute the CI of the difference directly (see @sec-bradley-terry).
 
-For MLE, the variance-covariance matrix is the inverse of the **Fisher Information Matrix** $\mathcal{I}(\hat{\Lambda})$. Fisher Information measures the curvature of the log-likelihood at the optimum. High curvature means the data pin down the parameter tightly (small SE); low curvature means the data are ambiguous (large SE). Standard errors scale as $1/\sqrt{N}$: doubling your data cuts the SE by a factor of $\sqrt{2} \approx 1.41$, not by 2. This diminishing-returns property motivates the adaptive pair selection strategies in @sec-data-collection.
+For MLE, the variance-covariance matrix is the inverse of the **Fisher Information Matrix** $\mathcal{I}(\hat{\Lambda})$. Fisher Information measures the curvature of the log-likelihood at the optimum. High curvature means the data constrain the parameter tightly (small SE); low curvature means the data are ambiguous (large SE). Standard errors scale as $1/\sqrt{N}$: doubling your data cuts the SE by a factor of $\sqrt{2} \approx 1.41$, not by 2. This diminishing-returns property motivates the adaptive pair selection strategies in @sec-data-collection.
+
+::: {.exercise-fillin}
+
+Complete the variance-of-difference calculation. Given $\text{Var}(\hat{\lambda}_A) = 0.040$, $\text{Var}(\hat{\lambda}_B) = 0.036$, and $\text{Cov}(\hat{\lambda}_A, \hat{\lambda}_B) = 0.012$:
+
+1. The formula is: $\text{Var}(\hat{\lambda}_A - \hat{\lambda}_B) = \text{Var}(\hat{\lambda}_A) + \text{Var}(\hat{\lambda}_B) - 2\text{Cov}(\hat{\lambda}_A, \hat{\lambda}_B)$
+2. Substituting: $\text{Var}(\hat{\lambda}_A - \hat{\lambda}_B) = 0.040 + 0.036 - 2(0.012) =$ {B|A: 0.076 (forgot to subtract the covariance)|B: 0.052|C: 0.064 (subtracted covariance only once)}
+3. The SE of the difference is $\sqrt{0.052} \approx 0.228$
+
+::: {.fillin-feedback}
+**Correct: B.** The calculation is $0.040 + 0.036 - 2(0.012) = 0.076 - 0.024 = 0.052$. Option A (0.076) reflects the common error of ignoring the covariance term entirely, which would overestimate the SE. Option C (0.064) reflects subtracting the covariance only once instead of twice. The factor of 2 in $-2\text{Cov}$ is essential because both terms in the difference contribute a copy of the covariance.
+:::
+
+:::
 
 ### Bayesian Inference: Prior, Likelihood, Posterior
 
@@ -82,9 +115,9 @@ $$ {#eq-bayes-bg}
 
 The denominator $P(D) = \int P(D \mid \theta) P(\theta) d\theta$ is the **marginal likelihood** (or "evidence"), a normalizing constant. In practice, computing this integral exactly is often intractable, which is why TrueSkill uses **expectation propagation** (an approximate inference algorithm) instead.
 
-A quick example of the Bayesian update in action: suppose you believe a TTS engine's skill is somewhere around 25 with high uncertainty: $\mu = 25, \sigma = 8.33$. The engine wins a match it was expected to lose. The posterior shifts: $\mu$ increases (the engine is better than you thought) and $\sigma$ shrinks (you are more certain now). After 20 more comparisons, $\sigma$ might drop from 8.33 to 3.1, meaning you have pinned down the engine's skill much more tightly.
+A quick example of the Bayesian update in action: suppose you believe a TTS engine's skill is somewhere around 25 with high uncertainty: $\mu = 25, \sigma = 8.33$. The engine wins a match it was expected to lose. The posterior shifts: $\mu$ increases (the engine is better than you thought) and $\sigma$ shrinks (you are more certain now). After 20 more comparisons, $\sigma$ might drop from 8.33 to 3.1, meaning the data have constrained the engine's skill much more precisely.
 
-This is the mathematical engine behind TrueSkill in @sec-bayesian-models: each comparison is a piece of evidence that updates the skill distribution via Bayes' theorem.
+This update mechanism is the mathematical engine behind TrueSkill in @sec-bayesian-models: each comparison is a piece of evidence that updates the skill distribution via Bayes' theorem.
 
 ### KL Divergence
 
@@ -96,7 +129,7 @@ $$ {#eq-kl-bg}
 
 (For continuous distributions, replace the sum with an integral.)
 
-KL divergence is always non-negative: $D_{KL}(P \| Q) \geq 0$, with equality if and only if $P = Q$. It is *not* symmetric: $D_{KL}(P \| Q) \neq D_{KL}(Q \| P)$ in general. This means it is not a true "distance" metric. Think of it as the extra cost (in nats, if using natural log) of using distribution $Q$ when the true distribution is $P$.
+KL divergence is always non-negative: $D_{KL}(P \| Q) \geq 0$, with equality if and only if $P = Q$. However, KL divergence is *not* symmetric: $D_{KL}(P \| Q) \neq D_{KL}(Q \| P)$ in general, so it is not a true "distance" metric. Think of it as the extra cost (in nats, if using natural log) of using distribution $Q$ when the true distribution is $P$.
 
 A concrete example: suppose the true distribution is $P = (0.7, 0.3)$ and your model predicts $Q = (0.5, 0.5)$. Then $D_{KL}(P \| Q) = 0.7 \ln(0.7/0.5) + 0.3 \ln(0.3/0.5) \approx 0.7(0.336) + 0.3(-0.511) \approx 0.082$ nats. If your model instead predicted $Q = (0.9, 0.1)$, the KL divergence would be larger: $\approx 0.105$ nats. The closer $Q$ is to $P$, the smaller the divergence.
 

@@ -71,8 +71,23 @@ $$
 
 This means the absolute values of $\theta_i$ are meaningless; only their **ratios** carry information. The model $(\theta_C, \theta_B, \theta_S) = (4.48, 1.12, 3.36)$ produces exactly the same predictions as $(8.96, 2.24, 6.72)$ (every value doubled). To get a unique set of parameters, we must impose a **constraint**: either fix one parameter as a reference (e.g., $\theta_S = 1$), require the parameters to sum to a constant, or (as we will see) require the log-parameters to sum to zero.
 
-::: {.callout-tip title="Self-Explanation Prompt"}
-If you multiply all $\theta$ parameters by 10, what happens to the predicted probabilities? What does this tell you about interpreting the absolute magnitude of a $\theta$ value?
+::: {.exercise-mcq correct="B"}
+
+You are fitting a BT model to rank 5 coffee blends. Before fitting, you must impose a constraint (e.g., $\sum \lambda_i = 0$ or $\theta_1 = 1$). What happens if you skip this step and run the MLE without any constraint?
+
+- The optimizer will crash because the log-likelihood is undefined without a constraint
+- The optimizer may converge, but the solution is non-unique: infinitely many parameter vectors yield the same maximum likelihood, differing only by a constant shift in all $\lambda_i$
+- The optimizer will find a unique solution because the data implicitly determines the absolute scale
+- The constraint only affects confidence intervals, not the point estimates themselves
+
+::: {.feedback-correct}
+Correct! Scale indeterminacy means the log-likelihood is flat along the direction $(\lambda_1 + c, \lambda_2 + c, \ldots, \lambda_C + c)$ for any constant $c$. The optimizer may converge to one of infinitely many equivalent solutions, or it may fail to converge at all (depending on the implementation). The constraint removes this degeneracy by pinning the absolute scale, producing a unique MLE. All equivalent solutions make the same *predictions* $P(i \succ j) = \sigma(\lambda_i - \lambda_j)$, since the constant cancels in the difference.
+:::
+
+::: {.feedback-incorrect}
+Not quite. The issue is scale indeterminacy. Because $P(i \succ j) = \sigma(\lambda_i - \lambda_j)$ depends only on *differences*, adding the same constant $c$ to every $\lambda_i$ leaves the likelihood unchanged. Without a constraint, the likelihood surface has a "ridge" along this direction, producing infinitely many parameter vectors that achieve the same maximum. The constraint (e.g., $\sum \lambda_i = 0$) picks one representative from this equivalence class. The log-likelihood is perfectly well-defined without the constraint (ruling out Option A), but the solution is not unique (ruling out Option C).
+:::
+
 :::
 
 ### The Log-Ability Reparameterization: Where Logistic Regression Appears
@@ -97,7 +112,7 @@ $$
 P(i \succ j) = \sigma(\lambda_i - \lambda_j)
 $$ {#eq-bt-logistic}
 
-This is a profound result. It says the probability of $i$ beating $j$ is a logistic function of the *difference* in their log-abilities. The entire BT model reduces to: preference is determined by skill differences, passed through a sigmoid. 
+This result is worth pausing on. The probability of $i$ beating $j$ is a logistic function of the *difference* in their log-abilities. The entire BT model reduces to: preference is determined by skill differences, passed through a sigmoid.
 
 A BT model is thus actually a logistic regression model. Recall that in standard logistic regression, the predicted probability is $P(y=1|\mathbf{x}) = \sigma(\mathbf{w}^T \mathbf{x})$, where $\mathbf{w} \in \mathbb{R}^d$ is the weight vector and $\mathbf{x} \in \mathbb{R}^d$ is the input vector. 
 
@@ -124,7 +139,7 @@ Feed these 300 training examples into any logistic regression package (with no i
 
 That is the entire BT model. Train a logistic regression (with no intercept), with the comparison $i \succ j$ encoded as a $+1/-1/0$ input vector and output as $y=1$ for rows where we observed $i$ beats $j$, and $y=0$ for rows where $j$ beats $i$. Predict $P(i \succ j) = \sigma(\lambda_i - \lambda_j)$ for any $i$ and $j$, creating the input vector appropriately.
 
-Also, because logistic regression is one of the most thoroughly engineered statistical methods in existence, most logistic regression packages return not just the trained weights but also standard errors, the variance-covariance matrix, and predicted probabilities. In later subsections, we will see exactly how these quantities are useful to us for preference modeling.
+Also, because logistic regression is a mature, well-supported statistical method, most logistic regression packages return not just the trained weights but also standard errors, the variance-covariance matrix, and predicted probabilities. In later subsections, we will see exactly how these quantities are useful for preference modeling.
 
 ::: {.callout-warning title="Common Misconception: BT and logistic regression are merely 'similar'"}
 They are not similar. They are mathematically identical. The BT log-likelihood is *exactly* the logistic regression log-likelihood when you encode each comparison as a row with $+1$ for the winner's column and $-1$ for the loser's column. 
@@ -142,6 +157,21 @@ To summarize, every BT concept maps directly to a logistic regression counterpar
 | BT prediction: $P(i \succ j) = \sigma(\lambda_i - \lambda_j)$ | Logistic regression prediction: $\sigma(\mathbf{w}^T \mathbf{x})$ |
 | Standard errors of $\hat{\lambda}$ | Standard errors of regression coefficients |
 | Variance-covariance matrix | Inverse Fisher Information Matrix |
+
+
+::: {.exercise-fillin}
+
+Complete the missing encoding. In the BT-as-logistic-regression formulation with items ordered [Clarity, Brio, Sonus], the comparison "Brio beats Sonus" is encoded as:
+
+1. Input vector: $\mathbf{x} = [0, +1, -1]$ (Brio at position 2, Sonus at position 3)
+2. Output label: {A|A: $y = 1$ (Brio won, and Brio is in the positive position)|B: $y = 0$ (Sonus lost, so label is 0)|C: $y = -1$ (Sonus lost, so label is negative)}
+3. Predicted probability: $P(\text{Brio} \succ \text{Sonus}) = \sigma(\lambda_B - \lambda_S)$
+
+::: {.fillin-feedback}
+**Correct: A.** The encoding convention places the first-named item in the "positive" ($+1$) position of $\mathbf{x}$. Here the row encodes the matchup "Brio vs. Sonus," so $\mathbf{x} = [0, +1, -1]$. The label $y$ indicates whether the item in the positive position won: Brio won, so $y = 1$. Option B confuses the logic (applying $y = 0$ would mean Brio did *not* win). Option C invents a label value ($-1$) that does not exist in binary logistic regression, which uses $y \in \{0, 1\}$ only.
+:::
+
+:::
 
 
 **A note on terminology.** For the rest of this chapter, we use three core terms:
@@ -234,7 +264,7 @@ We see the fit of the model to the TTS data is decent **but not perfect**.
 - The biggest discrepancy is for Brio vs. Sonus. The table shows $P(B \succ S) \approx 0.334$, which means the trained BT model predicts *Sonus* wins $1 - 0.334 = 0.666$, or 66.6% of the time. 
 - The observed rate is $55/100 = 55\%$, a gap of over 11 percentage points! This happens because the BT model enforces **global consistency**: it finds a single set of strength parameters that best explains *all* matchups simultaneously, which means individual matchup predictions may deviate from observed frequencies.
 
-So far, we have seen the output of a training process. Now we need to understand **how** the weights are trained, i.e. the mathematical principle that defines "best fit". That is the subject of the next two subsections: what objective function is being minimized/maximized? Concretely, we derive the **maximum likelihood estimation (MLE)** objective, and then we show the elegant interpretation that "Observed Wins = Expected Wins".
+So far, we have seen the output of a training process. Now we need to understand **how** the weights are trained, i.e. the mathematical principle that defines "best fit". That is the subject of the next two subsections: what objective function is being minimized/maximized? Concretely, we derive the **maximum likelihood estimation (MLE)** objective, and then we show its intuitive interpretation: "Observed Wins = Expected Wins".
 
 ### Maximum Likelihood Estimation: The Derivation
 
@@ -261,6 +291,20 @@ $$
 $$ {#eq-bt-loglik}
 
 where $W_i = \sum_{j \neq i} w_{ij}$ is the total wins for item $i$. This is the function we maximize, subject to a constraint like $\sum \lambda_i = 0$.
+
+::: {.exercise-predict correct="C"}
+
+We are about to derive what happens when you set the gradient of the BT log-likelihood to zero (the first-order optimality condition). Before reading ahead, predict: what relationship will the MLE solution enforce between observed data and model predictions?
+
+- The MLE minimizes the sum of squared differences between observed and predicted win *rates* across all matchups
+- The MLE ensures that the overall total of observed wins across all items equals the overall total of predicted wins (a single global balance)
+- The MLE ensures that *each item's* observed total wins exactly equals its expected total wins under the model, simultaneously for all items
+
+::: {.predict-reveal}
+**The answer is C.** The MLE first-order condition yields $W_i = \sum_{j \neq i} n_{ij} \cdot P(i \succ j)$ for *every* item $i$ simultaneously. This is per-item balance, not just a global sum matching (Option B). And it operates on win *counts* through the binomial likelihood, not squared differences of rates (Option A). This "observed wins = expected wins" interpretation, highlighted by [Hunter (2004)](https://projecteuclid.org/journals/annals-of-statistics/volume-32/issue-1/MM-algorithms-for-generalized-Bradley-Terry-models/10.1214/aos/1079120141.full), is one of the most elegant results in the BT model.
+:::
+
+:::
 
 ### The "Observed Wins = Expected Wins" Interpretation
 
@@ -390,7 +434,7 @@ Thus:
 
 We thus have the 95% CIs for each engine's log-ability. 
 
-But if we think carefully, we don't actually care about the individual CIs. The important question is: **is Clarity significantly better than Sonus?**. To determine this, we need the **95% CI for the skill-difference** $\hat{\lambda}_C - \hat{\lambda}_S$:
+But if we think carefully, we don't actually care about the individual CIs. The important question is: **is Clarity significantly better than Sonus?** To determine this, we need the **95% CI for the skill-difference** $\hat{\lambda}_C - \hat{\lambda}_S$:
 
 $$
 \text{Var}(\hat{\lambda}_C - \hat{\lambda}_S) = \text{Var}(\hat{\lambda}_C) + \text{Var}(\hat{\lambda}_S) - 2\text{Cov}(\hat{\lambda}_C, \hat{\lambda}_S)
@@ -406,21 +450,35 @@ $$
 \text{SE}(\hat{\lambda}_C - \hat{\lambda}_S) = \sqrt{0.044} \approx 0.210
 $$
 
-The 95% CI for Sonus $\succ$ Clarity is thus:
+The 95% CI for the skill-difference $\hat{\lambda}_C - \hat{\lambda}_S$ is thus:
 
 $$
 0.394 \pm 1.96 \times 0.210 = [-0.018, \; 0.806]
 $$
 
-This interval *just barely crosses zero*. We thus **cannot conclude at the 95% level that Clarity is better than Sonus**, despite Clarity's higher point estimate, the difference is not statistically significant. Our conclusion: "Brio is clearly worst. Clarity and Sonus are in a statistical tie for first. We need more data to distinguish them."
+This interval *just barely crosses zero*. We thus **cannot conclude at the 95% level that Clarity is better than Sonus**. Despite Clarity's higher point estimate, the difference is not statistically significant. Our conclusion: "Brio is clearly worst. Clarity and Sonus are in a statistical tie for first. We need more data to distinguish them."
 
-This is enormously useful for practical decision-making. Without confidence intervals, we might have prematurely chosen Clarity. And because training a BT model is just a form of logistic regression, we get these statistical tools automatically.
+This result is useful for practical decision-making. Without confidence intervals, we might have prematurely chosen Clarity. Because training a BT model is just logistic regression, we get these statistical tools automatically.
 
-::: {.callout-tip title="Self-Explanation Prompt"}
-You ran a BT model on 20 TTS engines. The top two have scores $\hat{\lambda}_A = 2.1$ and $\hat{\lambda}_B = 1.9$ with standard errors of 0.3 each. 
+::: {.exercise-mcq correct="B"}
 
-Can you conclude engine A is better? What additional quantity do you need from the variance-covariance matrix to answer this?
+You train a BT model on 5 LLMs. Model Alpha has $\hat{\lambda}_A = 1.2$ (SE = 0.15) and Model Beta has $\hat{\lambda}_B = 0.9$ (SE = 0.18). Their covariance is $\text{Cov}(\hat{\lambda}_A, \hat{\lambda}_B) = 0.015$. A colleague looks at their individual 95% CIs, sees overlap, and concludes the two models are statistically indistinguishable. Is this reasoning valid?
+
+- Yes: overlapping individual CIs are the standard test for whether two parameters differ significantly
+- No: the CI for the *difference* $\hat{\lambda}_A - \hat{\lambda}_B$ accounts for the covariance term, which can make the difference significant even when individual CIs overlap
+- No: you should compare the $\theta$ values ($e^{\hat{\lambda}}$) instead, because confidence intervals on the log-scale overstate uncertainty
+- No: the colleague should use a Bonferroni correction for multiple comparisons before drawing any conclusion
+
+::: {.feedback-correct}
+Correct! When parameters are estimated jointly (as in BT), their estimates are correlated. The variance of the difference is $\text{Var}(\hat{\lambda}_A - \hat{\lambda}_B) = \text{Var}(\hat{\lambda}_A) + \text{Var}(\hat{\lambda}_B) - 2\text{Cov}(\hat{\lambda}_A, \hat{\lambda}_B)$. With positive covariance, this variance is smaller than the sum of the individual variances, so the CI for the difference can exclude zero even when individual CIs overlap. You must always construct the skill-difference CI directly from the variance-covariance matrix.
 :::
+
+::: {.feedback-incorrect}
+Not quite. The flaw in the colleague's reasoning is that overlapping individual CIs do not imply the difference is non-significant. Because BT estimates all parameters jointly, there is typically a positive covariance between $\hat{\lambda}_A$ and $\hat{\lambda}_B$. The formula $\text{Var}(\hat{\lambda}_A - \hat{\lambda}_B) = \text{Var}(\hat{\lambda}_A) + \text{Var}(\hat{\lambda}_B) - 2\text{Cov}(\hat{\lambda}_A, \hat{\lambda}_B)$ shows that positive covariance *shrinks* the variance of the difference, potentially making the difference significant. Option A endorses the flawed reasoning. Option C is wrong because log-scale CIs are standard and valid for BT. Option D raises a real concern for many pairwise tests but does not address the fundamental error of using individual CIs to test a difference.
+:::
+
+:::
+
 
 ::: {.callout-warning title="Common Misconception: Overlapping individual CIs mean the skill-difference cannot be significant"}
 This is a widespread misconception. Two items can have overlapping individual confidence intervals and still have a *statistically significant* difference. 
@@ -440,7 +498,7 @@ For the BT model specifically, the Fisher Information Matrix has entries that de
 
 ### Transition: From Point Estimates to Distributions
 
-The BT model gives us a powerful, elegant framework for converting pairwise preferences into a global ranking with confidence intervals. But it has two limitations:
+The BT model gives us a principled framework for converting pairwise preferences into a global ranking with confidence intervals. But it has two limitations:
 
 1. **No uncertainty tracking over time.** Training produces a single point estimate for each item. It does not distinguish between "we are very confident this engine is good" and "we have barely tested this engine." Both produce a single $\hat{\lambda}$ value.
 

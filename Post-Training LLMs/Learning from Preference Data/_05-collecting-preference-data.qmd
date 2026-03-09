@@ -15,15 +15,30 @@
 
 ### Why Pairwise Comparisons Beat Absolute Ratings
 
-Before getting into experiment design, it is worth understanding *why* pairwise comparisons are the standard for preference data. The alternative, absolute ratings (e.g., "rate this TTS sample 1-5"), suffers from well-documented problems.
+Before getting into experiment design, we need to understand *why* pairwise comparisons are the standard for preference data. The alternative, absolute ratings (e.g., "rate this TTS sample 1-5"), suffers from three well-documented problems.
 
-**Calibration.** Different annotators use rating scales differently. One person's "4" is another's "3." This is not just anecdotal: inter-annotator agreement on absolute scales is typically much lower than on pairwise preferences. When you ask "which of these two samples sounds more natural?", there is no calibration issue. The annotator does not need to maintain a consistent internal scale across hundreds of evaluations.
+**Calibration.** Different annotators use rating scales differently. One person's "4" is another's "3." This gap is not just anecdotal: inter-annotator agreement on absolute scales is typically much lower than on pairwise preferences. When you ask "which of these two samples sounds more natural?", calibration disappears as a concern. The annotator does not need to maintain a consistent internal scale across hundreds of evaluations.
 
 **Cognitive load.** Absolute judgments are cognitively expensive. The annotator must hold a mental reference point ("what does a '4' sound like?") while evaluating each sample. Relative judgments are easier: "A or B? B." Done.
 
-**Statistical efficiency.** A 2023 study on crowdsourcing (arXiv 2305.20042) showed that pairwise comparisons reduce bias compared to majority-vote absolute ratings and achieve the same ranking accuracy with $O(N \log N)$ pairwise labels versus $O(N)$ absolute labels per item. The constant factor favors pairwise comparisons because each pairwise label is more informative.
+**Statistical efficiency.** A 2023 study on crowdsourcing ([Shah & Wainwright, arXiv 2305.20042](https://dl.acm.org/doi/10.1145/3610183)) showed that pairwise comparisons reduce bias compared to majority-vote absolute ratings and achieve the same ranking accuracy with $O(N \log N)$ pairwise labels versus $O(N)$ absolute labels per item. The constant factor favors pairwise comparisons because each pairwise label is more informative.
 
-The downside is cost: $\binom{C}{2}$ possible pairs grows quadratically. For $C = 20$ TTS engines, there are 190 unique pairs. If we test 5 input texts per pair and want 3 annotators per comparison, that is $190 \times 5 \times 3 = 2{,}850$ annotations. This is where experimental design becomes critical.
+The downside is cost: $\binom{C}{2}$ possible pairs grows quadratically. For $C = 20$ TTS engines, there are 190 unique pairs. If we test 5 input texts per pair and want 3 annotators per comparison, that is $190 \times 5 \times 3 = 2{,}850$ annotations. This quadratic scaling is where experimental design becomes critical.
+
+::: {.exercise-predict correct="B"}
+
+You need to rank 20 TTS engines. A colleague argues: "Absolute ratings (1-5 scale) need only $20 \times 5 \times 3 = 300$ annotations, while all-pairs comparison needs $190 \times 5 \times 3 = 2{,}850$. The 10x cost difference makes absolute ratings the clear winner." Before reading further, what is the most likely outcome?
+
+- [A] The absolute ratings produce a tighter ranking because each engine is evaluated independently, avoiding comparison-order effects.
+- [B] The pairwise comparisons produce a more accurate ranking despite the higher cost, because inter-annotator calibration differences corrupt the absolute scale in ways that cannot be averaged away.
+- [C] Both produce equally accurate rankings, so absolute ratings win on efficiency.
+
+::: {.predict-reveal}
+**The answer is B.** The 10x cost argument is misleading because it ignores data *quality*. Absolute ratings suffer from a calibration problem: one annotator's "4" is another annotator's "3." This inconsistency is systematic (not random noise), so averaging over more annotators does not fully remove it. Pairwise comparisons sidestep calibration entirely: "A or B?" requires no internal scale. Research shows that $O(N \log N)$ pairwise labels match $O(N)$ absolute labels per item in ranking accuracy, and each pairwise label is more informative. The real comparison is not 300 vs. 2,850; with a circulant design ($k=2$), you can get a connected comparison graph with only 600 annotations, far fewer than the naive all-pairs count.
+:::
+
+:::
+
 
 ### Designing the Experiment: Which Pairs to Compare
 
@@ -49,6 +64,25 @@ The most practical approach is a **circulant tournament design**. Arrange the $C
 
 **The minimum requirement** is that the comparison graph be connected ($C - 1 = 19$ edges for a spanning tree). But a spanning tree is fragile: a single noisy comparison can corrupt the entire ranking. The circulant design with $k \geq 2$ provides redundancy.
 
+::: {.exercise-mcq correct="C"}
+
+A circulant tournament design with $C = 20$ engines and $k = 2$ neighbors produces 40 pairs (vs. 190 for all pairs). A colleague suggests saving further by using $k = 1$ (20 pairs). What is the main risk of this reduction?
+
+- [A] The comparison graph becomes disconnected, so the BT model cannot be fitted at all.
+- [B] Each engine appears in only 1 comparison, making the design unbalanced.
+- [C] The graph is connected but has no redundancy: a single noisy comparison can propagate errors across the entire ranking.
+- [D] The $k = 1$ design violates the circulant structure because 20 is an even number.
+
+::: {.feedback-correct}
+Correct! With $k = 1$, the comparison graph forms a single cycle (each engine compared to one neighbor in each direction), which is connected. So the BT model can be fitted. But the graph is a single chain wrapped into a circle: every path between two distant engines passes through many intermediate comparisons. One noisy result on that path distorts the inferred skill difference between the endpoints. With $k = 2$, there are redundant paths, so the ranking is robust to individual noisy comparisons.
+:::
+
+::: {.feedback-incorrect}
+Not quite. Option A is wrong: $k = 1$ gives $C$ edges forming a cycle, which is connected ($C - 1 = 19$ edges is the minimum; $k = 1$ gives 20 edges). Option B is wrong: each engine appears in $2k = 2$ comparisons, which is balanced (just fewer per engine). Option D is incorrect; the circulant structure works for any $C$ and $k$. The real problem is C: the graph has no redundant paths, so noise in any single comparison propagates along the chain.
+:::
+
+:::
+
 #### Adaptive Pair Selection: Maximizing Information Per Comparison
 
 Static designs are good but not optimal. They "waste" comparisons on easy pairs (the best engine vs. the worst engine, where the outcome is obvious) and underinvest in hard pairs (two closely-ranked engines where the outcome is genuinely uncertain).
@@ -73,9 +107,25 @@ $$ {#eq-outcome-uncertainty}
 
 This equals 1 when $P(i \succ j) = 0.5$ (maximum uncertainty; the model has no idea who wins) and equals 0 when $P(i \succ j) \in \{0, 1\}$ (the outcome is certain; nothing to learn). At each step, you query the pair with the highest uncertainty: the pair where the current model is most confused.
 
-An alternative criterion uses the **standard error of the difference** $\text{SE}(\hat{\lambda}_i - \hat{\lambda}_j)$ from @eq-var-diff. Choose the pair with the largest SE: the pair where the ranking is most uncertain. This directly attacks the "weakest link" in your ranking.
+An alternative criterion uses the **standard error of the difference** $\text{SE}(\hat{\lambda}_i - \hat{\lambda}_j)$ from @eq-var-diff. Choose the pair with the largest SE: the pair where the ranking is most uncertain. This criterion directly attacks the "weakest link" in your ranking.
 
 Both criteria work well. The outcome uncertainty heuristic is simpler and nearly as effective.
+
+::: {.exercise-order correct="C,A,D,B"}
+
+Arrange the following steps in the correct order for an adaptive pair selection experiment:
+
+- [A] Fit the BT model to the initial data and compute outcome uncertainty for all remaining candidate pairs.
+- [B] Report final rankings with confidence intervals from the converged model.
+- [C] Run a sparse static design (e.g., $k=2$ circulant) to ensure graph connectivity and provide warm-start data.
+- [D] Iteratively select the most uncertain pair, collect its annotation, re-fit the model, and repeat until the budget is exhausted.
+
+::: {.order-feedback}
+**Correct order: C, A, D, B.** The warm-start phase (C) is essential because the BT model requires a connected comparison graph; without it, some items would have undefined scores. Fitting the model to this initial data (A) produces the first set of uncertainty estimates. The active learning loop (D) then greedily selects the most informative pair at each step, re-fitting after each new annotation so that uncertainty estimates stay current. Finally (B), the converged model produces the ranking. Skipping C and jumping directly to D would fail because there is no fitted model to compute uncertainty from.
+:::
+
+:::
+
 
 ::: {.callout-note title="Think Hard: Why not just compare the top-2 engines over and over?"}
 Adaptive pair selection focuses on uncertain pairs, which are typically pairs that are close in skill. But this can create a tunnel-vision problem: you spend your entire budget distinguishing the top 2 engines while learning nothing about engines 5-20. In practice, the algorithm does not fall into this trap because re-fitting the model after each comparison can shift which pair is most uncertain. Still, it is good practice to add a **diversity constraint**: ensure the selected pairs span many different engines, not just the current top-2. The diverse batch algorithm in the next subsection addresses this.
@@ -101,7 +151,7 @@ Not all annotators are equally reliable. Some click randomly to finish faster. S
 
 **Gold-standard "trap" questions.** Embed comparisons with an obvious winner (e.g., a high-quality sample vs. a sample with audible glitches). These should be indistinguishable in the UI from real comparisons. If an annotator gets more than 30% of gold questions wrong, flag their data for review.
 
-**The 10% rule.** Roughly 10% of all comparisons should be gold questions. This is enough to detect consistently poor annotators without wasting too much of the budget on questions that do not contribute to the ranking.
+**The 10% rule.** Roughly 10% of all comparisons should be gold questions. This fraction is enough to detect consistently poor annotators without wasting too much of the budget on questions that do not contribute to the ranking.
 
 **Inter-annotator agreement.** Compute agreement metrics on pairs that were annotated by multiple raters. Common metrics include:
 
@@ -110,17 +160,14 @@ Not all annotators are equally reliable. Some click randomly to finish faster. S
 
 **Filtering.** Remove annotations from consistently poor annotators (those failing gold questions). For borderline annotators, consider down-weighting their contributions rather than discarding them entirely. The random-effects model in @sec-practical-extensions provides a principled framework for this.
 
-**Annotator management.** Quality control extends beyond filtering bad data after the fact. As [Lilian Weng](https://lilianweng.github.io/posts/2024-02-05-human-data-quality/) emphasizes, the best preference datasets are produced by annotators who are selected, trained, and continuously calibrated. Practical steps include: selecting annotators whose skills match the evaluation task (audio perception for TTS, writing quality for LLMs), running short training sessions with feedback before the main annotation campaign, and holding regular calibration rounds where annotators re-label a shared set and discuss disagreements.
+**Annotator management.** Quality control extends beyond filtering bad data after the fact. As [Lilian Weng](https://lilianweng.github.io/posts/2024-02-05-human-data-quality/) emphasizes, the best preference datasets are produced by annotators who are selected, trained, and continuously calibrated. Three practical steps help: (a) select annotators whose skills match the evaluation task (audio perception for TTS, writing quality for LLMs); (b) run short training sessions with feedback before the main annotation campaign; and (c) hold regular calibration rounds where annotators re-label a shared set and discuss disagreements.
 
 The "wisdom of the crowd" insight is encouraging: non-expert annotators can produce reliable labels when proper quality assurance is in place. Agreement-based weighting automatically down-weights annotators who disagree with the majority on gold questions. You do not need domain experts for every evaluation. You need thoughtful task design and continuous quality monitoring.
 
-::: {.callout-tip title="Self-Explanation Prompt"}
-An annotator gets 3 out of 10 gold-standard questions wrong. The expected random-chance accuracy is 50%. Is this annotator doing worse than random? What should you do with their other annotations?
-:::
 
 ### Scaling with Parallel Annotators: The Batch Workflow
 
-With 10 annotators working simultaneously, the annotation system operates in batch cycles. This is where the batch TrueSkill algorithm from @sec-bayesian-models becomes practical:
+With 10 annotators working simultaneously, the annotation system operates in batch cycles. The batch TrueSkill algorithm from @sec-bayesian-models becomes practical here:
 
 **1. Select $k$ pairs using the current model.** Choose pairs that are both informative (high outcome uncertainty) and diverse (spanning many different engines). The **diverse batch algorithm** works as follows:
 
@@ -129,7 +176,7 @@ With 10 annotators working simultaneously, the annotation system operates in bat
 - For each subsequent pair, penalize pairs that share engines with already-selected pairs (diversity penalty).
 - Repeat until $k$ pairs are selected.
 
-This ensures the batch covers a broad range of engines rather than repeatedly querying the same top-2 pair.
+The diversity penalty ensures the batch covers a broad range of engines rather than repeatedly querying the same top-2 pair.
 
 **2. Dispatch pairs to annotators.** Assign one pair per annotator. Each annotator sees the pair in the annotation UI, listens to both samples, and selects a winner.
 
@@ -139,12 +186,31 @@ This ensures the batch covers a broad range of engines rather than repeatedly qu
 
 **5. Repeat.** Select the next batch of $k$ pairs and dispatch.
 
-This cycle runs continuously during the annotation session. The model becomes progressively more confident, and the pairs become progressively harder (focusing on the engines that are closest in skill). A typical session might run 20-30 batch cycles, each taking 1-2 minutes, producing 200-300 annotations in an hour with 10 annotators.
+This cycle runs continuously during the annotation session. The model becomes progressively more confident, and the pairs become progressively harder, focusing on the engines that are closest in skill. A typical session might run 20-30 batch cycles, each taking 1-2 minutes, producing 200-300 annotations in an hour with 10 annotators.
 
 ::: {.callout-warning title="Common Misconception: More data is always better"}
 For BT models, the standard error scales as $1/\sqrt{N}$, where $N$ is the number of relevant comparisons. Doubling your data cuts the SE by only 30% (factor of $1/\sqrt{2}$). After a certain point, additional comparisons for already-well-separated engines provide diminishing returns. Adaptive design focuses the budget where it matters: on the pairs that are hardest to rank. A well-designed adaptive experiment with 500 comparisons can produce tighter confidence intervals than a random experiment with 2,000.
 :::
 
+::: {.exercise-fillin}
+
+Complete the key design choices in a preference annotation pipeline:
+
+1. Label the two options as **{Sample A and Sample B|Sample A and Sample B: correct|Engine 1 and Engine 2: wrong|Good and Bad: wrong}** so annotators cannot develop brand-name biases.
+2. Embed gold-standard "trap" comparisons in roughly **{10%|10%: correct|50%: wrong|1%: wrong}** of all comparisons to detect unreliable annotators without wasting excessive budget.
+3. Flag an annotator for review if their gold-question accuracy falls below **{70%|70%: correct|90%: wrong|50%: wrong}**, which corresponds to getting more than 30% of trap questions wrong.
+
+::: {.fillin-feedback}
+**Step 1: Sample A and Sample B.** Anonymized labels prevent annotators from forming expectations about which engine is "supposed to" win. If they saw real engine names, prior experience or reputation could bias their judgments.
+
+**Step 2: 10%.** The 10% rule balances detection power against budget cost. At 10%, an annotator who completes 100 real comparisons also answers ~10 gold questions, enough to estimate their reliability. Going higher (50%) wastes half the budget on questions that do not contribute to the ranking; going lower (1%) provides too few gold questions to reliably detect poor annotators.
+
+**Step 3: 70%.** The random-chance baseline for forced-choice comparisons is 50%. An annotator scoring below 70% (i.e., >30% errors on obvious-winner trap questions) is performing only marginally above chance, suggesting carelessness or systematic bias. Their data should be reviewed and potentially down-weighted rather than immediately discarded.
+:::
+
+:::
+
+
 ### Transition: Handling Real-World Messiness
 
-You have now designed your experiment, built the annotation UI, established quality control, and collected data from 10 annotators across 30 batch cycles. The data is in, and it is messy. Some annotators disagree sharply. Some pairs truly sound identical. Your engine that excels on news text struggles with poetry. The next section addresses these practical extensions to the basic BT model.
+You have now designed your experiment, built the annotation UI, established quality control, and collected data from 10 annotators across 30 batch cycles. The data is in. And the data is messy. Some annotators disagree sharply. Some pairs truly sound identical. Your engine that excels on news text struggles with poetry. The next section addresses these practical extensions to the basic BT model.
