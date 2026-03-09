@@ -25,6 +25,23 @@ The user will provide **the path to the chapter's index `.qmd` file** (e.g., `Tr
 
 ---
 
+=== MANDATORY RULES RE-READ (Do This FIRST) ===
+
+**CRITICAL: You MUST read the following rules files from disk before starting any work.** Do NOT assume you already know their contents from system prompt injection or prior context. Rules may have been updated since the chat started. Read each file in full using your file-reading tool.
+
+**Read ALL of these files now, before proceeding to Step 1:**
+
+| # | File to Read | What It Contains | When It Matters |
+|---|---|---|---|
+| 1 | `writing-style.md` | **THE MOST CRITICAL FILE.** Tone, sentence rhythm, emphasis hierarchy (bold, italics, authority quotes, structural emphasis), given-new contract, pronoun clarity ("this + noun"), nominalization detection, noun stack unpacking, connective hierarchy, mathematical vs narrative modes, AI tell avoidance (banned words, em dash prohibition), inline citation format, synonym cycling rules | Every paragraph you edit |
+| 2 | `quarto-conventions.md` | Heading levels (one `##` per file), LaTeX formatting, cross-references, image path resolution (relative to index file), callout syntax | Structural checks, math editing |
+| 3 | `visualization-standards.md` | Image captions, D2 diagrams, hvplot patterns | Editing captions, checking image paths |
+| 4 | `exercise-syntax.md` | Exercise div syntax, Pandoc AST pitfalls | MUST read to avoid accidentally breaking exercise blocks during prose edits |
+
+**Per-section re-read (MANDATORY):** Before editing EACH section file, re-read `writing-style.md` from disk. This is the single most impactful rule for editing quality. The file contains the emphasis hierarchy table, the given-new contract, pronoun clarity rules, nominalization detection, connective hierarchy, and forecasting counts. By the third section, these will have faded from context. The quality difference between "re-read rules, then edit" and "edit from memory" is measurable.
+
+---
+
 === WHAT TO EDIT ===
 
 You are editing **prose quality only**. Think of yourself as a copy editor, not an author.
@@ -279,7 +296,7 @@ This editing pass should ONLY improve prose — never flatten good instructional
 
 **DO NOT remove or compress:**
 - Processing pauses (white space, horizontal rules between sections)
-- Exercise blocks (`.exercise-mcq`, `.exercise-predict`, `.exercise-order`, `.exercise-fillin`) — edit prose inside them, but keep them. **Do NOT change the structural syntax** (bullet list format, `{...|...}` fill-in patterns, `correct="..."` attributes, nested feedback div classes). If you edit prose inside an exercise, verify the result still follows the syntax rules in `exercise-syntax.md` / `.cursor/rules/exercise-syntax.mdc`.
+- Exercise blocks (`.exercise-mcq`, `.exercise-predict`, `.exercise-order`, `.exercise-fillin`) — edit prose inside them, but keep them. **Do NOT change the structural syntax** (bullet list format, `{...|...}` fill-in patterns, `correct="..."` attributes, nested feedback div classes). If you edit prose inside an exercise, verify the result still follows the syntax rules in `exercise-syntax.md`.
 - Think Hard callouts (`.callout-note` boxes) — edit prose inside them, but keep them
 - Common Misconception callouts (`.callout-warning` boxes) — edit prose inside them, but keep them
 - Transitions between sections ("Now that we understand X, the next question is Y")
@@ -546,19 +563,20 @@ Research shows causal ("because," "so," "therefore") and contrastive ("however,"
 
 **CRITICAL: Do NOT ask the user for confirmation at any step. Execute the entire workflow autonomously.**
 
-**CRITICAL: CONTEXT REFRESH.** Editing rules are long. By the time you reach the third or fourth section file, you will have lost the early rules from your context window. You MUST re-read the rule files before editing each section. This is not optional. Skipping this step causes the most common failure mode: early sections are well-edited, later sections are sloppy.
-
 ---
 
 ## STEP 1: Read Rules and Catalog Sections
 
+**CRITICAL: Edit one section file at a time. Do NOT batch multiple sections.** Each section is a self-contained editing task. If the chapter has 7 sections, that is 7 sequential passes, each starting with a fresh re-read of the rules.
+
 **1a. Read ALL rule files (MANDATORY before any editing begins):**
 
-Read these files in full. They contain the editing standards you will apply:
+Read these files from disk in full using your file-reading tool. Do NOT rely on system prompt injection or prior context:
 
-- `writing-style.md` — Sentence clarity, given-new flow, emphasis hierarchy, pronoun clarity, nominalization, connective hierarchy, mathematical prose, forecasting counts, AI tell avoidance, and all vocabulary/style rules
-- `quarto-conventions.md` — Heading levels, LaTeX formatting, cross-references, image paths, callout syntax
-- `visualization-standards.md` — Image handling, D2 diagrams, hvplot patterns (relevant when editing captions or checking image paths)
+- **`writing-style.md`** — Sentence clarity, given-new flow, emphasis hierarchy, pronoun clarity, nominalization, connective hierarchy, mathematical prose, forecasting counts, AI tell avoidance, and all vocabulary/style rules
+- **`quarto-conventions.md`** — Heading levels, LaTeX formatting, cross-references, image paths, callout syntax
+- **`visualization-standards.md`** — Image handling, D2 diagrams, hvplot patterns (relevant when editing captions or checking image paths)
+- **`exercise-syntax.md`** — Exercise div syntax rules (relevant when editing prose inside exercise blocks)
 
 **1b. Read the index file and catalog sections:**
 
@@ -568,21 +586,37 @@ Read these files in full. They contain the editing standards you will apply:
 
 ---
 
-## STEP 2: Edit Each Section (One at a Time, with Context Refresh)
+## STEP 2: Edit Sections (Parallel Subagents When Available)
 
-**CRITICAL: Edit one section file at a time. Do NOT batch multiple sections.** Each section is a self-contained editing task. If the chapter has 7 sections, that is 7 sequential passes, each starting with a fresh re-read of the rules.
+**Parallelization strategy:** Editing different sections are independent tasks (the consistency pass in Step 3 handles cross-section concerns). If your execution environment supports spawning subagents (e.g., Cursor's Task tool), you SHOULD edit sections in parallel:
+
+1. **Spawn one subagent per section file.** Each subagent receives:
+   - The full text of this workflow file (so it knows all 19 editing rules)
+   - The full text of `writing-style.md` (the most critical rules file)
+   - The full text of `quarto-conventions.md`
+   - The full text of `exercise-syntax.md` (to avoid breaking exercise blocks)
+   - The path to the specific section file it is responsible for
+   - The chapter folder name (for image path verification)
+2. **Each subagent independently:** reads its section, applies Rules 1-19 paragraph by paragraph using targeted `StrReplace` operations, and reports back what it changed.
+3. **The parent agent** then runs Step 3 (consistency pass) and Step 4 (final verification) across all sections, since these require cross-section awareness.
+
+**If subagents are NOT available**, edit sections sequentially using the per-section workflow below.
 
 **For each section file, follow this exact sequence:**
 
 **2a. Re-read the writing rules (MANDATORY before EVERY section):**
 
-Before touching a single paragraph, re-read the following file:
+Before touching a single paragraph, re-read the following files from disk using your file-reading tool:
 
-- `writing-style.md` — Re-read it in full. Pay particular attention to: the Emphasis Hierarchy table, the Given-New Contract, the Pronoun Clarity rule, the Nominalization Detection rule, the Connective Hierarchy, and the Forecasting Counts section. These are the rules most commonly forgotten by the time you reach later sections.
+- **`writing-style.md`** — Re-read in FULL. Pay particular attention to: the Emphasis Hierarchy table (7 levels from italics to callout boxes), the Given-New Contract, the Pronoun Clarity rule ("this + noun"), the Nominalization Detection rule, the Noun Stack Unpacking rule, the Connective Hierarchy (causal > contrastive > additive), and the Forecasting Counts section. Also re-read the AI tell avoidance section: banned words table, em dash prohibition, meta-commentary filler phrases to remove.
 
 If the section contains equations or mathematical content, also re-read:
 
-- `quarto-conventions.md` — Re-read the LaTeX Formatting section and the Cross-References section.
+- **`quarto-conventions.md`** — Re-read the LaTeX Formatting section and the Cross-References section.
+
+If the section contains exercises, also re-read:
+
+- **`exercise-syntax.md`** — Re-read to ensure prose edits inside exercise blocks don't break the Lua filter (e.g., don't convert bullet list options to paragraphs, don't add bold to fill-in `{...}` patterns).
 
 This re-read is not a suggestion. It is a hard requirement. The quality difference between "re-read rules, then edit" and "edit from memory" is stark, and the user will notice.
 
@@ -634,6 +668,13 @@ After all sections are edited:
 ---
 
 ## STEP 4: Final Verification
+
+**Re-read ALL rules files one final time** before this verification pass. Read these from disk:
+- `writing-style.md`
+- `quarto-conventions.md`
+- `exercise-syntax.md`
+
+Then perform these checks:
 
 1. **Scan for leftover AI tells:** Search all files for banned words from Rule 7b
 2. **Check for em dashes in paragraph:** Flag any paragraph with em dashes

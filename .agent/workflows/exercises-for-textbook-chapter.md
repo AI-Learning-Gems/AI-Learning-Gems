@@ -26,6 +26,22 @@ The user will provide **the path to the chapter's index `.qmd` file** (e.g., `Ag
 
 ---
 
+=== MANDATORY RULES RE-READ (Do This FIRST) ===
+
+**CRITICAL: You MUST read the following rules files from disk before starting any work.** Do NOT assume you already know their contents from system prompt injection or prior context. Rules may have been updated since the chat started. Read each file in full using your file-reading tool.
+
+**Read ALL of these files now, before proceeding to Step 0:**
+
+| # | File to Read | What It Contains | When It Matters |
+|---|---|---|---|
+| 1 | `exercise-syntax.md` | **THE MOST CRITICAL FILE.** Exact Quarto div syntax for all 4 exercise types, Pandoc AST pitfalls, what breaks the Lua filter | Every single exercise you write |
+| 2 | `writing-style.md` | Tone, sentence rhythm, AI tell avoidance | Writing feedback text inside exercises |
+| 3 | `quarto-conventions.md` | Callout syntax, heading levels | Preserving existing callouts, avoiding structural damage |
+
+**Per-section re-read (MANDATORY):** Before processing EACH section file, re-read `exercise-syntax.md` in full. This is not a suggestion. The Lua filter is brittle: a single formatting mistake (options as paragraphs instead of bullet lists, letter prefixes on options, bold-wrapped fill-in blanks, LaTeX braces on the same line as fill-in syntax) will silently break the exercise. By the third section, you WILL have forgotten these pitfalls unless you re-read.
+
+---
+
 === WHAT TO REMOVE (Cleanup) ===
 
 Before adding new exercises to a section, remove these existing blocks:
@@ -289,7 +305,7 @@ Complete the missing component in [this derivation/process/mapping]:
 
 ## CRITICAL: Exercise Syntax Pitfalls (Read `exercise-syntax.md`)
 
-The Lua filter that powers exercises is sensitive to Pandoc's AST parsing. Violations produce exercises that render as raw text, fail to submit, or crash with JS errors. **Read the full `exercise-syntax.md` rule file** (in `.agent/rules/` or `.cursor/rules/exercise-syntax.mdc`). The most common mistakes:
+The Lua filter that powers exercises is sensitive to Pandoc's AST parsing. Violations produce exercises that render as raw text, fail to submit, or crash with JS errors. **Read the full `exercise-syntax.md` rule file.** The most common mistakes:
 
 1. **Options as standalone paragraphs** (`A. text` with blank lines between) instead of bullet list (`- text` on consecutive lines). The filter only finds BulletList nodes. Paragraphs are invisible to it.
 2. **Letter prefixes on options** (`- A) text`, `- [A] text`). `A)` triggers Pandoc's ordered list parser, producing `<ol type="A">`. `[A]` renders as literal bracket text, duplicating the auto-assigned label. Do not use any prefix format.
@@ -350,8 +366,6 @@ The highest-value questions are those that:
 
 **CRITICAL: Do NOT ask the user for confirmation at any step. Execute the entire workflow autonomously.**
 
-**CRITICAL: CONTEXT REFRESH.** By the time you reach the third or fourth section file, you will have lost the exercise design rules from your context window. You MUST re-read this workflow file before processing each section. This is not optional.
-
 ---
 
 ## STEP 0: Read Index & Catalog Sections
@@ -363,18 +377,40 @@ The highest-value questions are those that:
 
 ---
 
-## STEP 1: Process Each Section (One at a Time, with Context Refresh)
+## STEP 1: Process Sections (Parallel Subagents When Available)
+
+**Parallelization strategy:** Adding exercises to different sections are independent tasks. If your execution environment supports spawning subagents (e.g., Cursor's Task tool), you SHOULD process sections in parallel:
+
+1. **Spawn one subagent per section file** (excluding Closing). Each subagent receives:
+   - The full text of this workflow file (so it knows the exercise types, design rules, placement strategy, and quality checklist)
+   - The full text of `exercise-syntax.md` (the most critical rules file)
+   - The full text of `writing-style.md`
+   - The path to the specific section file it is responsible for
+   - The chapter folder name (for context)
+2. **Each subagent independently:** reads the section, removes old exercises, designs new ones, writes them inline, and reports back what it added.
+3. **The parent agent** collects results, tallies totals, and runs the final validation pass (Step 3).
+
+**If subagents are NOT available**, process sections sequentially using the per-section workflow below.
 
 **For each section file (including Introduction, excluding Closing), follow this exact sequence:**
 
-### 1a. Re-read the exercise workflow (MANDATORY before EVERY section)
+### 1a. Re-read the exercise rules (MANDATORY before EVERY section)
 
-Before touching a single paragraph, re-read this workflow file AND the exercise syntax rules file (`exercise-syntax.md` in `.agent/rules/` or `.cursor/rules/exercise-syntax.mdc`). Pay particular attention to:
-- The 4 exercise types and their Quarto syntax
-- The **exercise syntax pitfalls** (bullet list format, no letter prefixes, fill-in restrictions on bold/LaTeX)
-- The placement rules (especially: MCQ after concepts, Prediction Prompt before surprising results, Ordering for processes, Fill-in after worked examples)
-- The design rules for each type (one concept per question, plausible distractors, explanatory feedback)
-- What makes a good exercise question (core insight not trivia, force discrimination, reference running example)
+Before touching a single paragraph, re-read these files from disk using your file-reading tool:
+
+- **`exercise-syntax.md`** — Re-read in FULL. Pay particular attention to:
+  - Options MUST use bullet list syntax (`- text`), on consecutive lines, NO blank lines between items
+  - Do NOT prefix options with `A)`, `B)`, `[A]`, `[B]` — labels are auto-assigned
+  - Fill-in `{...}` patterns must NOT be wrapped in bold/italic
+  - Fill-in `{...}` patterns must NOT share a numbered list item with LaTeX containing braces
+  - The `correct` attribute uses capital letters matching list order (first item = A, etc.)
+- **This workflow file** — Re-read the "4 Exercise Types" section and the "Exercise Budget & Placement Strategy" section to refresh:
+  - The 4 exercise types and their Quarto syntax
+  - The placement rules (MCQ after concepts, Prediction Prompt before surprising results, Ordering for processes, Fill-in after worked examples)
+  - The design rules (one concept per question, plausible distractors, explanatory feedback)
+  - What makes a good exercise question (core insight not trivia, force discrimination, reference running example)
+
+Do NOT skip this re-read. The Lua filter will silently break exercises that violate these rules.
 
 ### 1b. Read the section file in full
 
@@ -439,13 +475,27 @@ Chat: "✓ Skipped `_99-closing.qmd` (already has Retrieval Practice Questions)"
 
 ---
 
-## STEP 3: Summary
+## STEP 3: Final Validation Pass (MANDATORY)
 
 After all sections are processed:
 
-1. Tally the total exercises added across all sections
-2. Verify the distribution matches the budget (19-26 total, ~10-14 MCQs, ~6 Prediction Prompts, ~6 Ordering/Fill-in)
-3. Chat: "✓ Exercise workflow complete: [total] exercises added ([MCQ] MCQs, [predict] Prediction Prompts, [order] Ordering, [fillin] Fill-in) across [N] sections"
+1. **Re-read `exercise-syntax.md`** one final time from disk.
+2. **Scan EVERY exercise in EVERY section file** for these specific violations:
+   - Options formatted as standalone paragraphs instead of bullet lists (`- text`)
+   - Blank lines between bullet list items (splits into multiple BulletLists)
+   - Letter prefixes on options (`A)`, `B)`, `[A]`, `[B]`)
+   - Fill-in `{...}` wrapped in bold or italic
+   - Fill-in `{...}` on the same numbered line as LaTeX with braces (`$x^{10}$`, `$\hat{\lambda}$`)
+   - Missing blank lines before/after exercise `:::` blocks
+   - Missing or malformed `correct` attribute
+   - MCQ missing `.feedback-correct` or `.feedback-incorrect` nested divs
+   - Prediction Prompt missing `.predict-reveal` nested div
+   - Ordering missing `.order-feedback` nested div
+   - Fill-in missing `.fillin-feedback` nested div
+3. Fix any violations found.
+4. Tally the total exercises added across all sections.
+5. Verify the distribution matches the budget (19-26 total, ~10-14 MCQs, ~6 Prediction Prompts, ~6 Ordering/Fill-in).
+6. Chat: "✓ Exercise workflow complete: [total] exercises added ([MCQ] MCQs, [predict] Prediction Prompts, [order] Ordering, [fillin] Fill-in) across [N] sections. Final syntax validation passed."
 
 ---
 

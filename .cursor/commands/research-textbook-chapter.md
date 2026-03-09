@@ -29,6 +29,26 @@ The user will describe what they want to understand in plain text. You must extr
 
 ---
 
+=== MANDATORY RULES RE-READ (Do This FIRST) ===
+
+**CRITICAL: You MUST read the following rules files from disk before starting any work.** Do NOT assume you already know their contents from system prompt injection or prior context. Rules may have been updated since the chat started. Read each file in full using your file-reading tool.
+
+**Read ALL of these files now, before proceeding to Phase 1:**
+
+| # | File to Read | What It Contains | When It Matters |
+|---|---|---|---|
+| 1 | `source-management.md` | Centralized source storage, folder naming, download commands, citation format, PDF figure conversion | Phases 1B, 1C, and 2 |
+| 2 | `web-source-fetching.md` | Site-specific fetch strategies (arXiv, blogs, d2l.ai, etc.) | Phase 1B (downloading) |
+| 3 | `high-quality-blogs.md` | Curated blog registry for research | Phase 1 (blog search) |
+| 4 | `writing-style.md` | Citation format, inline citation rules | Phase 2 (writing the plan) |
+| 5 | `quarto-conventions.md` | Folder structure, section file naming | Phase 2 (plan file structure) |
+| 6 | `visualization-standards.md` | Image priority order, source image handling | Phase 1C (image inventory) |
+| 7 | `python-env.md` | Conda environment activation | Any terminal commands |
+
+**Do NOT skip this step.** The most common failure mode is an agent that "remembers" the rules from the system prompt but drifts from the actual file contents over the course of a long research session.
+
+---
+
 === CENTRALIZED SOURCE STORAGE (CRITICAL) ===
 
 **Follow all rules in `source-management.md`** for source storage, folder naming conventions, checking for existing sources, and PDF figure conversion. **Follow `web-source-fetching.md`** for site-specific fetch strategies.

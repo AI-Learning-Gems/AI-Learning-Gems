@@ -26,6 +26,27 @@ The user will provide:
 - **Surgical edits:** Use targeted `StrReplace` operations, not full-file rewrites.
 - **Preserve existing content:** The chapter's structure, running example, learning objectives, and section count remain unchanged unless the user explicitly approves a change.
 
+---
+
+=== MANDATORY RULES RE-READ (Do This FIRST) ===
+
+**CRITICAL: You MUST read the following rules files from disk before starting any work.** Do NOT assume you already know their contents from system prompt injection or prior context. Rules may have been updated since the chat started. Read each file in full using your file-reading tool.
+
+**Read ALL of these files now, before proceeding to Phase 1:**
+
+| # | File to Read | What It Contains | When It Matters |
+|---|---|---|---|
+| 1 | `writing-style.md` | Tone, sentence rhythm, emphasis hierarchy, AI tell avoidance, mathematical vs narrative modes, inline citations | Phase 5 (writing new paragraphs), Phase 6 (coherence pass) |
+| 2 | `quarto-conventions.md` | Heading levels, LaTeX formatting, cross-references, image paths, callout syntax | Phase 5 (section edits), Phase 6 (cross-references) |
+| 3 | `visualization-standards.md` | Image priority order, source image handling, D2 diagrams, hvplot patterns | Phase 5 (adding new visualizations) |
+| 4 | `source-management.md` | Centralized source storage, folder naming, download commands, citation format | Phase 2 (downloading new sources) |
+| 5 | `web-source-fetching.md` | Site-specific fetch strategies | Phase 2 (downloading new sources) |
+| 6 | `high-quality-blogs.md` | Blog attribution rules | Phase 5 (attributing blog-sourced content) |
+| 7 | `exercise-syntax.md` | Exercise div syntax | Phase 5 (to avoid breaking existing exercises during edits) |
+| 8 | `python-env.md` | Conda environment activation | Any terminal commands |
+
+**Per-section re-read (MANDATORY):** Before editing each section file in Phase 5, re-read `writing-style.md` from disk. New paragraphs written from memory of the rules will consistently violate the emphasis hierarchy, given-new contract, and AI tell avoidance rules.
+
 **Shared rules (MUST follow):**
 - **Writing style:** Follow `writing-style.md`
 - **Visualizations:** Follow `visualization-standards.md`
@@ -300,10 +321,14 @@ Write `UPDATE-PLAN.md` to the chapter folder (alongside `TEXTBOOK-PLAN.md`):
 
 ### For Each Section Being Updated
 
-1. **Read the section** (or re-read if you read it in Phase 1)
-2. **Update the section's source header** — add new sources to the collapsible callout table at the top
-3. **Apply changes** using `StrReplace` — one change at a time, preserving surrounding context
-4. **Track word count change** — note how many words were added
+1. **Re-read rules (MANDATORY before each section edit):**
+   Before editing, re-read these files from disk:
+   - `writing-style.md` — Re-read in full. Focus on: AI tell avoidance (banned words, em dash prohibition), mathematical vs narrative modes, inline citation format, given-new contract, pronoun clarity.
+   - `exercise-syntax.md` — Re-read to avoid accidentally breaking existing exercise blocks during edits.
+2. **Read the section** (or re-read if you read it in Phase 1)
+3. **Update the section's source header** — add new sources to the collapsible callout table at the top
+4. **Apply changes** using `StrReplace` — one change at a time, preserving surrounding context
+5. **Track word count change** — note how many words were added
 
 ### Word Count Discipline
 
@@ -316,9 +341,15 @@ After all edits to a section:
 
 ---
 
-=== PHASE 6: COHERENCE PASS ===
+=== PHASE 6: COHERENCE PASS & FINAL RULES VALIDATION ===
 
-**Goal:** Ensure the updated chapter reads as a unified whole, not as original-content-plus-patches.
+**Goal:** Ensure the updated chapter reads as a unified whole, not as original-content-plus-patches, and that all rules are maintained.
+
+**Re-read rules (MANDATORY before this pass):**
+Read these files from disk one final time:
+- `writing-style.md`
+- `quarto-conventions.md`
+- `exercise-syntax.md`
 
 **Steps:**
 
@@ -348,7 +379,16 @@ After all edits to a section:
 
 6. **Check section transitions.** Read the last paragraph of each section and the first paragraph of the next section. Do they connect? If not, adjust the transition.
 
-**Chat output:** "Coherence pass complete. [N] transition adjustments made."
+7. **Final rules validation on all modified sections:**
+   - Scan for em dashes (must be zero in new/modified text)
+   - Scan for banned AI-tell words (delve, tapestry, navigate, etc.)
+   - Scan for filler phrases ("It's worth noting that...")
+   - Scan for unlinked citations: parentheticals like `(Author et al., YYYY)` without `](http` hyperlinks
+   - Verify image paths are prefixed with `[Topic Name]/` (not bare `images/`)
+   - Verify existing exercise blocks are intact (not broken by edits)
+   - Verify heading levels (one `##` per section file)
+
+**Chat output:** "Coherence pass complete. [N] transition adjustments made. Final rules validation passed."
 
 ---
 

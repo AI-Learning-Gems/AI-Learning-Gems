@@ -33,6 +33,26 @@ The user will provide **the path to a `TEXTBOOK-PLAN.md` file** created by the `
 
 ---
 
+=== MANDATORY RULES RE-READ (Do This BEFORE Writing ANY Section) ===
+
+**CRITICAL: You MUST read the following rules files from disk before starting any work.** Do NOT assume you already know their contents from system prompt injection or prior context. Rules may have been updated since the chat started. Read each file in full using your file-reading tool.
+
+**Read ALL of these files now, before proceeding to Step 0:**
+
+| # | File to Read | What It Contains | When It Matters |
+|---|---|---|---|
+| 1 | `writing-style.md` | Tone, sentence rhythm, emphasis hierarchy, given-new flow, pronoun clarity, AI tell avoidance, mathematical vs narrative modes, inline citations, vocabulary rules | Every paragraph you write |
+| 2 | `quarto-conventions.md` | Folder structure, index file template, heading levels, LaTeX formatting, cross-references, callout syntax, image path resolution | File structure, every section file |
+| 3 | `visualization-standards.md` | Image priority order, source image handling, D2 diagram template (Modern SaaS theme), hvplot/bokeh two-cell pattern | Every visualization |
+| 4 | `source-management.md` | Centralized source paths, citation format, blog attribution | Source headers, citations |
+| 5 | `high-quality-blogs.md` | Blog attribution rules | When using blog-sourced explanations |
+| 6 | `exercise-syntax.md` | Exercise div syntax (not needed for writing, but useful to avoid conflicts) | If the chapter will later have exercises |
+| 7 | `python-env.md` | Conda environment activation | Any terminal commands |
+
+**Per-section re-read (MANDATORY):** Before writing each body section (Steps 2), re-read `writing-style.md` and `visualization-standards.md`. By the third or fourth section, the detailed rules (emphasis hierarchy, given-new contract, D2 theme classes) will have faded from context. The quality difference between "re-read rules, then write" and "write from memory" is stark.
+
+---
+
 === FILE OUTPUT (CRITICAL) ===
 
 **NEVER output the chapter content in the chat window.**
@@ -705,6 +725,14 @@ Chat: "✓ Introduction complete: `_01-introduction.qmd`"
 
 **For each body section listed in TEXTBOOK-PLAN.md:**
 
+0. **Re-read rules files (MANDATORY before EVERY section):**
+   Before writing, re-read these files from disk:
+   - `writing-style.md` — Re-read in full. Focus on: emphasis hierarchy, given-new contract, pronoun clarity ("this + noun"), nominalization detection, mathematical vs narrative modes, AI tell avoidance (banned words, em dash prohibition), and inline citation format.
+   - `visualization-standards.md` — Re-read the D2 diagram template (Modern SaaS theme with 6 semantic classes), the hvplot two-cell pattern, and the source image handling rules.
+   - `quarto-conventions.md` — Re-read heading levels (one `##` per section file), image path resolution (relative to index file), and callout syntax.
+
+   This re-read is not optional. Skipping it is the #1 cause of quality degradation in later sections.
+
 1. **Read the plan** for this section — which sources, which specific parts, what to extract
 2. **Read relevant downloaded sources** — `view_file` on the files listed
 3. **If sources are insufficient:**
@@ -788,6 +816,36 @@ Chat: "✓ Light engagement pass complete"
 ### 5C. Final Check
 - Scan each file for remaining issues
 - Chat: "✓ Final pass complete, chapter finished at `[index file path]`"
+
+---
+
+### 5D. Final Rules Validation (MANDATORY)
+
+**Re-read ALL rules files one final time** and validate the entire chapter against them:
+
+1. **Re-read** `writing-style.md` — then scan ALL section files for:
+   - Em dashes (must be zero)
+   - Banned AI-tell words (delve, tapestry, navigate, etc.)
+   - Filler phrases ("It's worth noting that...")
+   - Bare "this"/"these" as sentence subjects without clarifying nouns
+   - Unlinked citations: parentheticals like `(Author et al., YYYY)` without `](http` hyperlinks
+   - Synonym cycling (same concept called different names)
+
+2. **Re-read** `quarto-conventions.md` — then verify ALL section files for:
+   - Exactly ONE `##` heading per section file
+   - `{#sec-*}` labels on all section headings
+   - Image paths prefixed with `[Topic Name]/` (not bare `images/`)
+   - `{{< include >}}` paths quoted in index file
+
+3. **Re-read** `visualization-standards.md` — then verify:
+   - All source images attributed in captions
+   - No explicit `width` tags on images
+   - D2 diagrams use ELK engine and Modern SaaS theme
+   - Plots use the two-cell hvplot/bokeh pattern
+
+4. **Re-read** `exercise-syntax.md` — for awareness of formatting the exercises workflow will later add
+
+Fix any violations found. Chat: "✓ Final rules validation complete"
 
 ---
 
