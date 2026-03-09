@@ -38,6 +38,26 @@ DE uses strict 1-to-1 replacement: offspring $p_i'$ replaces parent $p_i$ only i
 
 On BBH (22 tasks with GPT-3.5), DE achieved up to 25% improvement over baselines, averaging 3.5%. GA peaked at 15%, averaging 2.5%. DE generally outperformed GA on challenging tasks, while GA had a slight edge on simpler sentiment classification. Both significantly outperformed APE, OPRO, and manual prompts.
 
+::: {.exercise-mcq correct="D"}
+
+EvoPrompt implements two classical evolutionary strategies: Genetic Algorithm (GA) and Differential Evolution (DE). DE uses strict 1-to-1 replacement (offspring replaces parent only if it scores higher), while GA uses population-level selection (merge old and new, keep top $N$). What is the practical consequence of this difference?
+
+- GA converges faster because population-level selection creates stronger selection pressure
+- DE explores more of the search space because 1-to-1 replacement encourages diversity
+- Both strategies produce identical results because the LLM crossover operator dominates the selection mechanism
+- DE guarantees that each individual lineage never degrades, but this conservatism can slow exploration; GA allows temporary regression in individual lineages, enabling riskier jumps across the search space
+
+::: {.feedback-correct}
+Correct! DE's 1-to-1 replacement means a parent is only replaced by its own offspring if the offspring is strictly better. This guarantees monotonic improvement for each lineage but can trap individual lineages in local optima. GA's population-level selection is more aggressive: a parent can be eliminated even if its offspring is worse, as long as other lineages produced better candidates. This allows the population to collectively take riskier jumps, which explains why GA had a slight edge on simpler tasks (where bold moves pay off) while DE outperformed on harder tasks (where preserving hard-won progress matters more).
+:::
+
+::: {.feedback-incorrect}
+The key difference is what happens to individual lineages. DE's 1-to-1 replacement ensures no lineage ever gets worse, providing stability but limiting exploration. GA's population-level merge-and-select allows individual lineages to die out if the population collectively finds better candidates, enabling riskier exploration. This is why DE outperformed on hard tasks (where preserving progress matters) and GA had a slight edge on easier ones (where bold jumps across the space are rewarded).
+:::
+
+:::
+
+
 ### PromptBreeder: Evolution at the Meta-Level
 
 PromptBreeder ([Fernando et al., ICML 2024](https://arxiv.org/abs/2310.03714)) asked: if we can evolve task prompts, why not also evolve the *mutation prompts* that govern how task prompts change? This is self-referential evolution: the instructions for how to mutate are themselves subject to mutation.
@@ -55,6 +75,20 @@ PromptBreeder's nine mutation operators provide diversity, but it is unclear whi
 ### RLPrompt and the Interpretability-Performance Trade-off
 
 A conceptually distinct approach: treat prompt optimization as reinforcement learning (see @sec-math-rl for a review of RL basics, policies, and Q-learning). RLPrompt ([Deng et al., EMNLP 2022](https://arxiv.org/abs/2205.12548)) trains a small policy network (an MLP on top of a frozen DistilGPT-2) to generate discrete prompt tokens. The frozen target LLM is the environment, and task performance is the reward. Training uses soft Q-learning.
+
+::: {.exercise-predict correct="C"}
+
+RLPrompt trains a small neural network to generate discrete prompt tokens, optimizing purely for task performance reward with no constraint on readability. Before reading the results, predict: what do the RL-discovered prompts look like?
+
+- Well-structured instructions resembling expert-written prompts, because the RL agent learns to mimic effective human patterns
+- Short, keyword-heavy prompts that strip filler words while preserving the core task description
+- Ungrammatical, seemingly random token sequences that a human would never write
+
+::: {.predict-reveal}
+**The answer is C.** RLPrompt discovers prompts like "thou WhereasYe WhereasOY" that are complete gibberish to humans but dramatically improve task performance. The policy network optimizes individual tokens for reward, not meaning. It exploits statistical patterns in the LLM's token-level processing that are invisible to human intuition. These gibberish prompts function as a kind of "machine language" for the LLM's discrete input interface. Even more surprisingly, they transfer across model architectures, suggesting they activate general-purpose computational patterns.
+:::
+
+:::
 
 The surprising finding: RL-discovered prompts are often ungrammatical gibberish. Strings like "thou WhereasYe WhereasOY" dramatically improve task performance despite being completely uninterpretable. These prompts function as a kind of "machine language" that programs the LLM's behavior through its discrete input interface, exploiting patterns in the model's token-level processing that no human would discover.
 
@@ -87,6 +121,7 @@ But GPO's key contribution is the ablation study that challenges conventional wi
 
 **Trajectory retrieval beats recency (+15%).** Instead of showing the optimizer the most recent $k$ past attempts (as OPRO does), GPO retrieves the $k$ most semantically similar past prompts using BGE embedding similarity. This provides contextually relevant demonstrations. The intuition: a triage prompt that worked for financial complaints is more relevant to improving a financial-urgency prompt than a chronologically recent prompt that addressed medical symptoms.
 
+
 **Generation beats editing (+36%).** When the optimizer receives past prompts as demonstrations and generates a new prompt from scratch (generation), it outperforms being asked to edit the current prompt (editing). Generation explores a wider search space via in-context learning; editing is constrained to local modifications.
 
 **Cosine decay is critical (+10%).** The edit distance constraint follows a cosine schedule that starts large (allowing broad exploration) and gradually tightens (forcing convergence):
@@ -98,6 +133,21 @@ $$ {#eq-gpo-cosine}
 where $t$ is the current step and $T$ is the total number of steps. This reduces to approximately 20% of the maximum edit distance by convergence. Warmup does not help; in prompt optimization, early exploration matters more than in weight optimization.
 
 GPO achieved 56.8% on BBH and 62.6% on MMLU with these design choices combined.
+
+::: {.exercise-fillin}
+
+Complete the four design choices that GPO's ablation study found most effective, filling in the missing optimization strategy:
+
+1. **Update direction**: Use prompt + performance score, but do **not** add LLM self-reflection (reflection *hurts* by introducing inaccurate assumptions)
+2. **Momentum analog**: Use {B|A: the most recent $k$ past attempts (recency-based memory)|B: the $k$ most semantically similar past prompts retrieved via BGE embedding similarity|C: a fixed set of few-shot demonstration prompts sampled from the training data} rather than alternatives
+3. **Descent method**: Generate new prompts from scratch (generation) rather than editing the current prompt
+4. **Learning rate analog**: Apply cosine decay to the maximum edit distance, starting large and gradually tightening
+
+::: {.fillin-feedback}
+**Correct: B.** GPO found that retrieving semantically similar past attempts (+15% over recency) dramatically outperformed OPRO's approach of showing the most recent $k$ attempts. The intuition: a triage prompt that worked well for financial complaints is more relevant to improving a financial-urgency prompt than whatever prompt was tried most recently (which might have been about medical symptoms). Option A describes OPRO's recency-based approach. Option C describes static few-shot prompting, not dynamic trajectory retrieval.
+:::
+
+:::
 
 ::: {.callout-warning title="Common Misconception: LLM self-reflection always improves optimization"}
 GPO's ablation study is a direct challenge to the intuition that "if the LLM can explain why a prompt failed, it should be able to fix it better." In practice, LLM-generated reflections can be misleading: the model may attribute failure to surface features rather than structural issues, or confabulate plausible-sounding but incorrect explanations. GPO found that trajectory retrieval (showing the optimizer *what worked before* for similar tasks) was more effective than reflection (asking the optimizer *why it failed*). The lesson: showing relevant examples is often more informative than asking for self-analysis. This parallels findings in human psychology, where people's introspective reports about their own reasoning are often unreliable.
@@ -124,6 +174,26 @@ where $Q$ is the cumulative reward, $N$ is the visit count, and $c = 2.5$ is the
 
 The key advantage over single-trajectory methods: MCTS looks ahead. Before committing to a prompt refinement, it simulates the downstream consequences by expanding the tree further. If adding neurological symptom keywords would help accuracy but hurt conciseness three steps down the line, MCTS can detect this through simulation and choose a different refinement path. PromptAgent achieved 6--9% improvement over baselines across 12 tasks, including an F1 jump from 0.521 to 0.645 on NCBI disease NER along the best MCTS path.
 
+::: {.exercise-mcq correct="B"}
+
+PromptAgent uses MCTS to explore a tree of prompt refinements, where each node is a prompt version and each edge is a refinement action. What is the key advantage of MCTS's look-ahead capability compared to single-trajectory methods like GPO or ProTeGi?
+
+- MCTS generates higher-quality individual refinements because the UCT formula provides a better exploration-exploitation balance than UCB
+- MCTS can detect refinement dead-ends before committing: if a promising edit leads to degradation two steps later, simulation reveals this so the algorithm backtracks to a different branch
+- MCTS requires fewer total evaluations because tree search is inherently more efficient than linear search
+- MCTS produces more diverse final prompts because each branch of the tree represents a qualitatively different prompt
+
+::: {.feedback-correct}
+Correct! Single-trajectory methods (ProTeGi, GPO) commit to each refinement step before seeing its downstream consequences. If adding detailed diagnostic criteria helps accuracy now but makes the prompt too verbose to improve further, a single-trajectory optimizer discovers this too late. MCTS simulates future refinement steps before committing, so it can detect that a refinement path leads to a dead-end and backtrack to explore alternative branches. This look-ahead is why PromptAgent achieved 6-9% improvement over baselines: it avoids refinement paths that look locally promising but are globally suboptimal.
+:::
+
+::: {.feedback-incorrect}
+The advantage is not about individual refinement quality (A), evaluation efficiency (C), or final diversity (D). MCTS is actually more expensive per step than single-trajectory methods because it explores multiple branches. The key advantage is *look-ahead*: before committing to a refinement, MCTS simulates its downstream consequences by expanding the tree further. If a refinement leads to degradation in later steps, the algorithm discovers this through simulation and backtracks to try a different path. Single-trajectory methods cannot backtrack and must live with every committed step.
+:::
+
+:::
+
+
 ### Comparative Analysis
 
 The evolutionary and search methods split along three axes:
@@ -140,6 +210,3 @@ The trade-offs are clear. Population-based methods (EvoPrompt, PromptBreeder) ex
 
 GPO's ablation results suggest a provocative conclusion: the field may have over-indexed on algorithmic sophistication. Simple design choices (trajectory retrieval over recency, generation over editing, cosine decay over fixed step sizes) contribute more than complex evolutionary or planning mechanisms. The next section pushes in the orthogonal direction: instead of optimizing one metric better, what if the real challenge is optimizing *multiple competing metrics simultaneously*?
 
-::: {.callout-tip title="Self-Explanation Prompt"}
-In GPO, why does relevance-based trajectory retrieval outperform recency-based retrieval? What does this tell us about the structure of the prompt optimization landscape? Is it more like a smooth valley (where recent history is informative) or a rugged terrain with distant similarities (where semantic retrieval helps)?
-:::

@@ -59,6 +59,21 @@ $$ {#eq-crowding}
 
 Solutions with higher crowding distance are in sparser regions of the front and are preferred for selection, encouraging the population to spread across the entire Pareto front rather than clustering at one point.
 
+::: {.exercise-predict correct="C"}
+
+Before reading about MORL-Prompt's results, consider: a team uses RL to optimize prompts for three objectives (content preservation, style accuracy, sentiment) by training with the **average** of the three reward functions. Predict: what happens to the balance across objectives?
+
+- All three objectives improve roughly equally, because averaging gives each objective equal weight in the gradient
+- The weakest objective improves the most, because the optimizer focuses on the largest gap between current and maximum reward
+- One objective dominates while the others are sacrificed, because the objective with the strongest reward signal captures most of the gradient, pulling the optimizer away from the others
+
+::: {.predict-reveal}
+**The answer is C.** This is MORL-Prompt's central finding: **objective collapse**. When rewards are averaged, the objective with the strongest gradient signal dominates the optimization. On style transfer, the Average method achieved 79.25% on style but only 19.56% on content. Style's reward signal was stronger, so the optimizer sacrificed content to push style higher. Averaging *appears* fair (equal weights), but in practice the gradients are not equal in magnitude, so one objective monopolizes the updates.
+:::
+
+:::
+
+
 ### Gradient Conflicts and Why They Matter
 
 When objectives conflict, their optimization "directions" (whether numerical or textual gradients) point in opposing directions. The gradient cosine similarity between objectives $i$ and $j$ is:
@@ -84,6 +99,7 @@ EMO-Prompts ([Bradley & De Lima, 2024](https://arxiv.org/abs/2401.09862)) was th
 The population consisted of 10 parent prompts, with 20 offspring per generation. The LLM (Llama 2 7B) served as both the crossover operator ("combine these two prompts into a better one") and the mutation operator ("alter this prompt"). Selection used NSGA-II's non-dominated sorting + crowding distance, or SMS-EMOA's hypervolume-based selection.
 
 Key results: hypervolume indicators reached up to 0.45 on the Surprise vs. Fear task, surpassing the theoretical ideal of 0.44 (10 equally spaced points on the diagonal). NSGA-II was more consistent across runs; SMS-EMOA occasionally achieved higher peaks but with greater variance. The result demonstrated that classical MOEAs transfer to the prompt domain, with LLMs serving as effective crossover and mutation operators.
+
 
 ### MORL-Prompt: The Objective Collapse Problem
 
@@ -113,6 +129,25 @@ MORL-Prompt proposes three alternatives to simple averaging:
 
 The product method proved most effective in practice: 34.58% content (vs. 19.56% for Average), 57.78% style (vs. 79.25%), and 36.04% product reward (vs. 30.91%). The trade-off is that each individual objective score is lower than the maximum achievable by single-objective optimization, but no objective is catastrophically sacrificed.
 
+::: {.exercise-mcq correct="B"}
+
+MORL-Prompt proposes using a product of rewards ($R_\text{prod} = \mathbb{E}[\prod_{i=1}^{m} r_i]$) instead of an average. Why does the product formulation prevent objective collapse more effectively than averaging?
+
+- The product assigns higher total reward to candidates that maximize any single objective, so all objectives get optimized
+- If any single objective reward approaches zero, it drags the entire product toward zero, creating a strong penalty for neglecting any objective
+- The product reward is always larger than the average reward, giving the optimizer a stronger gradient signal
+- The product is equivalent to geometric mean, which is known to be a better aggregation function than arithmetic mean for all optimization problems
+
+::: {.feedback-correct}
+Correct! The product $\prod_i r_i$ is multiplicative: if content preservation drops to 0.05 while style hits 0.95, the product is $0.05 \times 0.95 = 0.0475$, far worse than a balanced solution of $0.5 \times 0.5 = 0.25$. Averaging would give $\frac{0.05 + 0.95}{2} = 0.5$ for the collapsed case vs. $\frac{0.5 + 0.5}{2} = 0.5$ for the balanced case, making them indistinguishable. The product creates a steep penalty for neglecting any objective because the near-zero factor dominates the product. The optimizer is forced to maintain all objectives at reasonable levels.
+:::
+
+::: {.feedback-incorrect}
+The product does not reward single-objective maximization (A), is not always larger than the average (C), and is not universally better than the arithmetic mean for all problems (D). The key is the multiplicative structure: if any factor approaches zero, it pulls the entire product toward zero. This creates a strong gradient signal pointing *away* from objective collapse. Averaging cannot detect collapse because $(0 + 1)/2 = (0.5 + 0.5)/2 = 0.5$: a perfectly balanced solution scores the same as a completely collapsed one.
+:::
+
+:::
+
 ::: {.callout-warning title="Common Misconception: Multi-objective prompt optimization always requires evolutionary algorithms"}
 ParetoPrompt uses RL. MORL-Prompt uses soft Q-learning. GEPA uses reflection-based mutation with Pareto selection. The key ingredient is *Pareto-aware selection* (choosing which candidates to keep based on dominance relationships), not the search algorithm itself. NSGA-II is the most common selection mechanism, but it can be combined with any candidate generation strategy.
 :::
@@ -130,6 +165,20 @@ Selection uses NSGA-II, preserving the top-$n$ prompts per objective plus the Pa
 ![MOPO per-emotion optimization trajectories showing how multi-objective optimization improves across different emotion dimensions simultaneously. Source: Tong et al. (2024).](Automatic Prompt Optimization/images/mopo-per-emotion.png){#fig-mopo-trajectories}
 
 MOPO achieved up to 34 percentage points improvement over seed prompts on GPT-3.5, with best prompts scoring .99 (ISEAR), .97 (TEC), and .96 (AT) across three emotion benchmarks. The critical finding: multi-objective optimization lost only 1--2 percentage points per objective compared to single-objective optimization of each metric independently. This near-free diversification is the promise of multi-objective prompt optimization: you can have accuracy *and* safety *and* conciseness, losing almost nothing on each compared to optimizing them separately.
+
+::: {.exercise-fillin}
+
+Complete the comparison between single-objective and multi-objective prompt optimization, based on MOPO's empirical finding:
+
+1. Single-objective optimization of each metric independently produces prompts that score highest on {A|A: their target metric, but poorly on all other metrics|B: all metrics simultaneously|C: their target metric, with moderate performance on other metrics}
+2. Multi-objective optimization (MOPO with NSGA-II) produces prompts that score {B|A: roughly 10-15 percentage points lower per objective than the single-objective optimum|B: only 1-2 percentage points lower per objective than the single-objective optimum|C: identically to the single-objective optimum on all metrics}
+3. This means multi-objective prompt optimization is {B|A: significantly worse than running separate optimizations|B: nearly free, giving balanced performance across all objectives with minimal per-objective sacrifice|C: only worthwhile when objectives are perfectly aligned}
+
+::: {.fillin-feedback}
+**Correct: A, B, B.** MOPO's central empirical result is that the per-objective cost of multi-objective optimization is remarkably small: only 1-2 percentage points per objective compared to optimizing each independently. Single-objective prompts excel at their target metric but typically fail on others (option A for item 1). The multi-objective prompts sacrifice almost nothing (option B for item 2), making multi-objective optimization essentially "free" diversification (option B for item 3). This result should change how practitioners approach prompt design: instead of optimizing one metric and hoping others are acceptable, include all objectives from the start.
+:::
+
+:::
 
 ### ParetoPrompt: RL Without Scalarization
 
@@ -173,11 +222,31 @@ The results are striking:
 
 GEPA achieves roughly 2.5x the improvement of GRPO with 6x fewer rollouts. The Pareto-based selection is critical: ablating it and using greedy best-candidate selection (as in TextGrad) reduces the improvement from +12.44% to +6.05% on an expanded benchmark. The per-instance diversity preservation roughly *doubles* the optimization effectiveness.
 
+::: {.exercise-mcq correct="C"}
+
+GEPA's Pareto-based candidate selection treats each validation instance as a separate "objective." A candidate that excels at financial tickets but fails on medical emergencies is *not dominated* by one that does the reverse. What happens if you replace this Pareto selection with greedy best-candidate selection (always pick the candidate with the highest average score across all instances)?
+
+- Performance improves because the greedy selection creates stronger optimization pressure on the best candidate
+- Performance stays roughly the same because the average score is a good proxy for overall quality
+- Performance drops substantially because the greedy approach eliminates specialist candidates that excel on subpopulations, reducing the diversity needed to cover the full input distribution
+- Performance drops because greedy selection requires more evaluation budget per iteration
+
+::: {.feedback-correct}
+Correct! GEPA's ablation confirms this directly: replacing Pareto selection with greedy best-candidate selection (as in TextGrad) reduced the improvement from +12.44% to +6.05% on an expanded benchmark. The greedy approach selects a single "generalist" candidate for optimization, discarding specialists that handle specific input types well. The Pareto approach preserves both generalists and specialists, so the optimizer can improve a financial-ticket specialist without losing the medical-emergency specialist. This per-instance diversity roughly doubles optimization effectiveness.
+:::
+
+::: {.feedback-incorrect}
+GEPA's ablation study provides a direct answer: replacing Pareto selection with greedy best-candidate selection cuts the improvement roughly in half (from +12.44% to +6.05%). The greedy approach eliminates specialist candidates (those that are best on only a few instance types) in favor of the single highest-average-scoring candidate. This loses the diversity that allows the optimizer to improve different candidates for different parts of the input distribution. Pareto selection preserves candidates that are non-dominated (best on at least some instances), maintaining the population diversity needed for effective optimization.
+:::
+
+:::
+
 GEPA's `optimize_anything` API does support true multi-objective optimization via a `scores` field in the Actionable Side Information (ASI). In this mode, each evaluation returns a dictionary of metric scores, and the Pareto selection operates over these metrics rather than over instances. This enables the same algorithm to handle both single-metric diversity-preserving optimization and genuine multi-metric optimization.
 
 ::: {.callout-note title="Think Hard: GEPA uses per-instance Pareto fronts, while MOPO uses per-objective Pareto fronts. When would each be more appropriate?"}
 Per-instance Pareto fronts (GEPA) are natural when you have a single metric but want diversity across the input distribution. Different prompts may excel at different types of inputs, and preserving this diversity avoids the failure mode where a single "best" prompt works well on average but catastrophically fails on a subpopulation. Per-objective Pareto fronts (MOPO, MORL-Prompt) are natural when you have genuinely competing metrics (accuracy vs. safety vs. cost). The choice depends on your problem structure. For our triage system: if you have one accuracy metric and want prompts that handle both financial and medical tickets, per-instance Pareto is appropriate. If you have separate accuracy, safety, and conciseness metrics that conflict, per-objective Pareto is the right tool.
 :::
+
 
 ### Taxonomy and Comparison
 
@@ -192,6 +261,3 @@ Per-instance Pareto fronts (GEPA) are natural when you have a single metric but 
 
 The field has produced a clear conclusion: multi-objective prompt optimization is feasible and nearly free. MOPO's finding that you lose only 1--2 percentage points per objective compared to single-objective optimization should change how practitioners think about prompt design. Instead of optimizing accuracy and hoping safety and conciseness are acceptable, you should explicitly include all objectives from the start.
 
-::: {.callout-tip title="Self-Explanation Prompt"}
-Why does weighted-sum scalarization ($F(p) = \sum w_i f_i(p)$) fail to find all Pareto-optimal solutions? Sketch a concave Pareto front in 2D and show which solutions scalarization misses. What property of the Pareto front determines whether scalarization can find a given solution?
-:::

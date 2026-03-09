@@ -55,6 +55,25 @@ The distinction matters: Self-Refine improves the *output* while keeping the pro
 Both use LLM-generated feedback to improve something. But Self-Refine improves the *output* (the answer to a specific question) while keeping the prompt fixed. TextGrad (@sec-textual-gradients) improves the *prompt* (or any variable in a computation graph) by propagating feedback backward. The optimization target is different: output-level vs. parameter-level. Self-Refine is test-time refinement; TextGrad is compile-time optimization.
 :::
 
+::: {.exercise-mcq correct="D"}
+
+A team deploys a triage system using Self-Refine. Each ticket's classification is generated, critiqued, and revised by the LLM before being shown to agents. Accuracy on a held-out set looks strong (88%), but a month later, the same systematic failure pattern (billing complaints misclassified as low urgency) keeps recurring. A colleague suggests switching to OPRO. What specific advantage would OPRO provide over Self-Refine for this problem?
+
+- OPRO uses a more capable LLM that would not make billing-related mistakes
+- OPRO evaluates on more examples per iteration, so it would catch the billing pattern statistically
+- OPRO generates natural language critiques that explain *why* the prompt fails on billing cases
+- OPRO would rewrite the *prompt itself* to include billing-specific guidance, preventing the failure from recurring on every new input
+
+::: {.feedback-correct}
+Correct! Self-Refine operates at the *output level*: it critiques and revises each individual answer while keeping the prompt fixed. The prompt never learns to handle billing complaints, so the same failure recurs on every new billing ticket. OPRO operates at the *prompt level*: it would iteratively rewrite the triage instruction itself, potentially adding guidance about billing complaints, prior escalations, and financial impact. The root cause (the prompt) gets fixed, not just its symptoms. (Note: natural language critiques are TextGrad's approach, not OPRO's; OPRO uses scalar scores.)
+:::
+
+::: {.feedback-incorrect}
+The key distinction is *what gets optimized*. Self-Refine improves individual outputs but keeps the prompt fixed. OPRO rewrites the prompt itself through iterative optimization. The advantage is not about model capability, evaluation size, or natural language critiques (that is TextGrad's approach). OPRO would modify the triage instruction to include billing-specific guidance, preventing the same failure pattern from recurring on every new input. This is the difference between output-level and parameter-level optimization.
+:::
+
+:::
+
 ### OPRO: The LLM as Its Own Optimizer
 
 OPRO ([Yang et al., ICLR 2024](https://arxiv.org/abs/2309.03409), September 2023) introduced the idea that became the foundation for most subsequent work: use an LLM not just to propose prompts, but to iteratively optimize them by learning from a history of past attempts. The mathematical formulation is the same as @eq-apo-objective:
@@ -95,6 +114,21 @@ OPRO's most celebrated finding: on GSM8K with PaLM 2-L, it discovered "Take a de
 OPRO's ascending sort exploits the recency bias of autoregressive LLMs: tokens near the end of the prompt have outsized influence on generation. By placing the best solutions last, OPRO steers the optimizer toward generating variations of high-scoring candidates. This is a form of implicit exploitation. But it raises a deeper question: if the optimization algorithm's effectiveness depends on such LLM-specific quirks (recency bias, sensitivity to example ordering), how robust are these methods? GPO later showed that *relevance-based* trajectory retrieval (selecting semantically similar past prompts, regardless of position) outperforms recency by +15%. The ordering trick works, but it is not the deepest solution. The field is gradually shifting from exploiting LLM biases to providing LLMs with genuinely informative optimization context.
 :::
 
+::: {.exercise-order correct="D,B,A,C"}
+
+OPRO's optimization loop has four steps that repeat each iteration. Arrange them in correct order:
+
+- Evaluate each candidate on the training set at temperature 0 for determinism
+- Generate 8 candidate prompts from the meta-prompt at temperature 1.0 for diversity
+- Return the highest-scoring prompt after convergence or 200 steps
+- Construct the meta-prompt with meta-instructions, ascending-sorted trajectory, and task exemplars
+
+::: {.order-feedback}
+**Correct order: D, B, A, C.** First, OPRO constructs the meta-prompt (D) by assembling the meta-instructions, the trajectory of past (prompt, score) pairs sorted worst-to-best, and randomly sampled task exemplars. Then it generates 8 diverse candidates (B) at high temperature. Each candidate is evaluated deterministically (A) at temperature 0. After adding the new (prompt, score) pairs to the trajectory and checking the stopping condition, the best prompt is returned (C). The ascending sort in step D is critical: it places the best prompts last, exploiting recency bias to steer the optimizer toward high-scoring variations.
+:::
+
+:::
+
 ### SPO: Dropping the Ground-Truth Requirement
 
 A significant limitation of APE and OPRO is that they require labeled ground truth for scoring: you need $(x, y)$ pairs where $y$ is the correct answer. SPO ([Wu et al., ICLR 2025](https://arxiv.org/abs/2405.00675)) overcomes this via **pairwise LLM comparison**: given two outputs from two candidate prompts, an LLM judge simply picks the better one. This enables prompt optimization for open-ended tasks (creative writing, summarization, customer service quality) where no single correct answer exists.
@@ -114,6 +148,39 @@ InstructZero ([Chen et al., ICML 2024](https://arxiv.org/abs/2306.03082), June 2
 The soft prompt $z \in \mathbb{R}^d$ is a continuous vector that can be optimized with Bayesian optimization (BO) (see @sec-math-bo for a review of BO, GP surrogates, and acquisition functions). At each step, BO selects a promising $z$ based on an acquisition function (Expected Improvement), the open-source LLM converts $z$ into a natural language instruction $I(z)$, and the instruction is evaluated on the black-box LLM. An instruction-coupled kernel captures the relationship between soft prompts and the instructions they produce.
 
 The result: InstructZero achieved the best performance on all 32 BIG-Bench Lite tasks compared to APE and other baselines. The key insight is that BO is extremely sample-efficient (it builds a probabilistic model of the objective function), which makes it well-suited to the expensive-evaluation setting of prompt optimization.
+
+::: {.exercise-mcq correct="B"}
+
+InstructZero optimizes a continuous soft prompt $z$ on an open-source LLM, which then generates a discrete instruction for the target LLM. A colleague suggests: "Why not skip the indirection and apply Bayesian optimization directly to the discrete instruction strings?" What is the fundamental obstacle?
+
+- Discrete instructions are too long for the acquisition function to evaluate
+- Bayesian optimization requires a continuous input space to fit its Gaussian process surrogate; discrete text has no natural metric space for the GP to interpolate over
+- The target LLM cannot process instructions generated by Bayesian optimization
+- Bayesian optimization only works when the objective function is convex, which prompt accuracy is not
+
+::: {.feedback-correct}
+Correct! A Gaussian process models the objective as a smooth function over a continuous input domain, using distances between points to interpolate. Discrete instruction text has no natural continuous metric space for the GP to operate in. InstructZero's soft prompt $z \in \mathbb{R}^d$ provides exactly the continuous domain BO needs, and the open-source LLM bridges the continuous-to-discrete gap.
+:::
+
+::: {.feedback-incorrect}
+The obstacle is not about instruction length, LLM compatibility, or convexity. Bayesian optimization fits a Gaussian process surrogate that interpolates between evaluated points using distances in input space. Discrete text strings have no natural continuous metric space for this interpolation. The soft prompt $z \in \mathbb{R}^d$ provides the continuous domain the GP needs, and the open-source LLM translates vectors into natural language.
+:::
+
+:::
+
+::: {.exercise-predict correct="A"}
+
+You have just seen that all generate-and-select methods (APE, OPRO, InstructZero) receive only a scalar score as feedback. The next subsection will summarize the entire paradigm. Before reading it, predict: what is the *single most important limitation* that all these methods share, despite their differences in search strategy?
+
+- They all know *how well* a prompt performed but not *why* it succeeded or failed, so they cannot target specific failure modes
+- They all require ground-truth labels, making them inapplicable to open-ended tasks
+- They all use the same optimizer model architecture, limiting the diversity of generated candidates
+
+::: {.predict-reveal}
+**The answer is A.** Despite their different search strategies (one-shot, trajectory-based, Bayesian surrogate), APE, OPRO, and InstructZero all receive only scalar feedback: a number. They know a prompt scored 78%, but not *which parts* of the prompt caused failures or *which direction* to change it. The text calls this the fundamental limitation that motivates the textual gradient methods of the next section, which provide directional feedback in natural language.
+:::
+
+:::
 
 ### The Progression
 
@@ -189,10 +256,19 @@ APE -> SPO: "drops ground\ntruth requirement" {
 
 Each represents a progressively richer optimization signal. APE is random search with intelligent initialization. OPRO is hill-climbing with memory. InstructZero is Bayesian surrogate optimization. BPO is amortized learned optimization. The common limitation: all of these methods receive only scalar feedback (a score). They know *how well* a prompt performed, but not *why* it succeeded or failed, and not *which direction* to move. That directional information is what the next section provides.
 
-::: {.callout-tip title="Self-Explanation Prompt"}
-In OPRO, why are past solutions sorted in ascending order (worst to best) in the meta-prompt? What cognitive bias in LLMs does this exploit, and can you think of a scenario where this ordering would backfire?
+::: {.exercise-fillin}
+
+Complete the missing description in this progression of generate-and-select methods:
+
+1. APE: One-shot generation with **no memory** of past evaluations
+2. {B|A: Population-based search with crossover and mutation operators|B: Iterative refinement with a trajectory of (prompt, score) pairs stored in a meta-prompt|C: Textual gradient critiques that describe why specific failures occurred}
+3. InstructZero: Bayesian optimization with a full **probabilistic surrogate model** over the search space
+
+::: {.fillin-feedback}
+**Correct: B (OPRO).** The progression is in the richness of optimization memory. APE has no memory (one-shot). OPRO adds a trajectory of past (prompt, score) pairs in its meta-prompt, giving the optimizer in-context memory of what has been tried. InstructZero builds the richest model: a Gaussian process that captures the entire objective landscape. Option A describes evolutionary methods (EvoPrompt, covered in @sec-evolutionary), not the generate-and-select progression. Option C describes textual gradient methods (ProTeGi/TextGrad, covered in @sec-textual-gradients).
 :::
 
-::: {.callout-tip title="Self-Explanation Prompt"}
-InstructZero optimizes in a continuous soft-prompt space rather than directly in discrete instruction space. What is the key advantage of this indirection? What information is lost in the translation from soft prompt to discrete instruction?
 :::
+
+
+

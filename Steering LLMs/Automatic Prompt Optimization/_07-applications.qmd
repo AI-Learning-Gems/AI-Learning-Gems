@@ -48,9 +48,29 @@ Computing exact Shapley values requires evaluating $2^{|N|}$ coalitions, which i
 
 **GEPA's optimize_anything** takes the most radical approach: treat the entire agent system (code + prompts + control flow) as a single text artifact to be evolved. On the ARC-AGI challenge, GEPA evolved a 10-line stub into a 300+ line agent achieving 89.5% accuracy (vs. 32.5% baseline). This strategy is architecture search, not just prompt optimization: the algorithm discovers not just what the prompt should say, but how the agent should be structured.
 
+::: {.exercise-mcq correct="B"}
+
+HiveMind uses Shapley values to identify which agent's prompt to improve in a multi-agent DAG. Suppose Agent B has the *lowest* Shapley value $\phi_B$ in a 4-agent pipeline. What does this tell the CG-OPO optimizer?
+
+- Agent B should be removed from the pipeline, since its marginal contribution is negligible.
+- Agent B is the bottleneck: it contributes least on average across coalitions, so it should receive the largest share of the optimization budget.
+- Agent B's prompt is already optimal, since low Shapley value means the agent rarely changes the output.
+- Agent B's Shapley value is unreliable because DAG-Shapley only approximates the true value.
+
+::: {.feedback-correct}
+Correct! A low Shapley value means Agent B adds little value on average when included in coalitions. HiveMind's CG-OPO interprets this as a *contribution gap*: the agent is underperforming relative to its potential. The optimizer allocates more optimization budget to B's prompt precisely because it has the most room for improvement. This is the opposite of removal; the agent occupies a structural role in the DAG and needs a better prompt, not elimination.
+:::
+
+::: {.feedback-incorrect}
+Not quite. A low Shapley value does not mean the agent should be removed (it may occupy a critical structural position in the DAG) or that its prompt is already optimal. HiveMind interprets low Shapley values as a signal of underperformance: Agent B contributes least, so its prompt has the most room for improvement. CG-OPO allocates optimization budget proportionally to each agent's contribution gap, targeting the weakest links first.
+:::
+
+:::
+
 ::: {.callout-note title="Think Hard: Credit assignment in agents vs. neural networks"}
 The credit assignment problem in multi-agent systems (which module's prompt to blame) is structurally analogous to the credit assignment problem in multi-layer neural networks (which layer's weights to blame). Backpropagation solves the latter by computing exact gradients through the computation graph. Textual backpropagation (TextGrad, TRACE) attempts the same for agent DAGs. But the analogy breaks down: neural network layers compose through differentiable operations, while agent modules compose through discrete text generation. The textual chain rule (@eq-textgrad-chain) accumulates approximation errors at each step, and the "gradient" at module 1 in a 4-module pipeline has been filtered through three rounds of LLM interpretation. HiveMind's Shapley approach sidesteps this by measuring marginal contributions directly (ablation-based), at the cost of exponentially many evaluations. The ideal solution may combine both: use Shapley values to identify *which* module to optimize, then use textual gradients to determine *how* to optimize it.
 :::
+
 
 ### LLM-as-a-Judge: Optimizing the Evaluator
 
@@ -61,6 +81,20 @@ p_\text{judge}^* = \arg\max_p \; \sum_i \text{Corr}(\text{Judge}(p, x_i), \text{
 $$
 
 The objective is alignment with human judgment, not task accuracy. This changes the optimization problem in three ways: (a) the "ground truth" is noisy human preferences, not deterministic labels, (b) judges must generalize across domains and models, and (c) multi-criteria evaluation (helpfulness, safety, style) is inherently multi-objective.
+
+::: {.exercise-predict correct="B"}
+
+A multimodal LLM judge must evaluate vision-language model outputs, but the context window is too small to fit both the image and a long evaluation rubric. Engineers decide to first convert the image to a text description, then have the judge evaluate the text-only summary. They optimize the image-to-text prompt and the judge prompt *independently* (first find the best image-to-text prompt, freeze it, then optimize the judge prompt). What happens?
+
+- The pipeline works well because the two stages are naturally decoupled: image description is objective, and the judge prompt is independent of how the image was described.
+- The pipeline underperforms because the optimal image description depends on what the judge is looking for, and independent optimization misses this dependency.
+- The pipeline fails entirely because image-to-text conversion always loses critical visual information regardless of the prompt.
+
+::: {.predict-reveal}
+**The answer is B.** This is exactly the problem BLPO solves with bi-level optimization. The optimal image description is not a fixed "best summary"; it depends on the judge's evaluation criteria. A judge focused on spatial layout needs descriptions of object positions; a judge focused on style needs descriptions of color palette and composition. Independent optimization freezes the image-to-text prompt before knowing what the judge needs, missing the dependency. BLPO's inner-outer loop structure captures this: the inner level optimizes the image-to-text prompt *conditioned on* the current judge prompt, and the outer level optimizes the judge prompt given the best image description strategy.
+:::
+
+:::
 
 **BLPO ([Feb 2026](https://arxiv.org/abs/2602.11340))** addresses a challenge specific to multimodal judges. When evaluating vision-language model outputs, the judge must process both text and images. Context window limits force a two-stage pipeline: first convert the image to text (via an image-to-text prompt $p_\text{i2t}$), then evaluate the output (via a judge prompt $p_\text{judge}$). BLPO jointly optimizes both prompts through bi-level optimization (see @sec-math-bilevel for a review of bi-level optimization):
 
@@ -77,6 +111,7 @@ The connection to multi-objective optimization (@sec-multi-objective) is direct:
 ::: {.callout-warning title="Common Misconception: Optimizing a judge prompt is the same as optimizing a task prompt"}
 The objectives are fundamentally different. A task prompt optimization targets accuracy: "did the model get the right answer?" A judge prompt optimization targets alignment: "does the judge's evaluation match human judgment?" This means the optimization problem is different (noisier, since human judgments vary), the feedback signal is different (agreement with humans, not correctness), and the generalization requirement is different (judges must work across tasks and models, not just one). Over-optimizing a judge prompt can lead to a judge that perfectly predicts *one annotator's* preferences but fails to generalize. This is the judge-optimization version of overfitting.
 :::
+
 
 ### Vision-Language Prompt Tuning
 
@@ -102,19 +137,35 @@ Three solution families have emerged:
 - *Regularization*: Add a consistency loss anchoring learned prompts to the frozen pre-trained encoder: $\mathcal{L}_\text{total} = \mathcal{L}_\text{task}(\mathbf{c}) + \lambda \cdot D(f_\text{prompted}(x; \mathbf{c}), f_\text{frozen}(x))$. This is the prompt-optimization analogue of weight decay.
 - *Architectural decoupling (DPC)*: Clone the learnable prompt into two copies (one for base, one for generalization) with separate gradient flows.
 
+
 A subtle failure mode: **RPO** ([Lee et al., ICCV 2023](https://arxiv.org/abs/2308.14960)) discovered that standard prompt tuning corrupts the frozen VLM's pre-trained representations. Learned prompt tokens interact with original tokens via self-attention, degrading the model's general capabilities. RPO's fix: masked attention where prompts can *read from* original tokens but original tokens *cannot attend to* prompts. This one-way information flow preserves the model's pre-trained knowledge while allowing task adaptation.
 
 **Discrete/hard prompt optimization for MLLMs** (MPO, [Zhu et al., ICLR 2026 submission](https://arxiv.org/abs/2510.09201)) extends discrete prompt optimization to multimodal inputs, optimizing text prompts and visual prompts jointly across images, videos, and molecular data.
+
+::: {.exercise-mcq correct="C"}
+
+A CLIP-based classifier is prompt-tuned with CoOp on 16 examples each of 10 flower species ("base" classes). Accuracy on flowers jumps from 68% to 91%. The team then evaluates on bird species ("new" classes) and finds accuracy dropped from 63% to 54%. Which solution family addresses this Base-to-New Trade-off?
+
+- Increase the number of learnable prompt tokens $L$ so the model has more capacity to represent both base and new classes.
+- Switch from soft prompt tuning (CoOp) to discrete prompt optimization (OPRO), since discrete prompts generalize better.
+- Add a regularization loss that anchors the learned prompts to the frozen pre-trained encoder, preventing the prompts from drifting too far from CLIP's general-purpose representations.
+- Use RPO's masked attention mechanism, which prevents prompt tokens from attending to original tokens.
+
+::: {.feedback-correct}
+Correct! Regularization is one of the three solution families for the BNT problem. By adding a consistency loss $\mathcal{L}_\text{total} = \mathcal{L}_\text{task}(\mathbf{c}) + \lambda \cdot D(f_\text{prompted}(x; \mathbf{c}), f_\text{frozen}(x))$, the learned prompts stay close to the frozen encoder's representations. This preserves CLIP's general knowledge (which handles unseen classes) while still allowing task-specific adaptation. Increasing prompt tokens (option A) does not address the overfitting problem. RPO's masked attention (option D) is related but addresses a different issue: it prevents prompt tokens from *corrupting* original token representations, whereas regularization prevents the *prompts themselves* from drifting.
+:::
+
+::: {.feedback-incorrect}
+Not quite. Increasing prompt length (A) gives more capacity but does not prevent overfitting to base classes. Switching to discrete prompts (B) does not inherently solve the trade-off; discrete prompts can also overfit. RPO's masked attention (D) prevents prompt tokens from corrupting original representations via self-attention, which is a different mechanism from regularization. The correct answer is C: regularization anchors learned prompts to the frozen encoder, acting as a "prompt-optimization analogue of weight decay" that preserves general capabilities while allowing task adaptation.
+:::
+
+:::
 
 | Approach | Optimization Space | Model Access | Interpretable? | Key Trade-off |
 |---|---|---|---|---|
 | Soft prompts (CoOp) | Continuous $\mathbb{R}^{d \times L}$ | Full (weight access) | No | Best optimization, uninterpretable |
 | Discrete APO (OPRO, TextGrad) | Discrete text | Black-box (API) | Yes | Combinatorial search, human-readable |
 | Hybrid (KAPT) | Continuous + discrete text | Partial | Partially | Combines both paradigms |
-
-::: {.callout-tip title="Self-Explanation Prompt"}
-Soft prompt tuning (CoOp) uses real gradients while TextGrad uses textual "gradients." Under what conditions would you prefer each approach? Consider model access, interpretability requirements, budget, and the nature of the task. What are the fundamental trade-offs?
-:::
 
 ### Other Application Domains
 
@@ -128,6 +179,20 @@ Prompt optimization has demonstrated impact well beyond classification and text 
 ![GEPA-optimized prompt for NPU kernel generation, demonstrating prompt optimization applied to code generation tasks. The optimized prompt achieves significant performance gains on specialized hardware programming. Source: GEPA (2025).](Automatic Prompt Optimization/images/gepa-npu-prompt.png){#fig-gepa-npu}
 
 The common thread: each domain provides domain-specific evaluation signals (compiler errors for code, docking scores for molecules, retrieval relevance for RAG) that serve as richer feedback than generic accuracy. This explains why trace-aware methods (TRACE, GEPA with ASI) excel in these settings. The richer the diagnostic feedback, the fewer rollouts needed for effective optimization.
+
+::: {.exercise-fillin}
+
+Match each application domain to the approach that produced its headline result:
+
+1. ARC-AGI accuracy from 32.5% to 89.5% was achieved by {B|A: TextGrad's textual gradient descent|B: GEPA's optimize_anything evolving agent architecture|C: DSPy/MIPROv2 pipeline compilation}
+2. LeetCode-Hard 20% relative improvement was achieved by {A|A: TextGrad refining individual code solutions at test time|B: OPRO searching over system prompts|C: SAMMO compressing prompt structure}
+3. RAG pipeline 40% cost reduction was achieved by {C|A: TextGrad backward pass through the retriever|B: GEPA evolving the full pipeline as text|C: SAMMO's structural mutations compressing and restructuring prompts}
+
+::: {.fillin-feedback}
+**Correct: B, A, C.** The ARC-AGI result (B) came from GEPA's `optimize_anything`, which evolved an entire agent architecture (not just a prompt) from a 10-line stub to a 300+ line program. LeetCode-Hard (A) used TextGrad's *instance-level* optimization: each code solution was refined at test time by propagating compiler feedback backward through the computation graph. RAG cost reduction (C) used SAMMO's structural prompt mutations (dropping sections, changing format) to compress prompts while maintaining accuracy. The pattern: GEPA excels at architecture-level evolution, TextGrad at test-time refinement of individual instances, and SAMMO at structural compression.
+:::
+
+:::
 
 | Domain | Optimization Target | Feedback Signal | Best Methods | Key Result |
 |---|---|---|---|---|

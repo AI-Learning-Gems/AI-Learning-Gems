@@ -54,11 +54,31 @@ where $Q_t(p)$ is the estimated quality of prompt $p$, $N_t(p)$ is the number of
 
 ProTeGi improved the initial prompt by up to 31% (on the Jailbreak detection task), with an average 15.3% improvement across four tasks and 8.2% over RL baselines. The optimization curves typically peaked around 3 steps, suggesting diminishing (and sometimes negative) returns from excessive iteration.
 
+::: {.exercise-mcq correct="C"}
+
+ProTeGi uses a UCB-based bandit (see @eq-protegi-ucb) to allocate evaluation budget across candidate prompts. The UCB formula includes a term $c \sqrt{\frac{\log t}{N_t(p)}}$. What happens to the optimizer's behavior if this exploration term is removed (i.e., candidates are selected purely by estimated quality $Q_t(p)$)?
+
+- The optimizer converges faster because it wastes no budget on unpromising candidates
+- The optimizer produces identical results because beam search already provides sufficient diversity
+- The optimizer may lock onto a candidate that looked good in early evaluations (by chance) and never discover that a less-evaluated candidate is actually superior
+- The optimizer fails entirely because $Q_t(p)$ is undefined without the exploration term
+
+::: {.feedback-correct}
+Correct! Without the exploration term, selection is purely exploitative: the candidate with the highest current $Q_t(p)$ always wins. But early quality estimates are noisy (based on few samples), so a prompt that happened to score well on its first evaluation monopolizes future budget. A genuinely better prompt that scored average on its first try never gets re-evaluated. This is the classic exploitation-without-exploration failure of greedy selection in multi-armed bandits: the UCB term ensures under-evaluated candidates get a chance to prove themselves.
+:::
+
+::: {.feedback-incorrect}
+Removing exploration does not speed up convergence or leave results unchanged. Without the $\sqrt{\log t / N_t(p)}$ term, the optimizer greedily picks whichever candidate has the highest estimated quality. Since early estimates are based on few evaluations and therefore noisy, the optimizer can permanently lock onto a lucky-but-mediocre candidate while starving a genuinely superior one of evaluation budget. The exploration term prevents this by giving under-evaluated candidates a selection bonus.
+:::
+
+:::
+
 ::: {.callout-warning title="Common Misconception: Textual gradients are actual mathematical gradients"}
 This misconception is the most important one in the field. Numerical gradients have precise mathematical properties: linearity ($\nabla(f+g) = \nabla f + \nabla g$), the chain rule ($\nabla(f \circ g) = (\nabla f) \cdot (\nabla g)$), and they live in the same space as the parameters (so subtraction is well-defined).
 
 Textual gradients have none of these properties. "The prompt lacks neurological symptom keywords" cannot be added to "the prompt is too verbose" in any meaningful algebraic sense. Textual gradients are best understood as *critiques* that provide qualitative directional information. They tell you *roughly which way to go*, not *exactly how far to move in each dimension*. Because textual gradients lack the mathematical structure of real gradients, textual gradient methods require careful step-size control (GPO's cosine decay), candidate diversity (beam search), and evaluation-based selection.
 :::
+
 
 ### TextGrad: A Full Backpropagation Framework
 
@@ -94,9 +114,24 @@ For our triage system in a compound pipeline (symptom extractor $\to$ urgency cl
 3. Propagate the critique backward through the classifier to the extractor, asking at each step: "Given the downstream failure, how should this component's prompt be improved?"
 4. Update each prompt using the accumulated critiques
 
+::: {.exercise-predict correct="B"}
+
+TextGrad's analogy table maps numerical gradient descent onto textual gradient descent component by component. One mapping: the numerical chain rule ($\frac{\partial \mathcal{L}}{\partial \theta} = \frac{\partial \mathcal{L}}{\partial z} \cdot \frac{\partial z}{\partial \theta}$) becomes recursive LLM feedback propagation. Before reading the results below, predict: when GPO later tested whether LLM self-reflection (a form of backward critique propagation) helps optimization, what did they find?
+
+- Reflection helps significantly because the LLM can identify the root cause of failures and provide targeted fixes
+- Reflection actually hurts performance because the LLM's causal reasoning introduces inaccurate assumptions that mislead the optimizer
+- Reflection helps for simple tasks but hurts for complex multi-step pipelines
+
+::: {.predict-reveal}
+**The answer is B.** GPO's ablation showed +31% improvement *without* reflection vs. +26% *with* reflection. The textual chain rule asks the LLM to reason backward through causal chains ("how should criticisms of the output translate into criticisms of the input?"), but at each step the LLM can misattribute failures, generate vague feedback, or confabulate plausible-sounding but incorrect explanations. These errors compound through the pipeline. Numerical backpropagation avoids this because the chain rule is mathematically exact; textual backpropagation has no such guarantee.
+:::
+
+:::
+
 TextGrad's results are impressive: GPQA (graduate-level science QA) improved from 51.0% to 55.0%, surpassing the best reported GPT-4 result of 53.6%. LeetCode Hard pass rate went from 26% (zero-shot) to 36% (5 iterations), surpassing Reflexion's 31% with fewer iterations and no few-shot examples. On prompt optimization specifically, TextGrad achieved 91.9% on Object Counting, surpassing DSPy's 84.9%.
 
 TextGrad also supports techniques from numerical optimization: **batch optimization** (process multiple examples and aggregate critiques, analogous to minibatch SGD), **constrained optimization** (add natural language constraints like "keep the response under 100 words"), and **momentum** (show the optimizer previous versions of the variable to track the optimization trajectory).
+
 
 ::: {.callout-note title="Think Hard: Does the textual chain rule actually work like the numerical chain rule?"}
 The numerical chain rule is exact: $\frac{\partial \mathcal{L}}{\partial x} = \frac{\partial \mathcal{L}}{\partial z} \cdot \frac{\partial z}{\partial x}$ computes the precise sensitivity of $\mathcal{L}$ to $x$ through intermediate variable $z$. The textual chain rule asks an LLM to "explain how criticisms of the output should translate into criticisms of the input." This approximation depends entirely on the LLM's ability to reason about causal chains.
@@ -131,6 +166,20 @@ TRACE's subgraph propagation has complexity $O(WN^2 \log N)$ in time and $O(WN)$
 
 TRACE's applicability extends well beyond NLP: the same framework optimizes LLM prompts, robot controllers, and numerical optimization hyperparameters. This breadth motivated GEPA's "optimize_anything" API (@sec-frameworks), which extends execution-trace-guided optimization to an even wider range of problems.
 
+::: {.exercise-fillin}
+
+Complete TRACE's key advantage over ProTeGi and TextGrad by filling in the missing component:
+
+1. ProTeGi shows the optimizer the current prompt and a minibatch of **failures** (input-output pairs where the model gave the wrong answer)
+2. TextGrad shows the optimizer the current variable and **critiques** propagated backward from the loss through the computation graph
+3. TRACE shows the optimizer the current parameters and a {B|A: scalar loss value summarizing overall pipeline performance|B: full execution trace (a DAG recording which steps ran, what each produced, and how data flowed between components)|C: ranked list of candidate parameter updates generated by beam search}
+
+::: {.fillin-feedback}
+**Correct: B.** The execution trace is TRACE's key innovation. When an LLM pipeline fails, ProTeGi knows *that* it failed and *on which examples*. TextGrad additionally knows *which component* to blame (via backward propagation). TRACE goes further: it shows *exactly what happened at each step*, allowing the optimizer to read the trace like a debugger reads a stack trace. Option A describes scalar feedback (the generate-and-select paradigm). Option C describes a search mechanism, not an observation.
+:::
+
+:::
+
 ### The Gradient Taxonomy
 
 To close this section, here is the full spectrum of gradient-like methods for prompt optimization, arranged by the trade-offs they make:
@@ -143,8 +192,20 @@ To close this section, here is the full spectrum of gradient-like methods for pr
 
 The field has converged on textual gradients as the most practical paradigm for API-based LLM optimization. They work with any model (no weight access), produce interpretable output (the critiques themselves are readable), and provide richer signal than scalars. The cost is that textual gradients are approximate, noisy, and depend on the quality of the critic LLM. But in practice, this trade-off has proven favorable: TextGrad with GPT-4 as the critic outperforms methods with more precise optimization signals on many benchmarks.
 
-The transition from scalar feedback (OPRO: "this prompt scored 78%") to directional feedback (TextGrad: "this prompt fails on neurological symptoms; it should mention stroke indicators and time-sensitivity") was the first major qualitative leap in prompt optimization. The next section explores a parallel branch, one that gains power not from richer feedback but from maintaining diverse *populations* of candidates and combining their strengths.
+::: {.exercise-order correct="C,A,B,D"}
 
-::: {.callout-tip title="Self-Explanation Prompt"}
-TextGrad's chain rule produces natural language "gradients" at each node. How does this compare to the numerical chain rule? Specifically: in what sense does the textual chain rule preserve the *direction* of improvement, and in what sense does it lose the *magnitude* information that numerical gradients carry?
+Arrange the four gradient-like methods in order from **most precise optimization signal** to **most practical accessibility** (i.e., least model access required, most interpretable output):
+
+- A: Shortcut gradients (GCG, PEZ): approximate numerical gradients computed from embeddings, white-box access
+- B: Textual gradients (ProTeGi, TextGrad): LLM-generated natural language critiques, API-only access
+- C: Soft prompts (CoOp, CoCoOp): real numerical gradients over continuous embeddings, full weight access
+- D: Execution-trace textual gradients (TRACE): natural language critiques augmented with computation DAGs, API-only access
+
+::: {.order-feedback}
+**Correct order: C, A, B, D.** Soft prompts (C) have the most precise signal (true gradients in continuous space) but require full model weights and produce uninterpretable embedding vectors. Shortcut gradients (A) approximate real gradients using token-level embeddings, requiring white-box access but producing discrete (partially readable) tokens. Textual gradients (B) replace numerical signals with natural language critiques, needing only API access and producing human-readable output. TRACE (D) adds execution traces to textual gradients, providing the richest practical information (critique + detailed computation history) while still requiring only API access. The progression trades optimization fidelity for practical accessibility.
 :::
+
+:::
+
+
+The transition from scalar feedback (OPRO: "this prompt scored 78%") to directional feedback (TextGrad: "this prompt fails on neurological symptoms; it should mention stroke indicators and time-sensitivity") was the first major qualitative leap in prompt optimization. The next section explores a parallel branch, one that gains power not from richer feedback but from maintaining diverse *populations* of candidates and combining their strengths.

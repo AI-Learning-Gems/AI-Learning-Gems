@@ -48,6 +48,20 @@ The formulation is clean. The execution is hard for five reasons:
 
 5. **Prompt-model coupling.** The optimal prompt $p^*$ depends on the specific model $M_T$. A prompt optimized for GPT-4 may perform poorly on Llama 3 or Claude, and vice versa.
 
+::: {.exercise-predict correct="C"}
+
+The five challenges above describe *properties of the search space* that make prompt optimization hard. But there is a deeper problem with the *optimization signal itself*. Before reading the next paragraph, predict: what additional information would a prompt optimizer need beyond a scalar accuracy score to improve sample-efficiently?
+
+- A larger evaluation dataset to reduce variance in the accuracy estimate
+- The computational cost of each LLM inference call, so the optimizer can budget efficiently
+- Feedback about *which specific parts* of the prompt caused failures and *what to change*, not just the overall score
+
+::: {.predict-reveal}
+**The answer is C.** The text calls this the "blindfolded optimizer problem." A scalar score (78%) tells the optimizer *how good* a prompt is but nothing about *why* it failed or *which words* to change. Neural network gradients solve this for continuous parameters by providing per-parameter direction and magnitude. The textual gradient methods in @sec-textual-gradients attempt to recover this directional information through natural language critiques, replacing $\nabla_\theta \mathcal{L}$ with an LLM-generated analysis like "the prompt failed to catch stroke presentations because it lacks neurological symptom keywords."
+:::
+
+:::
+
 There is a sixth challenge, more subtle than the others: **the blindfolded optimizer problem.** Without directional feedback, a prompt optimizer must explore at random. It can try a prompt and learn that it scored 78%, but not learn *which parts* of the prompt contributed to success and *which parts* caused failures. This is the limitation that the textual gradient methods of @sec-textual-gradients address.
 
 ::: {.callout-warning title="Common Misconception: Prompt optimization is just asking an LLM to write a better prompt"}
@@ -70,6 +84,25 @@ Second, the feedback function $F$ can provide information at different levels of
 - **Structured diagnostics**: execution traces, compiler errors, profiler output. Used by TRACE and GEPA's Actionable Side Information (ASI).
 
 The richness of feedback is a key differentiator among methods. Richer feedback enables more sample-efficient optimization, as we will see.
+
+::: {.exercise-mcq correct="B"}
+
+The section describes three search spaces: discrete (DPO), continuous (CPO), and hybrid (HPO). A researcher uses CoOp to prepend 16 learnable embedding vectors to a CLIP model's input. These vectors are optimized with standard gradient descent and achieve strong accuracy, but when the researcher tries to read what the "prompt" says, the vectors have no human-interpretable meaning. Which trade-off does this illustrate?
+
+- Continuous prompts are always less accurate than discrete ones because they lose the semantic structure of language
+- Continuous prompts enable gradient-based optimization but sacrifice interpretability and require model weight access, both of which discrete methods preserve
+- Continuous prompts only work for vision models and cannot be applied to text-only LLMs
+- Continuous prompts are a subset of discrete prompts because they can always be decoded back into text
+
+::: {.feedback-correct}
+Correct! Continuous prompt optimization (CPO) trades interpretability and API-only access for the ability to use standard gradient descent. The soft prompt $\mathbf{c} \in \mathbb{R}^{d \times L}$ is a set of real-valued vectors with no human-readable meaning. This is the core trade-off the section identifies: discrete methods (APE, OPRO, TextGrad) produce readable prompts and work with black-box APIs, while continuous methods require model internals but can exploit gradients directly.
+:::
+
+::: {.feedback-incorrect}
+The trade-off is not about accuracy, model type, or decodability. Continuous prompts (soft prompts) enable standard gradient descent because the search space is $\mathbb{R}^{d \times L}$, but the resulting vectors have no human-interpretable meaning and require access to model weights (not just API access). Discrete prompt optimization preserves both readability and API-only compatibility but must deal with a non-differentiable, combinatorial search space.
+:::
+
+:::
 
 ### The Search Space Taxonomy
 
@@ -99,6 +132,22 @@ The EMNLP 2025 survey by [Ramnath et al.](https://arxiv.org/abs/2502.16923) orga
 
 The formal objective across all these methods remains @eq-apo-objective, but each makes different choices along these five dimensions.
 
+::: {.exercise-order correct="B,D,A,E,C"}
+
+Arrange these five components of the APO taxonomy in the order they occur during one optimization cycle:
+
+- Candidate generation: produce new prompts from existing ones
+- Seed initialization: obtain first candidate prompts
+- Filter and retain: select which candidates survive to the next round
+- Inference and feedback: run candidates on examples and collect scores or critiques
+- Iteration: repeat the generate-evaluate-select loop
+
+::: {.order-feedback}
+**Correct order: B, D, A, E, C.** Seed initialization (B) comes first: the optimizer needs starting prompts. Inference and feedback (D) evaluates these seeds (even the first generation must be scored before any selection can occur). Candidate generation (A) then produces new prompts informed by the evaluation results. Iteration (E) determines whether the cycle continues. Finally, filter and retain (C) selects which candidates survive into the next round. The key insight: inference and feedback must occur before candidate generation because the optimizer needs evaluation results to inform its proposals.
+:::
+
+:::
+
 ### Four Paradigms, One Progression
 
 The methods in this chapter form a natural progression from less to more sophisticated feedback:
@@ -113,6 +162,25 @@ The methods in this chapter form a natural progression from less to more sophist
 The progression from APE to GEPA is a progression from "no feedback" (propose and score) to "scalar feedback" (OPRO's trajectory) to "directional feedback" (TextGrad's critiques) to "population-based exploration with rich diagnostics" (GEPA's execution traces and Pareto selection). Each paradigm addresses a limitation of the previous one.
 
 There is also a convergence happening across paradigms. All of them increasingly use LLMs as the core subroutine: the LLM proposes candidates (APE), the LLM provides feedback (TextGrad), the LLM performs crossover and mutation (EvoPrompt), the LLM reflects on execution traces (GEPA). The differentiating question is shifting from "which algorithm?" to "what information does the optimizer LLM receive, and how is its search guided?"
+
+::: {.exercise-mcq correct="D"}
+
+The section describes four paradigms (generate-and-select, textual gradients, evolutionary, multi-objective) and says that "there is also a convergence happening across paradigms." What does this convergence refer to?
+
+- All paradigms are converging on the same optimal prompts, regardless of the search method used
+- All paradigms increasingly rely on Bayesian optimization as the theoretical backbone
+- All paradigms are converging on evolutionary algorithms because they scale best
+- All paradigms increasingly use LLMs as the core subroutine; the differentiating question is shifting from "which algorithm?" to "what information does the optimizer LLM receive?"
+
+::: {.feedback-correct}
+Correct! Across all four paradigms, the LLM plays an increasingly central role: it proposes candidates (APE), provides feedback (TextGrad), performs crossover and mutation (EvoPrompt), and reflects on execution traces (GEPA). The optimization logic wrapping the LLM is what differs. As the section states, the differentiating question is no longer "which algorithm?" but "what information does the optimizer LLM receive, and how is its search guided?"
+:::
+
+::: {.feedback-incorrect}
+The convergence is not about prompts, Bayesian optimization, or evolutionary algorithms specifically. It is that all four paradigms increasingly use LLMs as the core subroutine (proposing, evaluating, mutating, reflecting), with the key differentiator being what information the LLM receives. The algorithm surrounding the LLM call is what turns "write a better prompt" into a principled search.
+:::
+
+:::
 
 | Year | Method | Venue | Paradigm | Key Result |
 |---|---|---|---|---|
@@ -137,6 +205,5 @@ There is also a convergence happening across paradigms. All of them increasingly
 Is there a "Bayes-optimal" prompt for a given task and model? In principle, yes: for a fixed model $M_T$, dataset $\mathcal{D}$, and metric $F$, the prompt $p^*$ that maximizes @eq-apo-objective exists (assuming $\mathcal{P}$ is finite, which it is for bounded-length prompts). But finding it is computationally intractable (the space is combinatorial), and the optimal prompt changes with the model, the data distribution, and the evaluation metric. Moreover, as models become more capable, the "headroom" for prompt optimization may shrink. SAMMO ([Ribeiro et al., 2024](https://arxiv.org/abs/2404.02319)) found weak correlation between optimal prompts across different LLMs, suggesting that $p^*$ is highly model-specific. The practical implication: prompt optimization is not a one-time cost but an ongoing engineering investment that must be re-run when any component changes.
 :::
 
-::: {.callout-tip title="Self-Explanation Prompt"}
-Why can't we simply use gradient descent to optimize prompts? Write down two specific properties of the prompt optimization problem that break the assumptions of standard gradient-based optimization.
-:::
+
+

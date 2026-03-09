@@ -55,6 +55,25 @@ The BO loop: (1) fit GP to observed data, (2) maximize acquisition function to s
 
 **Numerical example.** You have tested 3 prompts with accuracy scores: $\{(p_1, 72\%), (p_2, 78\%), (p_3, 68\%)\}$. The GP fits a smooth curve through these points and estimates uncertainty. At a new candidate $p_4$, the GP predicts $\mu = 80\%$ with $\sigma = 5\%$. EI is high because there is a substantial probability of exceeding the current best of 78%. At another candidate $p_5$, the GP predicts $\mu = 85\%$ with $\sigma = 15\%$. UCB with $\kappa = 2$ gives $85 + 2(15) = 115$ for $p_5$ vs. $80 + 2(5) = 90$ for $p_4$, so UCB would explore $p_5$ first (high uncertainty = high potential).
 
+::: {.exercise-mcq correct="B"}
+
+In the numerical example above, candidate $p_4$ has $\mu = 80\%, \sigma = 5\%$ and candidate $p_5$ has $\mu = 85\%, \sigma = 15\%$. A purely exploitative strategy (maximizing the GP's predicted mean) would pick $p_5$. UCB with $\kappa = 2$ also picks $p_5$. Under what setting would a rational optimizer prefer $p_4$ over $p_5$?
+
+- Never; $p_5$ has both higher mean and higher UCB, so it always dominates
+- When the evaluation budget is nearly exhausted (e.g., only 1 call left), because $p_4$ is more likely to actually exceed 78% despite its lower ceiling
+- When the learning rate $\alpha$ is very small
+- When using Expected Improvement with $f^+ = 68\%$
+
+::: {.feedback-correct}
+Correct! When you have very few evaluations left, the high uncertainty of $p_5$ becomes a liability: there is also a substantial probability of scoring *below* 78%. With $\sigma = 15\%$, the GP's confidence interval for $p_5$ spans roughly $[55\%, 115\%]$. Candidate $p_4$ with $\sigma = 5\%$ is a much safer bet for actually improving over 78%. This is the exploration-exploitation trade-off: exploration (high $\sigma$) pays off early; exploitation (low $\sigma$, high $\mu$ relative to uncertainty) pays off late.
+:::
+
+::: {.feedback-incorrect}
+Not quite. The key is the exploration-exploitation trade-off. When you have many evaluations remaining, exploring high-uncertainty candidates is worth the risk because you learn about the landscape. But when the budget is nearly exhausted, you want to *exploit* what you already know. Candidate $p_4$ has a tighter confidence interval around a value that likely exceeds 78%, making it the safer final choice. Option A ignores the budget-dependent nature of the trade-off.
+:::
+
+:::
+
 ### Evolutionary Algorithms {#sec-math-ea}
 
 Evolutionary algorithms (EAs) optimize by mimicking natural selection. A **population** of candidate solutions evolves over generations through selection, crossover, and mutation. EAs require no gradients, making them natural candidates for discrete, non-differentiable search spaces like prompt optimization.
@@ -72,6 +91,25 @@ The basic loop:
 **Differential Evolution (DE)** is a variant where mutation uses vector differences between population members: $\mathbf{y} = \mathbf{a} + F(\mathbf{b} - \mathbf{c})$, where $\mathbf{a}$, $\mathbf{b}$, $\mathbf{c}$ are three distinct candidates and $F$ is a scaling factor. EvoPrompt (@sec-evolutionary) translates this to natural language by asking an LLM to identify differences between prompts and apply them to a base prompt.
 
 **Why this matters for prompt optimization:** EvoPrompt, PromptBreeder, and MOPO (@sec-evolutionary, @sec-multi-objective) all use LLMs as crossover and mutation operators on populations of prompts. The EA framework provides the selection pressure and diversity maintenance; the LLM provides the domain-specific recombination logic. Understanding the standard EA vocabulary (population, fitness, selection, crossover, mutation, generation) is necessary to follow these algorithms.
+
+::: {.exercise-mcq correct="D"}
+
+In Differential Evolution (DE), a mutant vector is created as $\mathbf{y} = \mathbf{a} + F(\mathbf{b} - \mathbf{c})$. EvoPrompt translates this to natural language by asking an LLM to "combine" prompts. What is the main advantage of DE-style mutation over simple random mutation for prompt optimization?
+
+- DE guarantees that each mutant is better than its parent
+- DE uses gradient information from the objective function
+- DE requires only a single parent prompt, reducing computational cost
+- DE incorporates information about *which direction* in prompt space has been productive, by using the difference between two existing candidates
+
+::: {.feedback-correct}
+Correct! The vector difference $(\mathbf{b} - \mathbf{c})$ captures a *direction* that has been observed in the population. Adding this to base prompt $\mathbf{a}$ is a directed step, not a random one. When EvoPrompt translates this to language, the LLM identifies what makes prompt B different from prompt C and applies that difference to prompt A. This is more informative than random paraphrasing (simple mutation), because it reuses structural differences that the population has already discovered.
+:::
+
+::: {.feedback-incorrect}
+Not quite. DE does not guarantee improvement (the trial vector still competes with the parent) and does not use gradients. Its key advantage over simple mutation is the $(\mathbf{b} - \mathbf{c})$ difference term, which extracts a *direction* from the current population. In prompt space, this means the LLM identifies what distinguishes two existing prompts and applies that distinction to a third, producing directed rather than random variation.
+:::
+
+:::
 
 ### Multi-Armed Bandits and UCB {#sec-math-ucb}
 

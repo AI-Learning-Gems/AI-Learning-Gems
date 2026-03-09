@@ -49,6 +49,21 @@ DSPy's optimizer ecosystem has grown considerably:
 
 For our triage pipeline, DSPy would define signatures for each module (extraction, classification, safety checking, explanation), compose them with `ChainOfThought`, and compile with MIPROv2. The optimizer would jointly search over instructions and few-shot examples for all modules, using TPE to search the combinatorial space efficiently.
 
+::: {.exercise-order correct="B,D,A,C"}
+
+Arrange the three stages of MIPROv2's Bayesian optimization approach in the correct order, followed by the final output:
+
+- A: Bayesian surrogate (TPE) searches the joint space of candidate instructions and demonstrations
+- B: Bootstrap demonstrations by running the pipeline on training examples and collecting successful traces via rejection sampling
+- C: Return the highest-scoring configuration of instructions + demonstrations for each module
+- D: Generate grounded instruction proposals by having an LLM analyze program code, training data, and execution traces
+
+::: {.order-feedback}
+**Correct order: B, D, A, C.** MIPROv2 first bootstraps few-shot demonstrations (B) by running the pipeline and keeping successful execution traces. Then it generates candidate instructions (D) by having an LLM analyze the program structure and data. Only after assembling this candidate pool does it run Bayesian surrogate search with TPE (A), which models the relationship between configurations and scores to select promising combinations. Finally, the best configuration is returned (C). The ordering matters because each stage builds on the previous: TPE needs a pool of candidates to search over, and instruction proposals benefit from seeing successful demonstrations.
+:::
+
+:::
+
 ### TextGrad: The Autodiff Paradigm
 
 TextGrad ([Yuksekgonul et al., NeurIPS 2024](https://arxiv.org/abs/2406.07496)) provides a PyTorch-like API where prompt optimization looks like neural network training. The key abstractions:
@@ -88,11 +103,44 @@ GEPA also supports **Pareto-efficient search** natively, both for per-instance d
 
 For our triage system at full scale (multi-module pipeline with code and prompt components), GEPA's `optimize_anything` would treat the entire system as a text artifact, using execution traces as ASI, and evolve both the prompts and the code simultaneously.
 
+::: {.exercise-mcq correct="D"}
+
+A team is building a medical triage pipeline that combines LLM calls (symptom extraction, classification) with hard-coded rule-based safety checks (regex patterns for emergency keywords, lookup tables for drug interactions). They want to optimize the LLM prompts while preserving the rule-based components. Which framework is the best fit?
+
+- DSPy/MIPROv2, because its signature abstraction can represent both LLM calls and rule-based checks as modules.
+- TextGrad, because its backward pass can propagate gradients through any computation graph including rule-based nodes.
+- GEPA, because `optimize_anything` can treat the entire system (code + prompts) as a text artifact to evolve.
+- TRACE, because it captures the full execution trace including non-LLM operations like rule-based checks, allowing the optimizer to understand how LLM outputs interact with hard-coded logic.
+
+::: {.feedback-correct}
+Correct! TRACE's key differentiator is its ability to capture heterogeneous workflows. The `@bundle` decorator wraps both LLM calls and regular Python functions (including rule-based logic) into the execution DAG. When the pipeline fails, TRACE's minimal subgraph propagator can trace backward through *both* LLM outputs and rule-based checks to identify the root cause. DSPy's signatures are designed for LLM calls, not arbitrary code. TextGrad's computation graph is purely LLM-based and cannot represent rule-based operations. GEPA could work but treats the system as flat text, losing the structural information about how LLM outputs flow into safety checks.
+:::
+
+::: {.feedback-incorrect}
+Not quite. DSPy's signatures (option A) are designed for LLM calls with typed inputs/outputs, not arbitrary rule-based code. TextGrad's backward pass (option B) propagates *textual* gradients through LLM-based computation graphs; it cannot meaningfully backpropagate through a regex pattern matcher. GEPA (option C) could evolve the entire system but treats it as flat text, missing structural information. The correct answer is D: TRACE wraps both LLM calls and Python functions via `@bundle`, capturing the full execution trace including non-LLM components. This lets the optimizer understand *how* the rule-based safety checker interacts with upstream LLM outputs.
+:::
+
+:::
+
 SAMMO ([Ribeiro et al., 2024](https://arxiv.org/abs/2404.02319)) represents prompts as symbolic DAGs and applies structural mutations (drop section, repeat section, change format) alongside textual mutations.
 
 ![SAMMO symbolic prompt program overview. Source: Ribeiro et al. (2024).](Automatic Prompt Optimization/images/sammo-overview.png){#fig-sammo}
 
 ![SAMMO headroom analysis showing where structural prompt transformations matter most. Weaker models benefit more from structural optimization, and RAG pipelines show the most headroom. Source: Ribeiro et al. (2024).](Automatic Prompt Optimization/images/sammo-headroom.png){#fig-sammo-headroom}
+
+::: {.exercise-predict correct="C"}
+
+Before reading about IAPO: a team has found their optimized prompt for a math reasoning task. They deploy it at the default temperature (0.7) and get 72% accuracy. They suspect they could do better by also tuning the inference configuration (temperature, top-$p$, Best-of-N sampling). They plan to first freeze the optimized prompt and then grid-search over inference parameters. What do you predict?
+
+- Grid-searching inference parameters after freezing the prompt will find the optimal configuration, since prompt content and sampling parameters are independent.
+- Tuning inference parameters will not help much, because the prompt is the dominant factor in LLM performance.
+- The optimal inference configuration depends on the specific prompt text (and vice versa), so separately optimizing prompt then inference parameters misses joint interactions and underperforms.
+
+::: {.predict-reveal}
+**The answer is C.** This is exactly the insight behind IAPO (Mahmud et al., 2025): the same prompt performs differently at temperature 0 vs. 0.7, and conversely, the best prompt at temperature 0 may not be the best prompt at temperature 0.7. IAPO jointly optimizes the prompt AND inference configuration (temperature, Best-of-N sampling, top-$p$) because these parameters interact. A highly structured, deterministic prompt may work best at low temperature, while a more open-ended prompt may benefit from higher temperature with Best-of-N sampling. Sequential optimization misses these interactions.
+:::
+
+:::
 
 ### Emerging Methods
 
@@ -118,6 +166,22 @@ Several newer frameworks push the boundaries:
 | **Multimodal?** | Partial | No | No | Via ASI | No |
 | **Open-source?** | Yes | Yes | Yes | Yes (via DSPy) | Yes |
 | **Best for** | Multi-stage pipelines with training data | Test-time refinement of individual cases | Heterogeneous workflows with non-LLM components | End-to-end optimization, rich feedback domains | Prompt compression and structural tuning |
+
+::: {.exercise-fillin}
+
+Match each scenario to the most appropriate framework:
+
+1. A 3-module RAG pipeline (retriever, reranker, generator) with 500 training examples and a single accuracy metric: {A|A: DSPy/MIPROv2|B: TextGrad|C: TRACE|D: GEPA}
+2. A code solution on LeetCode-Hard that needs test-time refinement after the initial generation fails 3 of 8 test cases: {B|A: DSPy/MIPROv2|B: TextGrad|C: TRACE|D: GEPA}
+3. An agent system where you want to optimize both the prompts AND the Python control flow that decides when to call each tool: {D|A: DSPy/MIPROv2|B: TextGrad|C: TRACE|D: GEPA}
+
+::: {.fillin-feedback}
+**Correct answers: A, B, D.** The RAG pipeline (scenario 1) is a multi-stage pipeline with ample training data and a single metric: DSPy/MIPROv2 is purpose-built for this, with MIPROv2's Bayesian search handling the joint instruction + demonstration space. The LeetCode refinement (scenario 2) is *instance-level* optimization at test time: TextGrad excels here because it can propagate feedback from the failing test cases back through the code generation process to produce targeted fixes. The agent system with code + prompts (scenario 3) needs GEPA's `optimize_anything`, which treats the entire system (code + prompts + control flow) as a text artifact to be evolved. TRACE could handle the execution tracing, but only GEPA can evolve the code structure itself.
+:::
+
+:::
+
+
 
 ### Decision Guide
 
@@ -234,6 +298,3 @@ Q4 -> dspy: "No" {style.font-size: 11}
 GEPA's `optimize_anything` claims to unify prompt optimization, code optimization, and agent architecture search. In a sense, any text artifact (prompts, code, configurations) can be treated as a string to evolve. But specialization matters. DSPy's signature abstraction captures multi-stage pipeline structure that GEPA's flat text representation misses. TextGrad's backward pass provides targeted per-component feedback that GEPA's reflection-based approach approximates more coarsely. TRACE's execution trace captures non-LLM components that are invisible to text-only optimization. The right framework depends on which structure in your problem you want the optimizer to exploit. A universal optimizer that ignores problem structure may be less effective than a specialized one that leverages it.
 :::
 
-::: {.callout-tip title="Self-Explanation Prompt"}
-DSPy optimizes demonstrations (few-shot examples) while TextGrad optimizes instructions. For our triage system, when would optimizing examples be more effective than optimizing the instruction itself? Consider data availability, task complexity, and model capability.
-:::
