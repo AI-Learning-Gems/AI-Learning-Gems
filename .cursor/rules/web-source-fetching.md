@@ -39,11 +39,16 @@ This document contains rules and strategies for fetching authoritative content f
 Is it an arXiv paper?
 ├─ YES → Download LaTeX source: curl arxiv.org/src/PAPER_ID (ALWAYS prefer this over PDF)
 └─ NO
-   ├─ Is it a PDF? (non-arXiv papers, scanned documents, reports)
-   │  ├─ Need high-quality Markdown + images?
-   │  │  ├─ YES → python scripts/mistral_ocr.py file.pdf -o output/
-   │  │  └─ NO (just text) → pdftotext -layout file.pdf > file.txt
-   │  └─ Alternative: marker-pdf (local, slower)
+   ├─ Is it a PDF?
+   │  ├─ Is it a OneNote export? (single giant page, handwritten ink, no text layer)
+   │  │  └─ YES → python scripts/onenote_pdf_to_markdown.py file.pdf -o output/
+   │  │           Then feed the extracted PNGs to the IDE's vision LLM (Cursor/Antigravity)
+   │  │           Do NOT use Mistral OCR for handwritten OneNote notes (poor accuracy)
+   │  └─ NO (standard rendered PDF: textbooks, papers, reports, scanned docs)
+   │     ├─ Need high-quality Markdown + images?
+   │     │  ├─ YES → python scripts/mistral_ocr.py file.pdf -o output/
+   │     │  └─ NO (just text) → pdftotext -layout file.pdf > file.txt
+   │     └─ Alternative: marker-pdf (local, slower)
    ├─ Is it a DOCX file?
    │  ├─ YES → pandoc input.docx -o output.md (works well)
    │  └─ NO
@@ -157,9 +162,51 @@ curl -sL "https://raw.githubusercontent.com/OWNER/REPO/BRANCH/PATH" -o "sources/
 
 ### PDF Files (General — Non-arXiv)
 
+PDFs fall into two categories that require different tools:
+
+#### OneNote PDF Exports (Handwritten Notes)
+
+**Best approach**: `scripts/onenote_pdf_to_markdown.py` + IDE vision LLM
+
+OneNote exports PDFs as a single continuous page (often 100+ inches tall) with all content as vector ink strokes and **zero selectable text**. Standard PDF tools (Mistral OCR, Marker, pdftotext) produce poor results on these because they expect multi-page documents with text layers. Mistral OCR in particular misreads domain-specific terms in handwriting (e.g., "Frequentist" → "Frequently", "Bayesian" → "Barysian").
+
+**How to identify a OneNote export**: single PDF page, height >> width (e.g., 24in x 145in), no extractable text beyond a title/timestamp, thousands of vector drawing paths.
+
+**Workflow**:
+```bash
+# Step 1: Split into virtual page PNGs
+python scripts/onenote_pdf_to_markdown.py "path/to/notes.pdf" -o output/
+
+# Step 2: Feed the PNGs in output/images/ to the IDE's vision LLM
+# (Cursor, Antigravity, Google AI Studio — use the prompt in output/PROMPT.md)
+```
+
+**What you get**:
+```
+output/
+├── PROMPT.md            ← Ready-to-paste prompt for the vision LLM
+└── images/              ← Virtual page PNGs (11in tall, 1in overlap)
+    ├── page_000.png
+    ├── page_001.png
+    └── ...
+```
+
+**Customization**:
+```bash
+# Taller virtual pages for dense notes:
+python scripts/onenote_pdf_to_markdown.py notes.pdf --page-height 14 --overlap 1.5
+
+# Lower zoom for smaller file sizes:
+python scripts/onenote_pdf_to_markdown.py notes.pdf --zoom 2
+```
+
+**Do NOT use `--ocr mistral` for handwritten notes.** The flag exists but Mistral OCR's handwriting recognition is unreliable for technical/mathematical content. Always use the IDE's vision LLM (Gemini, Claude, GPT) which handles handwriting significantly better.
+
+#### Standard Rendered PDFs (Textbooks, Papers, Reports)
+
 **Best approach**: Mistral OCR via `scripts/mistral_ocr.py`
 
-For PDFs that don't have LaTeX source (scanned documents, non-arXiv papers, reports), use the Mistral OCR script which produces high-quality Markdown with image extraction.
+For PDFs that don't have LaTeX source (scanned documents, non-arXiv papers, reports, textbook chapters), use the Mistral OCR script which produces high-quality Markdown with image extraction. This works well for **rendered/typeset content** (as opposed to handwritten ink).
 
 **Prerequisites**:
 1. Mistral API key in `.env` file: `MISTRAL_API_KEY=your_key_here`
@@ -186,10 +233,15 @@ output_folder/
 ```
 
 **When to use**:
-- Scanned documents (where text extraction tools fail)
+- Rendered/typeset PDFs (textbooks, papers, reports)
+- Scanned documents with printed text
 - PDFs with complex layouts, tables, equations
 - Non-arXiv papers where LaTeX source isn't available
 - Any PDF where you need both text AND images extracted
+
+**When NOT to use**:
+- OneNote exports or other handwritten-ink PDFs (use `onenote_pdf_to_markdown.py` instead)
+- arXiv papers (download LaTeX source instead)
 
 **Pricing**: Mistral OCR costs ~$1–2 per 1,000 pages (free tier available for experimentation).
 
@@ -202,10 +254,15 @@ output_folder/
 Is LaTeX source available? (arXiv, GitHub)
 ├─ YES → Download LaTeX (see arXiv section above)
 └─ NO
-   ├─ Need high-quality Markdown + images?
-   │  ├─ YES → python scripts/mistral_ocr.py
-   │  └─ NO (just text)
-   │     └─ pdftotext -layout file.pdf > file.txt
+   ├─ Is it a OneNote export / handwritten ink PDF?
+   │  └─ YES → python scripts/onenote_pdf_to_markdown.py
+   │           Then feed PNGs to IDE vision LLM (Cursor/Antigravity)
+   └─ NO (rendered/typeset PDF)
+      ├─ Need high-quality Markdown + images?
+      │  ├─ YES → python scripts/mistral_ocr.py
+      │  └─ NO (just text)
+      │     └─ pdftotext -layout file.pdf > file.txt
+      └─ Alternative: marker-pdf (local, slower)
 ```
 
 ---
@@ -620,7 +677,8 @@ Download directly with `curl -O` and store locally.
 |------|----------|-------|
 | `scripts/authenticated_extract.py` | **DEFAULT for all web content** (JS, login, images) | ~15s |
 | `scripts/webpage_to_md.py` | Fast fallback for static pages + images | ~3s |
-| `scripts/mistral_ocr.py` | PDF→Markdown + images | ~30s/page |
+| `scripts/onenote_pdf_to_markdown.py` | OneNote PDF exports (handwritten ink) → PNGs for vision LLM | ~2-20s |
+| `scripts/mistral_ocr.py` | Rendered/typeset PDF→Markdown + images (NOT for handwriting) | ~5s/page |
 | `git clone` | GitHub repos and gists | ~5s |
 | `curl` | Single raw files, arXiv LaTeX source | <1s |
 | `pandoc` | HTML→MD, DOCX→MD conversion | ~1s |

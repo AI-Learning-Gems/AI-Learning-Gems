@@ -39,6 +39,8 @@ crawl4ai>=0.8.0
 
 # Optional: Install separately if needed
 # marker-pdf  # Local PDF→MD: pip install marker-pdf
+pypdf==6.8.0
+pymupdf==1.27.2
 
 # Chat Extensions Backend
 fastapi>=0.109.2
