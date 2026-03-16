@@ -191,6 +191,19 @@ When you discover a blog of exceptional quality during research, add it to this 
   - "The Illustrated Stable Diffusion"
 - **Search**: `site:jalammar.github.io {TOPIC}`
 
+#### Maarten Grootendorst — newsletter.maartengrootendorst.com
+- **Depth**: `intuition-and-visualization` (50+ custom visuals per post; minimal math, maximum visual intuition)
+- **Focus**: LLM internals (MoE, quantization, state space models), topic modeling (BERTopic), NLP techniques. Each "Visual Guide" post builds intuition through dozens of original diagrams showing data flow, architecture internals, and routing decisions.
+- **Platform**: Substack ("Exploring Language Models")
+- **Auth**: None (free)
+- **Frequency**: ~3-4 visual guides/year + occasional tutorials (28K+ subscribers)
+- **Extraction**: `python scripts/authenticated_extract.py "URL"` (Substack auto-detects `article`; works well, 43K+ chars per visual guide, 50-70 images downloaded automatically)
+- **Notable posts**:
+  - "A Visual Guide to Mixture of Experts (MoE)" (Oct 2024) — 50+ visuals covering experts, routing, load balancing, capacity factors
+  - "A Visual Guide to Quantization" (Jul 2024) — IEEE-754, dynamic range, GPTQ/GGUF/AWQ comparison
+  - "A Visual Guide to Mamba and State Space Models" (Feb 2024) — SSM alternative to transformers
+- **Search**: `site:newsletter.maartengrootendorst.com {TOPIC}` or `site:maartengrootendorst.com {TOPIC}`
+
 #### Distill.pub — distill.pub
 - **Depth**: `intuition-and-visualization` (gold standard for interactive explorable explanations)
 - **Focus**: Neural network interpretability, feature visualization, attention, t-SNE, GNNs
