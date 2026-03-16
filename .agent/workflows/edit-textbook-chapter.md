@@ -75,6 +75,8 @@ You are editing **prose quality only**. Think of yourself as a copy editor, not 
 
 **These rules elaborate on the principles in `writing-style.md`.** Apply each rule to every paragraph. If a paragraph already satisfies a rule, leave it alone.
 
+**RULE 20 (Notation Consistency) is in the workflow section below, not here, because it requires a cross-section check that the main agent performs.**
+
 ---
 
 ## RULE 1: One Idea Per Paragraph
@@ -563,134 +565,175 @@ Research shows causal ("because," "so," "therefore") and contrastive ("however,"
 
 **CRITICAL: Do NOT ask the user for confirmation at any step. Execute the entire workflow autonomously.**
 
+The workflow has a **hub-and-spoke architecture**: the main agent reads everything first, triages issues by severity, extracts the notation table, and then dispatches subagents with a severity-ordered todo list. The subagents edit independently. The main agent performs the final consistency pass and verification.
+
 ---
 
-## STEP 1: Read Rules and Catalog Sections
+## STEP 1: Main Agent Reads Everything (Before Any Editing)
 
-**CRITICAL: Edit one section file at a time. Do NOT batch multiple sections.** Each section is a self-contained editing task. If the chapter has 7 sections, that is 7 sequential passes, each starting with a fresh re-read of the rules.
+This step is performed by the **main agent only**. Do not delegate any part of it.
 
-**1a. Read ALL rule files (MANDATORY before any editing begins):**
+**1a. Read ALL rule files (MANDATORY):**
 
-Read these files from disk in full using your file-reading tool. Do NOT rely on system prompt injection or prior context:
+Read these files from disk in full. Do NOT rely on system prompt injection or prior context:
 
-- **`writing-style.md`** — Sentence clarity, given-new flow, emphasis hierarchy, pronoun clarity, nominalization, connective hierarchy, mathematical prose, forecasting counts, AI tell avoidance, and all vocabulary/style rules
-- **`quarto-conventions.md`** — Heading levels, LaTeX formatting, cross-references, image paths, callout syntax
-- **`visualization-standards.md`** — Image handling, D2 diagrams, hvplot patterns (relevant when editing captions or checking image paths)
-- **`exercise-syntax.md`** — Exercise div syntax rules (relevant when editing prose inside exercise blocks)
+- **`writing-style.md`** — THE MOST CRITICAL FILE.
+- **`quarto-conventions.md`** — Heading levels, LaTeX, cross-references, image paths, callout syntax
+- **`visualization-standards.md`** — Image captions, D2 diagrams, hvplot patterns
+- **`exercise-syntax.md`** — Exercise div syntax, Pandoc AST pitfalls
 
-**1b. Read the index file and catalog sections:**
+**1b. Read the index file, catalog sections, and read ALL section files:**
 
 1. Read the index `.qmd` file
 2. List all section files from the `{{< include >}}` statements
-3. Chat: "Editing [N] sections in `[chapter name]`"
+3. **Read every section file in full.** The main agent must see the entire chapter before any editing begins. This is required for triaging issues and checking cross-section consistency.
+
+**1c. Extract the notation table (RULE 20):**
+
+The first section file (typically `_01-introduction.qmd`) almost always contains a **Notation** subsection with a table defining mathematical symbols. Read this table and extract all symbol definitions. This notation table is the **single source of truth** for mathematical symbols throughout the chapter.
+
+If no notation table exists, flag this to the user and skip notation checking.
+
+**1d. Triage issues by severity across ALL sections:**
+
+After reading all sections, scan for issues and categorize them into three severity tiers. This triage determines the order of work for each subagent.
+
+**Tier 1 — BIG ISSUES (fix these first in every section):**
+
+1. **Notation inconsistency (RULE 20):** Check every equation and inline math expression against the notation table. Common errors: lowercase where uppercase is defined (e.g., `$n$` instead of `$N$`), wrong subscript convention, symbols used without definition. List every inconsistency found, with file and line.
+2. **Em dashes:** Grep for `—` across all `.qmd` files. Count occurrences per file.
+3. **Banned AI words:** Grep for the banned words list from Rule 7b. Count per file.
+4. **Unlinked citations:** Grep for patterns like `(Name et al., 20` or `(Venue 20` that do NOT contain `](http`. List every match.
+
+**Tier 2 — MEDIUM ISSUES:**
+
+5. **Bare "this"/"these"/"it" as sentence subjects** (Rule 16)
+6. **Sentences starting with math symbols** (Rule 18a)
+7. **Clause chains** (3+ clauses) (Rule 2)
+8. **Meta-commentary filler** (Rule 7c)
+
+**Tier 3 — SMALLER ISSUES:**
+
+9. Given-new information flow (Rule 15)
+10. Nominalizations (Rule 17a)
+11. Noun stacks (Rule 17b)
+12. Forecasting counts (Rule 19a)
+13. Bold overuse (Emphasis Hierarchy)
+14. Sentence length variation (Rule 5)
+
+**1e. Chat the triage summary:**
+
+Report: "Editing [N] sections in `[chapter name]`. Triage: [count] Tier 1 issues, [count] Tier 2, [count] Tier 3."
 
 ---
 
-## STEP 2: Edit Sections (Parallel Subagents When Available)
+## RULE 20: Notation Consistency
 
-**Parallelization strategy:** Editing different sections are independent tasks (the consistency pass in Step 3 handles cross-section concerns). If your execution environment supports spawning subagents (e.g., Cursor's Task tool), you SHOULD edit sections in parallel:
+Every mathematical symbol used anywhere in the chapter must match the notation table in the first section. This rule is enforced by the main agent's triage pass and by every subagent during editing.
 
-1. **Spawn one subagent per section file.** Each subagent receives:
-   - The full text of this workflow file (so it knows all 19 editing rules)
-   - The full text of `writing-style.md` (the most critical rules file)
-   - The full text of `quarto-conventions.md`
-   - The full text of `exercise-syntax.md` (to avoid breaking exercise blocks)
-   - The path to the specific section file it is responsible for
-   - The chapter folder name (for image path verification)
-2. **Each subagent independently:** reads its section, applies Rules 1-19 paragraph by paragraph using targeted `StrReplace` operations, and reports back what it changed.
-3. **The parent agent** then runs Step 3 (consistency pass) and Step 4 (final verification) across all sections, since these require cross-section awareness.
+**20a. Check all math against the notation table.**
 
-**If subagents are NOT available**, edit sections sequentially using the per-section workflow below.
+For each equation (block `$$...$$` or inline `$...$`), verify that every symbol matches the notation table's definition. Common inconsistencies:
+- Case mismatch: `$n$` (lowercase) vs `$N$` (uppercase) for "number of experts"
+- Subscript conventions: `$w_g$` vs `$W_g$` for the router weight matrix
+- Index variable collisions: using `$i$` for two different meanings
 
-**For each section file, follow this exact sequence:**
+**20b. When a subagent finds a symbol not in the notation table:**
 
-**2a. Re-read the writing rules (MANDATORY before EVERY section):**
+- **If the symbol is local** (used only in one paragraph or equation, e.g., a loop variable in a derivation), the subagent should add an inline definition ("where $z$ is the pre-activation") and move on. Do NOT add it to the notation table.
+- **If the symbol is global** (used across multiple sections, e.g., a new loss function symbol), the subagent should flag it in its report: "NOTATION GAP: `$\mathcal{L}_z$` is used in _03 and _05 but not defined in the notation table." Do NOT modify the notation table.
 
-Before touching a single paragraph, re-read the following files from disk using your file-reading tool:
+**20c. Notation table additions are MAIN AGENT ONLY.**
 
-- **`writing-style.md`** — Re-read in FULL. Pay particular attention to: the Emphasis Hierarchy table (7 levels from italics to callout boxes), the Given-New Contract, the Pronoun Clarity rule ("this + noun"), the Nominalization Detection rule, the Noun Stack Unpacking rule, the Connective Hierarchy (causal > contrastive > additive), and the Forecasting Counts section. Also re-read the AI tell avoidance section: banned words table, em dash prohibition, meta-commentary filler phrases to remove.
-
-If the section contains equations or mathematical content, also re-read:
-
-- **`quarto-conventions.md`** — Re-read the LaTeX Formatting section and the Cross-References section.
-
-If the section contains exercises, also re-read:
-
-- **`exercise-syntax.md`** — Re-read to ensure prose edits inside exercise blocks don't break the Lua filter (e.g., don't convert bullet list options to paragraphs, don't add bold to fill-in `{...}` patterns).
-
-This re-read is not a suggestion. It is a hard requirement. The quality difference between "re-read rules, then edit" and "edit from memory" is stark, and the user will notice.
-
-**2b. Read the section file in full.**
-
-**2c. Scan for violations** of Rules 1-19.
-
-**2d. Edit paragraph by paragraph:**
-   - Apply Rule 1 (one idea per paragraph) — split where needed
-   - Apply Rule 2 (no clause chains) — break long sentences
-   - Apply Rule 3 (examples get space) — un-bury inline examples
-   - Apply Rule 4 (subject-verb proximity) — restructure front-loaded sentences
-   - Apply Rule 5 (sentence length variation) — mix short/medium/long
-   - Apply Rule 6 (writing modes) — simplify English in math paragraphs, sharpen word choice in narrative paragraphs
-   - Apply Rule 7 (AI tells) — fix em dash overuse, replace banned words, delete filler
-   - Apply Rule 8 (preserve pacing) — do NOT compress good structure
-   - Apply Rule 9 (tone) — ensure conversational but calibrated
-   - Apply Rule 10 (terminology) — ensure consistency
-   - Apply Rule 11 (inline citations) — ensure every named work has a linked citation on first mention
-   - Apply Rule 12 (precision) — ensure all outputs, directions, and number sources are explicit
-   - Apply Rule 13 (recipe summaries and orientation) — add self-contained summaries after complex procedures; add "so far / now / why" at major transitions
-   - Apply Rule 14 (dense content formatting) — convert dense inline lists to bullets or tables
-   - Apply Rule 15 (given-new flow) — each sentence opens with old info, closes with new info
-   - Apply Rule 16 (pronoun clarity) — replace bare "this"/"these"/"it" subjects with "this + noun"
-   - Apply Rule 17 (nominalization and noun stacks) — convert -tion/-ment nouns back to verbs; unpack 3+ modifier stacks
-   - Apply Rule 18 (math prose integration) — no symbol-initial sentences; equations punctuated as grammar; "where" clauses; front-loaded conditionals
-   - Apply Rule 19 (forecasting counts and connectives) — state counts before enumerating; prefer causal/contrastive over additive connectives
-
-**2e. Write the edited file** using targeted `StrReplace` operations for individual paragraphs rather than rewriting entire files. This minimizes the chance of accidentally changing technical content.
-
-**2f. Chat:** "Edited `[filename]`"
-
-**2g. Repeat from step 2a** for the next section file. Do NOT skip the re-read.
+Only the main agent (in Step 3) may add rows to the notation table. The main agent collects all "NOTATION GAP" flags from subagents, verifies them, and adds them to the notation table in `_01-introduction.qmd` with the correct 4-column format (Symbol, Definition, Valid Values, Example).
 
 ---
 
-## STEP 3: Consistency Pass
+## STEP 2: Dispatch Subagents with Severity-Ordered Todo Lists
 
-After all sections are edited:
+**Parallelization strategy:** Spawn subagents to edit sections in parallel (up to 4 at a time due to tool limits). Group shorter or simpler sections together if there are more than 4.
 
-1. **Check cross-section terminology:** Ensure the same term is used for the same concept across all sections
-2. **Check figure/equation reference style:** Ensure consistent phrasing
-3. **Check transition quality:** Each section's closing paragraph should connect to the next section's topic
-4. **Check inline citations:** Ensure every named work has a linked citation on first mention per section (Rule 11). Cross-check against the source table at the top of each section.
-5. **Check Math Background references:** If the chapter has a `_98-math-background.qmd` appendix, verify that body sections contain `(see @sec-math-background ...)` forward-references at the first mention of each prerequisite concept covered in the appendix.
-6. **Check writing mode consistency:** In mathematical/derivation paragraphs, verify English is simple and explicit (Rule 6a). In narrative paragraphs, verify word choice is precise and real-world examples are concrete (Rule 6b).
-7. Chat: "Consistency pass complete"
+**2a. Each subagent receives:**
+
+1. A severity-ordered checklist of issues to fix (Tier 1 first, then Tier 2, then Tier 3)
+2. The full notation table (extracted in Step 1c), with explicit instructions to check every equation against it
+3. The full text of `writing-style.md` (the most critical rules file)
+4. The path(s) to the specific section file(s) it is responsible for
+5. The chapter folder name (for image path verification)
+6. A summary of the 19 editing rules (not the full workflow file; just the issue checklist ordered by severity)
+7. A "DO NOT CHANGE" list (LaTeX equations, D2 diagrams, code blocks, exercise syntax, cross-references, section headings, source headers, factual claims)
+
+**2b. Each subagent's internal workflow:**
+
+The subagent should work through issues **in decreasing order of severity**:
+
+1. **First pass: Tier 1 (BIG).** Fix notation inconsistencies, em dashes, banned words, unlinked citations. These are mechanical, high-confidence fixes that affect correctness.
+2. **Second pass: Tier 2 (MEDIUM).** Fix bare "this" pronouns, symbol-initial sentences, clause chains, meta-commentary filler. These require more judgment but have clear rules.
+3. **Third pass: Tier 3 (SMALLER).** Improve given-new flow, convert nominalizations, unpack noun stacks, add forecasting counts, check bold usage, vary sentence length. These are refinements.
+
+**2c. Each subagent reports back:**
+
+1. What it changed (grouped by severity tier)
+2. Any "NOTATION GAP" flags (symbols used but not in the notation table)
+3. Any issues it found but could not fix (e.g., unclear factual claims, possible technical errors)
+
+---
+
+## STEP 3: Main Agent Consistency Pass
+
+After all subagents complete, the **main agent** reads all edited section files and performs cross-section checks. Subagents edit sections independently, so cross-section issues are invisible to them. This step catches what subagents cannot.
+
+**3a. Re-read ALL rules files** from disk before starting this pass.
+
+**3b. Re-read ALL edited section files** in their entirety.
+
+**3c. Cross-section checks:**
+
+1. **Notation consistency (RULE 20c):** Collect all "NOTATION GAP" flags from subagents. For each flagged symbol, verify it is genuinely cross-section (used in 2+ files). If so, add it to the notation table in `_01-introduction.qmd` with the 4-column format (Symbol, Definition, Valid Values, Example). If it is section-local, verify the subagent added an inline definition.
+2. **Cross-section terminology:** Ensure the same term is used for the same concept across all sections. If Section 2 calls it "the router" and Section 5 calls it "the gating network," pick one and make all sections consistent.
+3. **Cross-section notation re-scan:** Grep all `.qmd` files for any remaining notation inconsistencies that subagents may have introduced (e.g., a subagent rewording a sentence and accidentally using the wrong symbol case).
+4. **Figure/equation reference style:** Ensure consistent phrasing across sections.
+5. **Transition quality:** Each section's closing paragraph should connect to the next section's topic.
+6. **Inline citations:** Ensure every named work has a linked citation on first mention per section (Rule 11). Cross-check against source tables.
+7. **Math Background references:** If the chapter has a `_98-math-background.qmd` appendix, verify forward-references at first mention of prerequisite concepts.
+8. **Writing mode consistency:** In mathematical paragraphs, verify English is simple. In narrative paragraphs, verify word choice is precise.
+
+**3d. Chat:** "Consistency pass complete. [N] cross-section fixes applied. [M] notation table entries added."
 
 ---
 
 ## STEP 4: Final Verification
 
-**Re-read ALL rules files one final time** before this verification pass. Read these from disk:
-- `writing-style.md`
-- `quarto-conventions.md`
-- `exercise-syntax.md`
+The main agent performs a final automated scan across all files.
 
-Then perform these checks:
+**4a. Re-read ALL rules files one final time.**
 
-1. **Scan for leftover AI tells:** Search all files for banned words from Rule 7b
-2. **Check for em dashes in paragraph:** Flag any paragraph with em dashes
-3. **Spot-check paragraph length:** Flag any paragraph over 6 sentences
-4. **Check for uncited references:** Search all files for capitalized proper nouns referring to published works that lack a linked `([Authors, Venue Year](URL))` citation on first mention
-5. **Scan for UNLINKED citations (CRITICAL):** Search all `.qmd` files for parentheticals that contain author names + year OR venue + year but do NOT contain `](http`. Specifically, search for patterns like `(Name et al., 20` or `(Name et al. 20` or `(NeurIPS 20` or `(ICLR 20` or `(ACL 20` or `(AAAI 20` or `(ICML 20` that are NOT inside a markdown link `[...](...)`. Every match is an unlinked citation that must be fixed by adding the URL.
-5. **Scan for bare "this"/"these":** Search for sentence-initial "This " or "These " not followed by a noun (Rule 16)
-6. **Scan for nominalizations:** Search for -tion, -ment, -ness, -ity nouns that hide actions; flag sentences where converting to a verb would be clearer (Rule 17a)
-7. **Scan for symbol-initial sentences:** Search for sentences that start with `$` (Rule 18a)
-8. Chat: "Editing pass complete for `[index file path]`"
+**4b. Run these searches across all `.qmd` files:**
+
+1. **Notation:** Grep for common case-mismatch patterns (e.g., search for the lowercase version of every uppercase symbol in the notation table)
+2. **Em dashes:** Grep for `—` (should be zero matches)
+3. **Banned AI words:** Grep for the full banned-words list from Rule 7b
+4. **Meta-commentary filler:** Grep for "worth noting", "important to note", "In essence", "Essentially,"
+5. **Unlinked citations:** Grep for `(Name et al., 20` or `(Venue 20` patterns not inside markdown links
+6. **Bare "this"/"these":** Grep for sentence-initial `". This [a-z]"` patterns (bare demonstrative followed by lowercase = likely missing noun)
+7. **Symbol-initial sentences:** Grep for sentences starting with `$`
+8. **Paragraph length:** Spot-check for paragraphs over 6 sentences
+
+**4c. Fix any remaining issues found in 4b.**
+
+**4d. Chat:** "Editing pass complete for `[index file path]`"
 
 ---
 
 === QUALITY CHECKLIST ===
 
 Before marking the editing pass as complete, verify:
+
+**Notation Consistency (Rule 20):**
+- [ ] Every mathematical symbol matches the notation table in the first section
+- [ ] No case mismatches (e.g., $n$ vs $N$) across any file
+- [ ] All cross-section symbols are in the notation table (4-column format)
+- [ ] Section-local symbols have inline definitions ("where $z$ is...")
 
 **Paragraph Clarity:**
 - [ ] Every paragraph has one main idea
@@ -704,7 +747,7 @@ Before marking the editing pass as complete, verify:
 - [ ] Maximum 1 long sentence (25-35 words) per paragraph
 
 **AI Tell Removal:**
-- [ ] Maximum 2 em dashes per paragraph
+- [ ] Zero em dashes remain
 - [ ] No banned words from Rule 7b remain
 - [ ] No filler phrases from Rule 7c remain
 - [ ] No mechanical transitions from Rule 7d remain
@@ -716,7 +759,7 @@ Before marking the editing pass as complete, verify:
 - [ ] Concrete/visual language preferred over abstract hedging
 
 **Preservation:**
-- [ ] All LaTeX equations unchanged
+- [ ] All LaTeX equations unchanged (except notation fixes)
 - [ ] All diagrams, images, code blocks unchanged
 - [ ] All cross-references intact
 - [ ] All callout boxes preserved (type and title unchanged)
