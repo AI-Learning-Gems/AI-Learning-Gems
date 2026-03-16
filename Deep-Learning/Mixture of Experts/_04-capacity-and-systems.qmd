@@ -56,15 +56,17 @@ Continue the running example. Suppose the router assigns tokens to the 4 experts
 
 ![Standard MoE routing showing how tokens are assigned to experts. Source: Gale et al. (2023), Figure 1.](Mixture of Experts/images/megablocks-moe-explained.png){#fig-moe-explained}
 
-![Token dropping in standard MoE: when an expert exceeds its capacity, overflow tokens are dropped and passed through the residual connection. Source: Gale et al. (2023), Figure 2.](Mixture of Experts/images/megablocks-token-dropping.png){#fig-token-dropping}
+![Validation loss improves as the capacity factor increases, but with diminishing returns. Higher capacity factors reduce token dropping at the cost of wasted compute and memory. Dashed lines show dense Transformer baselines of increasing size. Source: Gale et al. (2023).](Mixture of Experts/images/megablocks-token-dropping.png){#fig-capacity-vs-loss}
+
+![Token overflow: when FFNN 1 and FFNN 4 have reached capacity, the overflow token ("Summarize") is sent directly to the next layer, bypassing expert processing entirely. Source: Maarten Grootendorst, "A Visual Guide to Mixture of Experts" (2024).](Mixture of Experts/images/grootendorst-token-overflow.png){#fig-token-overflow}
 
 Token dropping is not a minor nuisance. It has three serious consequences:
 
 1. **Information loss during training.** Dropped tokens miss an entire FFN computation. In a 32-layer transformer where every other layer is MoE, a token that gets dropped frequently might skip 8 or more expert layers. The model trains on a degraded version of those tokens' representations.
 
-2. **Especially harmful early in training.** When the router is still semi-random (early training epochs), routing is maximally imbalanced. Some experts overflow constantly while others sit idle. This is precisely when the model needs every gradient update the most.
+2. **Especially harmful early in training.** When the router is still semi-random (early training epochs), routing is maximally imbalanced. Some experts overflow constantly while others sit idle. Early training is precisely when the model needs every gradient update the most.
 
-3. **Non-deterministic compute graph.** Which tokens are dropped depends on the batch composition, which varies between training steps. Two batches with identical individual tokens but different co-occurring tokens can produce different dropping patterns. This complicates debugging and reproducibility.
+3. **Non-deterministic compute graph.** Which tokens are dropped depends on the batch composition, which varies between training steps. Two batches with identical individual tokens but different co-occurring tokens can produce different dropping patterns. The non-determinism complicates debugging and reproducibility.
 
 The auxiliary loss from the previous section helps reduce dropping by encouraging balanced routing, but it cannot eliminate it. The loss provides a soft pressure toward balance; it does not enforce a hard constraint. As long as expert buffers have fixed capacity, some overflow is inevitable on some batches.
 
@@ -78,7 +80,7 @@ Walk through what happens when Expert 3 receives 5 tokens but has a buffer capac
 4. The dropped tokens receive no expert computation for this layer.
 
 ::: {.fillin-feedback}
-**Correct: B.** Dropped tokens skip the expert FFN entirely. They are not rerouted to another expert or queued for later. They pass through the residual connection as if the MoE layer did not exist for them. This is why token dropping is harmful: those tokens miss an entire FFN computation at that layer.
+**Correct: B.** Dropped tokens skip the expert FFN entirely. They are not rerouted to another expert or queued for later. They pass through the residual connection as if the MoE layer did not exist for them. Token dropping is harmful because those tokens miss an entire FFN computation at that layer.
 :::
 
 :::
@@ -115,11 +117,11 @@ The dropless design matters because it decouples two concerns that standard MoE 
 
 The auxiliary load-balancing loss from @sec-load-balancing-loss encourages uniform routing. The capacity factor punishes deviations from uniformity by dropping overflow tokens. Together, they exert strong pressure toward balanced routing. But balanced routing and good model quality are not the same thing.
 
-The "Demons in the Detail" paper ([Qiu et al., 2025](https://arxiv.org/abs/2501.11873)) demonstrated a striking consequence of this pressure. They showed that computing the load-balancing loss per *micro-batch* (the small subset of the global batch that sits on each GPU) forces routing to be uniform within each micro-batch. This seems reasonable until you consider what happens when a micro-batch consists entirely of code. If the batch is all Python, you *want* the "code-syntax expert" to receive most of those tokens. Uniform routing across all experts means spreading code tokens to experts that have specialized in natural language punctuation or named entities. You are actively preventing the model from using its experts effectively.
+The "Demons in the Detail" paper ([Qiu et al., 2025](https://arxiv.org/abs/2501.11873)) demonstrated a striking consequence of this pressure. They showed that computing the load-balancing loss per *micro-batch* (the small subset of the global batch that sits on each GPU) forces routing to be uniform within each micro-batch. The per-micro-batch approach seems reasonable until you consider what happens when a micro-batch consists entirely of code. If the batch is all Python, you *want* the "code-syntax expert" to receive most of those tokens. Uniform routing across all experts means spreading code tokens to experts that have specialized in natural language punctuation or named entities. You are actively preventing the model from using its experts effectively.
 
 Per-micro-batch balancing forces the model into a lose-lose situation: either the experts de-specialize (routing becomes uniform for all input types) or the auxiliary loss penalty grows large (the model tries to specialize but gets punished for it). Global-batch balancing is the better approach. By computing $f_i$ and $P_i$ over the full batch (aggregated across all GPUs), the loss allows local imbalance within individual micro-batches while enforcing balance at the corpus level. A code-heavy micro-batch can route heavily to code experts, as long as a prose-heavy micro-batch on another GPU compensates.
 
-**This is the fundamental tension in MoE design: you want experts to specialize (handle different inputs differently) AND you want them to be equally loaded (so no compute is wasted).** These goals pull in opposite directions. Specialization means some experts are more popular for certain inputs; equal load means no expert is more popular than any other.
+**The fundamental tension in MoE design is that you want experts to specialize (handle different inputs differently) AND you want them to be equally loaded (so no compute is wasted).** These two goals pull in opposite directions. Specialization means some experts are more popular for certain inputs; equal load means no expert is more popular than any other.
 
 ::: {.exercise-mcq correct="C"}
 
@@ -131,11 +133,11 @@ A model is trained with per-micro-batch load balancing. One micro-batch on GPU 1
 - The router ignores the auxiliary loss when it detects domain-specific input
 
 ::: {.feedback-correct}
-Correct. Per-micro-batch balancing computes the balance penalty within each GPU's local batch. If that batch is all code, the loss forces uniform routing across all experts for those code tokens. This actively prevents the model from routing code tokens to code-specialized experts, since that would create imbalance within the micro-batch. Global-batch balancing solves this by computing the balance metric across all GPUs, allowing local imbalance as long as the corpus-level distribution is balanced.
+Correct. Per-micro-batch balancing computes the balance penalty within each GPU's local batch. If that batch is all code, the loss forces uniform routing across all experts for those code tokens. The uniform constraint actively prevents the model from routing code tokens to code-specialized experts, since that would create imbalance within the micro-batch. Global-batch balancing solves this problem by computing the balance metric across all GPUs, allowing local imbalance as long as the corpus-level distribution is balanced.
 :::
 
 ::: {.feedback-incorrect}
-Per-micro-batch balancing computes the load-balancing loss on each GPU's local batch independently. When a micro-batch is all code, the loss pushes for uniform routing of those code tokens across all experts. This forces code tokens to experts that have no code specialization, degrading quality. Global-batch balancing is the fix: it allows local imbalance on individual GPUs while enforcing balance at the corpus level.
+Per-micro-batch balancing computes the load-balancing loss on each GPU's local batch independently. When a micro-batch is all code, the loss pushes for uniform routing of those code tokens across all experts. The uniform pressure forces code tokens to experts that have no code specialization, degrading quality. Global-batch balancing is the fix: it allows local imbalance on individual GPUs while enforcing balance at the corpus level.
 :::
 
 :::
@@ -160,12 +162,12 @@ Expert Choice routing (covered in @sec-alternative-routing) achieves perfect bal
 
 Even with balanced routing and no token dropping, MoE layers impose real engineering costs that dense models avoid. Three stand out.
 
-**Communication overhead.** In a distributed training setup, tokens live on one device but their assigned experts may live on another. Routing tokens to their experts requires *all-to-all* communication: every device sends tokens to every other device. This is one of the most expensive collective operations in distributed computing. The communication cost grows with the number of devices and the number of experts.
+**Communication overhead.** In a distributed training setup, tokens live on one device but their assigned experts may live on another. Routing tokens to their experts requires *all-to-all* communication: every device sends tokens to every other device. The all-to-all collective is one of the most expensive operations in distributed computing, and its cost grows with the number of devices and the number of experts.
 
-**Memory footprint.** Only $k$ out of $N$ experts activate per token, but *all* $N$ experts must be stored in memory. A Mixtral 8x7B model has 47 billion parameters total but only 13 billion active per token. You still need enough VRAM to hold all 47 billion parameters (plus optimizer states during training). For inference, this means MoE models require more memory than a dense model with equivalent active parameters. You get the compute cost of a 13B model but the memory cost closer to a 47B model.
+**Memory footprint.** Only $k$ out of $N$ experts activate per token, but *all* $N$ experts must be stored in memory. A Mixtral 8x7B model has 47 billion parameters total but only 13 billion active per token. You still need enough VRAM to hold all 47 billion parameters (plus optimizer states during training). At inference time, MoE models require more memory than a dense model with equivalent active parameters. You get the compute cost of a 13B model but the memory cost closer to a 47B model.
 
 **Expert parallelism.** Distributing experts across devices (expert parallelism) introduces load-imbalance at the hardware level, even if token routing is balanced at the algorithmic level. One device may finish processing its experts' tokens before another device, leading to idle time. Combining expert parallelism with data parallelism and tensor parallelism creates a three-dimensional parallelism problem that requires careful tuning.
 
-The concise summary: MoE gives you the compute cost of a small model and the capacity of a large model, but the *memory* cost and *communication* cost of a large model. Only $k/N$ of the parameters are active per token, but 100% of the parameters must be stored, communicated, and synchronized. The compute-memory tradeoff is favorable for training (where compute dominates cost) and for autoregressive decoding (where per-token compute is the bottleneck), but less favorable for the prefill phase of inference (where memory bandwidth is often the bottleneck).
+To put the tradeoff plainly: MoE gives you the compute cost of a small model and the capacity of a large model, but the *memory* cost and *communication* cost of a large model. Only $k/N$ of the parameters are active per token, but 100% of the parameters must be stored, communicated, and synchronized. The compute-memory tradeoff is favorable for training (where compute dominates cost) and for autoregressive decoding (where per-token compute is the bottleneck), but less favorable for the prefill phase of inference (where memory bandwidth is often the bottleneck).
 
 With the systems picture clear, we can move beyond standard top-k routing and its associated complexity. The next section explores three alternative routing strategies that each solve the balance-specialization-dropping trifecta in a fundamentally different way: Expert Choice routing, auxiliary-loss-free balancing, and fully differentiable ReLU routing.

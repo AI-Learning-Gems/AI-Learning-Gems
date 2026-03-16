@@ -2,13 +2,13 @@
 
 ### Key Takeaways
 
-1. **MoE replaces the FFN layer** in a transformer with $N$ expert FFNs plus a lightweight router, activating only $k \ll N$ experts per token. This decouples model capacity from per-token compute: Mixtral has 47B parameters but only 13B active per token.
+1. **MoE replaces the FFN layer** in a transformer with $N$ expert FFNs plus a lightweight router, activating only $k \ll N$ experts per token. This swap decouples model capacity from per-token compute: Mixtral has 47B parameters but only 13B active per token.
 
 2. **The router is a simple linear layer** followed by noisy top-k selection and softmax normalization. The router produces gate weights $G(x)$ that determine how much each selected expert contributes to the output.
 
 3. **Top-k selection is non-differentiable**, creating a gradient dead zone for non-selected experts. Selected experts receive gradient updates through their outputs; non-selected experts receive none. This gradient asymmetry is the differentiability paradox at the heart of MoE training.
 
-4. **The auxiliary load-balancing loss bridges discrete and differentiable** by multiplying the token count fraction $f_i$ (non-differentiable) by the router probability fraction $P_i$ (differentiable). The gradient flows through $P_i$, but its magnitude is scaled by $f_i$. This scaling mechanism is how discrete assignments influence continuous probability gradients.
+4. **The auxiliary load-balancing loss bridges discrete and differentiable** by multiplying the token count fraction $f_i$ (non-differentiable) by the router probability fraction $P_i$ (differentiable). The gradient flows through $P_i$, but its magnitude is scaled by $f_i$. This $f_i$-scaling is how discrete assignments influence continuous probability gradients.
 
 5. **Expert collapse is a self-reinforcing failure mode** where a slightly better expert attracts more tokens, gets more training, improves further, and eventually monopolizes routing. The auxiliary loss, capacity factors, and noise in the gating function all work together to prevent this spiral.
 
@@ -259,34 +259,34 @@ evolution.std -> real.mixtral: "used by" {
 
 ### Retrieval Practice Questions
 
-Test your understanding with these questions. Try to answer each one from memory before revealing the answer.
+Try to answer each question from memory before revealing the answer.
 
 ::: {.callout-tip collapse="true" title="Question 1: What are the two components of an MoE layer?"}
 An MoE layer consists of (1) $N$ expert networks (typically FFNs with the same architecture but separate parameters) and (2) a gating/routing network that determines which experts process each input. The router produces sparse gate weights $G(x)$, and the layer output is the weighted sum $y = \sum_{i=1}^{N} G(x)_i \cdot E_i(x)$.
 :::
 
 ::: {.callout-tip collapse="true" title="Question 2: Why can't gradients flow through the top-k selection?"}
-The top-k operation is a hard discrete step. It keeps the top $k$ logits and sets all others to $-\infty$. The derivative of this operation is zero for non-selected experts (their logits are replaced by a constant $-\infty$ regardless of the input) and undefined at the selection boundary (where a tiny change in a logit can flip whether it survives top-k). Gradients flow through the softmax applied to the $k$ surviving logits, but there is no gradient signal for the $N-k$ non-selected experts.
+The top-k operation is a hard discrete step. It keeps the top $k$ logits and sets all others to $-\infty$. The derivative of this operation is zero for non-selected experts (their logits are replaced by a constant $-\infty$ regardless of the input) and undefined at the selection boundary, where a tiny change in a logit can flip whether it survives top-k. Gradients flow through the softmax applied to the $k$ surviving logits, but there is no gradient signal for the $N-k$ non-selected experts.
 :::
 
 ::: {.callout-tip collapse="true" title="Question 3: What are the two vectors f_i and P_i, and which is differentiable?"}
-The vector $f_i$ is the fraction of tokens in the batch dispatched to expert $i$, computed using an indicator function $\mathbb{1}\{\text{argmax}\; p(x) = i\}$. It is NOT differentiable (it comes from an argmax/indicator). The vector $P_i$ is the average router softmax probability allocated to expert $i$ across all tokens in the batch. It IS differentiable because softmax is a smooth function. The auxiliary loss $\mathcal{L}_{\text{aux}} = \alpha \cdot N \cdot \sum f_i \cdot P_i$ multiplies these two quantities.
+The vector $f_i$ is the fraction of tokens in the batch dispatched to expert $i$, computed using an indicator function $\mathbb{1}\{\text{argmax}\; p(x) = i\}$. This fraction is NOT differentiable (it comes from an argmax/indicator). The vector $P_i$ is the average router softmax probability allocated to expert $i$ across all tokens in the batch. This average IS differentiable because softmax is a smooth function. The auxiliary loss $\mathcal{L}_{\text{aux}} = \alpha \cdot N \cdot \sum f_i \cdot P_i$ multiplies these two quantities.
 :::
 
 ::: {.callout-tip collapse="true" title="Question 4: Why does multiplying f_i by P_i solve the load-balancing problem?"}
-The product $f_i \cdot P_i$ creates a quantity where the gradient flows through $P_i$ (differentiable), but the magnitude of that gradient is scaled by $f_i$ (non-differentiable). If expert $i$ receives many tokens ($f_i$ is large), the gradient pushing down $P_i$ is large. If expert $i$ receives few tokens ($f_i$ is small), the gradient is small. The $f_i$-scaled gradient chains the discrete assignment information ($f_i$) to the continuous optimization signal ($P_i$), allowing the optimizer to reduce routing imbalance by adjusting the differentiable probability distribution.
+The product $f_i \cdot P_i$ creates a quantity where the gradient flows through $P_i$ (differentiable), but $f_i$ (non-differentiable) scales the magnitude of that gradient. If expert $i$ receives many tokens ($f_i$ is large), the gradient pushing down $P_i$ is large. If expert $i$ receives few tokens ($f_i$ is small), the gradient is small. The $f_i$-scaled gradient connects discrete assignment information to the continuous optimization signal through $P_i$, allowing the optimizer to reduce routing imbalance by adjusting the differentiable probability distribution.
 :::
 
 ::: {.callout-tip collapse="true" title="Question 5: What is the 'cheating' failure if you only penalize P_i without f_i?"}
-Without the $f_i$ multiplication, the router can assign near-100% softmax probability to one expert on a small number of tokens (inflating that expert's $P_i$) while actually routing most tokens elsewhere. The high $P_i$ satisfies the loss, but the actual token distribution remains imbalanced. Multiplying by $f_i$ catches this because $f_i$ reflects what actually happened (the real dispatch count), not what the router "intended" (the probability). High probability with low actual usage produces a small $f_i \cdot P_i$ product, so the loss does not reward the cheating behavior.
+Without the $f_i$ multiplication, the router can assign near-100% softmax probability to one expert on a small number of tokens (inflating that expert's $P_i$) while actually routing most tokens elsewhere. The inflated $P_i$ satisfies the loss, but the actual token distribution remains imbalanced. Multiplying by $f_i$ catches this because $f_i$ reflects what actually happened (the real dispatch count), not what the router "intended" (the probability). High probability paired with low actual usage produces a small $f_i \cdot P_i$ product, so the loss does not reward the cheating behavior.
 :::
 
 ::: {.callout-tip collapse="true" title="Question 6: How does Expert Choice routing achieve perfect load balance?"}
-Expert Choice reverses the assignment direction: instead of each token choosing its top-k experts, each expert chooses its top-k tokens. If there are $N$ experts and each selects exactly $k$ tokens from the batch, then every expert processes exactly $k$ tokens. Load balance is perfect by construction, with no auxiliary loss needed. The tradeoff is that some tokens may not be selected by any expert (they pass through the residual connection without expert processing).
+Expert Choice reverses the assignment direction: instead of each token choosing its top-k experts, each expert chooses its top-k tokens. If there are $N$ experts and each selects exactly $k$ tokens from the batch, then every expert processes exactly $k$ tokens. Load balance is perfect by construction, with no auxiliary loss needed. The tradeoff is that some tokens may not be selected by any expert; those unselected tokens pass through the residual connection without expert processing.
 :::
 
 ::: {.callout-tip collapse="true" title="Question 7: How does DeepSeek-V3's loss-free method avoid interference gradients?"}
-DeepSeek-V3 adds a per-expert bias $b_i$ to the routing scores before top-k selection: $\tilde{s}_i = s_i + b_i$. After each training step, the biases are updated using a simple rule: $b_i \leftarrow b_i - \gamma \cdot \text{sign}(f_i - 1/N)$. Overloaded experts get their bias decreased (less attractive); underloaded experts get their bias increased (more attractive). Because the biases are updated by this separate rule (not through backpropagation or any loss function), they produce zero interference with the task loss gradient. The router gradient is purely from the task loss.
+DeepSeek-V3 adds a per-expert bias $b_i$ to the routing scores before top-k selection: $\tilde{s}_i = s_i + b_i$. After each training step, the biases are updated using a simple rule: $b_i \leftarrow b_i - \gamma \cdot \text{sign}(f_i - 1/N)$. Overloaded experts get their bias decreased (less attractive); underloaded experts get their bias increased (more attractive). Because the biases are updated by this separate rule (not through backpropagation or any loss function), these adjustments produce zero interference with the task loss gradient. The router gradient is purely from the task loss.
 :::
 
 ### Common Mistakes to Avoid
@@ -301,7 +301,7 @@ DeepSeek-V3 adds a per-expert bias $b_i$ to the routing scores before top-k sele
 
 ### Curated Resources
 
-For further reading, these are the most accessible and informative resources on MoE:
+The most accessible and informative resources on MoE, organized from overviews to primary sources:
 
 | # | Resource | Why It's Useful |
 |---|---|---|
@@ -315,3 +315,5 @@ For further reading, these are the most accessible and informative resources on 
 | 8 | [Shazeer et al., "Outrageously Large Neural Networks" (2017)](https://arxiv.org/abs/1701.06538) | The foundational paper. Read Section 2 (MoE structure) and Section 4 (balancing). |
 | 9 | [Fedus et al., "Switch Transformers" (2022)](https://arxiv.org/abs/2101.03961) | The paper that simplified MoE for modern transformers. The auxiliary loss derivation is in Section 2.2. |
 | 10 | [DeepSeek-V3 Technical Report (2024)](https://arxiv.org/abs/2412.19437) | State-of-the-art MoE at scale. Read the architecture section for loss-free balancing. |
+| 11 | [Raschka, LLMs-from-scratch MoE Chapter](https://github.com/rasbt/LLMs-from-scratch/tree/main/ch04/07_moe) | From-scratch PyTorch MoE implementation with KV-cache support. |
+| 12 | [MoE Survey (Cai et al., 2025)](https://arxiv.org/abs/2407.06204) | Taxonomy of MoE in LLMs: gating, experts, training schemes, system design. |

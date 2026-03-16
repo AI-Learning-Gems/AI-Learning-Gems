@@ -18,7 +18,7 @@ Everything. Without intervention, MoE training collapses into a degenerate state
 
 Imagine a restaurant with four chefs, each capable of cooking any dish on the menu. On the first night, Chef 3 happens to cook a slightly better risotto than the others, perhaps because of random weight initialization. The head waiter, noticing this, sends the next risotto order to Chef 3 as well. Chef 3 gets more practice making risotto, improves further, and soon the waiter is routing *all* risotto orders to Chef 3. Then the pasta orders follow, because Chef 3 has now been cooking so often that they have gotten better at everything. Before long, Chef 3 is handling 80% of all orders while Chefs 1, 2, and 4 stand idle, their skills atrophying from disuse.
 
-This is *expert collapse*, and it is the single most dangerous failure mode in MoE training. The dynamics are self-reinforcing:
+The dynamic just described is *expert collapse*, the single most dangerous failure mode in MoE training. The cycle is self-reinforcing:
 
 1. Expert 3 starts slightly better for some tokens (due to random initialization)
 2. The router sends more tokens to Expert 3
@@ -27,6 +27,8 @@ This is *expert collapse*, and it is the single most dangerous failure mode in M
 5. Expert 3 now handles 80% of all tokens; Experts 1, 2, and 4 receive almost no gradients and stagnate
 
 The result: a model with $N$ experts that behaves as if it has one expert. You paid for $N$ sets of parameters but are using one. The entire premise of MoE (decoupling capacity from compute) is destroyed.
+
+![Expert collapse in action: the same set of experts is chosen across all 8 MoE layers regardless of the input, leaving other experts untrained. Source: Maarten Grootendorst, "A Visual Guide to Mixture of Experts" (2024).](Mixture of Experts/images/grootendorst-expert-collapse.png){#fig-expert-collapse-visual}
 
 ```{.d2}
 # =========================================================================
@@ -112,7 +114,7 @@ even_better -> collapse: "eventually" {
 }
 ```
 
-This feedback loop is the same "rich get richer" dynamic you see across many systems: social media algorithms that amplify already-popular content, urban economies where jobs concentrate in cities that already have jobs, or academic citation counts that snowball because highly-cited papers attract more citations. Without a corrective force, positive feedback loops converge to winner-take-all outcomes.
+The feedback loop is the same "rich get richer" dynamic you see across many systems: social media algorithms that amplify already-popular content, urban economies where jobs concentrate in cities that already have jobs, academic citation counts that snowball because highly-cited papers attract more citations. Without a corrective force, positive feedback loops converge to winner-take-all outcomes.
 
 ### Shazeer's Original Approach (2017)
 
@@ -130,13 +132,13 @@ $$
 L_{\text{importance}} = w_{\text{importance}} \cdot \text{CV}(\text{Importance}(X))^2
 $$
 
-The coefficient of variation (standard deviation divided by mean) is zero when all experts have equal total gate weight, and positive otherwise. This loss encourages the router to distribute its softmax mass evenly. But there is a subtle gap: equal total gate weight does not guarantee equal token counts. One expert could receive huge gate weights on a few tokens (high importance), while another receives small gate weights on many tokens (also high importance). The number of tokens per expert can still be wildly unbalanced.
+The coefficient of variation (standard deviation divided by mean) is zero when all experts have equal total gate weight, and positive otherwise. The importance loss encourages the router to distribute its softmax mass evenly. But there is a subtle gap: equal total gate weight does not guarantee equal token counts. One expert could receive huge gate weights on a few tokens (high importance), while another receives small gate weights on many tokens (also high importance). The number of tokens per expert can still be wildly unbalanced.
 
-To address this, Shazeer added a separate *load loss* (described in the paper's appendix) that more directly targets the token count distribution. The full formulation involved a smooth approximation to the discrete assignment counts, using the cumulative distribution function of the noise added to the logits. It was effective but complex.
+To address this gap, Shazeer added a separate *load loss* (described in the paper's appendix) that more directly targets the token count distribution. The full formulation involved a smooth approximation to the discrete assignment counts, using the cumulative distribution function of the noise added to the logits. It was effective but complex.
 
 ### The Switch Transformer Formulation: $f_i \times P_i$
 
-[Fedus et al. (JMLR 2022)](https://arxiv.org/abs/2101.03961) simplified everything into a single, clean loss function. This formulation has become the standard. It is built from two quantities, each measured across a batch $\mathcal{B}$ of $T$ tokens and $N$ experts.
+[Fedus et al. (JMLR 2022)](https://arxiv.org/abs/2101.03961) simplified everything into a single, clean loss function. The Switch Transformer formulation has become the standard. It is built from two quantities, each measured across a batch $\mathcal{B}$ of $T$ tokens and $N$ experts.
 
 The first quantity is $f_i$, the *dispatch fraction*: the fraction of tokens in the batch that were actually routed to expert $i$.
 
@@ -152,7 +154,7 @@ $$
 P_i = \frac{1}{T} \sum_{x \in \mathcal{B}} p_i(x)
 $$ {#eq-pi}
 
-Here $p_i(x)$ is the softmax probability that the router assigns to expert $i$ for token $x$. This is a smooth function of the router weights. You can differentiate through softmax. The quantity $P_i$ **is differentiable**.
+Here $p_i(x)$ is the softmax probability that the router assigns to expert $i$ for token $x$. The quantity $P_i$ is a smooth function of the router weights. You can differentiate through softmax. So $P_i$ **is differentiable**.
 
 The auxiliary load-balancing loss is the dot product of these two vectors, scaled:
 
@@ -184,7 +186,7 @@ Four ideas explain why this simple product solves the load-balancing problem.
 
 **2. The product creates a differentiable loss whose gradient magnitude is controlled by the discrete count.** When you compute $\partial \mathcal{L}_{\text{aux}} / \partial \theta$ (where $\theta$ are the router parameters), the gradient flows through $P_i$ because softmax is differentiable. The term $f_i$ acts as a constant scaling factor during backpropagation: it is treated as a fixed value, not a function of $\theta$. The result is that if expert $i$ has a high dispatch fraction ($f_i$ is large), the gradient pushing down $P_i$ is large. If expert $i$ has a low dispatch fraction, the gradient is small.
 
-**3. This scaling is exactly what you want.** An overloaded expert (high $f_i$) contributes a large term to the loss, generating a strong gradient that pushes the router to reduce $P_i$ for that expert. An underloaded expert (low $f_i$) contributes a small term, so the optimizer focuses its effort on the experts that are actually causing imbalance. **The discrete world (actual assignments) controls the gradient magnitude; the continuous world (probabilities) provides the gradient direction.**
+**3. The scaling targets exactly the right experts.** An overloaded expert (high $f_i$) contributes a large term to the loss, generating a strong gradient that pushes the router to reduce $P_i$ for that expert. An underloaded expert (low $f_i$) contributes a small term, so the optimizer focuses its effort on the experts that are actually causing imbalance. The discrete world (actual assignments) controls the gradient magnitude; the continuous world (probabilities) provides the gradient direction.
 
 **4. The loss minimum coincides with uniform routing.** Both $f$ and $P$ are probability distributions: $\sum f_i = 1$ and $\sum P_i = 1$ (with all entries non-negative). Under these constraints, the dot product $\sum f_i P_i$ is minimized when both vectors are uniform: $f_i = P_i = 1/N$ for all $i$. Let us verify this minimum value in concrete numbers.
 
@@ -250,6 +252,8 @@ $$
 = \alpha \cdot 4 \cdot (0.20 + 0.05 + 0.075 + 0.0) = \alpha \cdot 4 \cdot 0.325 = 1.3\alpha
 $$
 
+![Imbalanced routing: FFNN 1 receives the majority of tokens while other experts sit idle. The router probabilities (bar charts) show how the routing decision concentrates on a single expert for most input tokens. Source: Maarten Grootendorst, "A Visual Guide to Mixture of Experts" (2024).](Mixture of Experts/images/grootendorst-imbalanced-routing.png){#fig-imbalanced-routing}
+
 **Balanced scenario.** Each expert receives exactly 2 tokens, so $f = [0.25, 0.25, 0.25, 0.25]$. The probabilities are also uniform: $P = [0.25, 0.25, 0.25, 0.25]$. The loss is:
 
 $$
@@ -286,7 +290,7 @@ The coefficient $\alpha$ controls the strength of the load-balancing pressure re
 - Too large: the auxiliary loss dominates the total loss. The model learns to balance tokens perfectly across experts but neglects the actual task. Every expert handles the same mix of token types, and specialization vanishes.
 - Too small: the auxiliary loss is too weak to overcome the self-reinforcing dynamics of expert collapse. One expert still hogs most tokens.
 
-The factor $N$ in $\alpha \cdot N \cdot \sum f_i P_i$ serves a normalization purpose. As you increase the number of experts, the minimum value of $\sum f_i P_i$ decreases (it equals $1/N$ at the uniform optimum). Multiplying by $N$ keeps the loss at the optimum equal to $\alpha$ regardless of expert count. Without this scaling factor, the loss would shrink as $N$ grows, and you would need to increase $\alpha$ every time you added more experts.
+The factor $N$ in $\alpha \cdot N \cdot \sum f_i P_i$ serves a normalization purpose. As you increase the number of experts, the minimum value of $\sum f_i P_i$ decreases (it equals $1/N$ at the uniform optimum). Multiplying by $N$ keeps the loss at the optimum equal to $\alpha$ regardless of expert count. Without this factor, the loss would shrink as $N$ grows, and you would need to increase $\alpha$ every time you added more experts.
 
 ::: {.callout-warning}
 
@@ -309,5 +313,13 @@ The 2025 paper "Demons in the Detail" ([Qiu et al., 2025](https://arxiv.org/abs/
 The reason: micro-batches are small, so the $f_i$ counts are noisy. A micro-batch of 32 tokens across 8 experts gives each expert roughly 4 tokens; random variation in such small counts generates large, noisy gradients that wash out any genuine specialization signal. Global-batch computation produces much more stable $f_i$ values, allowing the model to balance at the corpus level while still specializing within domains.
 
 :::
+
+Beyond the load-balancing loss, large-scale MoE training requires a separate stabilization technique called *router z-loss*, introduced in ST-MoE ([Zoph et al., 2022](https://arxiv.org/abs/2202.08906)). During training, router logits can grow unboundedly large. When these large logits pass through softmax, they cause numerical instability: gradients spike or vanish, and training can collapse. Router z-loss penalizes large router logits directly, keeping the gating network well-behaved:
+
+$$
+\mathcal{L}_z = \frac{1}{T} \sum_{x \in \mathcal{B}} \log^2 \left( \sum_{i=1}^{N} e^{h_i(x)} \right)
+$$
+
+Here $h_i(x)$ are the router logits. The penalty is distinct from the $f_i \cdot P_i$ load-balancing loss and is added alongside it. ST-MoE found that router z-loss was critical for stable training at 269B parameters.
 
 The $f_i \cdot P_i$ loss formulation, elegant as it is, addresses only one side of the systems challenge. Even with balanced routing, MoE layers face a hard engineering constraint: each expert can only process a limited number of tokens per forward pass. When an expert receives more tokens than it can handle, something must give. In the next section, we turn to capacity factors, token dropping, and the systems-level view of making MoE work in practice.
