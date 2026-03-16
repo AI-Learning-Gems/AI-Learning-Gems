@@ -393,6 +393,105 @@ The count ("three assumptions") is the *forecasting sentence*. The inline enumer
 
 Use this pattern for 2-5 inline items. For 5+ items, switch to a vertical bullet list.
 
+**Accepted enumeration formats (pick one and use it consistently within a paragraph):**
+
+- `(a) ...; (b) ...; and (c) ...` (lowercase letters)
+- `(i) ...; (ii) ...; and (iii) ...` (lowercase Roman numerals)
+- `(1) ...; (2) ...; and (3) ...` (numbers)
+
+---
+
+## Pedagogical Coherence (Paragraph-Level Instructional Design)
+
+The rules above govern how individual sentences and paragraphs are *expressed*. The three rules below govern whether a paragraph's *pedagogical logic* is sound: whether it teaches in the right order, at the right density, and with accurate scaffolding. These rules matter because a paragraph can have perfect prose (no AI tells, good rhythm, clean given-new flow) and still fail as instruction.
+
+### Register Coherence (No Mid-Paragraph Mode Switches)
+
+A paragraph must stay in one writing register throughout. The "Two Writing Modes" section above defines math-mode prose (simple English, no figurative language) and narrative-mode prose (vivid, precise word choice, analogies allowed). **Do not switch between these registers within a single paragraph.**
+
+The trigger for math-mode is *mathematical content*, not *mathematical notation*. A sentence that says "the gradient of a hard selection is zero almost everywhere" is making a mathematical claim even though it contains no `$` symbols. If a paragraph contains any sentence that asserts a property about gradients, derivatives, convergence, bounds, distributions, or optimization, the entire paragraph should use math-mode prose: simple vocabulary, no analogies, no figurative language.
+
+**BAD (register collision: analogy + math claim + rhetorical question in one paragraph):**
+> Picking the top-k experts is like choosing which restaurant to eat at. You either go or you don't. In calculus terms, the gradient of a hard selection is zero almost everywhere. So how does the system learn?
+
+**GOOD (separate paragraphs, each in one register):**
+> Think of the top-k selection as choosing which restaurant to eat at: you either go or you don't. There is no "half-visit."
+>
+> That discrete choice creates a calculus problem. The gradient of the selection function is zero for every non-selected option. The optimizer gets no signal about whether a different choice would have been better.
+>
+> So how does the router learn? Through an auxiliary loss that we will derive in @sec-load-balancing-loss.
+
+**Test:** Read the paragraph and label each sentence as "math" or "narrative." If both labels appear, split the paragraph at the mode boundary.
+
+### Cognitive Novelty Budget (Max 2 New Concepts Per Paragraph)
+
+Count the number of concepts a paragraph introduces that are *genuinely new* to the reader at that point in the chapter. A concept is "new" if it has not been explained in a prior paragraph or section. **If the count exceeds 2, split the paragraph.**
+
+This is more demanding than "one idea per paragraph" (which tests *thematic* unity). A paragraph can be thematically unified (all sentences are about the same topic) but still overload working memory if each step in the chain requires the reader to absorb a concept they have never seen before. The research on working memory capacity (Miller 1956, Cowan 2001) shows 3-4 items for complex material; 2 new concepts leaves room for the reader to also hold context from the prior paragraph.
+
+**BAD (4 new concepts in one paragraph: "discrete decision," "gradient of a hard selection," "zero almost everywhere," "undefined at the boundary"):**
+> Picking the top-k experts is a hard, discrete decision. The gradient of a hard selection is zero almost everywhere and undefined at the boundary. So the router cannot learn about non-selected experts.
+
+**GOOD (1-2 new concepts per paragraph, with grounding):**
+> Picking the top-k experts is a hard, discrete decision: either a token goes to Expert 3 or it does not. There is no "partly selected."
+>
+> Why does this matter for training? Because gradient-based optimization needs smooth functions. If you change the router weights by a tiny amount and the same two experts are still selected, then the selection function did not change. Its gradient is zero. The optimizer has no signal about whether different experts would have been better.
+
+**Test:** For each sentence in the paragraph, ask: "Has the reader seen this concept before?" If two or more sentences introduce genuinely new concepts, the paragraph needs splitting.
+
+### Analogy Accuracy (Analogies Must Not Create False Mental Models)
+
+When a paragraph introduces an analogy (mapping a technical concept to a familiar domain), **the analogy must accurately represent the mechanism it illustrates at every point where the text draws on it.** If the analogy will be contradicted or corrected later in the chapter, you must either:
+
+- (a) **Flag the limitation explicitly** at the point of introduction: "This analogy holds for the selection step, but breaks down for the weighting step, as we will see."
+- (b) **Replace the analogy** with one that does not need correction.
+
+An analogy that creates a mental model the reader must later *un-learn* is worse than no analogy at all. The cognitive science research on Representational Change Theory shows that restructuring an incorrect mental model is harder than building a correct one from scratch, because the incorrect model must first be inhibited before the correct one can form.
+
+**BAD (analogy creates a false model that later content contradicts):**
+> There is no "send 60% of the patient to the cardiologist."
+
+(In MoE, gate weights *are* fractional: $G(x)_4 = 0.77$ means Expert 4 contributes 77%. The analogy conflates the discrete *selection* step with the continuous *weighting* step.)
+
+**GOOD (analogy is accurate, or limitation is flagged):**
+> The triage nurse picks *which* two specialists to call. That binary decision has no gradient. But once the specialists are chosen, the nurse also decides how much weight to give each opinion. The "which" is discrete; the "how much" is continuous.
+
+**Test:** For each analogy, trace it forward through the chapter. Does any later paragraph contradict or refine the mental model the analogy creates? If so, flag the limitation at the point of introduction, or replace the analogy.
+
+### Top-Down Readability (No Forward Dependencies Within a Section)
+
+**Every paragraph must be comprehensible given only the paragraphs that precede it.** If paragraph P uses a concept, term, or symbol that is only explained in paragraph Q, where Q comes *after* P in the same section, that is a *forward dependency*. The reader going top-to-bottom hits a wall at P.
+
+This applies to three kinds of forward dependencies:
+
+1. **Undefined symbols.** A mathematical symbol ($G(x)$, $f_i$, $E_i(x)$) appears in prose before the reader has been told what it represents. The notation table may define it, but if the notation table comes later in the section, the reader hasn't seen it yet.
+2. **Undefined terms.** A technical term ("the gate vector," "the dispatch fraction," "the capacity factor") appears before being defined. The reader encounters the label but has no concept to attach it to.
+3. **Unexplained mechanisms.** A paragraph describes what a mechanism *does* (e.g., "the router selects the top-k experts") before the reader has been told *what the mechanism is* (e.g., what a router is, what top-k means).
+
+**The fix is not "remove the content from paragraph P."** The content may genuinely belong in the early overview. The fix is one of:
+
+- **(a) Add an inline definition at first use.** When using a symbol or term for the first time, define it parenthetically: "the *gate vector* $G(x)$ (the vector of weights the router assigns to each expert) has at most $k$ nonzero entries."
+- **(b) Rewrite without the symbol.** If the paragraph is a narrative overview, plain language may be clearer: "only a handful of experts activate per token" instead of "$G(x)$ has at most $k$ nonzero entries."
+- **(c) Reorder paragraphs** so the defining paragraph comes before the using paragraph.
+
+**BAD (symbol used 3 paragraphs before it is defined):**
+
+> (Line 43) MoE models are sparse because the gate vector $G(x)$ has at most $k$ nonzero entries out of $N$.
+>
+> ... [3 paragraphs about history and architecture] ...
+>
+> (Line 49) The operation is summarized by $y = \sum G(x)_i \cdot E_i(x)$, where $G(x)_i$ is the gate weight for expert $i$.
+
+**GOOD (inline definition at first use):**
+
+> MoE models are sparse because only a few experts activate per token. The router produces a *gate vector* $G(x)$, a set of weights indicating how much each expert should contribute. Most entries in $G(x)$ are zero; at most $k$ out of $N$ are nonzero.
+
+**GOOD (plain language in overview, notation deferred to body):**
+
+> MoE models are sparse: for any given token, only a handful of the $N$ experts actually compute an output. The rest sit idle.
+
+**Test:** Read the section from top to bottom. At each paragraph, ask: "Does this paragraph use any term, symbol, or concept that has not appeared in any earlier paragraph?" If yes, either add an inline definition or reorder.
+
 ---
 
 ## Inline Citations

@@ -75,7 +75,7 @@ You are editing **prose quality only**. Think of yourself as a copy editor, not 
 
 **These rules elaborate on the principles in `writing-style.md`.** Apply each rule to every paragraph. If a paragraph already satisfies a rule, leave it alone.
 
-**RULE 20 (Notation Consistency) is in the workflow section below, not here, because it requires a cross-section check that the main agent performs.**
+**RULE 21 (Notation Consistency) is in the workflow section below, not here, because it requires a cross-section check that the main agent performs.**
 
 ---
 
@@ -150,6 +150,8 @@ Technical chapters alternate between two kinds of prose. Each has different rule
 ### 6a. Mathematical/Derivation Paragraphs
 
 When the content is heavy with equations, derivations, or formal definitions, **simplify the English radically**. Use 8th-to-10th-grade vocabulary. Do not mix complex math with complex English; the reader's cognitive load is already on the math.
+
+**CRITICAL: The trigger is *mathematical content*, not *mathematical notation*.** A sentence like "the gradient of a hard selection is zero almost everywhere" is making a mathematical claim even though it contains no `$` symbols. If a paragraph asserts properties about gradients, derivatives, convergence, bounds, distributions, optimization, or any quantity that has a formal mathematical definition, the entire paragraph should use math-mode prose. See the "Register Coherence" rule in `writing-style.md` for the full test.
 
 **Specifically:**
 - Use short, direct sentences: "This is X." "It means Y." "We plug in Z."
@@ -561,6 +563,52 @@ Research shows causal ("because," "so," "therefore") and contrastive ("however,"
 
 ---
 
+## RULE 20: Pedagogical Coherence (Fix and Flag)
+
+These checks apply the three pedagogical rules from `writing-style.md` (Register Coherence, Cognitive Novelty Budget, Analogy Accuracy). Some can be fixed directly; others can only be flagged for the author.
+
+### 20a. Register Coherence (FIX)
+
+Check every paragraph: does it mix math-mode and narrative-mode prose? A sentence that asserts properties about gradients, derivatives, convergence, bounds, distributions, or optimization is math-mode, even without `$` symbols. If a paragraph contains both an analogy/metaphor AND a mathematical claim, split it at the mode boundary.
+
+### 20b. Cognitive Novelty Budget (FIX)
+
+For each paragraph, count concepts that are genuinely new to the reader at that point. If more than 2 new concepts appear in one paragraph, split it and add grounding (a plain-language restatement or a concrete example) between the new concepts.
+
+### 20c. Analogy Accuracy (FLAG)
+
+For each analogy, trace it forward: does any later content in the chapter contradict the mental model the analogy creates? If so, report it as a PEDAGOGY FLAG:
+
+> "PEDAGOGY FLAG: The analogy '[analogy text]' in `_01-introduction.qmd` line [N] creates a mental model that is contradicted by [specific later content] in `_02-routing.qmd` line [M]. The analogy should either flag its limitation explicitly or be replaced."
+
+The subagent should NOT rewrite analogies (that changes content meaning). It should report the flag for the author to review.
+
+### 20d. Premature Abstraction (FLAG)
+
+If a paragraph makes a claim about a mechanism (e.g., "the gradient is zero") that has not yet been shown to the reader (the equation, function, or algorithm being discussed has not appeared in any prior paragraph), report it:
+
+> "PEDAGOGY FLAG: Line [N] in `_01-introduction.qmd` claims '[claim]' but the mechanism producing this property (the KeepTopK function) is not introduced until `_02-routing.qmd`. The claim arrives before the reader has the scaffolding to evaluate it."
+
+### 20e. Top-Down Readability / Forward Dependencies (FIX)
+
+Read the section file top-to-bottom. At each paragraph, check: does this paragraph use any term, symbol, or concept that has not been introduced in any *earlier* paragraph within this section?
+
+Three things to look for:
+
+1. **Undefined symbols:** A notation-table symbol ($G(x)$, $f_i$, $E_i(x)$) appears before the notation table, without an inline definition.
+2. **Undefined terms:** A technical term ("the gate vector," "the dispatch fraction") appears before being defined.
+3. **Unexplained mechanisms:** A paragraph describes what a mechanism does before the reader has been told what the mechanism is.
+
+**Fix strategies (apply in this order of preference):**
+
+- **(a) Add an inline definition at first use:** "the *gate vector* $G(x)$ (the vector of weights the router assigns to each expert)"
+- **(b) Rewrite without the symbol:** "only a handful of experts activate per token" instead of "$G(x)$ has at most $k$ nonzero entries"
+- **(c) Reorder paragraphs** so the defining paragraph comes before the using paragraph
+
+This is a FIX, not a FLAG. The subagent can resolve forward dependencies within a single file without cross-section context.
+
+---
+
 === THE EDITING WORKFLOW ===
 
 **CRITICAL: Do NOT ask the user for confirmation at any step. Execute the entire workflow autonomously.**
@@ -600,26 +648,31 @@ After reading all sections, scan for issues and categorize them into three sever
 
 **Tier 1 — BIG ISSUES (fix these first in every section):**
 
-1. **Notation inconsistency (RULE 20):** Check every equation and inline math expression against the notation table. Common errors: lowercase where uppercase is defined (e.g., `$n$` instead of `$N$`), wrong subscript convention, symbols used without definition. List every inconsistency found, with file and line.
+1. **Notation inconsistency (RULE 21):** Check every equation and inline math expression against the notation table. Common errors: lowercase where uppercase is defined (e.g., `$n$` instead of `$N$`), wrong subscript convention, symbols used without definition. List every inconsistency found, with file and line.
 2. **Em dashes:** Grep for `—` across all `.qmd` files. Count occurrences per file.
 3. **Banned AI words:** Grep for the banned words list from Rule 7b. Count per file.
 4. **Unlinked citations:** Grep for patterns like `(Name et al., 20` or `(Venue 20` that do NOT contain `](http`. List every match.
 
 **Tier 2 — MEDIUM ISSUES:**
 
-5. **Bare "this"/"these"/"it" as sentence subjects** (Rule 16)
-6. **Sentences starting with math symbols** (Rule 18a)
-7. **Clause chains** (3+ clauses) (Rule 2)
-8. **Meta-commentary filler** (Rule 7c)
+5. **Forward dependencies / top-down readability** (Rule 20e): Symbols, terms, or concepts used before being introduced within the same section. Scan each section top-to-bottom: does any paragraph use a term/symbol that is only defined in a later paragraph? Especially common in the Chapter Overview, where notation-table symbols appear before the notation table.
+6. **Register coherence** (Rule 20a): Paragraphs that mix math-mode and narrative-mode prose. Identify by looking for paragraphs containing both an analogy/metaphor AND a mathematical claim (about gradients, convergence, etc.).
+7. **Cognitive novelty overload** (Rule 20b): Paragraphs introducing 3+ genuinely new concepts.
+8. **Bare "this"/"these"/"it" as sentence subjects** (Rule 16)
+9. **Sentences starting with math symbols** (Rule 18a)
+10. **Clause chains** (3+ clauses) (Rule 2)
+11. **Meta-commentary filler** (Rule 7c)
 
-**Tier 3 — SMALLER ISSUES:**
+**Tier 3 — SMALLER ISSUES (fix) and PEDAGOGY FLAGS (flag only):**
 
-9. Given-new information flow (Rule 15)
-10. Nominalizations (Rule 17a)
-11. Noun stacks (Rule 17b)
-12. Forecasting counts (Rule 19a)
-13. Bold overuse (Emphasis Hierarchy)
-14. Sentence length variation (Rule 5)
+11. Given-new information flow (Rule 15)
+12. Nominalizations (Rule 17a)
+13. Noun stacks (Rule 17b)
+14. Forecasting counts (Rule 19a)
+15. Bold overuse (Emphasis Hierarchy)
+16. Sentence length variation (Rule 5)
+17. **PEDAGOGY FLAG: Analogy accuracy** (Rule 20c): Analogies that create mental models contradicted by later content. Flag, do not fix.
+18. **PEDAGOGY FLAG: Premature abstraction** (Rule 20d): Claims about mechanisms the reader has not yet been shown. Flag, do not fix.
 
 **1e. Chat the triage summary:**
 
@@ -627,23 +680,23 @@ Report: "Editing [N] sections in `[chapter name]`. Triage: [count] Tier 1 issues
 
 ---
 
-## RULE 20: Notation Consistency
+## RULE 21: Notation Consistency
 
 Every mathematical symbol used anywhere in the chapter must match the notation table in the first section. This rule is enforced by the main agent's triage pass and by every subagent during editing.
 
-**20a. Check all math against the notation table.**
+**21a. Check all math against the notation table.**
 
 For each equation (block `$$...$$` or inline `$...$`), verify that every symbol matches the notation table's definition. Common inconsistencies:
 - Case mismatch: `$n$` (lowercase) vs `$N$` (uppercase) for "number of experts"
 - Subscript conventions: `$w_g$` vs `$W_g$` for the router weight matrix
 - Index variable collisions: using `$i$` for two different meanings
 
-**20b. When a subagent finds a symbol not in the notation table:**
+**21b. When a subagent finds a symbol not in the notation table:**
 
 - **If the symbol is local** (used only in one paragraph or equation, e.g., a loop variable in a derivation), the subagent should add an inline definition ("where $z$ is the pre-activation") and move on. Do NOT add it to the notation table.
 - **If the symbol is global** (used across multiple sections, e.g., a new loss function symbol), the subagent should flag it in its report: "NOTATION GAP: `$\mathcal{L}_z$` is used in _03 and _05 but not defined in the notation table." Do NOT modify the notation table.
 
-**20c. Notation table additions are MAIN AGENT ONLY.**
+**21c. Notation table additions are MAIN AGENT ONLY.**
 
 Only the main agent (in Step 3) may add rows to the notation table. The main agent collects all "NOTATION GAP" flags from subagents, verifies them, and adds them to the notation table in `_01-introduction.qmd` with the correct 4-column format (Symbol, Definition, Valid Values, Example).
 
@@ -655,27 +708,168 @@ Only the main agent (in Step 3) may add rows to the notation table. The main age
 
 **2a. Each subagent receives:**
 
-1. A severity-ordered checklist of issues to fix (Tier 1 first, then Tier 2, then Tier 3)
+1. A severity-ordered checklist of issues to fix (Tier 1 first, then Tier 2, then Tier 3 + flags)
 2. The full notation table (extracted in Step 1c), with explicit instructions to check every equation against it
-3. The full text of `writing-style.md` (the most critical rules file)
+3. **Explicit instruction to read `writing-style.md` in full and produce a "Rules Relevance Assessment"** (see Step 2b, Step 0) before making any edits. The main agent MUST include this instruction verbatim in the subagent prompt.
 4. The path(s) to the specific section file(s) it is responsible for
 5. The chapter folder name (for image path verification)
-6. A summary of the 19 editing rules (not the full workflow file; just the issue checklist ordered by severity)
+6. A summary of the 20 editing rules (not the full workflow file; just the issue checklist ordered by severity, including Rule 20 pedagogy checks)
 7. A "DO NOT CHANGE" list (LaTeX equations, D2 diagrams, code blocks, exercise syntax, cross-references, section headings, source headers, factual claims)
 
 **2b. Each subagent's internal workflow:**
 
 The subagent should work through issues **in decreasing order of severity**:
 
+**Step 0: Forced Rules Evaluation (MANDATORY before any editing).**
+
+The subagent MUST read `writing-style.md` in full and produce a **rules relevance assessment** before touching any paragraph. This is not optional. The assessment forces the subagent to actually process each rule section rather than skimming or relying on cached knowledge.
+
+For each major section of `writing-style.md`, the subagent writes a 2-line evaluation:
+- **Line 1:** One-sentence summary of what the rule section covers.
+- **Line 2:** One-sentence assessment of whether this rule is relevant to the specific section file being edited, and why.
+
+The sections to evaluate are:
+
+1. **Engaging Writing** (tone, micro-surprises, motivation before formalism)
+2. **Basic Style Rules** (one idea per paragraph, sentence clarity, given-new, pronoun clarity, nominalization, noun stacks, concrete over abstract, examples, vocabulary, chunking)
+3. **Two Writing Modes** (mathematical vs narrative paragraphs, no marketing language)
+4. **Emphasis and Stress** (the 7-level hierarchy, bold, italics, restatement, authority quotes, structural emphasis)
+5. **Avoid AI Writing Tells** (em dashes, banned words, filler phrases, transitions, synonym cycling)
+6. **Mathematical Prose Integration** (no symbol-initial sentences, equations as grammar, "where" clauses, conditionals)
+7. **Forecasting Counts** (state the count before enumerating)
+8. **Pedagogical Coherence** (register coherence, cognitive novelty budget, analogy accuracy, top-down readability)
+9. **Inline Citations** (linked references, detecting unlinked citations)
+
+**Example output (the subagent writes this internally before starting edits):**
+
+```
+RULES RELEVANCE ASSESSMENT for _03-load-balancing-loss.qmd
+===========================================================
+1. Engaging Writing: Covers tone, surprises, motivation-before-formalism.
+   RELEVANT: This section introduces the aux loss; motivation before the formula is critical.
+
+2. Basic Style Rules: One idea/paragraph, given-new flow, pronoun clarity, nominalizations.
+   RELEVANT: This section has dense mathematical paragraphs that need clear pronoun antecedents.
+
+3. Two Writing Modes: Math-mode (simple English) vs narrative-mode (precise words).
+   HIGHLY RELEVANT: This section mixes derivations with intuitive explanations; must not mix registers within paragraphs.
+
+4. Emphasis and Stress: Bold hierarchy, italics, restatement, authority quotes.
+   RELEVANT: The f_i * P_i insight is the section's climax; bold placement matters.
+
+5. AI Writing Tells: Em dashes, banned words, filler, transitions.
+   RELEVANT: Standard check; no known issues from triage but must verify.
+
+6. Mathematical Prose Integration: No symbol-initial sentences, equations as grammar.
+   HIGHLY RELEVANT: Many displayed equations; must check lead-in phrases and "where" clauses.
+
+7. Forecasting Counts: State count before listing items.
+   RELEVANT: The "four ideas explain why" paragraph should forecast the count.
+
+8. Pedagogical Coherence: Register coherence, cognitive novelty, analogy accuracy.
+   HIGHLY RELEVANT: The restaurant analogy must be checked for accuracy; the "two worlds" paragraph introduces multiple new concepts.
+
+9. Inline Citations: Linked references for all named works.
+   RELEVANT: Multiple paper references; must verify all have URLs.
+```
+
+The subagent does NOT output this to the user. It is an internal step that forces the model to read and evaluate each rule section against the specific section file. The quality improvement comes from the *evaluation process itself*, not from the output.
+
+**After the rules evaluation, proceed with the three editing passes:**
+
 1. **First pass: Tier 1 (BIG).** Fix notation inconsistencies, em dashes, banned words, unlinked citations. These are mechanical, high-confidence fixes that affect correctness.
-2. **Second pass: Tier 2 (MEDIUM).** Fix bare "this" pronouns, symbol-initial sentences, clause chains, meta-commentary filler. These require more judgment but have clear rules.
-3. **Third pass: Tier 3 (SMALLER).** Improve given-new flow, convert nominalizations, unpack noun stacks, add forecasting counts, check bold usage, vary sentence length. These are refinements.
+2. **Second pass: Tier 2 (MEDIUM).** Fix register coherence violations, cognitive novelty overload, bare "this" pronouns, symbol-initial sentences, clause chains, meta-commentary filler. These require more judgment but have clear rules.
+3. **Third pass: Tier 3 (SMALLER) + PEDAGOGY FLAGS.** Improve given-new flow, convert nominalizations, unpack noun stacks, add forecasting counts, check bold usage, vary sentence length. Flag (do not fix) analogy accuracy issues and premature abstraction.
 
 **2c. Each subagent reports back:**
 
 1. What it changed (grouped by severity tier)
 2. Any "NOTATION GAP" flags (symbols used but not in the notation table)
-3. Any issues it found but could not fix (e.g., unclear factual claims, possible technical errors)
+3. Any "PEDAGOGY FLAG" issues (analogy accuracy, premature abstraction) with file, line, and description
+4. Any other issues it found but could not fix (e.g., unclear factual claims, possible technical errors)
+
+---
+
+## STEP 2.5: Pedagogy Fix Subagent (Conditional — Only If Flags Exist)
+
+After all section-editing subagents complete, the main agent collects their PEDAGOGY FLAG reports. **If any PEDAGOGY FLAGs were reported, the main agent spawns one additional subagent** — the "pedagogy fixer" — with different permissions and different context than the section-editing subagents.
+
+**Why a separate subagent?** The section-editing subagents (Step 2) edit prose within a single section file. They cannot fix pedagogy issues because: (a) they lack source material to ground rewrites, (b) they lack cross-section context to detect premature abstraction, and (c) they are forbidden from changing content meaning. The pedagogy fixer has all three capabilities.
+
+**If no PEDAGOGY FLAGs were reported, skip this step entirely.**
+
+### 2.5a. Main agent prepares the dispatch (before spawning the fixer):
+
+The main agent does the following preparation work BEFORE spawning the pedagogy fixer subagent. This ensures the fixer receives a focused, pre-curated set of sources rather than having to search through the entire TEXTBOOK-PLAN.md.
+
+1. **Collect all PEDAGOGY FLAGs** from section-editing subagents.
+2. **For each flag, identify the relevant sources.** Each section file has a "Sources for this section" collapsible callout at the top containing a table of sources with names, URLs, and summaries. The main agent looks up the source table for the section containing each flag, and extracts the local paths from TEXTBOOK-PLAN.md's Source Processing Log. Only sources listed in the flagged section's source table are relevant.
+3. **Build a per-flag source manifest:**
+
+```
+PEDAGOGY FIX MANIFEST
+======================
+Flag 1: Analogy accuracy in _01-introduction.qmd line 30
+  Description: "send 60% of the patient" creates false mental model
+  Relevant sources (from _01's source table):
+    - sources/arxiv-1701.06538/ (Shazeer 2017 — core MoE equation, gating)
+    - sources/arxiv-2101.03961/ (Fedus 2022 — top-1 routing, aux loss)
+    - sources/arxiv-2401.04088/ (Mixtral — top-2 routing)
+
+Flag 2: Premature abstraction in _01-introduction.qmd line 30
+  Description: "gradient is zero almost everywhere" — mechanism not yet shown
+  Relevant sources: same as Flag 1 (same paragraph)
+  Cross-section note: KeepTopK is introduced in _02-routing.qmd
+```
+
+### 2.5b. The pedagogy fixer subagent receives:
+
+1. **The per-flag source manifest** (built by the main agent in 2.5a above), listing each flag with its description, file, line, and the specific source paths to read
+2. **The paths to ALL section files** (for cross-section context, e.g., knowing that KeepTopK is defined in `_02`)
+3. **The writing-style rules** (`writing-style.md`)
+4. **Explicit permission to change content:** "You MAY rewrite flagged paragraphs, restructure them, move claims between paragraphs within the same file, rewrite analogies, and add limitation flags to imprecise analogies. You MUST NOT change unflagged paragraphs. You MUST NOT change LaTeX equations, D2 diagrams, code blocks, exercise blocks, cross-references, or section headings."
+
+**The fixer does NOT receive the full TEXTBOOK-PLAN.md or the full Source Processing Log.** The main agent has already done the work of identifying which sources matter for each flag. The fixer reads only those sources.
+
+### 2.5c. The pedagogy fixer's internal workflow:
+
+**Step 0: Read sources and build context.**
+
+Before touching any flagged paragraph:
+
+1. For each flag in the manifest, read the listed source files from `AI-Learning-Gems/sources/`. Focus on the parts of each source that describe the mechanism the flagged paragraph discusses. For arXiv sources, read the relevant `.tex` section (the manifest may specify which). For blog sources, read the `content.md`.
+2. Read the section files that contain flags AND any section files referenced in the manifest's cross-section notes (e.g., if a flag says "mechanism introduced in `_02`", read `_02`).
+3. You do NOT need to read every section file in full. Read the flagged sections completely, and read other sections only to locate specific mechanisms referenced in the flags.
+
+**Step 1: Fix each PEDAGOGY FLAG.**
+
+For each flag, apply the appropriate fix strategy:
+
+| Flag Type | Fix Strategy |
+|---|---|
+| **Analogy accuracy** (Rule 20c) | Read the source material to understand the actual mechanism. Rewrite the analogy so it accurately maps to the mechanism. If the analogy is fundamentally imprecise, add an explicit limitation at the point of introduction: "This analogy holds for X but breaks down for Y, as we will see in @sec-Z." If the analogy cannot be salvaged, replace it with one that is accurate. |
+| **Premature abstraction** (Rule 20d) | Determine where the mechanism is actually introduced (which section, which paragraph). If the claim and the mechanism are in the same file, reorder paragraphs so the mechanism comes first. If they are in different files, rewrite the premature claim as a forward-looking teaser that does NOT assert the property: change "the gradient is zero almost everywhere" to "this creates a problem for gradient-based training that we will make precise in @sec-routing." |
+| **Register collision** (Rule 20a, if not already fixed by section subagent) | Split the paragraph at the mode boundary. |
+| **Cognitive overload** (Rule 20b, if not already fixed by section subagent) | Split the paragraph and add grounding (plain-language restatement or concrete example) between the new concepts. |
+
+**Step 2: Verify rewrites against sources.**
+
+After rewriting each flagged paragraph, re-read the source material and verify: does every factual claim in the rewritten paragraph appear in or follow from the sources? If not, remove the unsupported claim or find source support.
+
+### 2.5d. The pedagogy fixer reports back:
+
+1. What it changed (for each PEDAGOGY FLAG: the original text, the rewritten text, and which source grounded the rewrite)
+2. Any flags it could NOT fix (e.g., the source material is insufficient, or the fix requires adding a new section)
+3. Any new cross-reference additions (e.g., forward-pointers to later sections added as part of a premature-abstraction fix)
+
+### 2.5e. Main agent reviews the fixer's changes:
+
+Before proceeding to Step 3, the main agent reads the fixer's report and spot-checks:
+- Do the rewritten paragraphs follow writing-style rules?
+- Are the source attributions correct?
+- Do the cross-references point to real section labels?
+
+If any issue is found, the main agent fixes it directly (small corrections) or flags it for the user (large concerns).
 
 ---
 
@@ -689,7 +883,8 @@ After all subagents complete, the **main agent** reads all edited section files 
 
 **3c. Cross-section checks:**
 
-1. **Notation consistency (RULE 20c):** Collect all "NOTATION GAP" flags from subagents. For each flagged symbol, verify it is genuinely cross-section (used in 2+ files). If so, add it to the notation table in `_01-introduction.qmd` with the 4-column format (Symbol, Definition, Valid Values, Example). If it is section-local, verify the subagent added an inline definition.
+1. **Notation consistency (RULE 21c):** Collect all "NOTATION GAP" flags from subagents. For each flagged symbol, verify it is genuinely cross-section (used in 2+ files). If so, add it to the notation table in `_01-introduction.qmd` with the 4-column format (Symbol, Definition, Valid Values, Example). If it is section-local, verify the subagent added an inline definition.
+2. **Pedagogy fixes (from Step 2.5):** If the pedagogy fixer subagent ran, review its changes. Verify the rewritten paragraphs flow naturally with surrounding content. Check that any new cross-references (`@sec-*`) point to valid labels. If the fixer reported unresolvable flags, present those to the user: "UNRESOLVED PEDAGOGY FLAG: [description]. This requires author review."
 2. **Cross-section terminology:** Ensure the same term is used for the same concept across all sections. If Section 2 calls it "the router" and Section 5 calls it "the gating network," pick one and make all sections consistent.
 3. **Cross-section notation re-scan:** Grep all `.qmd` files for any remaining notation inconsistencies that subagents may have introduced (e.g., a subagent rewording a sentence and accidentally using the wrong symbol case).
 4. **Figure/equation reference style:** Ensure consistent phrasing across sections.
@@ -698,7 +893,7 @@ After all subagents complete, the **main agent** reads all edited section files 
 7. **Math Background references:** If the chapter has a `_98-math-background.qmd` appendix, verify forward-references at first mention of prerequisite concepts.
 8. **Writing mode consistency:** In mathematical paragraphs, verify English is simple. In narrative paragraphs, verify word choice is precise.
 
-**3d. Chat:** "Consistency pass complete. [N] cross-section fixes applied. [M] notation table entries added."
+**3d. Chat:** "Consistency pass complete. [N] cross-section fixes applied. [M] notation table entries added. [P] pedagogy flags resolved by fixer, [Q] unresolved (require author review)."
 
 ---
 
@@ -729,11 +924,18 @@ The main agent performs a final automated scan across all files.
 
 Before marking the editing pass as complete, verify:
 
-**Notation Consistency (Rule 20):**
+**Notation Consistency (Rule 21):**
 - [ ] Every mathematical symbol matches the notation table in the first section
 - [ ] No case mismatches (e.g., $n$ vs $N$) across any file
 - [ ] All cross-section symbols are in the notation table (4-column format)
 - [ ] Section-local symbols have inline definitions ("where $z$ is...")
+
+**Pedagogical Coherence (Rule 20 + Step 2.5):**
+- [ ] No paragraph mixes math-mode and narrative-mode prose (register coherence)
+- [ ] No paragraph introduces 3+ genuinely new concepts (cognitive novelty budget)
+- [ ] All analogies accurately represent the mechanism they illustrate, or flag their limitations explicitly
+- [ ] No paragraph asserts properties of a mechanism the reader has not yet been shown (no premature abstraction)
+- [ ] All PEDAGOGY FLAGs from section subagents were addressed by the pedagogy fixer (or reported as unresolvable)
 
 **Paragraph Clarity:**
 - [ ] Every paragraph has one main idea

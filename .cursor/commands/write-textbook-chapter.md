@@ -426,6 +426,24 @@ For EACH major concept, follow this A-E sequence:
 
 ---
 
+### PARAGRAPH-LEVEL SEQUENCING (Within Each Step)
+
+The A-E structure above governs *section-level* sequencing: what comes first, second, third. The rules below govern *paragraph-level* sequencing within each step: the order of claims within a paragraph, and how paragraphs connect to each other.
+
+**Rule: Mechanism before consequence.** Before stating what a mechanism produces (its output, its gradient properties, its failure modes), show the mechanism itself. The reader must see the equation, function, or algorithm before they can evaluate claims about it.
+
+- **BAD (consequence before mechanism):** "The gradient of the top-k selection is zero almost everywhere." (The reader has not seen the top-k function yet.)
+- **GOOD (mechanism, then consequence):** "The $\text{KeepTopK}$ function sets all but the $k$ largest values to $-\infty$." [show the equation] "Because this clamping is a step function, its gradient is zero almost everywhere."
+
+**Rule: Analogy, then limitation.** If an analogy maps imperfectly to the technical concept, state the limitation at the point of introduction. Do not let the reader build an incorrect mental model that later paragraphs must correct.
+
+- **BAD:** "There is no 'send 60% of the patient' to the cardiologist." (In MoE, gate weights *are* fractional. The analogy misleads.)
+- **GOOD:** "The triage nurse picks *which* specialists to call. That decision is binary. But once the specialists are chosen, the nurse also decides how much weight to give each opinion. The 'which' is discrete; the 'how much' is continuous."
+
+**Rule: Max 2 new concepts per paragraph.** If a paragraph introduces 3+ concepts the reader has never seen, split it. Ground each new concept with a plain-language restatement or a concrete example before introducing the next one. See the "Cognitive Novelty Budget" rule in `writing-style.md` for the full test.
+
+---
+
 ### MISCONCEPTION & THINK HARD CALLOUTS (Slow Down and Address What's Confusing)
 
 These callouts are where the *author* slows down to address something the reader is likely confused about or curious about. They are distinct from the interactive exercises added by the `/exercises-for-textbook-chapter` workflow (which ask the reader to retrieve and generate).
