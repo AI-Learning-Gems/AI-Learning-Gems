@@ -12,11 +12,11 @@
 
 You now know how the router works: a linear projection, a top-k selection, and a softmax over survivors. You know that gradients flow through the softmax weights of the selected experts, but that non-selected experts sit in a gradient dead zone. In principle, this is enough for the forward pass to work. Tokens get routed, experts produce outputs, the model trains. So what goes wrong?
 
-Everything. Without intervention, MoE training collapses into a degenerate state where a single expert hogs nearly all tokens while the others wither. The model ends up using a tiny fraction of its capacity. This section explains why that happens, how the field solved it, and why the solution is one of the most elegant tricks in modern deep learning.
+Everything. Without intervention, MoE training collapses into a degenerate state where a single expert hogs nearly all tokens while the others wither. The model ends up using a tiny fraction of its capacity. This section explains why that happens, how the field solved it, and why the solution packs a surprising amount of insight into three lines of math.
 
 ### Expert Collapse: The Self-Reinforcing Death Spiral
 
-Imagine a restaurant with four chefs, each capable of cooking any dish on the menu. On the first night, Chef 3 happens to cook a slightly better risotto than the others, perhaps because of random weight initialization. The head waiter, noticing this, sends the next risotto order to Chef 3 as well. Chef 3 gets more practice making risotto, improves further, and soon the waiter is routing *all* risotto orders to Chef 3. Then the pasta orders follow, because Chef 3 has now been cooking so often that they have gotten better at everything. Before long, Chef 3 is handling 80% of all orders while Chefs 1, 2, and 4 stand idle, their skills atrophying from disuse.
+Imagine a restaurant with four chefs, each capable of cooking any dish on the menu. On the first night, Chef 3 happens to cook a slightly better risotto than the others, perhaps because of random weight initialization. The head waiter, noticing this, sends the next risotto order to Chef 3 as well. Chef 3 gets more practice making risotto, improves further, and soon the waiter is routing *all* risotto orders to Chef 3. Then the pasta orders follow, because the waiter figures that a chef who excels at risotto is probably good at pasta too. Before long, Chef 3 is handling 80% of all orders while Chefs 1, 2, and 4 stand idle, their skills atrophying from disuse.
 
 The dynamic just described is *expert collapse*, the single most dangerous failure mode in MoE training. The cycle is self-reinforcing:
 
@@ -114,7 +114,7 @@ even_better -> collapse: "eventually" {
 }
 ```
 
-The feedback loop is the same "rich get richer" dynamic you see across many systems: social media algorithms that amplify already-popular content, urban economies where jobs concentrate in cities that already have jobs, academic citation counts that snowball because highly-cited papers attract more citations. Without a corrective force, positive feedback loops converge to winner-take-all outcomes.
+The feedback loop is the same "rich get richer" dynamic you see across many systems: social media algorithms that amplify already-popular content, urban economies where jobs concentrate in cities that already have jobs, citation counts that snowball because highly-cited papers attract more citations. Without a corrective force, positive feedback loops converge to winner-take-all outcomes.
 
 ### Shazeer's Original Approach (2017)
 
@@ -138,7 +138,7 @@ To address this gap, Shazeer added a separate *load loss* (described in the pape
 
 ### The Switch Transformer Formulation: $f_i \times P_i$
 
-[Fedus et al. (JMLR 2022)](https://arxiv.org/abs/2101.03961) simplified everything into a single, clean loss function. The Switch Transformer formulation has become the standard. It is built from two quantities, each measured across a batch $\mathcal{B}$ of $T$ tokens and $N$ experts.
+Shazeer's two-loss approach worked, but the load loss in particular was complex. [Fedus et al. (JMLR 2022)](https://arxiv.org/abs/2101.03961) simplified everything into a single, clean loss function. The Switch Transformer formulation has become the standard. It is built from two quantities, each measured across a batch $\mathcal{B}$ of $T$ tokens and $N$ experts.
 
 The first quantity is $f_i$, the *dispatch fraction*: the fraction of tokens in the batch that were actually routed to expert $i$.
 
@@ -184,9 +184,9 @@ Four ideas explain why this simple product solves the load-balancing problem.
 
 **1. The two vectors live in different worlds.** The $f$-vector lives in the discrete world: it counts actual token assignments, and its values jump discontinuously as assignments change. The $P$-vector lives in the continuous world: it averages softmax probabilities, and its values change smoothly as router weights change. Neither vector alone is sufficient for optimization.
 
-**2. The product creates a differentiable loss whose gradient magnitude is controlled by the discrete count.** When you compute $\partial \mathcal{L}_{\text{aux}} / \partial \theta$ (where $\theta$ are the router parameters), the gradient flows through $P_i$ because softmax is differentiable. The term $f_i$ acts as a constant scaling factor during backpropagation: it is treated as a fixed value, not a function of $\theta$. The result is that if expert $i$ has a high dispatch fraction ($f_i$ is large), the gradient pushing down $P_i$ is large. If expert $i$ has a low dispatch fraction, the gradient is small.
+**2. The product creates a differentiable loss whose gradient magnitude is controlled by the discrete count.** When you compute $\partial \mathcal{L}_{\text{aux}} / \partial \theta$ (where $\theta$ are the router parameters), the gradient flows through $P_i$ because softmax is differentiable. The term $f_i$ acts as a constant scaling factor during backpropagation: it is treated as a fixed value, not a function of $\theta$. So if expert $i$ has a high dispatch fraction ($f_i$ is large), the gradient pushing down $P_i$ is large. If $f_i$ is small, so is the gradient.
 
-**3. The scaling targets exactly the right experts.** An overloaded expert (high $f_i$) contributes a large term to the loss, generating a strong gradient that pushes the router to reduce $P_i$ for that expert. An underloaded expert (low $f_i$) contributes a small term, so the optimizer focuses its effort on the experts that are actually causing imbalance. The discrete world (actual assignments) controls the gradient magnitude; the continuous world (probabilities) provides the gradient direction.
+**3. The scaling targets exactly the right experts.** An overloaded expert (high $f_i$) contributes a large term to the loss. The resulting gradient is strong, pushing the router to reduce $P_i$ for that expert. An underloaded expert (low $f_i$) contributes a small term, so the optimizer focuses its effort where the imbalance is worst. The discrete world (actual assignments) controls the gradient magnitude; the continuous world (probabilities) provides the gradient direction.
 
 **4. The loss minimum coincides with uniform routing.** Both $f$ and $P$ are probability distributions: $\sum f_i = 1$ and $\sum P_i = 1$ (with all entries non-negative). Under these constraints, the dot product $\sum f_i P_i$ is minimized when both vectors are uniform: $f_i = P_i = 1/N$ for all $i$. Let us verify this minimum value in concrete numbers.
 
@@ -233,7 +233,7 @@ Exactly. Without the dispatch fraction f to anchor the loss to what actually hap
 :::
 
 ::: {.feedback-incorrect}
-Think about what the router can do when only softmax probabilities are penalized, with no reference to actual token assignments. The softmax probabilities are what the router *claims* will happen. The argmax decisions are what *actually* happens. These can diverge: the router can assign high probability to an expert on a small number of tokens without that expert receiving many tokens via the argmax. This gap between "claimed" and "actual" routing is the fatal flaw. The dispatch fraction f closes this gap by measuring actual assignments.
+Think about what the router can do when only softmax probabilities are penalized, with no reference to actual token assignments. The softmax probabilities are what the router *claims* will happen. The argmax decisions are what *actually* happens. These two signals can diverge: the router can assign high probability to an expert on a small number of tokens without that expert receiving many tokens via the argmax. This gap between "claimed" and "actual" routing is the fatal flaw. The dispatch fraction f closes this gap by measuring actual assignments.
 :::
 
 :::
@@ -322,4 +322,4 @@ $$
 
 Here $h_i(x)$ are the router logits. The penalty is distinct from the $f_i \cdot P_i$ load-balancing loss and is added alongside it. ST-MoE found that router z-loss was critical for stable training at 269B parameters.
 
-The $f_i \cdot P_i$ loss formulation, elegant as it is, addresses only one side of the systems challenge. Even with balanced routing, MoE layers face a hard engineering constraint: each expert can only process a limited number of tokens per forward pass. When an expert receives more tokens than it can handle, something must give. In the next section, we turn to capacity factors, token dropping, and the systems-level view of making MoE work in practice.
+The $f_i \cdot P_i$ loss formulation addresses only one side of the systems challenge. Even with balanced routing, MoE layers face a hard engineering constraint: each expert can only process a limited number of tokens per forward pass. When an expert receives more tokens than it can handle, something must give. That engineering constraint, the capacity factor, and its painful consequence (token dropping) are the subject of the next section.

@@ -93,7 +93,7 @@ $$
 \tilde{s}_i = s_i + b_i,
 $$
 
-where $s_i$ is the raw router score for expert $i$. The biased scores $\tilde{s}_i$ are used for the top-k selection, but the original unbiased scores $s_i$ are used for the softmax normalization after selection. This separation means the biases influence *which* experts are selected, but not the *weights* applied to the selected experts' outputs.
+where $s_i$ is the raw router score for expert $i$. The biased scores $\tilde{s}_i$ determine the top-k selection, but the original unbiased scores $s_i$ feed into the softmax normalization after selection. This separation is the key design choice: the biases influence *which* experts are selected, but not the *weights* applied to the selected experts' outputs.
 
 After each training step, the biases are updated with a simple rule:
 
@@ -133,7 +133,7 @@ Arrange the steps of the loss-free balancing mechanism in the correct order for 
 
 Both Expert Choice and loss-free balancing keep the top-k selection step and work around its limitations. The third approach, ReMoE ([Wang et al., ICLR 2025](https://arxiv.org/abs/2412.14711)), asks a more radical question: what if we removed top-k entirely?
 
-The differentiability paradox we analyzed in @sec-routing exists because top-k is a hard discrete operation. Selected experts get gradients; non-selected experts get nothing. Every approach we have discussed so far either accepts this discontinuity and compensates for it (auxiliary loss, loss-free biases), or shifts the direction of assignment (Expert Choice). ReMoE eliminates the discontinuity at its source.
+The differentiability paradox we analyzed in @sec-routing exists because top-k is a hard discrete operation. Selected experts get gradients; non-selected experts get nothing. Every approach we have discussed so far either accepts this discontinuity and compensates for it (auxiliary loss, loss-free biases), or shifts the direction of assignment (Expert Choice). ReMoE eliminates the discontinuity at its source, by removing top-k altogether.
 
 The idea is simple: replace the entire TopK + Softmax routing pipeline with a single ReLU activation:
 
@@ -143,7 +143,7 @@ $$
 
 The function $\text{ReLU}(z) = \max(0, z)$ is differentiable everywhere except at $z = 0$ (where it has a well-defined subgradient of 0). There is no discrete selection step. No argmax, no top-k, no masking to $-\infty$.
 
-Sparsity emerges naturally from the ReLU itself. Many inputs produce negative pre-activation values, so $\text{ReLU}$ maps them to zero. Those experts are inactive for that token. Only the experts with positive pre-activation values contribute to the output. The number of active experts varies per token, which is different from standard top-k routing where exactly $k$ experts are always active.
+Sparsity emerges naturally from the ReLU itself. Many inputs produce negative pre-activation values, so $\text{ReLU}$ maps them to zero. Those experts are inactive for that token. Only experts with positive pre-activation values contribute to the output. The number of active experts varies per token; this variability is different from standard top-k routing, where exactly $k$ experts are always active.
 
 Let us see this concretely. For the token "bank", suppose the router computes $W_g \cdot x_{\text{bank}} + b$ and gets the pre-activation vector $[-0.3,\; -1.1,\; 0.8,\; -0.5,\; -0.2,\; 0.3,\; -0.9,\; -0.4]$. After ReLU:
 
@@ -153,7 +153,7 @@ $$
 
 Experts 3 and 6 are active (positive gate values). The other six are inactive (zero). No discrete selection was needed. The gate values are continuous functions of the router parameters, so gradients flow to all experts: active experts receive gradients proportional to their gate values, and inactive experts receive a zero gradient at the ReLU boundary. However, any tiny perturbation to $W_g$ that pushes the pre-activation above zero immediately starts producing gradients. The gradient dead zone for non-selected experts is much smaller than in top-k routing, where the dead zone is absolute.
 
-[Wang et al. (ICLR 2025)](https://arxiv.org/abs/2412.14711) found that ReMoE outperforms vanilla top-k MoE across model sizes, with no auxiliary loss required. In practice, training uses a "top-k initialization" warm-up phase: the model starts with standard top-k routing for the first portion of training (to learn reasonable router weights), then gradually transitions to full ReLU routing. This warm-up prevents early training instability where the ReLU outputs might be too dense (too many experts active) or too sparse (too few).
+[Wang et al. (ICLR 2025)](https://arxiv.org/abs/2412.14711) found that ReMoE outperforms vanilla top-k MoE across model sizes, with no auxiliary loss required. In practice, training uses a "top-k initialization" warm-up phase: the model starts with standard top-k routing for the first portion of training to learn reasonable router weights, then gradually transitions to full ReLU routing. This warm-up prevents early training instability, where the ReLU outputs might be too dense (too many experts active) or too sparse (too few).
 
 ::: {.exercise-mcq correct="C"}
 
@@ -186,7 +186,9 @@ The four approaches we have covered represent distinct points in the design spac
 | ReMoE (ReLU) | Fully differentiable | Natural sparsity via ReLU | No (variable expert load) | Low |
 | Soft MoE (token/expert merging) | Fully differentiable | All experts process all tokens | No (dense computation) | High (no sparsity benefit) |
 
-Each row represents a different philosophy. Standard top-k accepts the discrete boundary and patches it with an auxiliary loss. Expert Choice sidesteps the problem by reversing the assignment direction. Loss-free balancing decouples the balance signal from the gradient entirely. ReMoE eliminates the discrete boundary itself. The field has not converged on a single winner; each approach has strengths in different settings. A fifth approach, *Soft MoE* ([Puigcerver et al., ICLR 2024](https://arxiv.org/abs/2308.00951)), avoids discrete routing entirely by sending weighted combinations of all tokens to each expert. The layer becomes fully differentiable, but at the cost of losing the compute savings of sparse activation.
+Each row represents a different philosophy. Standard top-k accepts the discrete boundary and patches it with an auxiliary loss. Expert Choice sidesteps the problem by reversing the assignment direction. Loss-free balancing decouples the balance signal from the gradient entirely. ReMoE eliminates the discrete boundary itself. The field has not converged on a single winner; each approach has strengths in different settings.
+
+A fifth approach, *Soft MoE* ([Puigcerver et al., ICLR 2024](https://arxiv.org/abs/2308.00951)), avoids discrete routing entirely by sending weighted combinations of all tokens to each expert. The layer becomes fully differentiable, but at the cost of losing the compute savings of sparse activation.
 
 ::: {.callout-note}
 
@@ -198,4 +200,4 @@ Yes, and the asymmetry is consequential. Selected experts improve faster because
 
 :::
 
-The routing strategies we have covered in this section represent the field's latest thinking on the fundamental tension between discrete assignment and differentiable optimization. But routing is only half the story. In the next section, we turn from algorithms to architectures: how do real-world systems like Mixtral and DeepSeek-V3 combine these ideas into production models? And what does the economics of MoE inference look like in practice?
+The routing strategies we have covered represent the field's latest thinking on the fundamental tension between discrete assignment and differentiable optimization. But routing is only half the story. In the next section, we turn from algorithms to architectures: how do real-world systems like Mixtral and DeepSeek-V3 combine these ideas into production models? And what does the economics of MoE inference look like in practice?

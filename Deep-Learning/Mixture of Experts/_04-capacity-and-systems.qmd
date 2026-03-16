@@ -46,7 +46,7 @@ Remember: the buffer size formula is $\lceil C \cdot T/N \rceil$. The fair share
 
 :::
 
-Why not set $C$ very high, say $C = 4.0$, and avoid overflow entirely? Because the capacity factor determines the actual memory allocated for each expert's input buffer. On a GPU, these buffers are pre-allocated tensors with a fixed shape of $(\text{expert buffer size}, d_{\text{model}})$. Higher $C$ means larger tensors, more memory consumption, and wasted compute when those extra slots go unfilled (padding with zeros). In a model with 64 experts distributed across many devices, a capacity factor of 4.0 would quadruple the memory footprint of the expert buffers compared to $C = 1.0$. The capacity factor is a tradeoff between robustness to routing imbalance and memory efficiency.
+Why not set $C$ very high, say $C = 4.0$, and avoid overflow entirely? Because the capacity factor determines the actual memory allocated for each expert's input buffer. On a GPU, these buffers are pre-allocated tensors with a fixed shape of $(\text{expert buffer size}, d_{\text{model}})$. Higher $C$ means larger tensors and more memory consumption. Extra slots that go unfilled are padded with zeros, wasting compute. In a model with 64 experts distributed across many devices, a capacity factor of 4.0 would quadruple the memory footprint of the expert buffers compared to $C = 1.0$. The capacity factor is a tradeoff between robustness to routing imbalance and memory efficiency.
 
 ### Token Dropping
 
@@ -64,7 +64,7 @@ Token dropping is not a minor nuisance. It has three serious consequences:
 
 1. **Information loss during training.** Dropped tokens miss an entire FFN computation. In a 32-layer transformer where every other layer is MoE, a token that gets dropped frequently might skip 8 or more expert layers. The model trains on a degraded version of those tokens' representations.
 
-2. **Especially harmful early in training.** When the router is still semi-random (early training epochs), routing is maximally imbalanced. Some experts overflow constantly while others sit idle. Early training is precisely when the model needs every gradient update the most.
+2. **Especially harmful early in training.** When the router is still semi-random (early training epochs), routing is maximally imbalanced. Some experts overflow constantly while others sit idle. Early training is precisely when the model needs every gradient signal it can get.
 
 3. **Non-deterministic compute graph.** Which tokens are dropped depends on the batch composition, which varies between training steps. Two batches with identical individual tokens but different co-occurring tokens can produce different dropping patterns. The non-determinism complicates debugging and reproducibility.
 
@@ -111,7 +111,7 @@ The key insight: block-sparse matrix multiplication does not require fixed-size 
 
 The result is *dropless MoE*: every token is processed by its assigned expert, regardless of how imbalanced the routing is. No tokens are dropped, no information is lost, and no memory is wasted on padding. The block-sparse kernels achieve throughput competitive with dense matrix multiplications on modern GPUs, making the approach practical for large-scale training.
 
-The dropless design matters because it decouples two concerns that standard MoE entangles. With standard MoE, the capacity factor simultaneously controls memory allocation, compute waste (padding), and information loss (dropping). With MegaBlocks, memory and compute adapt to the actual routing pattern, and the only concern left is whether the load-balancing loss produces enough balance for good hardware utilization across devices.
+The dropless design matters because it decouples two concerns that standard MoE entangles. With standard MoE, the capacity factor simultaneously controls memory allocation, compute waste (padding), and information loss (dropping). With MegaBlocks, memory and compute adapt to the actual routing pattern. The only remaining concern is whether the load-balancing loss produces enough balance for good hardware utilization across devices.
 
 ### The Balance-Specialization Tradeoff
 
@@ -162,12 +162,12 @@ Expert Choice routing (covered in @sec-alternative-routing) achieves perfect bal
 
 Even with balanced routing and no token dropping, MoE layers impose real engineering costs that dense models avoid. Three stand out.
 
-**Communication overhead.** In a distributed training setup, tokens live on one device but their assigned experts may live on another. Routing tokens to their experts requires *all-to-all* communication: every device sends tokens to every other device. The all-to-all collective is one of the most expensive operations in distributed computing, and its cost grows with the number of devices and the number of experts.
+**Communication overhead.** In a distributed training setup, tokens live on one device but their assigned experts may live on another. Routing tokens to their experts requires *all-to-all* communication: every device sends tokens to every other device. The all-to-all collective is one of the most expensive operations in distributed computing. Its cost grows with the number of devices and the number of experts.
 
 **Memory footprint.** Only $k$ out of $N$ experts activate per token, but *all* $N$ experts must be stored in memory. A Mixtral 8x7B model has 47 billion parameters total but only 13 billion active per token. You still need enough VRAM to hold all 47 billion parameters (plus optimizer states during training). At inference time, MoE models require more memory than a dense model with equivalent active parameters. You get the compute cost of a 13B model but the memory cost closer to a 47B model.
 
 **Expert parallelism.** Distributing experts across devices (expert parallelism) introduces load-imbalance at the hardware level, even if token routing is balanced at the algorithmic level. One device may finish processing its experts' tokens before another device, leading to idle time. Combining expert parallelism with data parallelism and tensor parallelism creates a three-dimensional parallelism problem that requires careful tuning.
 
-To put the tradeoff plainly: MoE gives you the compute cost of a small model and the capacity of a large model, but the *memory* cost and *communication* cost of a large model. Only $k/N$ of the parameters are active per token, but 100% of the parameters must be stored, communicated, and synchronized. The compute-memory tradeoff is favorable for training (where compute dominates cost) and for autoregressive decoding (where per-token compute is the bottleneck), but less favorable for the prefill phase of inference (where memory bandwidth is often the bottleneck).
+To put the tradeoff plainly: MoE gives you the compute cost of a small model and the capacity of a large model, but the *memory* cost and *communication* cost of a large model. Only $k/N$ of the parameters are active per token, but 100% of the parameters must be stored, communicated, and synchronized. The compute-memory tradeoff is favorable for training (where compute dominates cost) and for autoregressive decoding (where per-token compute is the bottleneck). It is less favorable for the prefill phase of inference, where memory bandwidth is often the bottleneck.
 
-With the systems picture clear, we can move beyond standard top-k routing and its associated complexity. The next section explores three alternative routing strategies that each solve the balance-specialization-dropping trifecta in a fundamentally different way: Expert Choice routing, auxiliary-loss-free balancing, and fully differentiable ReLU routing.
+The systems constraints above (communication, memory, parallelism) all stem from one source: the token-chooses-expert routing design and the fixed-capacity buffers it requires. The next section explores three alternative routing strategies that each solve the balance-specialization-dropping trifecta in a fundamentally different way: Expert Choice routing, auxiliary-loss-free balancing, and fully differentiable ReLU routing.

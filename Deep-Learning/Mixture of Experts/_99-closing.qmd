@@ -8,7 +8,7 @@
 
 3. **Top-k selection is non-differentiable**, creating a gradient dead zone for non-selected experts. Selected experts receive gradient updates through their outputs; non-selected experts receive none. This gradient asymmetry is the differentiability paradox at the heart of MoE training.
 
-4. **The auxiliary load-balancing loss bridges discrete and differentiable** by multiplying the token count fraction $f_i$ (non-differentiable) by the router probability fraction $P_i$ (differentiable). The gradient flows through $P_i$, but its magnitude is scaled by $f_i$. This $f_i$-scaling is how discrete assignments influence continuous probability gradients.
+4. **The auxiliary load-balancing loss bridges discrete and differentiable** by multiplying the token count fraction $f_i$ (non-differentiable) by the router probability fraction $P_i$ (differentiable). The gradient flows through $P_i$, but its magnitude is scaled by $f_i$. This $f_i$-scaling is how discrete assignment information influences continuous probability gradients.
 
 5. **Expert collapse is a self-reinforcing failure mode** where a slightly better expert attracts more tokens, gets more training, improves further, and eventually monopolizes routing. The auxiliary loss, capacity factors, and noise in the gating function all work together to prevent this spiral.
 
