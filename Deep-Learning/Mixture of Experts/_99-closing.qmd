@@ -1,0 +1,317 @@
+## Closing {#sec-closing}
+
+### Key Takeaways
+
+1. **MoE replaces the FFN layer** in a transformer with $N$ expert FFNs plus a lightweight router, activating only $k \ll N$ experts per token. This decouples model capacity from per-token compute: Mixtral has 47B parameters but only 13B active per token.
+
+2. **The router is a simple linear layer** followed by noisy top-k selection and softmax normalization. The router produces gate weights $G(x)$ that determine how much each selected expert contributes to the output.
+
+3. **Top-k selection is non-differentiable**, creating a gradient dead zone for non-selected experts. Selected experts receive gradient updates through their outputs; non-selected experts receive none. This gradient asymmetry is the differentiability paradox at the heart of MoE training.
+
+4. **The auxiliary load-balancing loss bridges discrete and differentiable** by multiplying the token count fraction $f_i$ (non-differentiable) by the router probability fraction $P_i$ (differentiable). The gradient flows through $P_i$, but its magnitude is scaled by $f_i$. This scaling mechanism is how discrete assignments influence continuous probability gradients.
+
+5. **Expert collapse is a self-reinforcing failure mode** where a slightly better expert attracts more tokens, gets more training, improves further, and eventually monopolizes routing. The auxiliary loss, capacity factors, and noise in the gating function all work together to prevent this spiral.
+
+6. **Three modern alternatives address the limitations of standard routing.** Expert Choice routing flips the assignment direction (experts pick tokens, guaranteeing perfect balance). Loss-free balancing replaces the auxiliary loss with dynamic bias terms (eliminating interference gradients). ReLU routing replaces top-k with a continuous activation (eliminating the discrete boundary entirely).
+
+7. **The frontier is moving toward MoE as the default architecture.** Mixtral, DeepSeek-V3, Grok-1, and Qwen3-MoE all use sparse expert architectures. MoE models have inference economics roughly equivalent to a dense model at 50-60% of their total parameter count, but they require all parameters in memory.
+
+### Completed Concept Map
+
+```{.d2}
+# =========================================================================
+# 1. LAYOUT CONFIGURATION
+# =========================================================================
+direction: down
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+# =========================================================================
+# 2. DESIGN SYSTEM
+# =========================================================================
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 13
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 15
+      bold: true
+    }
+  }
+}
+
+# =========================================================================
+# 3. FULL CONCEPT MAP
+# =========================================================================
+
+# --- Architecture ---
+arch: {
+  class: container
+  label: "MoE Architecture"
+  label.near: top-left
+
+  ffn: {
+    class: [base; input]
+    label: " Dense FFN Layer "
+  }
+  replace: {
+    class: [base; process]
+    label: " Replace with N Expert FFNs + Router "
+  }
+  sparse: {
+    class: [base; highlight]
+    label: " Sparse Activation: only k of N active "
+  }
+
+  ffn -> replace: "MoE swap"
+  replace -> sparse
+}
+
+# --- Routing ---
+routing: {
+  class: container
+  label: "Routing Pipeline"
+  label.near: top-left
+
+  linear: {
+    class: [base; process]
+    label: " Linear Projection "
+  }
+  noise: {
+    class: [base; process]
+    label: " Gaussian Noise "
+  }
+  topk: {
+    class: [base; decision]
+    label: " Top-K Selection "
+  }
+  softmax: {
+    class: [base; process]
+    label: " Softmax "
+  }
+  paradox: {
+    class: [base; highlight]
+    label: " Differentiability Paradox "
+  }
+
+  linear -> noise -> topk -> softmax
+  topk -> paradox: "zero gradients\nfor non-selected" {
+    style.stroke: "#F43F5E"
+    style.stroke-dash: 5
+  }
+}
+
+arch.sparse -> routing.linear
+
+# --- Training ---
+training: {
+  class: container
+  label: "Training Machinery"
+  label.near: top-left
+
+  collapse: {
+    class: [base; highlight]
+    label: " Expert Collapse "
+  }
+  fi: {
+    class: [base; decision]
+    label: " f_i (count, non-diff) "
+  }
+  pi: {
+    class: [base; process]
+    label: " P_i (prob, differentiable) "
+  }
+  auxloss: {
+    class: [base; output]
+    label: " Aux Loss = alpha * N * sum(f_i * P_i) "
+  }
+  cap: {
+    class: [base; decision]
+    label: " Capacity Factor C "
+  }
+  drop: {
+    class: [base; highlight]
+    label: " Token Dropping "
+  }
+
+  collapse -> fi
+  collapse -> pi
+  fi -> auxloss
+  pi -> auxloss
+  cap -> drop: "overflow"
+}
+
+routing.paradox -> training.collapse: "leads to"
+
+# --- Evolution ---
+evolution: {
+  class: container
+  label: "Routing Evolution"
+  label.near: top-left
+
+  std: {
+    class: [base; process]
+    label: " Standard Top-K + Aux Loss "
+  }
+  ec: {
+    class: [base; process]
+    label: " Expert Choice (experts pick tokens) "
+  }
+  lf: {
+    class: [base; process]
+    label: " Loss-Free (dynamic biases) "
+  }
+  relu: {
+    class: [base; process]
+    label: " ReLU Routing (fully differentiable) "
+  }
+
+  std -> ec: "flip direction"
+  std -> lf: "remove aux loss"
+  std -> relu: "remove top-k"
+}
+
+training.auxloss -> evolution.std: "limitations motivate"
+
+# --- Real World ---
+real: {
+  class: container
+  label: "Production MoE Models"
+  label.near: top-left
+
+  mixtral: {
+    class: [base; output]
+    label: " Mixtral 8x7B (47B/13B) "
+  }
+  deepseek: {
+    class: [base; output]
+    label: " DeepSeek-V3 (671B/37B) "
+  }
+  trend: {
+    class: [base; output]
+    label: " MoE as Default Architecture "
+  }
+
+  mixtral -> trend
+  deepseek -> trend
+}
+
+evolution.ec -> real.deepseek: "ideas used in" {
+  style.stroke-dash: 5
+}
+evolution.lf -> real.deepseek: "used by" {
+  style.stroke-dash: 5
+}
+evolution.std -> real.mixtral: "used by" {
+  style.stroke-dash: 5
+}
+```
+
+### Retrieval Practice Questions
+
+Test your understanding with these questions. Try to answer each one from memory before revealing the answer.
+
+::: {.callout-tip collapse="true" title="Question 1: What are the two components of an MoE layer?"}
+An MoE layer consists of (1) $N$ expert networks (typically FFNs with the same architecture but separate parameters) and (2) a gating/routing network that determines which experts process each input. The router produces sparse gate weights $G(x)$, and the layer output is the weighted sum $y = \sum_{i=1}^{N} G(x)_i \cdot E_i(x)$.
+:::
+
+::: {.callout-tip collapse="true" title="Question 2: Why can't gradients flow through the top-k selection?"}
+The top-k operation is a hard discrete step. It keeps the top $k$ logits and sets all others to $-\infty$. The derivative of this operation is zero for non-selected experts (their logits are replaced by a constant $-\infty$ regardless of the input) and undefined at the selection boundary (where a tiny change in a logit can flip whether it survives top-k). Gradients flow through the softmax applied to the $k$ surviving logits, but there is no gradient signal for the $N-k$ non-selected experts.
+:::
+
+::: {.callout-tip collapse="true" title="Question 3: What are the two vectors f_i and P_i, and which is differentiable?"}
+The vector $f_i$ is the fraction of tokens in the batch dispatched to expert $i$, computed using an indicator function $\mathbb{1}\{\text{argmax}\; p(x) = i\}$. It is NOT differentiable (it comes from an argmax/indicator). The vector $P_i$ is the average router softmax probability allocated to expert $i$ across all tokens in the batch. It IS differentiable because softmax is a smooth function. The auxiliary loss $\mathcal{L}_{\text{aux}} = \alpha \cdot N \cdot \sum f_i \cdot P_i$ multiplies these two quantities.
+:::
+
+::: {.callout-tip collapse="true" title="Question 4: Why does multiplying f_i by P_i solve the load-balancing problem?"}
+The product $f_i \cdot P_i$ creates a quantity where the gradient flows through $P_i$ (differentiable), but the magnitude of that gradient is scaled by $f_i$ (non-differentiable). If expert $i$ receives many tokens ($f_i$ is large), the gradient pushing down $P_i$ is large. If expert $i$ receives few tokens ($f_i$ is small), the gradient is small. The $f_i$-scaled gradient chains the discrete assignment information ($f_i$) to the continuous optimization signal ($P_i$), allowing the optimizer to reduce routing imbalance by adjusting the differentiable probability distribution.
+:::
+
+::: {.callout-tip collapse="true" title="Question 5: What is the 'cheating' failure if you only penalize P_i without f_i?"}
+Without the $f_i$ multiplication, the router can assign near-100% softmax probability to one expert on a small number of tokens (inflating that expert's $P_i$) while actually routing most tokens elsewhere. The high $P_i$ satisfies the loss, but the actual token distribution remains imbalanced. Multiplying by $f_i$ catches this because $f_i$ reflects what actually happened (the real dispatch count), not what the router "intended" (the probability). High probability with low actual usage produces a small $f_i \cdot P_i$ product, so the loss does not reward the cheating behavior.
+:::
+
+::: {.callout-tip collapse="true" title="Question 6: How does Expert Choice routing achieve perfect load balance?"}
+Expert Choice reverses the assignment direction: instead of each token choosing its top-k experts, each expert chooses its top-k tokens. If there are $N$ experts and each selects exactly $k$ tokens from the batch, then every expert processes exactly $k$ tokens. Load balance is perfect by construction, with no auxiliary loss needed. The tradeoff is that some tokens may not be selected by any expert (they pass through the residual connection without expert processing).
+:::
+
+::: {.callout-tip collapse="true" title="Question 7: How does DeepSeek-V3's loss-free method avoid interference gradients?"}
+DeepSeek-V3 adds a per-expert bias $b_i$ to the routing scores before top-k selection: $\tilde{s}_i = s_i + b_i$. After each training step, the biases are updated using a simple rule: $b_i \leftarrow b_i - \gamma \cdot \text{sign}(f_i - 1/N)$. Overloaded experts get their bias decreased (less attractive); underloaded experts get their bias increased (more attractive). Because the biases are updated by this separate rule (not through backpropagation or any loss function), they produce zero interference with the task loss gradient. The router gradient is purely from the task loss.
+:::
+
+### Common Mistakes to Avoid
+
+| Mistake | Why It's Wrong | The Correct Understanding |
+|---|---|---|
+| Confusing total params with active params | Saying "Mixtral is a 47B model" implies 47B compute cost | Mixtral has 47B total but only 13B active. Inference cost scales with active params; memory scales with total params. |
+| Thinking top-k routing is fully differentiable | "We use softmax, so it's differentiable" | Softmax is differentiable, but it only runs on the $k$ surviving logits. The top-k selection step itself is non-differentiable. |
+| Assuming experts specialize by topic | "Expert 1 handles math, Expert 2 handles code" | Experts specialize at the token/syntax level, not the topic level. One expert might handle punctuation across all domains. |
+| Forgetting ALL experts must be in memory | "MoE is cheaper because only 2 of 8 experts activate" | Only $k/N$ of parameters are active per token, but 100% must be stored. MoE saves compute cost but not memory cost. |
+| Thinking the auxiliary loss optimizes $f_i$ directly | "The loss minimizes the token counts" | The gradient only flows through $P_i$ (differentiable). The $f_i$ values scale the gradient magnitude but are not themselves optimization targets. |
+
+### Curated Resources
+
+For further reading, these are the most accessible and informative resources on MoE:
+
+| # | Resource | Why It's Useful |
+|---|---|---|
+| 1 | [HuggingFace: Mixture of Experts Explained](https://huggingface.co/blog/moe) | The best single overview. Covers basics, training, serving, fine-tuning. Start here. |
+| 2 | [Maarten Grootendorst: A Visual Guide to MoE](https://www.maartengrootendorst.com/blog/moe/) | 50+ diagrams. Excellent for visual learners who want to see every step illustrated. |
+| 3 | [Cameron Wolfe: Conditional Computation](https://cameronrwolfe.substack.com/p/conditional-computation-the-birth) | Deep historical survey from the 1991 Jacobs paper to modern transformers. |
+| 4 | [Cameron Wolfe: MoE LLMs](https://cameronrwolfe.substack.com/p/moe-llms) | Covers modern MoE models (Grok, DeepSeek-V3) and practical deployment. |
+| 5 | [Michael Brenndoerfer: Auxiliary Balancing Loss](https://mbrenndoerfer.com/writing/auxiliary-balancing-loss-mixture-of-experts-moe) | Interactive walk-through of the $f_i \cdot P_i$ formulation. Great for building intuition. |
+| 6 | [Michael Brenndoerfer: Top-K Routing](https://mbrenndoerfer.com/writing/top-k-routing-mixture-of-experts-expert-selection) | Interactive guide to how top-k routing works step by step. |
+| 7 | [makeMoE: Implement a Sparse MoE from Scratch](https://huggingface.co/blog/AviSoori1x/makemoe-from-scratch) | Hands-on PyTorch implementation. Best for learning-by-doing. |
+| 8 | [Shazeer et al., "Outrageously Large Neural Networks" (2017)](https://arxiv.org/abs/1701.06538) | The foundational paper. Read Section 2 (MoE structure) and Section 4 (balancing). |
+| 9 | [Fedus et al., "Switch Transformers" (2022)](https://arxiv.org/abs/2101.03961) | The paper that simplified MoE for modern transformers. The auxiliary loss derivation is in Section 2.2. |
+| 10 | [DeepSeek-V3 Technical Report (2024)](https://arxiv.org/abs/2412.19437) | State-of-the-art MoE at scale. Read the architecture section for loss-free balancing. |

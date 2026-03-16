@@ -1,0 +1,374 @@
+## Routing: How the Router Picks Experts {#sec-routing}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Shazeer et al., "The Sparsely-Gated MoE Layer," ICLR 2017](https://arxiv.org/abs/1701.06538) | Noisy top-k gating equations. |
+| 2 | [Fedus et al., "Switch Transformers," JMLR 2022](https://arxiv.org/abs/2101.03961) | Simplified top-1 routing. |
+| 3 | [Lepikhin et al., "GShard," 2020](https://arxiv.org/abs/2006.16668) | Top-2 routing with random second expert. |
+| 4 | [Jiang et al., "Mixtral of Experts," 2024](https://arxiv.org/abs/2401.04088) | Top-2 routing across 8 experts. |
+
+:::
+
+In @sec-introduction, we saw the MoE equation: $y = \sum_{i=1}^{N} G(x)_i \cdot E_i(x)$. The gate values $G(x)$ are sparse, meaning most entries are zero, and only $k$ experts actually contribute to the output. But we skipped over a crucial question: how does the model *compute* those gate values? What mechanism decides, for a given token, which $k$ experts to activate and how much weight to give each one?
+
+The answer is the *router* (also called the *gating network*). The router is a small neural network that sits in front of the expert pool and makes the assignment decision for every token that enters the MoE layer. Its job is conceptually simple: look at the token's hidden state, produce a score for each expert, pick the top scorers, and normalize. The implementation is equally simple. But the mathematical consequences of that "pick the top scorers" step are profound; they create the central training challenge of MoE. Let us trace the full routing pipeline, equation by equation, using our running example.
+
+### The Router as a Linear Layer
+
+The router is, at its core, just a single linear projection. Given a token's hidden state $x \in \mathbb{R}^{d_{\text{model}}}$, the router computes a score for each of the $N$ experts by multiplying $x$ with a learned weight matrix:
+
+$$
+h(x) = W_g \cdot x,
+$$ {#eq-router-linear}
+
+where $W_g \in \mathbb{R}^{N \times d_{\text{model}}}$ and the output $h(x) \in \mathbb{R}^N$ is a vector of $N$ raw *logits*, one per expert.
+
+That is it. No hidden layers, no activation functions, no attention. Just a matrix multiplication. The router's entire "intelligence" lives in the learned weights of $W_g$, which are updated during training through backpropagation just like any other parameter in the model.
+
+Let us make this concrete with our running example. The token "bank" arrives at the MoE layer with a 4096-dimensional hidden state (a typical size for models like Mixtral). The router weight matrix $W_g$ has shape $8 \times 4096$, since we have 8 experts. The router computes:
+
+$$
+h(\text{"bank"}) = W_g \cdot x_{\text{bank}} = \begin{bmatrix} 2.1 \\ 0.4 \\ -0.7 \\ 3.8 \\ 1.2 \\ -1.5 \\ 0.9 \\ -0.3 \end{bmatrix}
+$$
+
+These 8 numbers are *raw logits*. Expert 4 scored highest (3.8), Expert 1 came second (2.1), and Expert 6 scored lowest ($-1.5$). At this point, no selection has been made; we just have 8 numbers. The selection happens next.
+
+### Noisy Top-K Gating
+
+[Shazeer et al. (ICLR 2017)](https://arxiv.org/abs/1701.06538) observed that a deterministic router tends to lock into patterns early in training. If Expert 4 gets a slight edge on financial tokens during the first few batches, it keeps winning the argmax, keeps receiving those tokens, and keeps improving at them. The other experts never get a chance. This early lock-in is the beginning of the expert collapse problem we will examine in @sec-load-balancing-loss.
+
+To fight this, Shazeer et al. introduced *noisy top-k gating*: add learned Gaussian noise to the logits before selecting the top $k$. The noise injects randomness into the selection, giving borderline experts a chance to "win" the top-k race on some tokens. The amount of noise is not fixed. It is controlled by a second learned matrix $W_{\text{noise}} \in \mathbb{R}^{N \times d_{\text{model}}}$, allowing the model to increase or decrease exploration per expert as training progresses.
+
+The full gating computation proceeds in three steps:
+
+**Step 1: Compute noisy logits.** For each expert $i$, add Gaussian noise scaled by a learned, input-dependent noise term:
+
+$$
+H(x)_i = (x \cdot W_g)_i + \text{StandardNormal}() \cdot \text{Softplus}\big((x \cdot W_{\text{noise}})_i\big),
+$$ {#eq-noisy-logits}
+
+where $\text{Softplus}(z) = \ln(1 + e^z)$ ensures the noise scale is always positive. The $\text{StandardNormal}()$ draws are independent for each expert.
+
+**Step 2: Keep only the top $k$, mask the rest.** The $\text{KeepTopK}$ function sets all but the $k$ largest values to $-\infty$:
+
+$$
+\text{KeepTopK}(v, k)_i =
+\begin{cases}
+v_i & \text{if } v_i \text{ is among the top } k \text{ elements of } v, \\
+-\infty & \text{otherwise.}
+\end{cases}
+$$ {#eq-keeptopk}
+
+**Step 3: Apply softmax over the surviving logits** to produce the final gate values:
+
+$$
+G(x) = \text{Softmax}\big(\text{KeepTopK}(H(x), k)\big).
+$$ {#eq-gating}
+
+Because $e^{-\infty} = 0$, the softmax assigns zero weight to all masked experts. The $k$ surviving logits compete among themselves through softmax normalization, and their weights sum to 1.
+
+Let us trace this through our running example with $k = 2$. The raw logits for "bank" are $[2.1,\; 0.4,\; {-0.7},\; 3.8,\; 1.2,\; {-1.5},\; 0.9,\; {-0.3}]$. Suppose the noise draws (after scaling by the learned Softplus term) yield $[0.3,\; {-0.1},\; 0.5,\; {-0.2},\; 0.4,\; 0.1,\; {-0.3},\; 0.2]$. The noisy logits become:
+
+$$
+H(\text{"bank"}) = [2.4,\; 0.3,\; {-0.2},\; 3.6,\; 1.6,\; {-1.4},\; 0.6,\; {-0.1}]
+$$
+
+The top 2 values are Expert 4 (3.6) and Expert 1 (2.4). After $\text{KeepTopK}$:
+
+$$
+\text{KeepTopK}(H, 2) = [{2.4},\; {-\infty},\; {-\infty},\; {3.6},\; {-\infty},\; {-\infty},\; {-\infty},\; {-\infty}]
+$$
+
+Softmax over the two surviving logits:
+
+$$
+G(\text{"bank"})_1 = \frac{e^{2.4}}{e^{2.4} + e^{3.6}} = \frac{11.02}{11.02 + 36.60} = 0.231, \qquad G(\text{"bank"})_4 = \frac{e^{3.6}}{e^{2.4} + e^{3.6}} = \frac{36.60}{47.62} = 0.769.
+$$
+
+All other gate values are zero. Expert 4 gets about 77% of the weight and Expert 1 gets 23%. The MoE output for "bank" is then $y = 0.231 \cdot E_1(x) + 0.769 \cdot E_4(x)$.
+
+Notice what the noise did here. Without noise, Expert 5 (raw logit 1.2) had no chance of beating Expert 1 (raw logit 2.1). But with different noise draws, Expert 5 could have beaten Expert 1 for the second slot. That would have given Expert 5 the opportunity to process "bank" and receive gradient updates for financial tokens. This stochastic exploration is exactly the purpose of the noise.
+
+::: {.exercise-order correct="C,D,A,B"}
+
+Arrange the four steps of the noisy top-k gating pipeline in the correct order, from the token's raw hidden state to the final gate weights:
+
+- Select the top-k values from the noisy logits
+- Apply softmax over the surviving logits to produce normalized gate weights
+- Compute raw logits via the linear projection of the hidden state
+- Add learned Gaussian noise to the raw logits
+
+::: {.order-feedback}
+**Correct order: C, D, A, B.** The pipeline starts with the linear projection (C) to produce raw logits, then adds learned noise (D) to encourage exploration, then applies the top-k selection (A) to zero out all but the highest-scoring experts, and finally normalizes the surviving logits with softmax (B) to produce gate weights that sum to 1. This sequence matches @eq-router-linear, then @eq-noisy-logits, then @eq-keeptopk, then @eq-gating.
+:::
+
+:::
+
+### The Differentiability Paradox
+
+Here is where it gets interesting. Look at the $\text{KeepTopK}$ function in @eq-keeptopk. It is a *hard step function*: each element is either passed through unchanged or clamped to $-\infty$. There is no smooth transition between these two states. The function is piecewise constant with respect to each logit, so its gradient is zero almost everywhere and undefined at the exact boundary where two logits are tied.
+
+During the forward pass, this is fine. You compute the logits, sort them, keep the top $k$, zero out the rest. No problem. But during backpropagation, you need to propagate gradients backward through $\text{KeepTopK}$, and that is where the trouble starts.
+
+::: {.exercise-predict correct="B"}
+
+In our running example, Experts 1 and 4 were selected by top-2 routing for the token "bank." Expert 5 was not selected. During backpropagation, what happens to the gradient of the task loss with respect to Expert 5's router logit?
+
+- The gradient flows normally through the softmax, just with a smaller magnitude
+- The gradient is exactly zero because there is no differentiable path from the output to Expert 5's logit
+- The gradient is negative, pushing Expert 5's logit further down so it is less likely to be selected next time
+
+::: {.predict-reveal}
+**The answer is B.** The gradient is exactly zero. The KeepTopK function set Expert 5's logit to negative infinity, and this clamping operation has zero gradient. There is no differentiable path connecting Expert 5's logit to the output. The softmax *is* differentiable, but it only operates over the two surviving logits (Experts 1 and 4). Expert 5 exists in a "gradient dead zone": it receives no learning signal from this token whatsoever.
+:::
+
+:::
+
+Consider what the gradient "sees" at each expert:
+
+- **For the 2 selected experts** (Experts 1 and 4 in our example): the softmax in @eq-gating is differentiable over these two logits. The gradient from the loss flows through $G(x)_1$ and $G(x)_4$, through the softmax, and back into the router weights $W_g$. The router receives a clear signal: "you should have given Expert 4 *more* weight" or "Expert 1 deserved *less*." The softmax gradient tells the router how to adjust the *relative* weighting of the selected experts.
+
+- **For the 6 non-selected experts** (Experts 2, 3, 5, 6, 7, 8): their gate values are exactly zero, and this zero came from the $\text{KeepTopK}$ step, not from the softmax. There is no differentiable path connecting these experts' logits to the output. The gradient of $\text{KeepTopK}$ with respect to a non-selected logit is zero. Formally: $\frac{\partial G(x)_j}{\partial H(x)_j} = 0$ for any non-selected expert $j$.
+
+**This gradient asymmetry is the core problem of top-k routing.** Selected experts receive gradient updates and can improve. Non-selected experts are invisible to the gradient and cannot improve (at least not through the standard task loss). The router can learn to shift weight *between* its current favorites, but it cannot learn that an entirely different expert would have been a better choice. The non-selected experts exist in a gradient dead zone.
+
+```{.d2}
+# =========================================================================
+# 1. LAYOUT CONFIGURATION
+# =========================================================================
+direction: right
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+# =========================================================================
+# 2. DESIGN SYSTEM
+# =========================================================================
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 14
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  dead: {
+    style: {
+      stroke: "#D1D5DB"
+      fill: "#F3F4F6"
+      font-color: "#9CA3AF"
+      stroke-dash: 5
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 16
+      bold: true
+    }
+  }
+}
+
+# =========================================================================
+# 3. CONTENT
+# =========================================================================
+
+# --- Forward pass (top) ---
+forward: {
+  class: container
+  label: "Forward Pass"
+  label.near: top-left
+
+  logits: {
+    class: [base; input]
+    label: "  8 Noisy Logits  "
+  }
+  topk: {
+    class: [base; decision]
+    label: "  KeepTopK (k=2)  "
+  }
+  selected: {
+    class: [base; process]
+    label: "  2 Surviving Logits  "
+  }
+  softmax: {
+    class: [base; process]
+    label: "  Softmax  "
+  }
+  output: {
+    class: [base; output]
+    label: "  Gate Weights  "
+  }
+
+  logits -> topk: "all 8" {style.stroke: "#10B981"}
+  topk -> selected: "keep 2" {style.stroke: "#10B981"}
+  selected -> softmax: "" {style.stroke: "#10B981"}
+  softmax -> output: "" {style.stroke: "#10B981"}
+}
+
+# --- Backward pass (bottom) ---
+backward: {
+  class: container
+  label: "Backward Pass (Gradients)"
+  label.near: top-left
+
+  loss: {
+    class: [base; output]
+    label: "  Task Loss  "
+  }
+  grad_softmax: {
+    class: [base; process]
+    label: "  Softmax Gradient  "
+  }
+  grad_selected: {
+    class: [base; process]
+    label: "  Selected Experts  "
+  }
+  grad_topk: {
+    class: [base; highlight]
+    label: "  KeepTopK Gradient = 0  "
+  }
+  grad_nonselected: {
+    class: [base; dead]
+    label: "  6 Non-Selected Experts  "
+  }
+
+  loss -> grad_softmax: "flows" {style.stroke: "#10B981"}
+  grad_softmax -> grad_selected: "flows" {style.stroke: "#10B981"}
+  grad_selected -> grad_topk: "" {style.stroke: "#10B981"}
+  grad_topk -> grad_nonselected: "BLOCKED (zero gradient)" {
+    style.stroke: "#F43F5E"
+    style.stroke-dash: 5
+    style.font-color: "#F43F5E"
+  }
+}
+```
+
+The diagram above shows the asymmetry. On the forward pass, all eight logits flow through $\text{KeepTopK}$ and two survive. On the backward pass, gradients flow smoothly from the loss through the softmax and back to the two selected experts' logits. But at the $\text{KeepTopK}$ boundary, the gradient to the six non-selected experts is zero. Those six experts receive *no learning signal* from this token.
+
+::: {.callout-warning title="Common Misconception: Top-k routing is fully differentiable because we apply softmax."}
+
+This claim is one of the most frequent misunderstandings about MoE. The softmax in @eq-gating *is* differentiable, but it runs only on the $k$ surviving logits. The selection of *which* $k$ logits survive is the non-differentiable step. The softmax tells the router how to distribute weight among the experts it already chose; it says nothing about whether it chose the right experts in the first place.
+
+Think of it this way: if you are choosing between two restaurants for dinner and then deciding how much to eat at each one, the "how much to eat" decision is smooth and adjustable. The "which two restaurants" decision is discrete. The softmax handles the first decision. The $\text{KeepTopK}$ handles the second. Only the first one has gradients.
+
+:::
+
+So how does the router improve at all? Through two mechanisms. First, the noise in @eq-noisy-logits provides stochastic exploration: even if Expert 5 is not in the top 2 on this token, it might get selected on the next occurrence of a similar token due to different noise draws. When it is selected, it receives gradients and can improve.
+
+Second, and more importantly, the auxiliary load-balancing loss (which we will derive in @sec-load-balancing-loss) provides a differentiable signal that pushes the router to spread tokens across experts. That loss does not flow through the $\text{KeepTopK}$ step at all; it operates on the softmax probabilities directly, giving the router a gradient even for non-selected experts.
+
+::: {.exercise-mcq correct="C"}
+
+A colleague claims: "Top-k routing in MoE is fully differentiable because the softmax function is differentiable." What is wrong with this claim?
+
+- The softmax function is not actually differentiable; it has discontinuities at zero
+- The linear projection in the router has no learnable parameters, so gradients cannot flow at all
+- The softmax is differentiable but only operates on the k surviving logits; the selection of *which* k logits survive is a non-differentiable hard step done by KeepTopK
+- The noise added to the logits destroys the gradient signal, making the entire pipeline non-differentiable
+
+::: {.feedback-correct}
+Exactly. The softmax *is* differentiable, and it provides useful gradients for redistributing weight *among the selected experts*. But the upstream KeepTopK operation is a hard step function: it either passes a logit through or clamps it to negative infinity, with zero gradient in both cases. The non-differentiable bottleneck is the *selection* step, not the *weighting* step. The softmax tells the router how to distribute weight among the experts it already chose; it says nothing about whether it chose the right experts.
+:::
+
+::: {.feedback-incorrect}
+Think carefully about which part of the pipeline is non-differentiable. The softmax is smooth and differentiable. The linear projection has learnable weights. The noise is a smooth perturbation. The problem is specifically with the KeepTopK function, which performs a hard discrete selection: each logit is either passed through unchanged or clamped to negative infinity. That hard selection has zero gradient.
+:::
+
+:::
+
+### Top-1 vs Top-2: Simplicity vs Stability
+
+With the routing mechanics in place, a natural question arises: how many experts should each token go to? The value of $k$ turns out to matter a great deal.
+
+**Top-1 routing** was introduced by the Switch Transformer ([Fedus et al., JMLR 2022](https://arxiv.org/abs/2101.03961)). Each token goes to exactly one expert. The softmax degenerates to a single selected expert with weight 1.0, and the MoE output is just $y = E_i(x)$ for whichever expert $i$ has the highest logit. The advantage is pure efficiency: with top-1, you compute one expert FFN per token instead of two, cutting the MoE computation in half compared to top-2. The disadvantage is fragility. If the router makes a mistake and sends "bank" to the wrong expert, there is no backup. The entire output comes from a single, possibly wrong, source.
+
+**Top-2 routing** was adopted by GShard ([Lepikhin et al., 2020](https://arxiv.org/abs/2006.16668)) and later by Mixtral ([Jiang et al., 2024](https://arxiv.org/abs/2401.04088)). Each token goes to two experts, and their outputs are combined using the softmax gate weights. The Mixtral formulation makes this explicit:
+
+$$
+y = \sum_{i \in \text{Top}_2(x)} G(x)_i \cdot E_i(x),
+$$ {#eq-mixtral-output}
+
+where $\text{Top}_2(x)$ is the set of two experts with the highest gating scores for token $x$, and the gate values $G(x)_i$ are the softmax-normalized scores over those two experts.
+
+The second expert provides a "safety net." If the router is slightly wrong about the best expert, the second expert can partially compensate. More importantly, the second expert expands the gradient signal: both selected experts receive task-loss gradients, giving the router more information about which expert pairings work well. This richer feedback helps the router explore the expert space more effectively during training.
+
+The tradeoff is straightforward. Top-1 is 2x cheaper per token (one expert computation instead of two) but less robust to routing errors. Top-2 is more expensive but provides richer gradient signal and more stable training dynamics. In practice, most production MoE systems use top-2 routing. Mixtral 8x7B activates 2 of its 8 experts per token, which means each token sees 13B of the model's 47B total parameters.
+
+::: {.exercise-mcq correct="B"}
+
+Mixtral 8x7B uses top-2 routing across 8 experts. Beyond the obvious "safety net" benefit of a second expert, what is the less obvious training advantage of top-2 over top-1 routing?
+
+- Top-2 doubles the model's total parameter count compared to top-1
+- Top-2 provides gradient signal to two experts per token instead of one, giving the router more information about which expert pairings work well
+- Top-2 eliminates the gradient dead zone entirely because both experts receive gradients
+- Top-2 removes the need for the auxiliary load-balancing loss because the second expert slot naturally distributes tokens
+
+::: {.feedback-correct}
+Correct. With top-2 routing, both selected experts receive task-loss gradients on every token, giving the router twice as many data points about which experts are useful for which inputs. This richer gradient signal helps the router explore the expert space more effectively during training. However, 6 out of 8 experts still receive zero gradient per token (the gradient dead zone is reduced but not eliminated), and the load-balancing loss is still needed to prevent collapse.
+:::
+
+::: {.feedback-incorrect}
+Consider what "richer gradient signal" means in concrete terms. Top-2 does not change the total parameter count (the 8 experts exist regardless of how many are activated). It does not eliminate the gradient dead zone (with 8 experts and top-2, 6 experts still get zero gradient per token). And the load-balancing loss is still needed to prevent collapse. The key advantage is that 2 experts learn per token instead of 1, which gives the router more information about expert quality.
+:::
+
+:::
+
+::: {.callout-note title="Think Hard: Why not use soft routing where ALL experts process every token with softmax weights?"}
+
+If the differentiability problem comes from hard top-k selection, you might wonder: why not skip the selection entirely? Let every expert process every token, weighted by softmax probabilities. That would be fully differentiable. No $\text{KeepTopK}$, no gradient dead zones, no auxiliary losses needed.
+
+The answer is that soft routing destroys the entire computational advantage of MoE. If all $N$ experts process every token, you are computing $N$ expert FFNs per token instead of $k$. With $N = 8$ and $k = 2$, that is a 4x increase in compute. With $N = 64$, it is a 32x increase. You would have a model with $N$ times the parameters *and* $N$ times the compute cost. That is just a very expensive dense model with extra steps.
+
+The whole point of MoE is *sparse* conditional computation: most experts are idle for most tokens. Soft routing would activate all experts for all tokens, which is dense computation with a more complicated architecture. The hard top-k selection is not a bug; it is the feature that makes MoE efficient. The differentiability cost of that hard selection is the price you pay for sparse computation, and the auxiliary loss (coming up in @sec-load-balancing-loss) is the engineering solution that makes the price manageable.
+
+:::
+
+With the routing pipeline fully specified, we can now name the problem precisely. The router produces useful gate weights for the $k$ selected experts via the differentiable softmax. It explores the expert space stochastically via learned noise. But it has no direct gradient signal about the $N - k$ non-selected experts. In a model with 8 experts and top-2 routing, the router is blind to 75% of the expert pool on every token. If one expert starts receiving too many tokens (because its logits are consistently high) and others receive too few (because their logits are consistently low), the system can spiral into *expert collapse*. Most of the model's capacity goes unused.
+
+Preventing that collapse is the job of the auxiliary load-balancing loss, which we turn to next.

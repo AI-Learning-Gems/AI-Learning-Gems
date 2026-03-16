@@ -1,0 +1,171 @@
+## Capacity Factors, Token Dropping, and the Systems View {#sec-capacity-and-systems}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Fedus et al., "Switch Transformers," JMLR 2022](https://arxiv.org/abs/2101.03961) | Capacity factor definition and design choices. |
+| 2 | [Gale et al., "MegaBlocks: Efficient Sparse Training with MoE," MLSys 2023](https://arxiv.org/abs/2211.15841) | Block-sparse MoE eliminating token dropping. |
+| 3 | [Qiu et al., "Demons in the Detail," 2025](https://arxiv.org/abs/2501.11873) | Micro-batch vs global-batch load balancing. |
+| 4 | [HuggingFace, "Mixture of Experts Explained"](https://huggingface.co/blog/moe) | Practical training and serving challenges. |
+
+:::
+
+The auxiliary loss from @sec-load-balancing-loss gives you a mechanism to *encourage* balanced routing, but encouragement is not the same as a guarantee. On any given forward pass, some experts will still receive more tokens than others. Maybe the batch happens to be code-heavy and the "syntax expert" is popular; maybe training has only just started and the router is still semi-random. Either way, you face a concrete engineering question: what do you do when an expert receives more tokens than it can physically handle?
+
+This overflow problem is where the theory of load balancing meets the reality of GPU memory and fixed-size tensor operations. The answer involves a quantity called the *capacity factor*, a painful compromise called *token dropping*, and a clever reformulation that eliminates the problem entirely.
+
+### The Capacity Factor
+
+When $N$ experts share a batch of $T$ tokens, each expert's "fair share" under perfectly balanced routing is $T/N$ tokens. In practice, routing is never perfectly balanced, so you need some headroom. The capacity factor $C$ sets the maximum number of tokens any single expert is allowed to process:
+
+$$
+\text{expert buffer size} = \left\lceil C \cdot \frac{T}{N} \right\rceil
+$$ {#eq-capacity}
+
+The ceiling ensures an integer count. Typical values for $C$ range from 1.0 (no headroom; only perfectly balanced routing avoids overflow) to 1.5 (50% extra room for imbalance). [Fedus et al. (JMLR 2022)](https://arxiv.org/abs/2101.03961) used $C = 1.0$ for Switch Transformers with top-1 routing, and $C = 1.25$ as a common setting for top-2 systems.
+
+To make this concrete, return to our running example: 8 tokens, 4 experts, top-1 routing, and $C = 1.25$. The fair share is $8 / 4 = 2$ tokens per expert. The capacity is $\lceil 1.25 \times 2 \rceil = 3$ tokens. Each expert's buffer can hold at most 3 tokens.
+
+::: {.exercise-mcq correct="B"}
+
+Suppose you have a batch of 16 tokens distributed across 4 experts with a capacity factor of $C = 1.5$. What is each expert's buffer size?
+
+- 4
+- 6
+- 8
+- 16
+
+::: {.feedback-correct}
+Correct. The fair share is $T/N = 16/4 = 4$ tokens per expert. The buffer size is $\lceil C \cdot T/N \rceil = \lceil 1.5 \times 4 \rceil = \lceil 6.0 \rceil = 6$.
+:::
+
+::: {.feedback-incorrect}
+Remember: the buffer size formula is $\lceil C \cdot T/N \rceil$. The fair share is $16/4 = 4$, but you must multiply by the capacity factor $C = 1.5$ before taking the ceiling: $\lceil 1.5 \times 4 \rceil = 6$.
+:::
+
+:::
+
+Why not set $C$ very high, say $C = 4.0$, and avoid overflow entirely? Because the capacity factor determines the actual memory allocated for each expert's input buffer. On a GPU, these buffers are pre-allocated tensors with a fixed shape of $(\text{expert buffer size}, d_{\text{model}})$. Higher $C$ means larger tensors, more memory consumption, and wasted compute when those extra slots go unfilled (padding with zeros). In a model with 64 experts distributed across many devices, a capacity factor of 4.0 would quadruple the memory footprint of the expert buffers compared to $C = 1.0$. The capacity factor is a tradeoff between robustness to routing imbalance and memory efficiency.
+
+### Token Dropping
+
+Here is the uncomfortable consequence: when an expert receives more tokens than its buffer can hold, the excess tokens are *dropped*. They skip the expert computation entirely and pass through the layer via the residual connection, as if the MoE layer did not exist for them.
+
+Continue the running example. Suppose the router assigns tokens to the 4 experts as follows: Expert 1 gets 1 token, Expert 2 gets 1 token, Expert 3 gets 5 tokens, and Expert 4 gets 1 token. With a capacity of 3, Expert 3 can only process 3 of its 5 tokens. The remaining 2 tokens are dropped. They receive no expert processing for this layer. Their representation passes unchanged through the residual connection.
+
+![Standard MoE routing showing how tokens are assigned to experts. Source: Gale et al. (2023), Figure 1.](Mixture of Experts/images/megablocks-moe-explained.png){#fig-moe-explained}
+
+![Token dropping in standard MoE: when an expert exceeds its capacity, overflow tokens are dropped and passed through the residual connection. Source: Gale et al. (2023), Figure 2.](Mixture of Experts/images/megablocks-token-dropping.png){#fig-token-dropping}
+
+Token dropping is not a minor nuisance. It has three serious consequences:
+
+1. **Information loss during training.** Dropped tokens miss an entire FFN computation. In a 32-layer transformer where every other layer is MoE, a token that gets dropped frequently might skip 8 or more expert layers. The model trains on a degraded version of those tokens' representations.
+
+2. **Especially harmful early in training.** When the router is still semi-random (early training epochs), routing is maximally imbalanced. Some experts overflow constantly while others sit idle. This is precisely when the model needs every gradient update the most.
+
+3. **Non-deterministic compute graph.** Which tokens are dropped depends on the batch composition, which varies between training steps. Two batches with identical individual tokens but different co-occurring tokens can produce different dropping patterns. This complicates debugging and reproducibility.
+
+The auxiliary loss from the previous section helps reduce dropping by encouraging balanced routing, but it cannot eliminate it. The loss provides a soft pressure toward balance; it does not enforce a hard constraint. As long as expert buffers have fixed capacity, some overflow is inevitable on some batches.
+
+::: {.exercise-fillin}
+
+Walk through what happens when Expert 3 receives 5 tokens but has a buffer capacity of 3:
+
+1. The router assigns 5 tokens to Expert 3 based on top-k routing scores.
+2. Expert 3's buffer can hold at most 3 tokens (set by the capacity factor).
+3. Expert 3 processes the first 3 tokens that arrive. The remaining 2 tokens are {B|A: sent to the next-best expert|B: dropped and passed through the residual connection unchanged|C: queued and processed in the next forward pass}.
+4. The dropped tokens receive no expert computation for this layer.
+
+::: {.fillin-feedback}
+**Correct: B.** Dropped tokens skip the expert FFN entirely. They are not rerouted to another expert or queued for later. They pass through the residual connection as if the MoE layer did not exist for them. This is why token dropping is harmful: those tokens miss an entire FFN computation at that layer.
+:::
+
+:::
+
+::: {.exercise-predict correct="A"}
+
+Token dropping wastes tokens, and the capacity factor wastes memory on padding. The MegaBlocks paper proposes a solution. Before reading about it, predict: what is the core idea behind eliminating token dropping?
+
+- Reformulate the MoE layer as a single block-sparse matrix multiplication, so each expert's batch can be a different size without fixed buffers
+- Increase the capacity factor to a very large value and accept the memory cost
+- Route every token to all experts with very small weights, so no expert overflows
+
+::: {.predict-reveal}
+**The answer is A.** MegaBlocks reframes the problem entirely. Instead of pre-allocating fixed-size buffers for each expert, it represents the entire MoE layer as a single block-sparse matrix multiplication. Each expert's weight matrix is a block on the diagonal, and the blocks can be different sizes depending on how many tokens are routed to each expert. Custom GPU kernels (built on Triton) handle these variable-sized blocks efficiently.
+:::
+
+:::
+
+### The MegaBlocks Solution: Dropless MoE
+
+[Gale et al. (MLSys 2023)](https://arxiv.org/abs/2211.15841) asked a simple question: what if we didn't need fixed-size expert buffers at all?
+
+The standard MoE implementation pre-allocates a buffer of shape $(\text{expert buffer size}, d_{\text{model}})$ for each expert, then routes tokens into these fixed-capacity slots. MegaBlocks reframes the problem entirely. Instead of treating each expert as an independent function with its own buffer, MegaBlocks represents the entire MoE layer as a single **block-sparse matrix multiplication**. Each expert's weight matrix occupies a block along the diagonal, and the token-to-expert assignment determines which blocks of the input matrix are non-zero.
+
+The key insight: block-sparse matrix multiplication does not require fixed-size blocks. If Expert 3 receives 5 tokens and Expert 1 receives 1 token, the corresponding blocks are simply different sizes. Custom GPU kernels (built on top of the Triton compiler) handle these variable-sized blocks efficiently by packing them into a single sparse matrix operation.
+
+![Block-sparse format used by MegaBlocks to represent variable-sized expert batches without token dropping. Source: Gale et al. (2023), Figure 3.](Mixture of Experts/images/megablocks-block-sparse.png){#fig-block-sparse}
+
+The result is *dropless MoE*: every token is processed by its assigned expert, regardless of how imbalanced the routing is. No tokens are dropped, no information is lost, and no memory is wasted on padding. The block-sparse kernels achieve throughput competitive with dense matrix multiplications on modern GPUs, making the approach practical for large-scale training.
+
+The dropless design matters because it decouples two concerns that standard MoE entangles. With standard MoE, the capacity factor simultaneously controls memory allocation, compute waste (padding), and information loss (dropping). With MegaBlocks, memory and compute adapt to the actual routing pattern, and the only concern left is whether the load-balancing loss produces enough balance for good hardware utilization across devices.
+
+### The Balance-Specialization Tradeoff
+
+The auxiliary load-balancing loss from @sec-load-balancing-loss encourages uniform routing. The capacity factor punishes deviations from uniformity by dropping overflow tokens. Together, they exert strong pressure toward balanced routing. But balanced routing and good model quality are not the same thing.
+
+The "Demons in the Detail" paper ([Qiu et al., 2025](https://arxiv.org/abs/2501.11873)) demonstrated a striking consequence of this pressure. They showed that computing the load-balancing loss per *micro-batch* (the small subset of the global batch that sits on each GPU) forces routing to be uniform within each micro-batch. This seems reasonable until you consider what happens when a micro-batch consists entirely of code. If the batch is all Python, you *want* the "code-syntax expert" to receive most of those tokens. Uniform routing across all experts means spreading code tokens to experts that have specialized in natural language punctuation or named entities. You are actively preventing the model from using its experts effectively.
+
+Per-micro-batch balancing forces the model into a lose-lose situation: either the experts de-specialize (routing becomes uniform for all input types) or the auxiliary loss penalty grows large (the model tries to specialize but gets punished for it). Global-batch balancing is the better approach. By computing $f_i$ and $P_i$ over the full batch (aggregated across all GPUs), the loss allows local imbalance within individual micro-batches while enforcing balance at the corpus level. A code-heavy micro-batch can route heavily to code experts, as long as a prose-heavy micro-batch on another GPU compensates.
+
+**This is the fundamental tension in MoE design: you want experts to specialize (handle different inputs differently) AND you want them to be equally loaded (so no compute is wasted).** These goals pull in opposite directions. Specialization means some experts are more popular for certain inputs; equal load means no expert is more popular than any other.
+
+::: {.exercise-mcq correct="C"}
+
+A model is trained with per-micro-batch load balancing. One micro-batch on GPU 1 consists entirely of Python code, while another micro-batch on GPU 2 consists of English prose. What happens to the routing on GPU 1?
+
+- The code-syntax expert receives all Python tokens, achieving good specialization
+- The load-balancing loss is turned off for domain-specific micro-batches
+- The auxiliary loss forces Python tokens to spread across all experts, including those specialized for prose, preventing the code expert from specializing
+- The router ignores the auxiliary loss when it detects domain-specific input
+
+::: {.feedback-correct}
+Correct. Per-micro-batch balancing computes the balance penalty within each GPU's local batch. If that batch is all code, the loss forces uniform routing across all experts for those code tokens. This actively prevents the model from routing code tokens to code-specialized experts, since that would create imbalance within the micro-batch. Global-batch balancing solves this by computing the balance metric across all GPUs, allowing local imbalance as long as the corpus-level distribution is balanced.
+:::
+
+::: {.feedback-incorrect}
+Per-micro-batch balancing computes the load-balancing loss on each GPU's local batch independently. When a micro-batch is all code, the loss pushes for uniform routing of those code tokens across all experts. This forces code tokens to experts that have no code specialization, degrading quality. Global-batch balancing is the fix: it allows local imbalance on individual GPUs while enforcing balance at the corpus level.
+:::
+
+:::
+
+::: {.callout-warning}
+
+**Common Misconception: Experts specialize by topic (Expert 1 = math, Expert 2 = code, Expert 3 = biology).**
+
+Empirical studies of trained MoE models show a different picture. Experts tend to specialize at the *syntactic* and *token-type* level, not the *semantic* or *topic* level. The same expert might handle function definitions across all programming languages, or handle punctuation tokens regardless of domain. Another expert might specialize in numerical expressions whether they appear in a math proof, a financial report, or a weather forecast. Clean topic-level specialization (one expert per domain) is the exception, not the rule. The router learns to partition the token space along whatever boundaries reduce the training loss most efficiently, and those boundaries turn out to be syntactic far more often than semantic.
+
+:::
+
+::: {.callout-note}
+
+**Think Hard: Is the balance-specialization tradeoff always a Pareto tradeoff, or can we achieve both?**
+
+Expert Choice routing (covered in @sec-alternative-routing) achieves perfect balance by construction while still allowing specialization. The mechanism: instead of tokens choosing experts, each expert picks the top-$k$ tokens it wants to process. Every expert processes exactly $T/N$ tokens (perfect balance), but each expert selects the tokens most relevant to its learned specialization. The key insight is that **perfect token-count balance does not require uniform routing probabilities**. You can have exactly $T/N$ tokens per expert where each expert gets a distinct, specialized subset of the batch. Balance and specialization are only in tension when balance is enforced through the routing probabilities themselves (via the auxiliary loss). When balance is enforced through the selection mechanism (letting experts pick), the tradeoff largely disappears.
+
+:::
+
+### Systems Costs: The Price of Sparsity
+
+Even with balanced routing and no token dropping, MoE layers impose real engineering costs that dense models avoid. Three stand out.
+
+**Communication overhead.** In a distributed training setup, tokens live on one device but their assigned experts may live on another. Routing tokens to their experts requires *all-to-all* communication: every device sends tokens to every other device. This is one of the most expensive collective operations in distributed computing. The communication cost grows with the number of devices and the number of experts.
+
+**Memory footprint.** Only $k$ out of $N$ experts activate per token, but *all* $N$ experts must be stored in memory. A Mixtral 8x7B model has 47 billion parameters total but only 13 billion active per token. You still need enough VRAM to hold all 47 billion parameters (plus optimizer states during training). For inference, this means MoE models require more memory than a dense model with equivalent active parameters. You get the compute cost of a 13B model but the memory cost closer to a 47B model.
+
+**Expert parallelism.** Distributing experts across devices (expert parallelism) introduces load-imbalance at the hardware level, even if token routing is balanced at the algorithmic level. One device may finish processing its experts' tokens before another device, leading to idle time. Combining expert parallelism with data parallelism and tensor parallelism creates a three-dimensional parallelism problem that requires careful tuning.
+
+The concise summary: MoE gives you the compute cost of a small model and the capacity of a large model, but the *memory* cost and *communication* cost of a large model. Only $k/N$ of the parameters are active per token, but 100% of the parameters must be stored, communicated, and synchronized. The compute-memory tradeoff is favorable for training (where compute dominates cost) and for autoregressive decoding (where per-token compute is the bottleneck), but less favorable for the prefill phase of inference (where memory bandwidth is often the bottleneck).
+
+With the systems picture clear, we can move beyond standard top-k routing and its associated complexity. The next section explores three alternative routing strategies that each solve the balance-specialization-dropping trifecta in a fundamentally different way: Expert Choice routing, auxiliary-loss-free balancing, and fully differentiable ReLU routing.

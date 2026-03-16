@@ -1,0 +1,19 @@
+---
+title: "Mixture of Experts in Transformers"
+filters:
+  - ../_extensions/pandoc-ext/diagram/diagram.lua
+---
+
+{{< include "Mixture of Experts/_01-introduction.qmd" >}}
+
+{{< include "Mixture of Experts/_02-routing.qmd" >}}
+
+{{< include "Mixture of Experts/_03-load-balancing-loss.qmd" >}}
+
+{{< include "Mixture of Experts/_04-capacity-and-systems.qmd" >}}
+
+{{< include "Mixture of Experts/_05-alternative-routing.qmd" >}}
+
+{{< include "Mixture of Experts/_06-moe-in-the-wild.qmd" >}}
+
+{{< include "Mixture of Experts/_99-closing.qmd" >}}

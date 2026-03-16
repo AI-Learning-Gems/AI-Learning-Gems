@@ -1,0 +1,200 @@
+## Beyond Top-K: Alternative Routing Strategies {#sec-alternative-routing}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Zhou et al., "Mixture-of-Experts with Expert Choice Routing," NeurIPS 2022](https://arxiv.org/abs/2202.09368) | Experts choose tokens; perfect load balance by construction. |
+| 2 | [Wang et al., "Auxiliary-Loss-Free Load Balancing Strategy for MoE," 2024](https://arxiv.org/abs/2408.15664) | Dynamic bias terms, no auxiliary loss. |
+| 3 | [DeepSeek-AI, "DeepSeek-V3 Technical Report," 2024](https://arxiv.org/abs/2412.19437) | 671B MoE using loss-free balancing at scale. |
+| 4 | [Wang et al., "ReMoE: Fully Differentiable MoE with ReLU Routing," ICLR 2025](https://arxiv.org/abs/2412.14711) | ReLU replaces TopK+Softmax entirely. |
+
+:::
+
+The auxiliary load-balancing loss from @sec-load-balancing-loss is the workhorse of standard MoE training. It works. But it has a fundamental tension baked in: the auxiliary loss and the task loss point in different directions. The task loss says "route this token to the expert that will produce the best output." The auxiliary loss says "route more tokens to underused experts, even if they are not the best choice right now." These two signals collide inside the same gradient update, and the collision slows training.
+
+Over the past three years, researchers have proposed three fundamentally different answers to the routing problem. Each one attacks the limitations of standard top-k routing from a different angle. Expert Choice routing flips the direction of the assignment. Loss-free balancing removes the auxiliary loss entirely. ReLU routing removes the top-k selection step itself. By the end of this section, you will understand all three approaches and the tradeoffs between them.
+
+### Expert Choice Routing
+
+What if, instead of each token choosing its favorite experts, each expert chose its favorite tokens?
+
+This is the core idea behind Expert Choice routing, introduced by [Zhou et al. (NeurIPS 2022)](https://arxiv.org/abs/2202.09368). It sounds like a small change, but its consequences are profound. Standard top-k routing lets tokens compete for experts, so popular experts get overwhelmed while unpopular ones sit idle. Expert Choice flips the assignment direction: experts compete for tokens.
+
+The mechanism works as follows. The router computes a score matrix $S$ over all tokens and all experts, exactly as before:
+
+$$
+S_{ij} = \text{Softmax}(W_g \cdot x_j)_i,
+$$
+
+where $S_{ij}$ is expert $i$'s affinity for token $j$. In standard routing, you would scan each column of $S$ (one token) and pick the top-$k$ rows (experts). In Expert Choice, you scan each row of $S$ (one expert) and pick the top-$k$ columns (tokens). Each expert selects the $k$ tokens it most wants to process.
+
+The beauty of this reversal is that load balance comes for free. If you have $N$ experts and each selects exactly $k$ tokens, then each expert processes exactly $k$ tokens. No expert is overloaded. No expert is underloaded. **Load balance is perfect by construction, with no auxiliary loss needed.**
+
+But tokens are no longer guaranteed to be processed. In standard routing, every token goes to at least one expert. In Expert Choice, a token that no expert selects simply goes unprocessed (it passes through the residual connection with no expert computation applied). Conversely, a highly informative token might be selected by many experts, receiving more processing than average. The assignment is heterogeneous: some tokens get zero experts, some get one, and popular tokens might get three or four.
+
+Let us trace this through our running example. We have 8 tokens and 4 experts, with each expert choosing its top-2 tokens:
+
+- Expert 1 picks "bank" and "approved" (high affinity for financial tokens)
+- Expert 2 picks "loan" and "property" (high affinity for nouns related to assets)
+- Expert 3 picks "the" and "for" (function words)
+- Expert 4 picks "bank" and "riverside" (geographical terms)
+
+Every expert processes exactly 2 tokens. Balance is perfect. Notice that "bank" was selected by both Expert 1 and Expert 4; it receives double the processing, which makes sense given its ambiguity. Meanwhile, any token not appearing in the lists above would pass through unprocessed.
+
+![Expert Choice routing compared to standard token-choice routing. In expert choice, each expert selects its preferred tokens, guaranteeing perfect load balance. Source: Fedus et al. (2022), Figure from Switch Transformers.](Mixture of Experts/images/switch-expert-choice.png){#fig-expert-choice}
+
+[Zhou et al. (NeurIPS 2022)](https://arxiv.org/abs/2202.09368) reported that Expert Choice achieves 2x faster training convergence compared to Switch Transformer on equivalent architectures. The elimination of the auxiliary loss and the guarantee of perfect balance mean that every gradient update is fully devoted to improving the model's task performance. There is no budget spent fighting the auxiliary loss's conflicting signal.
+
+The tradeoff is clear: you gain perfect balance and faster convergence, but you lose the guarantee that every token gets processed. In practice, this is manageable. Most tokens are selected by at least one expert, and the residual connection ensures that unprocessed tokens still carry forward their original hidden states. The model learns to route the tokens that matter most to the right experts, and to let through the tokens (like common stop words) where expert processing adds little value.
+
+::: {.exercise-mcq correct="B"}
+
+In Expert Choice routing, which entity makes the selection decision?
+
+- Each token selects its top-k preferred experts based on router scores
+- Each expert selects its top-k preferred tokens based on affinity scores
+- A central scheduler assigns tokens to experts using a matching algorithm
+- Tokens are randomly assigned to experts with equal probability
+
+::: {.feedback-correct}
+Correct. Expert Choice flips the standard routing direction. Instead of scanning columns of the score matrix (one token, picking top-k experts), you scan rows (one expert, picking top-k tokens). Each expert selects the tokens it most wants to process. This guarantees perfect load balance because every expert processes exactly k tokens.
+:::
+
+::: {.feedback-incorrect}
+In standard top-k routing, tokens choose experts. Expert Choice reverses this: each expert scans its row of the score matrix and selects the top-k tokens with the highest affinity. This reversal is what guarantees perfect load balance by construction, since every expert processes exactly k tokens.
+:::
+
+:::
+
+::: {.exercise-predict correct="B"}
+
+The next approach keeps standard top-k routing but removes the auxiliary loss entirely. Before reading about the mechanism, predict: what is the core problem with the auxiliary loss that motivates removing it?
+
+- The auxiliary loss is too computationally expensive to compute at scale
+- The auxiliary loss gradient conflicts with the task loss gradient, slowing convergence because the router receives contradictory optimization signals
+- The auxiliary loss only works with top-1 routing and fails for top-2 or higher
+
+::: {.predict-reveal}
+**The answer is B.** The task loss says "route this token to the best expert" while the auxiliary loss says "route more tokens to underused experts, even if they are not the best." These two gradients collide inside the same optimizer step, forcing a compromise that is worse than either signal alone. Loss-free balancing removes this collision by using a non-gradient feedback controller (dynamic bias terms) to handle load balance, leaving the gradient entirely free for the task loss.
+:::
+
+:::
+
+### Auxiliary-Loss-Free Load Balancing
+
+Expert Choice solves the load balance problem by changing who does the choosing. The second approach takes a completely different path: it keeps standard top-k routing but removes the auxiliary loss entirely, replacing it with a simple feedback controller.
+
+The key observation is that the auxiliary loss produces *interference gradients*. [Wang et al. (2024)](https://arxiv.org/abs/2408.15664) introduced this idea, and [DeepSeek-V3 (DeepSeek-AI, 2024)](https://arxiv.org/abs/2412.19437) deployed it at massive scale. Consider what happens during a training step. The task loss says "Expert 4 gives the best output for this token; increase the router probability for Expert 4." The auxiliary loss says "Expert 4 already has too many tokens; decrease the router probability for Expert 4." These two gradients collide. The optimizer must compromise, and the compromise is worse than either signal alone. The router update is pulled in two directions, slowing convergence.
+
+The solution is elegant: instead of adding a loss term, add a per-expert bias $b_i$ to the routing scores *before* the top-k selection:
+
+$$
+\tilde{s}_i = s_i + b_i,
+$$
+
+where $s_i$ is the raw router score for expert $i$. The biased scores $\tilde{s}_i$ are used for the top-k selection, but the original unbiased scores $s_i$ are used for the softmax normalization after selection. This means the biases influence *which* experts are selected, but not the *weights* applied to the selected experts' outputs.
+
+After each training step, the biases are updated with a simple rule:
+
+$$
+b_i \leftarrow b_i - \gamma \cdot \text{sign}(f_i - 1/N),
+$$
+
+where $f_i$ is the current dispatch fraction for expert $i$, $N$ is the number of experts, and $\gamma$ is a small step size. The logic is straightforward:
+
+- If expert $i$ is overloaded ($f_i > 1/N$), then $\text{sign}(f_i - 1/N) = +1$, so $b_i$ decreases. The expert becomes less attractive to the router.
+- If expert $i$ is underloaded ($f_i < 1/N$), then $\text{sign}(f_i - 1/N) = -1$, so $b_i$ increases. The expert becomes more attractive to the router.
+
+If you have a control theory background, you will recognize this as a *sign-based integral controller*. The bias accumulates error over time: as long as an expert is consistently overloaded, its bias keeps decreasing, step after step, until the routing shifts enough to bring it back to equilibrium. There is no proportional term, no derivative term, just a simple sign function that nudges biases up or down by a fixed amount $\gamma$ each step.
+
+The critical advantage: **no gradient interference**. The biases $b_i$ are not part of any loss function. They are not optimized through backpropagation. They are updated by a separate, non-gradient rule that runs alongside training. The task loss gradient flows purely through the router without any competing auxiliary signal. Every gradient update serves the task.
+
+![Comparison of expert load distribution between auxiliary-loss-based and loss-free balancing methods. Loss-free balancing achieves better balance without interference gradients. Source: Wang et al. (2024), Figure 1.](Mixture of Experts/images/lossfree-balance-comparison.png){#fig-lossfree}
+
+[DeepSeek-V3 (DeepSeek-AI, 2024)](https://arxiv.org/abs/2412.19437) used this approach to train a 671B-parameter MoE (37B active) on 14.8 trillion tokens. The training was remarkably stable, with no loss spikes, which DeepSeek attributed in part to the elimination of auxiliary loss interference. The biases converge quickly: within a few hundred training steps, the dispatch fractions $f_i$ settle near $1/N$ and stay there, with the biases making small adjustments to track any drift.
+
+::: {.exercise-order correct="C,D,A,B"}
+
+Arrange the steps of the loss-free balancing mechanism in the correct order for a single training step:
+
+- Decrease the bias for overloaded experts and increase the bias for underloaded experts using the sign rule
+- On the next forward pass, the biased scores shift which experts are selected by top-k, gradually restoring balance
+- The router computes raw scores for each expert and adds the current per-expert bias to get biased scores
+- After the forward pass, compute each expert's dispatch fraction to determine which experts are overloaded or underloaded
+
+::: {.order-feedback}
+**Correct order: C, D, A, B.** First, the router computes biased scores (raw score + bias) and uses them for top-k selection (C). After the forward pass, the system measures each expert's actual dispatch fraction (D). Then it applies the sign-based update rule: decrease biases for overloaded experts, increase for underloaded ones (A). On the next step, these updated biases shift the routing decisions toward balance (B). The biases are not part of any loss function; they are updated by a separate non-gradient controller running alongside training.
+:::
+
+:::
+
+### ReMoE: Fully Differentiable Routing via ReLU
+
+Both Expert Choice and loss-free balancing keep the top-k selection step and work around its limitations. The third approach, ReMoE ([Wang et al., ICLR 2025](https://arxiv.org/abs/2412.14711)), asks a more radical question: what if we removed top-k entirely?
+
+The differentiability paradox we analyzed in @sec-routing exists because top-k is a hard discrete operation. Selected experts get gradients; non-selected experts get nothing. Every approach we have discussed so far either accepts this discontinuity and compensates for it (auxiliary loss, loss-free biases) or shifts the direction of assignment (Expert Choice). ReMoE eliminates the discontinuity at its source.
+
+The idea is simple: replace the entire TopK + Softmax routing pipeline with a single ReLU activation:
+
+$$
+G(x)_i = \text{ReLU}(W_g \cdot x + b)_i.
+$$
+
+The function $\text{ReLU}(z) = \max(0, z)$ is differentiable everywhere except at $z = 0$ (where it has a well-defined subgradient of 0). There is no discrete selection step. No argmax, no top-k, no masking to $-\infty$.
+
+Sparsity emerges naturally from the ReLU itself. Many inputs produce negative pre-activation values, so $\text{ReLU}$ maps them to zero. Those experts are inactive for that token. Only the experts with positive pre-activation values contribute to the output. The number of active experts varies per token, which is different from standard top-k routing where exactly $k$ experts are always active.
+
+Let us see this concretely. For the token "bank", suppose the router computes $W_g \cdot x_{\text{bank}} + b$ and gets the pre-activation vector $[-0.3,\; -1.1,\; 0.8,\; -0.5,\; -0.2,\; 0.3,\; -0.9,\; -0.4]$. After ReLU:
+
+$$
+G(\text{"bank"}) = [0,\; 0,\; 0.8,\; 0,\; 0,\; 0.3,\; 0,\; 0]
+$$
+
+Experts 3 and 6 are active (positive gate values). The other six are inactive (zero). No discrete selection was needed. The gate values are continuous functions of the router parameters, so gradients flow to all experts: active experts receive gradients proportional to their gate values, and inactive experts receive a zero gradient at the ReLU boundary (but any tiny perturbation to $W_g$ that pushes the pre-activation above zero immediately starts producing gradients). The gradient dead zone for non-selected experts is much smaller than in top-k routing, where it is absolute.
+
+[Wang et al. (ICLR 2025)](https://arxiv.org/abs/2412.14711) found that ReMoE outperforms vanilla top-k MoE across model sizes, with no auxiliary loss required. In practice, training uses a "top-k initialization" warm-up phase: the model starts with standard top-k routing for the first portion of training (to learn reasonable router weights), then gradually transitions to full ReLU routing. This warm-up prevents early training instability where the ReLU outputs might be too dense (too many experts active) or too sparse (too few).
+
+::: {.exercise-mcq correct="C"}
+
+In ReMoE, how does sparsity (only a few experts being active per token) emerge without a top-k selection step?
+
+- A separate pruning module removes low-scoring experts after the forward pass
+- The softmax function naturally pushes most probabilities close to zero
+- The ReLU activation maps all negative pre-activation values to zero, so only experts with positive router outputs are active
+- An auxiliary sparsity loss penalizes the model for activating too many experts
+
+::: {.feedback-correct}
+Correct. ReLU replaces the entire TopK + Softmax pipeline. The router computes a pre-activation value for each expert, and ReLU maps all negative values to exactly zero. Only experts with positive pre-activation contribute to the output. The number of active experts varies per token (unlike top-k which always activates exactly k), and sparsity emerges naturally from the ReLU's zero region.
+:::
+
+::: {.feedback-incorrect}
+ReMoE uses a single ReLU activation instead of TopK + Softmax. The key property of ReLU is that it outputs zero for all negative inputs: any expert with a negative pre-activation value is simply inactive. No discrete selection step is needed. Sparsity is a natural consequence of many pre-activations being negative, not a result of pruning, softmax, or an auxiliary loss.
+:::
+
+:::
+
+### Comparison of Routing Strategies
+
+The four approaches we have covered represent distinct points in the design space. The table below summarizes their key properties:
+
+| Strategy | Differentiable? | Load Balance Mechanism | Token Dropping | Complexity |
+|---|---|---|---|---|
+| Standard Top-K + Aux Loss | Partial (softmax only) | Auxiliary loss ($f_i \cdot P_i$) | Yes (needs capacity factor) | Simple |
+| Expert Choice | Yes (experts select tokens) | Perfect by construction | No (but tokens may be unprocessed) | Moderate |
+| Loss-Free (DeepSeek) | Partial (softmax only) | Dynamic bias controller | Yes (needs capacity factor) | Simple |
+| ReMoE (ReLU) | Fully differentiable | Natural sparsity via ReLU | No (variable expert load) | Low |
+
+Each row represents a different philosophy. Standard top-k accepts the discrete boundary and patches it with an auxiliary loss. Expert Choice sidesteps the problem by reversing the assignment direction. Loss-free balancing decouples the balance signal from the gradient entirely. ReMoE eliminates the discrete boundary itself. The field has not converged on a single winner; each approach has strengths in different settings.
+
+::: {.callout-note}
+
+**Think Hard: The gradient signal asymmetry.**
+
+In standard top-k routing, selected experts receive gradient updates from both the task loss (through their expert outputs) and the auxiliary loss (through $P_i$). Non-selected experts only receive an indirect signal through the auxiliary loss via $P_i$. Does this create training dynamics issues?
+
+Yes, and the asymmetry is consequential. Selected experts improve faster because they see real training data: they compute an output, that output enters the loss, and the gradient flows back through the expert's parameters. Non-selected experts receive only a weak "please try to get more tokens" signal through $P_i$. If an expert is rarely selected early in training, it can fall into a death spiral where it never gets enough training signal to become good enough to be selected. The noise term in Shazeer's original formulation helps: by adding Gaussian noise before top-k, occasionally a weak expert wins the selection by chance, gets a real training update, and may start improving. Expert Choice and ReLU routing both mitigate this asymmetry in different ways. Expert Choice gives every expert exactly $k$ tokens (so no expert is starved of data). ReLU routing does not have a hard selection boundary, so the transition from "inactive" to "active" is continuous rather than a cliff.
+
+:::
+
+The routing strategies we have covered in this section represent the field's latest thinking on the fundamental tension between discrete assignment and differentiable optimization. But routing is only half the story. In the next section, we turn from algorithms to architectures: how do real-world systems like Mixtral and DeepSeek-V3 combine these ideas into production models, and what does the economics of MoE inference look like in practice?

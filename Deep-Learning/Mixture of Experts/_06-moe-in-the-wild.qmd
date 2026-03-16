@@ -1,0 +1,171 @@
+## MoE in the Wild: Mixtral, DeepSeek-V3, and the Modern Landscape {#sec-moe-in-the-wild}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Jiang et al., "Mixtral of Experts," 2024](https://arxiv.org/abs/2401.04088) | 47B total / 13B active, top-2, 8 experts. |
+| 2 | [DeepSeek-AI, "DeepSeek-V3 Technical Report," 2024](https://arxiv.org/abs/2412.19437) | 671B/37B active, loss-free balancing. |
+| 3 | [Cameron Wolfe, "MoE LLMs"](https://cameronrwolfe.substack.com/p/moe-llms) | Modern MoE LLM survey. |
+| 4 | [HuggingFace, "Mixture of Experts Explained"](https://huggingface.co/blog/moe) | Serving and fine-tuning challenges. |
+
+:::
+
+We have now covered the theory: what MoE layers are, how routing works, why the auxiliary loss bridges the differentiability gap, and what alternatives exist. The natural question is: does any of this actually work at scale? The answer is a resounding yes. MoE has gone from a research curiosity to the architecture behind some of the most capable language models in the world. In this section, we look at two landmark models that define the modern MoE era, examine the real-world tradeoffs of deploying sparse models, and return to our running example one last time.
+
+### Mixtral 8x7B (January 2024)
+
+The name is a portmanteau: Mistral + Mixture. Released in January 2024 by Mistral AI ([Jiang et al., 2024](https://arxiv.org/abs/2401.04088)), Mixtral 8x7B took the base architecture of Mistral 7B and replaced each dense FFN layer with 8 expert FFNs using top-2 routing. The result: 47 billion total parameters, but only about 13 billion active for any single token.
+
+The performance was striking. Mixtral matched or exceeded Llama 2 70B on most benchmarks, despite activating roughly one-fifth the parameters. On mathematical reasoning (GSM8K), code generation (HumanEval), and multilingual tasks, it performed at or above the level of models 5x its active size. The economics are hard to ignore: you get 70B-class performance at 13B-class inference cost.
+
+Three features made Mixtral especially significant. First, it was released under the Apache 2.0 license, making it the first high-quality open-source MoE model that anyone could download, fine-tune, and deploy. Before Mixtral, MoE was mostly a technique used behind closed doors at Google (Switch Transformers, GShard) or speculated about in frontier models like GPT-4. Mixtral made MoE accessible to the open-source community overnight.
+
+Second, the architecture was deliberately simple. No exotic routing mechanisms, no novel loss functions. Just the same top-2 gating with the standard auxiliary load-balancing loss that we derived in @sec-load-balancing-loss. This simplicity was the point: Mistral AI demonstrated that the basic MoE recipe, when combined with a strong dense base model, produces excellent results without requiring cutting-edge routing research.
+
+Third, the paper revealed interesting specialization patterns. Analysis of expert utilization showed that experts did not specialize by "topic" in the way you might expect (one expert for math, another for code, a third for history). Instead, specialization happened at the syntactic level: certain experts handled particular token types across all domains. One expert might process function words ("the," "of," "is") regardless of whether the text was about finance or biology; another might specialize in named entities or punctuation. This aligns with the common misconception we flagged earlier: **MoE experts specialize at the token level, not the topic level.**
+
+::: {.exercise-mcq correct="B"}
+
+Mixtral 8x7B has 47 billion total parameters. How many parameters are active when processing a single token?
+
+- 47 billion (all parameters are used for every token)
+- Approximately 13 billion
+- 7 billion (one expert's worth)
+- 8 billion (one expert per token position)
+
+::: {.feedback-correct}
+Correct. Mixtral uses top-2 routing across 8 experts. Each token activates 2 of the 8 expert FFNs, plus the shared components (attention layers, embeddings). The shared components account for roughly 7B parameters, and each of the 2 active experts contributes about 3B parameters (the FFN at each layer), totaling approximately 13B active parameters per token.
+:::
+
+::: {.feedback-incorrect}
+In Mixtral's top-2 routing with 8 experts, each token activates only 2 expert FFNs per layer (not all 8). The active parameters include the shared components (attention, embeddings, roughly 7B) plus the 2 active expert FFNs (roughly 3B each). This adds up to approximately 13B active parameters out of 47B total.
+:::
+
+:::
+
+### DeepSeek-V3 (December 2024)
+
+If Mixtral proved that MoE works well at moderate scale, DeepSeek-V3 proved it works at frontier scale. Released in December 2024 by DeepSeek-AI ([DeepSeek-AI, 2024](https://arxiv.org/abs/2412.19437)), this model pushed every aspect of MoE design to an extreme.
+
+The numbers are staggering: 671 billion total parameters, with 37 billion active per token. Where Mixtral used 8 relatively large experts per layer, DeepSeek-V3 uses a *fine-grained* expert architecture: 256 routed experts plus 1 shared expert per layer, with top-8 routing. The shared expert processes every token unconditionally (providing a stable baseline representation), while the router selects 8 of the 256 specialized experts for each token. The fine-grained design means each expert is small (roughly 2.4B parameters across the 256), allowing more precise specialization. A token about financial regulation might activate a different combination of 8 micro-experts than a token about organic chemistry, drawing on a larger and more diverse pool of specialized knowledge.
+
+DeepSeek-V3 deployed auxiliary-loss-free balancing (the dynamic bias approach from @sec-alternative-routing) instead of the standard auxiliary loss. The training was remarkably stable: no loss spikes across the entire 14.8 trillion token training run. Loss spikes are a common and feared failure mode in large MoE training, often caused by sudden load imbalances that cascade through the model. The absence of spikes suggests that the loss-free balancing approach provides a smoother, more stable training signal than auxiliary-loss methods.
+
+The model also used a multi-token prediction training objective, where the model predicts multiple future tokens at each position rather than just the next one. This is orthogonal to MoE but contributed to training efficiency.
+
+Perhaps the most cited statistic: DeepSeek-V3 was trained on 14.8 trillion tokens using only 2.788 million H800 GPU hours, at an estimated cost of $5.5 million. For context, training a dense 671B model would have cost roughly 18x more in compute. The MoE architecture made a 671B-capacity model trainable at a cost closer to that of a dense 37B model. That is the economic argument for MoE, stated in dollars: the same quality at a fraction of the price.
+
+### The Dense vs. MoE Inference Tradeoff
+
+::: {.exercise-predict correct="B"}
+
+MoE models activate fewer parameters per token than dense models of the same total size. Consider two phases of LLM inference: prefill (processing the entire input prompt in parallel) and decoding (generating tokens one at a time). In which phase does MoE provide a bigger speedup?
+
+- Prefill, because processing many tokens simultaneously lets the GPU parallelize across experts efficiently
+- Decoding, because generating one token at a time is compute-bound, and fewer active parameters means fewer FLOPs per token
+- Both phases benefit equally, since the active parameter count is the same in both cases
+
+::: {.predict-reveal}
+**The answer is B.** Prefill is typically memory-bandwidth-bound: the bottleneck is moving model weights from memory to compute units. Since all experts must be in memory (different prompt tokens route to different experts), MoE does not help much. Decoding processes one token at a time and is compute-bound: the bottleneck is FLOPs, which scale with active parameters. With top-2 routing out of 8 experts, only 2 expert FFNs run per token. Fewer active parameters means fewer FLOPs, which means faster generation. MoE's speedup is regime-dependent: it helps during generation, not during prompt processing.
+:::
+
+:::
+
+Theory and training economics are one thing. What happens when you actually serve these models? The inference story for MoE is more nuanced than "fewer active parameters = faster."
+
+The core tension is this: an MoE model requires *all* experts in memory, even though only $k$ out of $N$ activate per token. For Mixtral 47B at FP16 precision, you need roughly 94 GB of VRAM to hold all 47 billion parameters, even though only 13 billion are used for any given token. The memory footprint scales with total parameters, not active parameters.
+
+This memory constraint leads to two distinct inference regimes with very different MoE economics:
+
+**Prefill** (processing the input prompt in parallel). When you feed a long prompt into the model, the GPU processes many tokens simultaneously. This phase is typically *memory-bandwidth-bound*, meaning the bottleneck is how fast you can move model weights from GPU memory to the compute units, not how many FLOPs you can perform. MoE does not help much here. You still need to load the full set of expert weights from memory (since different tokens in the prompt may route to different experts), and the bandwidth cost of loading all experts dominates the compute savings from activating only a few.
+
+**Decoding** (generating tokens one at a time). This is where MoE shines. During autoregressive generation, the model processes one token per forward pass. This phase is *compute-bound*: the bottleneck is the number of floating-point operations, which scales with active parameters. With top-2 routing out of 8 experts, only 2 expert FFNs run per token instead of an equivalent-sized dense FFN. Fewer active parameters means fewer FLOPs per token, which means faster generation.
+
+A useful rule of thumb: an 8-way sparse MoE model with top-2 routing has inference economics roughly similar to a dense model at 50-60% of its total parameter count. Mixtral 47B behaves like a roughly 25-30B dense model for decoding speed, while delivering 47B worth of capacity and quality. You pay the memory cost of 47B, but you get the compute cost of 25-30B and the quality of a 47B model.
+
+::: {.exercise-mcq correct="D"}
+
+You are deploying Mixtral 47B for inference. Which statement best describes the resource requirements?
+
+- You need 13B parameters worth of VRAM since only 13B activate per token
+- You need 47B parameters worth of VRAM and 47B worth of FLOPs per token
+- You need 13B parameters worth of VRAM and 47B worth of FLOPs per token
+- You need 47B parameters worth of VRAM but only about 13B worth of FLOPs per token
+
+::: {.feedback-correct}
+Correct. All 47B parameters must be stored in memory (VRAM scales with total parameters), because different tokens route to different experts and all experts must be accessible. However, only 2 of 8 expert FFNs activate per token, so the compute cost (FLOPs) scales with the approximately 13B active parameters. This is the core tradeoff of MoE inference: memory cost of a large model, compute cost of a smaller one.
+:::
+
+::: {.feedback-incorrect}
+MoE inference has a key asymmetry: memory (VRAM) scales with total parameters because all experts must be stored and accessible. Compute (FLOPs per token) scales with active parameters because only the selected experts run. For Mixtral, that means 47B worth of VRAM but roughly 13B worth of FLOPs per token.
+:::
+
+:::
+
+::: {.callout-warning}
+
+**Common Misconception: MoE models are always faster at inference than dense models with the same total parameters.**
+
+This is wrong. MoE requires all parameters in memory, which means high VRAM requirements regardless of sparsity. During the prefill phase (processing the input prompt), memory bandwidth is often the bottleneck, and MoE provides little advantage because all expert weights may need to be loaded. MoE primarily helps during autoregressive decoding, where fewer active parameters means fewer FLOPs per token. The inference advantage is real but regime-dependent: it shows up during generation, not during prompt processing.
+
+:::
+
+### Architecture Comparison
+
+To put the modern MoE models in context, here is a side-by-side comparison of the major public MoE architectures:
+
+| Model | Total Params | Active Params | Experts | Top-K | Training Tokens | Notable Features |
+|---|---|---|---|---|---|---|
+| Mixtral 8x7B | 47B | 13B | 8 | 2 | Unknown | Apache 2.0, first popular open MoE |
+| DeepSeek-V3 | 671B | 37B | 256+1 | 8 | 14.8T | Loss-free balancing, multi-token prediction |
+| Grok-1 | 314B | ~73B | 8 | 2 | Unknown | xAI, first confirmed MoE from a major lab |
+| GPT-4 (rumored) | ~1.8T | ~220B | 16 | 2 | Unknown | Unconfirmed MoE architecture |
+
+The table reveals a clear trend: as models scale, the ratio of active-to-total parameters shrinks. Mixtral activates about 28% of its parameters per token (13B/47B). DeepSeek-V3 activates about 5.5% (37B/671B). The economic pressure is straightforward. As models grow, you cannot afford to activate all parameters for every token. MoE lets you scale capacity without proportionally scaling compute.
+
+::: {.exercise-fillin}
+
+Compute the active parameter fraction for a hypothetical MoE model:
+
+1. A model has 400 billion total parameters distributed across 16 expert FFNs per layer, plus shared attention layers.
+2. It uses top-2 routing, meaning 2 experts are active per token per layer.
+3. The shared components (attention, embeddings) account for 50B parameters.
+4. The active parameters equal the shared 50B plus the two active expert FFN slices. Each expert holds an equal share of the remaining 350B, so each expert has about 22B parameters. Two active experts contribute about 44B.
+5. The approximate active fraction is {B|A: 50B out of 400B, or 12.5%|B: 94B out of 400B, or about 24%|C: 200B out of 400B, or 50%}.
+
+::: {.fillin-feedback}
+**Correct: B.** The active parameters are 50B (shared) + 44B (two expert FFNs out of 16) = 94B, which is about 24% of the total 400B. This is similar to Mixtral's ratio (28%). As models scale further and add more experts (like DeepSeek-V3 with 256 experts), the active fraction drops even lower because each expert holds a smaller share of the total parameters.
+:::
+
+:::
+
+### Concluding the Running Example
+
+Let us return one final time to our sentence: "The bank approved the loan for the riverside property."
+
+In a Mixtral-style architecture, this sentence passes through 32 transformer layers. At each layer, every token enters a separate MoE routing decision. The token "bank" might be routed to Experts 3 and 7 at layer 1, Experts 2 and 5 at layer 2, Experts 1 and 6 at layer 3, and so on through all 32 layers. At each layer, the router makes an independent decision based on the token's representation at that depth.
+
+This layer-by-layer routing means that across 32 layers, "bank" accesses different subsets of the total 47 billion parameters. No single pair of experts handles "bank" at every layer. The early layers might route it based on surface-level features (it is a common noun, it appears early in the sentence), while deeper layers route it based on contextual features built up through attention. By layer 15 or 20, the representation of "bank" has been enriched by attention to "approved," "loan," and "riverside." The router at these deeper layers may send "bank" to different experts than the router at layer 1, because the representation now carries financial context that was not present in the raw token embedding.
+
+By the final layer, the model has integrated the financial context from "approved the loan" to disambiguate "bank" as a financial institution rather than a riverbank. Each layer contributed a piece of that disambiguation, with different experts activating at different depths. The full 47B parameter space was available, but on any given layer, only 13B of it was active for "bank." The result is a model that processes language with the depth of a 47B model and the per-token cost of a 13B model.
+
+::: {.callout-note}
+
+**Think Hard: Why is MoE becoming the dominant architecture at the frontier?**
+
+The economics are compelling. Training a dense 671B model would require roughly 18x more compute than activating 37B parameters per token (DeepSeek-V3's active size). MoE lets you build models with enormous capacity, and thus better quality, while keeping training and inference costs manageable.
+
+The key insight is that most knowledge in a large language model is "specialized" in the sense that it is only needed for a fraction of inputs. A token about quantum physics does not need the same parameters as a token about medieval history. MoE exploits this by storing knowledge in experts that activate only when relevant. As models scale further, the fraction of parameters needed for any single input decreases, making MoE more attractive.
+
+The counterargument is complexity. MoE models are harder to train (load balancing), harder to serve (memory footprint, expert parallelism), and harder to fine-tune (risk of catastrophic forgetting in specific experts). But the frontier labs have largely solved these problems, as DeepSeek-V3's remarkably stable training demonstrates. When you can train a 671B-capacity model for $5.5 million instead of $100 million, the complexity tax is well worth paying.
+
+:::
+
+### The Trend
+
+The trajectory is clear. GPT-4 (widely rumored to be MoE), Grok-1 (confirmed MoE by xAI), DeepSeek-V3, and Qwen3-MoE all point in the same direction: MoE is becoming the default architecture for frontier-scale language models. The question is no longer "should we use MoE?" but "how should we design the routing?"
+
+Open challenges remain. Serving MoE models efficiently requires expert parallelism across GPUs, which adds communication overhead and engineering complexity. The memory footprint problem means you cannot easily run Mixtral 47B on a single consumer GPU, even though its active compute is only 13B. Fine-tuning MoE models risks destabilizing expert specialization, as gradient updates to specific experts can cause load imbalances that cascade into collapse. And the field is still actively debating the best routing strategy: top-k with auxiliary loss, expert choice, loss-free balancing, ReLU routing, or something not yet invented.
+
+With this understanding of both the theory and practice of MoE, let us consolidate what we have learned.
