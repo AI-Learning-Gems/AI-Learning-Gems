@@ -37,6 +37,7 @@ The user will provide **the path to the chapter's index `.qmd` file** (e.g., `Tr
 | 2 | `quarto-conventions.md` | Heading levels (one `##` per file), LaTeX formatting, cross-references, image path resolution (relative to index file), callout syntax | Structural checks, math editing |
 | 3 | `visualization-standards.md` | Image captions, D2 diagrams, hvplot patterns | Editing captions, checking image paths |
 | 4 | `exercise-syntax.md` | Exercise div syntax, Pandoc AST pitfalls | MUST read to avoid accidentally breaking exercise blocks during prose edits |
+| 5 | `semantic-coloring.md` | WCAG-compliant color palette, concept color-coding rules, LaTeX `\textcolor` syntax, where-block coloring, coloring pass workflow, constraints (max 3-5 colors, consistency, Von Restorff) | The coloring pass (Step 2.5) |
 
 **Per-section re-read (MANDATORY):** Before editing EACH section file, re-read `writing-style.md` from disk. This is the single most impactful rule for editing quality. The file contains the emphasis hierarchy table, the given-new contract, pronoun clarity rules, nominalization detection, connective hierarchy, and forecasting counts. By the third section, these will have faded from context. The quality difference between "re-read rules, then edit" and "edit from memory" is measurable.
 
@@ -790,7 +791,59 @@ The subagent does NOT output this to the user. It is an internal step that force
 
 ---
 
-## STEP 2.5: Pedagogy Fix Subagent (Conditional — Only If Flags Exist)
+## STEP 2.5: Semantic Concept Coloring Pass
+
+After all section-editing subagents complete (and before the pedagogy fix step), the **main agent** performs a coloring pass across all sections. This applies consistent semantic color-coding to key concepts, as specified in `semantic-coloring.md`.
+
+**Why the main agent, not subagents?** Color consistency requires cross-section awareness. A subagent editing Section 3 cannot know which colors Section 1 assigned to which concepts. The main agent builds the color map once and applies it everywhere.
+
+### 2.5-color-a. Build the Color Map
+
+1. Read the Chapter Overview in `_01-introduction.qmd` to identify the 3-5 conceptual pillars of the chapter.
+2. Assign a color from the `semantic-coloring.md` palette to each pillar. Choose non-analogous colors (no two visually similar colors in the same chapter).
+3. Document the mapping as a working table:
+
+```
+COLOR MAP for [Chapter Name]
+=============================
+#4F46E5 (Indigo)  → Architecture concepts (MoE layer, expert FFN, dense vs sparse)
+#047857 (Emerald) → Routing concepts (router, top-k, gating, token assignment)
+#E11D48 (Rose)    → Training concepts (auxiliary loss, load balancing, capacity)
+```
+
+### 2.5-color-b. Color the Chapter Overview
+
+Apply color to the first mention of each pillar in the Chapter Overview paragraph of `_01-introduction.qmd`. This establishes the color-meaning mapping for the reader. Use `[**term**]{style="color: #hex;"}` syntax.
+
+### 2.5-color-c. Color Key Terms in All Body Sections
+
+For each body section:
+- Identify 3-8 terms that belong to the color-mapped categories
+- Color each term on its **first significant appearance** in the section
+- Use `[**term**]{style="color: #hex;"}` for prose and `$\textcolor{#hex}{symbol}$` for inline math
+
+### 2.5-color-d. Color Equations and "Where" Blocks
+
+For each significant equation with a "where" block:
+- Apply `\textcolor{#hex}{...}` to the 2-3 most important symbols in the equation
+- Match the color in the "where" block definitions using both `$\textcolor{#hex}{symbol}$` for the math and `[term]{style="color: #hex;"}` for the prose description
+
+### 2.5-color-e. Consistency Verification
+
+After coloring all sections:
+1. Grep for all hex color codes across all `.qmd` files
+2. Verify each hex maps to exactly one concept category
+3. Verify no two categories share the same or visually similar color
+4. Verify total distinct colors is 3-5
+5. Verify no colored terms appear inside callout boxes, exercise blocks, or the closing section
+
+### 2.5-color-f. Chat
+
+"Coloring pass complete. [N] colors assigned to [N] concept categories. [M] terms colored across [K] sections, [J] equations colored."
+
+---
+
+## STEP 2.6: Pedagogy Fix Subagent (Conditional — Only If Flags Exist)
 
 After all section-editing subagents complete, the main agent collects their PEDAGOGY FLAG reports. **If any PEDAGOGY FLAGs were reported, the main agent spawns one additional subagent** — the "pedagogy fixer" — with different permissions and different context than the section-editing subagents.
 
@@ -798,7 +851,7 @@ After all section-editing subagents complete, the main agent collects their PEDA
 
 **If no PEDAGOGY FLAGs were reported, skip this step entirely.**
 
-### 2.5a. Main agent prepares the dispatch (before spawning the fixer):
+### 2.6a. Main agent prepares the dispatch (before spawning the fixer):
 
 The main agent does the following preparation work BEFORE spawning the pedagogy fixer subagent. This ensures the fixer receives a focused, pre-curated set of sources rather than having to search through the entire TEXTBOOK-PLAN.md.
 
@@ -822,16 +875,16 @@ Flag 2: Premature abstraction in _01-introduction.qmd line 30
   Cross-section note: KeepTopK is introduced in _02-routing.qmd
 ```
 
-### 2.5b. The pedagogy fixer subagent receives:
+### 2.6b. The pedagogy fixer subagent receives:
 
-1. **The per-flag source manifest** (built by the main agent in 2.5a above), listing each flag with its description, file, line, and the specific source paths to read
+1. **The per-flag source manifest** (built by the main agent in 2.6a above), listing each flag with its description, file, line, and the specific source paths to read
 2. **The paths to ALL section files** (for cross-section context, e.g., knowing that KeepTopK is defined in `_02`)
 3. **The writing-style rules** (`writing-style.md`)
 4. **Explicit permission to change content:** "You MAY rewrite flagged paragraphs, restructure them, move claims between paragraphs within the same file, rewrite analogies, and add limitation flags to imprecise analogies. You MUST NOT change unflagged paragraphs. You MUST NOT change LaTeX equations, D2 diagrams, code blocks, exercise blocks, cross-references, or section headings."
 
 **The fixer does NOT receive the full TEXTBOOK-PLAN.md or the full Source Processing Log.** The main agent has already done the work of identifying which sources matter for each flag. The fixer reads only those sources.
 
-### 2.5c. The pedagogy fixer's internal workflow:
+### 2.6c. The pedagogy fixer's internal workflow:
 
 **Step 0: Read sources and build context.**
 
@@ -856,13 +909,13 @@ For each flag, apply the appropriate fix strategy:
 
 After rewriting each flagged paragraph, re-read the source material and verify: does every factual claim in the rewritten paragraph appear in or follow from the sources? If not, remove the unsupported claim or find source support.
 
-### 2.5d. The pedagogy fixer reports back:
+### 2.6d. The pedagogy fixer reports back:
 
 1. What it changed (for each PEDAGOGY FLAG: the original text, the rewritten text, and which source grounded the rewrite)
 2. Any flags it could NOT fix (e.g., the source material is insufficient, or the fix requires adding a new section)
 3. Any new cross-reference additions (e.g., forward-pointers to later sections added as part of a premature-abstraction fix)
 
-### 2.5e. Main agent reviews the fixer's changes:
+### 2.6e. Main agent reviews the fixer's changes:
 
 Before proceeding to Step 3, the main agent reads the fixer's report and spot-checks:
 - Do the rewritten paragraphs follow writing-style rules?
@@ -884,7 +937,7 @@ After all subagents complete, the **main agent** reads all edited section files 
 **3c. Cross-section checks:**
 
 1. **Notation consistency (RULE 21c):** Collect all "NOTATION GAP" flags from subagents. For each flagged symbol, verify it is genuinely cross-section (used in 2+ files). If so, add it to the notation table in `_01-introduction.qmd` with the 4-column format (Symbol, Definition, Valid Values, Example). If it is section-local, verify the subagent added an inline definition.
-2. **Pedagogy fixes (from Step 2.5):** If the pedagogy fixer subagent ran, review its changes. Verify the rewritten paragraphs flow naturally with surrounding content. Check that any new cross-references (`@sec-*`) point to valid labels. If the fixer reported unresolvable flags, present those to the user: "UNRESOLVED PEDAGOGY FLAG: [description]. This requires author review."
+2. **Pedagogy fixes (from Step 2.6):** If the pedagogy fixer subagent ran, review its changes. Verify the rewritten paragraphs flow naturally with surrounding content. Check that any new cross-references (`@sec-*`) point to valid labels. If the fixer reported unresolvable flags, present those to the user: "UNRESOLVED PEDAGOGY FLAG: [description]. This requires author review."
 2. **Cross-section terminology:** Ensure the same term is used for the same concept across all sections. If Section 2 calls it "the router" and Section 5 calls it "the gating network," pick one and make all sections consistent.
 3. **Cross-section notation re-scan:** Grep all `.qmd` files for any remaining notation inconsistencies that subagents may have introduced (e.g., a subagent rewording a sentence and accidentally using the wrong symbol case).
 4. **Figure/equation reference style:** Ensure consistent phrasing across sections.
@@ -930,12 +983,24 @@ Before marking the editing pass as complete, verify:
 - [ ] All cross-section symbols are in the notation table (4-column format)
 - [ ] Section-local symbols have inline definitions ("where $z$ is...")
 
-**Pedagogical Coherence (Rule 20 + Step 2.5):**
+**Pedagogical Coherence (Rule 20 + Step 2.6):**
 - [ ] No paragraph mixes math-mode and narrative-mode prose (register coherence)
 - [ ] No paragraph introduces 3+ genuinely new concepts (cognitive novelty budget)
 - [ ] All analogies accurately represent the mechanism they illustrate, or flag their limitations explicitly
 - [ ] No paragraph asserts properties of a mechanism the reader has not yet been shown (no premature abstraction)
 - [ ] All PEDAGOGY FLAGs from section subagents were addressed by the pedagogy fixer (or reported as unresolvable)
+
+**Semantic Concept Coloring (Step 2.5):**
+- [ ] 3-5 concept categories identified and assigned colors from the `semantic-coloring.md` palette
+- [ ] Color map documented (which hex = which concept category)
+- [ ] Chapter Overview paragraph colors each conceptual pillar on first mention
+- [ ] Each body section colors 3-8 key terms on first significant appearance
+- [ ] Key equations use `\textcolor{#hex}{...}` on the 2-3 most important symbols
+- [ ] "Where" blocks after equations match the equation's symbol colors
+- [ ] No colored terms inside callout boxes, exercise blocks, or the closing section
+- [ ] All hex codes are consistent: each hex maps to exactly one concept category across all files
+- [ ] No two categories use perceptually similar colors (e.g., Indigo + Purple, or Sky + Teal)
+- [ ] Total distinct colors is 3-5 (never more)
 
 **Paragraph Clarity:**
 - [ ] Every paragraph has one main idea
