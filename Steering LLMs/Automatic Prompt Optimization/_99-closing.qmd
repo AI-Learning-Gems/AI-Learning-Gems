@@ -8,7 +8,7 @@
 
 - **Textual gradients are powerful but imperfect.** They provide rich, interpretable feedback but lack the mathematical properties of real gradients (linearity, exact chain rule, precise magnitude). GPO found that LLM self-reflection actually hurts optimization, suggesting that what the optimizer *sees* (demonstrations, traces) matters more than what it is asked to *think about*.
 
-- **GPO's ablation results should inform practice.** Relevance-based trajectory retrieval beats recency (+15%). Generation beats editing (+36% over the initial prompt, not over editing alone). Cosine-decay edit distance beats fixed constraints (+10%). These simple design choices matter more than algorithmic complexity.
+- **GPO's ablation results should inform practice.** Relevance-based trajectory retrieval beats recency (+15%). Generation beats editing (+36% over the initial prompt, not over editing alone). Cosine-decay edit distance beats fixed constraints (+10%). These simple design choices matter more than algorithmic complexity. PE2's hybrid approach (combining trajectory and reflection) performs on par with OPRO on GPO's benchmark, confirming that adding reflection does not consistently help when trajectory retrieval is already present; better trajectory retrieval (GPO) matters more than adding reflection (PE2).
 
 - **Multi-objective optimization is nearly free.** MOPO demonstrated that balancing accuracy, safety, and conciseness costs only 1--2 percentage points per objective compared to single-objective optimization. There is little reason to optimize a single metric when real-world prompts serve multiple masters.
 

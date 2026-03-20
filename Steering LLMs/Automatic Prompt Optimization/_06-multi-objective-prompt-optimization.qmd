@@ -7,7 +7,7 @@
 | 1 | [EMO-Prompts (2024)](https://arxiv.org/abs/2401.09862) | First NSGA-II/SMS-EMOA for prompts |
 | 2 | [MORL-Prompt (2024)](https://arxiv.org/abs/2402.11711) | Objective collapse, HVI/product rewards |
 | 3 | [MOPO (2024)](https://arxiv.org/abs/2412.12948) | Three-layer architecture, NSGA-II |
-| 4 | [ParetoPrompt (ICLR 2025)](https://openreview.net/forum?id=HGCk5aaSvE) | RL on Pareto front, no scalarization |
+| 4 | [ParetoPrompt (Zhao et al., ICLR 2025)](https://openreview.net/forum?id=HGCk5aaSvE) | RL on Pareto front via dominance preference |
 | 5 | [GEPA (ICLR 2026)](https://arxiv.org/abs/2507.19457) | Pareto candidate selection, per-instance fronts |
 | 6 | [SAMMO (Microsoft, 2024)](https://arxiv.org/abs/2404.02319) | Structure-aware multi-objective optimization |
 
@@ -182,9 +182,19 @@ Complete the comparison between single-objective and multi-objective prompt opti
 
 ### ParetoPrompt: RL Without Scalarization
 
-ParetoPrompt ([ICLR 2025](https://openreview.net/forum?id=HGCk5aaSvE)) tackled multi-objective prompt optimization from the RL side, using dominance relationships directly as training signal. Instead of scalarizing objectives into a single reward (which fails for non-convex Pareto fronts), ParetoPrompt trains a policy model using pairwise dominance as the preference signal.
+ParetoPrompt ([Zhao et al., ICLR 2025](https://openreview.net/forum?id=HGCk5aaSvE)) tackled multi-objective prompt optimization from the RL side. Instead of scalarizing objectives into a single reward (which fails for non-convex Pareto fronts), ParetoPrompt uses dominance relationships directly as the training signal, applying DPO-style preference-based loss functions derived from pairwise dominance between prompts.
 
-The key advantage: ParetoPrompt explores the full Pareto front without requiring weight tuning, and it is robust when training and test metrics differ. This matters in practice because you often optimize for proxy metrics during training (which are cheap to compute) but care about different metrics in deployment.
+The core insight is that specific objective *values* are often unreliable in text generation. Metrics like fluency can be measured multiple ways (perplexity, grammatical acceptability), and these measures have non-linear relationships to each other. Dominance *relationships*, by contrast, are robust. If prompt $z_w$ dominates prompt $z_l$ (at least as good on every objective, strictly better on at least one), then $z_w$ is unambiguously preferable regardless of how the objectives are scaled or transformed. ParetoPrompt builds on this insight with two loss components:
+
+1. **Dominance preference loss**: For dominated pairs ($z_w \succeq z_l$), a DPO or IPO loss increases the policy's probability of generating the dominating prompt and decreases it for the dominated one. The reward difference is $h(z_w, z_l; x) = \log \frac{\pi_\theta(z_w|x)}{\pi_\text{ref}(z_w|x)} - \log \frac{\pi_\theta(z_l|x)}{\pi_\text{ref}(z_l|x)}$, and the loss pushes this difference larger.
+
+2. **Non-dominated loss**: For mutually non-dominated pairs ($z_1 \sim z_2$, where neither dominates the other), a separate loss penalizes large reward differences: $l_\text{nd}(z_1, z_2; x) = \lambda \max(|h(z_1, z_2; x)| - \epsilon, 0)$. This encourages the policy to assign similar likelihoods to both prompts, promoting diversity across the Pareto front. Without this component, the algorithm generates clustered prompts. With it, prompts spread to cover the entire front.
+
+The training loop is straightforward: sample an input $x$, generate two prompts from the policy, evaluate their objectives, determine the dominance relationship, select the appropriate loss (dominance or non-dominated), and update via gradient descent. The policy model is a DistilGPT2 with a two-layer MLP adapter.
+
+On a three-objective text style transfer task (sentiment, content preservation, fluency), ParetoPrompt-IPO achieved a dominated hypervolume of 2406, compared to 1838 for InstOptima/NSGA-II, 1429 for HVI, and 572 for summation. It also achieved the lowest inverse generational distance (14.4 vs. 17.1 for InstOptima), meaning its generated prompts were closest to the true Pareto front.
+
+The robustness finding is equally important. On classification tasks with misaligned training and test metrics (training on perplexity but testing on grammatical acceptability), ParetoPrompt's hypervolume gap between the two settings was consistently small. Scalarization methods showed large drops because the non-linear relationship between perplexity and grammatical acceptability changes both absolute reward values and relative rankings among prompts. Dominance relationships, by contrast, are invariant under monotonic transformations of the objectives, so ParetoPrompt's performance is stable even when the specific metric changes between training and deployment.
 
 ### GEPA: Per-Instance Pareto Selection
 
@@ -255,7 +265,7 @@ Per-instance Pareto fronts (GEPA) are natural when you have a single metric but 
 | EMO-Prompts | Evolutionary (NSGA-II) | 2 (conflicting emotions) | Non-dominated sorting + crowding | Sentiment generation | HVI up to 0.45 |
 | MORL-Prompt | RL (soft Q-learning) | 2--3 (style/content/sentiment) | HVI reward or product | Style transfer, translation | Identifies objective collapse |
 | MOPO | Evolutionary (NSGA-II) | 2--3 (emotions) | Top-$n$ per objective + Pareto | Affective text generation | +34pp, 1--2pp trade-off |
-| ParetoPrompt | RL (preference-based) | 2+ | Dominance relationships | General classification | Robust to metric mismatch |
+| ParetoPrompt | RL (DPO/IPO preference) | 2--4 | Dominance + non-dominated loss | Classification, style transfer | HV 2406 (3-obj), robust to metric mismatch |
 | SAMMO | Beam search | 2 (cost + accuracy) | Structure-aware mutations | RAG pipelines, compression | 40%+ compression savings; 26-133% RAG gains |
 | GEPA | Reflection + evolution | Per-instance (or multi-metric) | Frequency-weighted Pareto | General prompt/agent optimization | +9.6%, 6x fewer rollouts |
 

@@ -6,8 +6,9 @@
 |---|---|---|
 | 1 | [EvoPrompt (ICLR 2024)](https://arxiv.org/abs/2309.08532) | GA and DE operators with LLMs |
 | 2 | [GPO (AAAI 2025)](https://arxiv.org/abs/2402.17564) | Gradient-inspired trajectory retrieval |
-| 3 | [PromptAgent (ICLR 2024)](https://arxiv.org/abs/2310.16427) | MCTS for prompt optimization |
-| 4 | [PromptBreeder (ICML 2024)](https://arxiv.org/abs/2309.16797) | Self-referential prompt evolution |
+| 3 | [PE2 (Ye et al., ACL 2024 Findings)](https://arxiv.org/abs/2311.05661) | Hybrid: trajectory + reflection + fixed edit distance |
+| 4 | [PromptAgent (ICLR 2024)](https://arxiv.org/abs/2310.16427) | MCTS for prompt optimization |
+| 5 | [PromptBreeder (ICML 2024)](https://arxiv.org/abs/2309.16797) | Self-referential prompt evolution |
 
 :::
 
@@ -102,12 +103,12 @@ GPO ([Tang et al., AAAI 2025](https://arxiv.org/abs/2402.17564)) brought the mos
 
 The analogy table is instructive:
 
-| Gradient Optimizer Component | Prompt Optimizer Analog | GPO's Choice |
-|---|---|---|
-| **Update direction** (gradient) | Current prompt + performance info | Prompt + performance (no reflection) |
-| **Momentum** (historical gradients) | Trajectory of past attempts | Relevance-based retrieval (BGE embeddings) |
-| **Learning rate** | Edit distance constraint | Cosine decay schedule |
-| **Descent method** (subtraction) | Prompt refinement strategy | Generation (not editing) |
+| Gradient Optimizer Component | Prompt Optimizer Analog | GPO's Choice | PE2's Choice |
+|---|---|---|---|
+| **Update direction** (gradient) | Current prompt + performance info | Prompt + performance (no reflection) | Prompt + performance + reflection (two LLM calls) |
+| **Momentum** (historical gradients) | Trajectory of past attempts | Relevance-based retrieval (BGE embeddings) | Recency-based trajectory (like OPRO) |
+| **Learning rate** | Edit distance constraint | Cosine decay schedule | Fixed word-change limit |
+| **Descent method** (subtraction) | Prompt refinement strategy | Generation (not editing) | Generation (not editing) |
 
 The formal objective is the same as @eq-apo-objective:
 
@@ -152,6 +153,24 @@ Complete the four design choices that GPO's ablation study found most effective,
 ::: {.callout-warning title="Common Misconception: LLM self-reflection always improves optimization"}
 GPO's ablation study is a direct challenge to the intuition that "if the LLM can explain why a prompt failed, it should be able to fix it better." In practice, LLM-generated reflections can be misleading: the model may attribute failure to surface features rather than structural issues, or confabulate plausible-sounding but incorrect explanations. GPO found that trajectory retrieval (showing the optimizer *what worked before* for similar tasks) was more effective than reflection (asking the optimizer *why it failed*). The lesson: showing relevant examples is often more informative than asking for self-analysis. This parallels findings in human psychology, where people's introspective reports about their own reasoning are often unreliable.
 :::
+
+One architectural consequence deserves emphasis. **GPO uses a single meta-prompt per optimization step.** The update prompt receives the trajectory, the current prompt, task examples, and the edit distance constraint, then generates a new prompt directly. APO and PE2 (discussed next) require a separate "gradient" LLM call that first produces a textual critique, followed by a second "update" LLM call that consumes the critique. GPO eliminates the gradient call entirely, replacing it with trajectory demonstrations. The result is cheaper (one LLM call per step instead of two) and, counterintuitively, more effective. The trajectory provides contextually relevant demonstrations that steer the optimizer better than a potentially inaccurate self-critique.
+
+### PE2: The Kitchen-Sink Hybrid
+
+PE2 ([Ye et al., ACL 2024 Findings](https://arxiv.org/abs/2311.05661)) is the only method that combines *both* textual reflection (like ProTeGi/APO) *and* trajectory memory (like OPRO), together with a fixed edit distance constraint. GPO's comparison table classifies PE2 as using P+M+R (prompt text + performance metric + reflection) with recency-based trajectory, fixed edit distance, and generation-based refinement. Where other methods pick one or two of these components, PE2 takes all of them.
+
+The meta-prompt operates as a two-stage dialogue. In the first stage (the "gradient" step), the optimizer LLM receives the current prompt and a batch of failure examples. It analyzes what went wrong: "Your task is to point out the problems with the current prompt based on the wrong examples... Give a reason why the prompt could have gotten these examples wrong." This produces a natural language critique, identical in function to ProTeGi's textual gradient.
+
+In the second stage (the "update" step), the optimizer receives four inputs: the trajectory of past prompts and their scores (sorted by recency, like OPRO), the current prompt, the critique from stage one, and task examples. A fixed edit distance constraint caps how much can change: "You are allowed to change up to $s$ words." The optimizer then generates a new prompt from scratch.
+
+PE2 adds three meta-prompt components that ProTeGi and APO lack: (a) a detailed, upfront two-step task description that explains both stages before execution begins; (b) a context specification that explicitly describes how the prompt is concatenated with the input text; and (c) a step-by-step reasoning template that forces the optimizer to examine each failure example individually. The template asks structured questions: "Is the output correctly following the given prompt?" and "Is it necessary to edit the prompt? If yes, provide detailed analysis." This structured template is PE2's single most impactful component. Ablating it drops MultiArith accuracy from 92.0% to 87.0% and GSM8K from 68.0% to 61.0%.
+
+On its own benchmarks, PE2 delivers strong results. MultiArith improved from the "Let's think step by step" baseline (86.0% with text-davinci-003) to 92.3%, a 6.3 percentage point gain. GSM8K reached 64.0% (up from 60.9%). On counterfactual evaluation tasks (base-8 arithmetic, unusual chess rules), PE2 outperformed APO on 11 of 12 tasks, averaging 44.93% vs. APO's 38.03%. PE2 also improved an expert-written production prompt (over 5,000 tokens) by 8.0 F1 points.
+
+**GPO's direct comparison tells a different story.** On GPO's benchmark (BBH, GSM8K, MMLU, WSC, WebNLG), PE2 performs close to OPRO and consistently below GPO. PE2 scores 33.43 on BBH (vs. OPRO's 33.29 and GPO's 35.43), 25.33 on GSM8K (vs. OPRO's 26.67 and GPO's 28.33), and 38.07 on MMLU (vs. OPRO's 38.05 and GPO's 39.14). On BBH and MMLU, PE2 edges past OPRO by a hair; on GSM8K, OPRO actually beats PE2 (26.67 vs. 25.33). The reflection component adds negligible value on top of trajectory memory. GPO beats both by a clear margin on every task.
+
+This three-way comparison is the strongest evidence for GPO's headline claim. PE2 has both trajectory and reflection. GPO has trajectory but no reflection. OPRO has trajectory but no reflection either. **The reflection component does not consistently help over OPRO's simpler trajectory-only approach, and GPO's improvements (relevance-based retrieval, cosine decay) dominate the gains.** PE2's two LLM calls per step (gradient + update) are also more expensive than GPO's single call, so GPO achieves better results at lower cost.
 
 ### PromptAgent: Optimization as Planning
 
@@ -203,10 +222,11 @@ The evolutionary and search methods split along three axes:
 | EvoPrompt | GA / DE | Yes ($N$ prompts) | LLM as crossover/mutation | +25% on BBH |
 | PromptBreeder | Self-referential EA | Yes (prompts + mutation-prompts) | Co-evolves optimization strategy | Beats CoT on reasoning |
 | RLPrompt | Reinforcement learning | No (single policy) | Discovers uninterpretable prompts | High-performance gibberish |
+| PE2 | Hybrid (trajectory + reflection) | No (beam search) | Combines OPRO's memory + ProTeGi's critique | 92.3% MultiArith, 64.0% GSM8K |
 | GPO | Gradient-inspired | No (trajectory memory) | Retrieval + cosine decay | +56.8% BBH, +62.6% MMLU (relative) |
 | PromptAgent | MCTS | Tree structure | Look-ahead via simulation | +9% on 12 tasks |
 
-The trade-offs are clear. Population-based methods (EvoPrompt, PromptBreeder) explore diverse regions but are computationally expensive (evaluating $N$ prompts per generation). Trajectory-based methods (GPO) are cheaper per step but follow a single path. Tree-search methods (PromptAgent) explore branching paths but the branching factor grows exponentially.
+The trade-offs are clear. Population-based methods (EvoPrompt, PromptBreeder) explore diverse regions but are computationally expensive (evaluating $N$ prompts per generation). Trajectory-based methods (GPO) are cheaper per step but follow a single path. Hybrid methods (PE2) combine trajectory and reflection but at the cost of an extra LLM call per step and diminishing returns from reflection noise. Tree-search methods (PromptAgent) explore branching paths but the branching factor grows exponentially.
 
 GPO's ablation results suggest a provocative conclusion: the field may have over-indexed on algorithmic sophistication. Simple design choices (trajectory retrieval over recency, generation over editing, cosine decay over fixed step sizes) contribute more than complex evolutionary or planning mechanisms. The next section pushes in the orthogonal direction: instead of optimizing one metric better, what if the real challenge is optimizing *multiple competing metrics simultaneously*?
 

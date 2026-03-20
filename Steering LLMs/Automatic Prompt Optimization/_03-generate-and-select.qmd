@@ -131,7 +131,7 @@ OPRO's optimization loop has four steps that repeat each iteration. Arrange them
 
 ### SPO: Dropping the Ground-Truth Requirement
 
-A significant limitation of APE and OPRO is that they require labeled ground truth for scoring: you need $(x, y)$ pairs where $y$ is the correct answer. SPO ([Wu et al., 2024](https://arxiv.org/abs/2405.00675)) overcomes this via **pairwise LLM comparison**: given two outputs from two candidate prompts, an LLM judge simply picks the better one. This enables prompt optimization for open-ended tasks (creative writing, summarization, customer service quality) where no single correct answer exists.
+A significant limitation of APE and OPRO is that they require labeled ground truth for scoring: you need $(x, y)$ pairs where $y$ is the correct answer. SPO ([Xiang et al., EMNLP 2025 Findings](https://arxiv.org/abs/2502.06855)) overcomes this via **pairwise LLM comparison**: given two outputs from two candidate prompts, an LLM judge simply picks the better one. This enables prompt optimization for open-ended tasks (creative writing, summarization, customer service quality) where no single correct answer exists.
 
 This scoring function connects to a broader point: the scoring function $F$ in @eq-apo-objective can itself be a **learned reward model** $R_\varphi$ trained on human preferences. Instead of accuracy, we optimize:
 

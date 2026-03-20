@@ -13,7 +13,7 @@
 
 ## Source Processing Log
 
-::: {.callout-note collapse="true" title="Source Processing Log (23 sources reviewed)"}
+::: {.callout-note collapse="true" title="Source Processing Log (25 sources reviewed)"}
 
 | # | Source | Type | Local Path | Written | Accessed | Summary |
 |---|--------|------|------------|---------|----------|---------|
@@ -32,7 +32,7 @@
 | 13 | [EMO-Prompts: Evolutionary Multi-Objective Optimization of LLM Prompts](https://arxiv.org/abs/2401.09862) | [ACADEMIC] | `sources/arxiv-2401.09862/` | Jan 2024 | 2026-02-28 | KEY: First NSGA-II/SMS-EMOA application to prompt optimization — balances conflicting sentiment objectives; HVI up to 0.45. |
 | 14 | [MORL-Prompt: Multi-Objective RL for Discrete Prompt Optimization](https://arxiv.org/abs/2402.11711) | [ACADEMIC] | `sources/arxiv-2402.11711/` | Feb 2024 | 2026-02-28 | KEY: Identifies "objective collapse" in scalarized RL; proposes HVI and product-of-rewards as multi-objective alternatives. EMNLP 2024 Findings. |
 | 15 | [MOPO: Multi-Objective Prompt Optimization for Affective Text Generation](https://arxiv.org/abs/2412.12948) | [ACADEMIC] | `sources/arxiv-2412.12948/` | Dec 2024 | 2026-02-28 | KEY: Three-layer prompt architecture with NSGA-II; up to 34pp improvement; only 1–2pp loss per objective vs single-objective. COLING 2025. |
-| 16 | [ParetoPrompt: Pareto Prompt Optimization](https://openreview.net/forum?id=HGCk5aaSvE) | [ACADEMIC] | N/A (OpenReview only) | 2024 | 2026-02-28 | KEY: RL-based multi-objective prompt optimization using dominance relationships; explores full Pareto front without scalarization. ICLR 2025. |
+| 16 | [ParetoPrompt: Pareto Prompt Optimization](https://openreview.net/forum?id=HGCk5aaSvE) | [ACADEMIC] | `sources/openreview.net/forum/HGCk5aaSvE/` | 2024 | 2026-03-20 | KEY: RL-based multi-objective prompt optimization using dominance relationships; DPO/IPO preference loss for dominated pairs + non-dominated loss for diversity; explores full Pareto front without scalarization; robust to metric mismatch. ICLR 2025. |
 | 17 | [GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning](https://arxiv.org/abs/2507.19457) | [ACADEMIC] | `sources/arxiv-2507.19457/` | Jul 2025 | 2026-02-28 | KEY: Genetic-Pareto algorithm — reflection on execution traces + Pareto selection; outperforms GRPO by 6–20%, MIPROv2 by 10%+, 35× fewer rollouts. ICLR 2026 Oral. |
 | 18 | [A Systematic Survey of Automatic Prompt Optimization Techniques](https://arxiv.org/abs/2502.16923) | [ACADEMIC] | `sources/arxiv-2502.16923/` | Feb 2025 | 2026-02-28 | KEY: 5-part APO taxonomy — seed initialization, candidate generation, inference/feedback, iteration depth, filter/retain. EMNLP 2025. |
 | 19 | [DSPy Optimizers Documentation](https://dspy.ai/learn/optimization/optimizers/) | [TUTORIAL] | N/A | 2025 | 2026-02-28 | KEY: Lists all DSPy optimizers — BootstrapFewShot, MIPROv2, GEPA, SIMBA, BetterTogether; guidance on when to use each. |
@@ -40,6 +40,8 @@
 | 21 | [HiveMind: Contribution-Guided Online Prompt Optimization of LLM Multi-Agent Systems](https://arxiv.org/abs/2512.06432) | [ACADEMIC] | `sources/arxiv-2512.06432/` | Dec 2025 | 2026-02-28 | KEY: Shapley-value credit assignment for multi-agent prompt optimization; DAG-Shapley reduces LLM calls 80%+. AAAI 2026. |
 | 22 | [BLPO: Bi-Level Prompt Optimization for Multimodal LLM-as-a-Judge](https://arxiv.org/abs/2602.11340) | [ACADEMIC] | `sources/arxiv-2602.11340/` | Feb 2026 | 2026-02-28 | KEY: Joint optimization of judge prompt + image-to-text conversion prompt for multimodal evaluation. |
 | 23 | [MPO: Multimodal Prompt Optimization](https://arxiv.org/abs/2510.09201) | [ACADEMIC] | `sources/arxiv-2510.09201/` | Oct 2025 | 2026-02-28 | KEY: Unified framework optimizing text + visual prompts jointly across images, video, molecules. ICLR 2026 submission. |
+| 24 | [PE2: Prompt Engineering a Prompt Engineer](https://arxiv.org/abs/2311.05661) | [ACADEMIC] | `sources/arxiv-2311.05661/` | Nov 2023 | 2026-03-20 | KEY: Hybrid approach combining trajectory memory (OPRO-style) + textual reflection (ProTeGi-style) + fixed edit distance. Two-stage meta-prompt with structured per-example reasoning template. 92.3% MultiArith, 64.0% GSM8K. ACL 2024 Findings. |
+| 25 | [SPO: Self-Supervised Prompt Optimization](https://arxiv.org/abs/2502.06855) | [ACADEMIC] | N/A | Feb 2025 | 2026-03-20 | KEY: Pairwise LLM comparison for reference-free prompt optimization; enables optimization for open-ended tasks without ground truth. EMNLP 2025 Findings. (Note: previously incorrectly cited as arXiv 2405.00675, which is SPPO, a different RLHF alignment paper.) |
 
 :::
 

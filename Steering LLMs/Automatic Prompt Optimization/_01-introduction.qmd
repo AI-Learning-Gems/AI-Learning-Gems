@@ -16,6 +16,7 @@
 | 10 | [MORL-Prompt (Jafari et al., EMNLP 2024 Findings)](https://arxiv.org/abs/2402.11711) | Multi-objective RL for prompts |
 | 11 | [TRACE (NeurIPS 2024)](https://arxiv.org/abs/2406.16218) | Execution-trace optimization |
 | 12 | [HiveMind (AAAI 2026)](https://arxiv.org/abs/2512.06432) | Multi-agent prompt optimization |
+| 13 | [PE2 (Ye et al., ACL 2024 Findings)](https://arxiv.org/abs/2311.05661) | Hybrid trajectory + reflection |
 
 :::
 
@@ -62,7 +63,7 @@ The first insight came from APE ([Zhou et al., ICLR 2023](https://arxiv.org/abs/
 
 The next wave asked: can we give the optimizer richer, directional feedback, analogous to the gradients that guide neural network training? ProTeGi ([Pryzant et al., EMNLP 2023](https://arxiv.org/abs/2305.03495)) introduced "textual gradients": an LLM examines cases where the prompt fails, generates a natural language critique ("the prompt failed to catch this stroke presentation because it lacks neurological symptom keywords"), and then rewrites the prompt to address the critique. TextGrad ([Yuksekgonul et al., NeurIPS 2024](https://arxiv.org/abs/2406.07496)) generalized this into a full backpropagation framework, complete with computation graphs, chain rules, and an optimizer that updates text variables the way Adam updates weights. TRACE ([Cheng et al., NeurIPS 2024](https://arxiv.org/abs/2406.16218)) pushed further, using execution traces to propagate feedback through arbitrary computational workflows.
 
-In parallel, a different branch of the field drew on evolutionary computation. EvoPrompt ([Guo et al., ICLR 2024](https://arxiv.org/abs/2309.08532), September 2023) maintained populations of prompts and used LLMs as crossover and mutation operators. GPO ([Tang et al., AAAI 2025](https://arxiv.org/abs/2402.17564)) introduced a systematic gradient-optimizer analogy, with semantic trajectory retrieval and cosine-decay edit distance constraints. PromptAgent ([Wang et al., ICLR 2024](https://arxiv.org/abs/2310.16427)) framed the problem as planning, using Monte Carlo Tree Search to look ahead and avoid local optima.
+In parallel, a different branch of the field drew on evolutionary computation. EvoPrompt ([Guo et al., ICLR 2024](https://arxiv.org/abs/2309.08532), September 2023) maintained populations of prompts and used LLMs as crossover and mutation operators. PE2 ([Ye et al., ACL 2024 Findings](https://arxiv.org/abs/2311.05661)) combined both trajectory memory (like OPRO) and textual reflection (like ProTeGi) into a single system, creating the most feature-rich optimizer of 2023, but GPO ([Tang et al., AAAI 2025](https://arxiv.org/abs/2402.17564)) later showed that simpler design choices (relevance-based trajectory retrieval, cosine-decay edit distance) could outperform PE2's hybrid approach. PromptAgent ([Wang et al., ICLR 2024](https://arxiv.org/abs/2310.16427)) framed the problem as planning, using Monte Carlo Tree Search to look ahead and avoid local optima.
 
 But all of these methods optimized a single metric. Real-world prompts must balance competing objectives. Our support ticket system needs to be accurate and safe and concise, and these goals conflict. The multi-objective branch of prompt optimization, which arrived in force in 2024, applied established tools from multi-objective optimization (Pareto dominance, NSGA-II, hypervolume indicators) to the prompt setting. MORL-Prompt ([Jafari et al., EMNLP 2024 Findings](https://arxiv.org/abs/2402.11711)) identified "objective collapse" (one metric dominates while others are sacrificed) and proposed solutions. MOPO ([Menchaca Resendiz & Klinger, COLING 2025](https://arxiv.org/abs/2412.12948)) built a three-layer evolutionary architecture that lost only 1--2 percentage points per objective compared to single-objective optimization. GEPA ([Agrawal et al., ICLR 2026](https://arxiv.org/abs/2507.19457)) unified reflection on execution traces with Pareto-based candidate selection, outperforming both reinforcement learning (GRPO) and prior prompt optimizers (MIPROv2) with dramatically fewer rollouts.
 
@@ -212,6 +213,9 @@ Evo: "Evolutionary & Search\n(§4)" {
   EvoPrompt: " EvoPrompt (2023) " {
     class: [base; decision]
   }
+  PE2: "   PE2 (2023)   " {
+    class: [base; decision]
+  }
   GPO: "   GPO (2024)   " {
     class: [base; decision]
   }
@@ -250,6 +254,14 @@ Generate.OPRO -> Gradient.ProTeGi: "adds\ndirectional\nfeedback" {
   style.stroke: "#10B981"
   style.font-size: 11
 }
+Generate.OPRO -> Evo.PE2: "adds\nreflection" {
+  style.stroke: "#F59E0B"
+  style.font-size: 11
+}
+Gradient.ProTeGi -> Evo.PE2: "adds\ntrajectory" {
+  style.stroke: "#F59E0B"
+  style.font-size: 11
+}
 Gradient.ProTeGi -> Gradient.TextGrad: "generalizes to\ncomputation graphs" {
   style.stroke: "#10B981"
   style.font-size: 11
@@ -263,6 +275,10 @@ Generate.APE -> Evo.EvoPrompt: "adds populations" {
   style.font-size: 11
 }
 Evo.EvoPrompt -> Evo.GPO: "adds trajectory\nretrieval" {
+  style.stroke: "#F59E0B"
+  style.font-size: 11
+}
+Evo.PE2 -> Evo.GPO: "drops reflection\nimproves trajectory" {
   style.stroke: "#F59E0B"
   style.font-size: 11
 }

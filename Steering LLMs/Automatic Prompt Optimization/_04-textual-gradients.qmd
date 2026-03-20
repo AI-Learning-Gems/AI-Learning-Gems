@@ -160,6 +160,12 @@ TRACE provides two Python primitives to build computation graphs automatically:
 
 The **OptoPrime** algorithm converts the minimal subgraph connecting parameters to the output into pseudo-code, then prompts an LLM with a ReAct-CoT (Chain of Thought) approach to reason about the execution and suggest parameter updates. Because the optimizer sees the actual execution steps (not just the final result), it can make more targeted updates.
 
+The architectural distinction from TextGrad is important. TextGrad propagates natural language critiques edge-by-edge through the computation graph, requiring one LLM call per edge in the backward pass. TRACE takes a fundamentally different approach: OptoPrime reads the *entire minimal subgraph* as pseudo-code in a single LLM call, reasoning about the execution holistically rather than decomposing feedback into per-edge critiques.
+
+Cost follows from this architectural difference. TRACE uses one LLM call per optimization step regardless of graph depth. TextGrad's cost scales with the number of edges. For a pipeline with five chained components, TextGrad needs five backward calls; TRACE needs one. TRACE explicitly argues that it subsumes TextGrad's approach: any computation graph that TextGrad can optimize, TRACE can optimize too, because the execution trace captures strictly more information than the backward pass.
+
+The trade-off is context window pressure. TRACE's single-call approach requires the optimizer LLM to process the full subgraph pseudo-code in one prompt, which can strain the context window for complex graphs. TextGrad's per-edge calls are each smaller but add up to more total LLM compute.
+
 ![TRACE applied to MetaWorld robot controller optimization, demonstrating that the OPTO framework generalizes beyond NLP to arbitrary computational workflows. Source: Cheng et al. (2024).](Automatic Prompt Optimization/images/trace-metaworld.png){#fig-trace-metaworld}
 
 TRACE's subgraph propagation has complexity $O(WN^2 \log N)$ in time and $O(WN)$ in space, where $N$ is the number of nodes and $W$ is the maximum degree. This is more expensive than standard neural network backpropagation, reflecting the richer information being propagated through execution traces rather than just numerical gradients.
