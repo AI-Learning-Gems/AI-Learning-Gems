@@ -649,31 +649,33 @@ After reading all sections, scan for issues and categorize them into three sever
 
 **Tier 1 — BIG ISSUES (fix these first in every section):**
 
+These issues block comprehension. A reader who hits a register collision, an undefined term, or 4 new concepts in one paragraph *stops understanding*. That is as bad as a wrong symbol or a broken citation.
+
 1. **Notation inconsistency (RULE 21):** Check every equation and inline math expression against the notation table. Common errors: lowercase where uppercase is defined (e.g., `$n$` instead of `$N$`), wrong subscript convention, symbols used without definition. List every inconsistency found, with file and line.
 2. **Em dashes:** Grep for `—` across all `.qmd` files. Count occurrences per file.
 3. **Banned AI words:** Grep for the banned words list from Rule 7b. Count per file.
 4. **Unlinked citations:** Grep for patterns like `(Name et al., 20` or `(Venue 20` that do NOT contain `](http`. List every match.
+5. **Forward dependencies / top-down readability** (Rule 20e): Symbols, terms, or concepts used before being introduced within the same section. Scan each section top-to-bottom: does any paragraph use a term/symbol that is only defined in a later paragraph? Especially common in the Chapter Overview, where notation-table symbols appear before the notation table. This is a comprehension-blocker: the reader literally cannot understand the paragraph because it references something they have not seen yet.
+6. **Register coherence** (Rule 20a): Paragraphs that mix math-mode and narrative-mode prose. Identify by looking for paragraphs containing both an analogy/metaphor AND a mathematical claim (about gradients, convergence, etc.). Register collisions force the reader to switch cognitive modes mid-paragraph, which research shows degrades comprehension of both the analogy and the math.
+7. **Cognitive novelty overload** (Rule 20b): Paragraphs introducing 3+ genuinely new concepts. Working memory research (Cowan 2001) shows 3-4 items for complex material; exceeding this means the reader loses earlier concepts as new ones arrive. Split and add grounding between new concepts.
+8. **Analogy accuracy** (Rule 20c, FLAG): For each analogy, trace it forward: does any later content in the chapter contradict the mental model the analogy creates? An inaccurate analogy is worse than no analogy because the reader must *un-learn* the false model before learning the correct one (Representational Change Theory). Report as a PEDAGOGY FLAG; do not rewrite (the pedagogy fixer subagent handles rewrites with source material).
+9. **Premature abstraction** (Rule 20d, FLAG): If a paragraph makes a claim about a mechanism (e.g., "the gradient is zero") that has not yet been shown to the reader (the equation, function, or algorithm has not appeared in any prior paragraph), report it as a PEDAGOGY FLAG. This creates a forward dependency across sections that the subagent cannot fix alone.
 
 **Tier 2 — MEDIUM ISSUES:**
 
-5. **Forward dependencies / top-down readability** (Rule 20e): Symbols, terms, or concepts used before being introduced within the same section. Scan each section top-to-bottom: does any paragraph use a term/symbol that is only defined in a later paragraph? Especially common in the Chapter Overview, where notation-table symbols appear before the notation table.
-6. **Register coherence** (Rule 20a): Paragraphs that mix math-mode and narrative-mode prose. Identify by looking for paragraphs containing both an analogy/metaphor AND a mathematical claim (about gradients, convergence, etc.).
-7. **Cognitive novelty overload** (Rule 20b): Paragraphs introducing 3+ genuinely new concepts.
-8. **Bare "this"/"these"/"it" as sentence subjects** (Rule 16)
-9. **Sentences starting with math symbols** (Rule 18a)
-10. **Clause chains** (3+ clauses) (Rule 2)
-11. **Meta-commentary filler** (Rule 7c)
+10. **Bare "this"/"these"/"it" as sentence subjects** (Rule 16)
+11. **Sentences starting with math symbols** (Rule 18a)
+12. **Clause chains** (3+ clauses) (Rule 2)
+13. **Meta-commentary filler** (Rule 7c)
 
-**Tier 3 — SMALLER ISSUES (fix) and PEDAGOGY FLAGS (flag only):**
+**Tier 3 — SMALLER ISSUES (fix):**
 
-11. Given-new information flow (Rule 15)
-12. Nominalizations (Rule 17a)
-13. Noun stacks (Rule 17b)
-14. Forecasting counts (Rule 19a)
-15. Bold overuse (Emphasis Hierarchy)
-16. Sentence length variation (Rule 5)
-17. **PEDAGOGY FLAG: Analogy accuracy** (Rule 20c): Analogies that create mental models contradicted by later content. Flag, do not fix.
-18. **PEDAGOGY FLAG: Premature abstraction** (Rule 20d): Claims about mechanisms the reader has not yet been shown. Flag, do not fix.
+14. Given-new information flow (Rule 15)
+15. Nominalizations (Rule 17a)
+16. Noun stacks (Rule 17b)
+17. Forecasting counts (Rule 19a)
+18. Bold overuse (Emphasis Hierarchy)
+19. Sentence length variation (Rule 5)
 
 **1e. Chat the triage summary:**
 
