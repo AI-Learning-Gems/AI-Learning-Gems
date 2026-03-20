@@ -150,7 +150,151 @@ Pick the blogs most relevant to the topic's domain. If you find an excellent blo
 
 === PHASE 1B: SOURCE DOWNLOADING (CRITICAL — Before Planning) ===
 
-**CRITICAL RULE:** Do NOT write the TEXTBOOK-PLAN.md until all authoritative sources have been downloaded and saved locally.
+**CRITICAL RULE:** Do NOT write the TEXTBOOK-PLAN.md until ALL sources have been downloaded and saved locally. **EVERY SINGLE SOURCE referenced in the plan MUST have a local copy in `sources/`.** No exceptions. No `N/A`. No "referenced via web search." If a source cannot be downloaded after exhausting all fallbacks, DROP IT from the plan and find a replacement that CAN be downloaded.
+
+### Why This Rule Is Absolute
+
+The most common failure mode of this workflow is writing `N/A` in the Local Path column of the Source Processing Log and moving on. This defeats the entire purpose of source downloading:
+
+1. **The writing agent cannot read `N/A`** — it has no content to work from, so it hallucinates or uses stale training data
+2. **Claims become unverifiable** — without a local copy, there is no audit trail
+3. **Links rot** — URLs change, paywalls appear, sites go down; local copies are the only reliable reference
+4. **"I'll download it later" never happens** — the plan gets handed to the writing workflow, which has no download instructions
+
+### The Source Download Checklist (MANDATORY)
+
+**Before starting any downloads, build a checklist.** This is a simple text list that tracks every source and its download status. You will iterate over this checklist until every row shows OK.
+
+```
+=== SOURCE DOWNLOAD CHECKLIST ===
+[ ] 1. arxiv-2010.11929 — ViT paper — arXiv LaTeX
+[ ] 2. d2l.ai/chapter_attention.../vision-transformer — D2L tutorial — webpage_to_md.py
+[ ] 3. lilianweng.github.io/posts/2022-06-09-vlm — Lilian Weng blog — authenticated_extract.py
+[ ] 4. stevenpinker.com/.../pinker_2014.pdf — Pinker article — curl PDF
+...
+```
+
+**Do NOT proceed to Phase 2 (writing the plan) until every checkbox is checked.**
+
+### The Download-Verify-Retry Loop
+
+For EACH source in the checklist, execute this loop:
+
+```
+FOR each source in checklist:
+  1. DETERMINE expected local path (see source-management.md naming conventions)
+  2. CHECK if it already exists and has content:
+     ls "sources/{path}/" 2>/dev/null && echo "EXISTS" || echo "NEW"
+  3. IF EXISTS and non-empty → mark [OK], move to next source
+  4. IF NEW → ATTEMPT download using primary method (see web-source-fetching.md)
+  5. VERIFY download succeeded:
+     - Folder exists AND is non-empty
+     - For web pages: markdown file has >500 characters (not a blank/error page)
+     - For arXiv: .tex files present
+     - For PDFs: file command confirms "PDF document", not "HTML document"
+  6. IF verification FAILED → try FALLBACK methods (see cascade below)
+  7. IF all fallbacks exhausted → mark [FAILED], log reason, find replacement source
+  8. Mark [OK] when verified
+```
+
+### Readability Verification (MANDATORY — After Download)
+
+**Downloading a source is not enough. The source must be in an LLM-readable text format.** A PDF sitting in the source folder is useless to the writing agent if it has never been extracted to markdown or text. This step ensures every source has readable content.
+
+**After every source is downloaded and verified, check readability:**
+
+```
+FOR each source marked [OK]:
+  1. LIST all files in the source folder
+  2. CHECK: Does the folder contain at least one .md, .tex, or .txt file with >500 characters?
+     - YES → source is readable, move on
+     - NO → source needs extraction (see below)
+  3. IF only PDFs exist (no .md, .tex, .txt):
+
+     STOP. DO NOT GUESS THE EXTRACTION COMMAND.
+     
+     This is the most common failure pattern: the agent "remembers" or assumes 
+     which tool to use, gets it wrong, and either fails silently or produces 
+     garbage. The rules files are updated over time and contain a decision tree 
+     that the agent's training data may not reflect.
+     
+     a. Read web-source-fetching.md IN FULL using the Read tool (read the entire file, not just the top)
+     b. Read source-management.md IN FULL using the Read tool
+     c. ONLY AFTER reading both files, determine the correct extraction method 
+        based on what the rules say — not based on what you "think" the command is
+     d. Execute the extraction command the rules specify
+     e. VERIFY extraction produced a .md file with >500 characters of actual content
+     f. If extraction fails, try the fallback methods listed in web-source-fetching.md
+     
+  4. IF the source is an HTML file that was saved but not converted to markdown:
+     a. Read web-source-fetching.md first (same rule: do not guess)
+     b. The rules will direct you to pandoc, authenticated_extract.py, or another tool
+```
+
+**Why this matters:** The Peyton Jones slides PDF (`peyton-jones.pdf`) was downloaded during research but never extracted to text. The writing agent's sub-agent could see the PDF existed but could not read its content, losing one of the most important sources for the chapter. This step prevents that failure mode.
+
+**The rule is absolute:** Every source folder must contain at least one file in `.md`, `.tex`, or `.txt` format that an LLM can read with the Read tool. If only binary formats (PDF, DOCX, images) exist, extract them before proceeding.
+
+### Fallback Cascade (Try ALL of these before giving up)
+
+When the primary download method fails, try each fallback in order. Do NOT give up after one failure.
+
+| Failure Scenario | Fallback 1 | Fallback 2 | Fallback 3 | Last Resort |
+|---|---|---|---|---|
+| **`webpage_to_md.py` fails** (SVG error, empty output, crash) | `webpage_to_md.py` with `--no-svgs` | `authenticated_extract.py "URL"` | `authenticated_extract.py "URL" -s "article, main"` | `WebFetch` tool to read content, then save manually |
+| **`authenticated_extract.py` fails** (timeout, empty) | Retry with `-s "article"` or `-s "main"` | `webpage_to_md.py "URL"` (faster, no JS) | `curl -sL "URL" -o page.html` + manual extract | `WebFetch` tool |
+| **`curl` for PDF returns HTML** (redirect, login wall) | Add `-L -H "User-Agent: Mozilla/5.0"` | `authenticated_extract.py "URL"` | Search for alternative URL (mirror, preprint, author's site) | Download the arXiv version instead if it exists |
+| **arXiv LaTeX tar.gz fails** (no source available) | `curl -sL "https://arxiv.org/pdf/{ID}" -o paper.pdf` (get PDF) | `WebFetch` on `https://arxiv.org/html/{ID}v{N}` | `webpage_to_md.py "https://arxiv.org/html/{ID}v{N}"` | — |
+| **Site returns 403/401** (paywall, auth required) | Search for preprint on arXiv, author's personal site, or Semantic Scholar | `authenticated_extract.py --profile` (if login profile exists) | Download related freely-available content that covers the same data | Drop source, find replacement |
+| **Site returns 404/500** (down, moved) | Search Wayback Machine: `web.archive.org/web/*/URL` | Search for mirror/cached version | Search for the same content on a different URL | Drop source, find replacement |
+| **Download succeeds but content is too short** (<500 chars) | The page likely requires JavaScript. Use `authenticated_extract.py` | Check if it's a landing page; download the actual PDF/paper instead | Try a different CSS selector: `-s "article"`, `-s ".post-content"` | — |
+
+### Verification Commands
+
+After ALL downloads, run this verification sweep:
+
+```bash
+# For each source folder, check it exists and has real content
+for d in \
+  "sources/arxiv-2010.11929/" \
+  "sources/d2l.ai/chapter_attention.../vision-transformer/" \
+  "sources/lilianweng.github.io/posts/2022-06-09-vlm/" \
+; do
+  if [ -d "$d" ] && [ "$(ls -A "$d" 2>/dev/null)" ]; then
+    count=$(find "$d" -type f | wc -l | tr -d ' ')
+    echo "OK ($count files): $d"
+  else
+    echo "FAILED: $d"
+  fi
+done
+```
+
+**If ANY source shows FAILED, go back and fix it before proceeding.** Re-run the fallback cascade. If the source truly cannot be obtained after all fallbacks, remove it from the source list and find a replacement source that CAN be downloaded.
+
+### Rules for the Source Processing Log
+
+The Source Processing Log in TEXTBOOK-PLAN.md has a "Local Path" column. The following rules are absolute:
+
+1. **Every row MUST have a real `sources/...` path in the Local Path column.** No exceptions.
+2. **`N/A` is NEVER acceptable in the Local Path column.** If you are tempted to write `N/A`, you have not finished downloading.
+3. **"Referenced via web search" is NOT a local path.** Web search results are for discovery. The content must be saved locally.
+4. **"General reference" or "General concept" rows** are allowed ONLY for sources that genuinely have no single downloadable artifact (e.g., a general concept like "the ABT framework" which comes from a book you cannot download, or a reference to a blog author's overall style). These should be rare (at most 2-3 per plan). Mark them as `General reference (Book title, Year)` or `General reference (author-blog-url)` with an explanation, NOT as `N/A`.
+5. **Paywalled sources** that cannot be accessed must have a freely-available substitute downloaded instead. If the paper is on Nature but the preprint is on arXiv, download the arXiv version. Update the Local Path to point to the substitute.
+
+### The "No N/A" Audit
+
+**After writing the Source Processing Log (Part 1 of TEXTBOOK-PLAN.md), AND after writing each section plan that references sources, run this self-audit:**
+
+1. Search the TEXTBOOK-PLAN.md file for the string `N/A`
+2. If ANY match is found in a Local Path column, STOP and fix it
+3. Search for the string `web search` in the Local Path column — same rule
+4. Search for the string `referenced` in the Local Path column — same rule
+5. Only proceed to the next part of the plan when the audit passes
+
+```bash
+# Run this after writing each part of TEXTBOOK-PLAN.md:
+grep -n 'N/A' "{OutputFolder}/TEXTBOOK-PLAN.md" && echo "FAIL: Found N/A entries — fix before proceeding" || echo "PASS: No N/A entries"
+```
 
 ### Why Download Before Planning?
 
@@ -161,39 +305,55 @@ Pick the blogs most relevant to the topic's domain. If you find an excellent blo
 
 ### The Source Downloading Workflow
 
-**STEP 1: Identify Sources (from PHASE 1 Research)**
+**STEP 1: Build the Download Checklist**
 
-After your web searches, you'll have a list of URLs. For each, determine:
-- What type of source is it? (arXiv paper, GitHub docs, tutorial site, etc.)
-- What is the best fetch method? (see lookup table in `web-source-fetching.md`)
+After your web searches (Phase 1), build the checklist of ALL sources to download. For each source, determine:
+- What type of source is it? (arXiv paper, GitHub docs, tutorial site, blog, PDF, etc.)
+- What is the expected local path? (see `source-management.md` naming conventions)
+- What is the primary download method? (see `web-source-fetching.md`)
 
 **STEP 2: Check for Existing Sources (MANDATORY)**
 
 Do NOT download a source if it already exists in the centralized repository.
 
 ```bash
-# 1. Determine the expected folder name (e.g., sources/arxiv-2010.11929/)
-# 2. Check if it exists and has content
-ls "AI-Learning-Gems/sources/arxiv-2010.11929/source.tar.gz" 2>/dev/null && echo "EXISTS" || echo "NEW"
+ls "AI-Learning-Gems/sources/arxiv-2010.11929/" 2>/dev/null && echo "EXISTS" || echo "NEW"
 ```
 
-**STEP 3: Download ONLY NEW Sources**
+**STEP 3: Download ALL Sources (with retry and fallback)**
 
-Use the centralized `AI-Learning-Gems/sources/` directory. Refer to `source-management.md` for naming conventions and `web-source-fetching.md` for site-specific strategies. **Always verify the folder does not exist before running the download command.**
+Execute the Download-Verify-Retry Loop (above) for every source in the checklist. Use the Fallback Cascade when the primary method fails.
 
-**STEP 4: Convert PDF Figures to PNG**
+**STEP 4: Run Verification Sweep**
+
+Run the verification command (above) across ALL source folders. Fix any FAILED entries.
+
+**STEP 5: Convert PDF Figures to PNG**
 
 Follow the PDF figure conversion rules in `source-management.md`.
 
-**STEP 5: Validate Converted Images**
+**STEP 6: Validate Converted Images**
 
 Follow the image validation rules in `source-management.md` (detect blank placeholders).
 
-**STEP 6: Verify Downloads**
+**STEP 7: Final Audit — Confirm Zero Failures**
 
 ```bash
-find AI-Learning-Gems/sources/ -type f | head -30
+# Final sweep: every source folder must exist and be non-empty
+echo "=== FINAL DOWNLOAD AUDIT ==="
+FAIL_COUNT=0
+for d in [LIST ALL EXPECTED SOURCE FOLDERS]; do
+  if [ -d "$d" ] && [ "$(ls -A "$d" 2>/dev/null)" ]; then
+    echo "OK: $d"
+  else
+    echo "FAILED: $d"
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+  fi
+done
+echo "=== Failures: $FAIL_COUNT ==="
 ```
+
+**If FAIL_COUNT > 0, DO NOT proceed to Phase 2.** Go back and fix every failure using the fallback cascade, or replace the source.
 
 ---
 
@@ -330,6 +490,26 @@ The plan MUST follow this exact structure. Each block below corresponds to one i
 ```markdown
 # TEXTBOOK-PLAN: [Topic Name]
 
+> **⚠️ CRITICAL DISCLAIMER FOR THE WRITING AGENT ⚠️**
+>
+> This TEXTBOOK-PLAN.md is a **structural guide only**. It specifies: (a) which sections to write,
+> (b) which sources to read for each section, and (c) what topics each section should cover.
+>
+> **The quotes, statistics, numbers, and specific claims in this plan are PLACEHOLDERS.**
+> They were extracted from web search summaries during the research phase. Web search summaries
+> are lossy, frequently inaccurate, and sometimes fabricate details that do not appear in the
+> original source. A quote attributed to "Author X" in this plan may be paraphrased incorrectly,
+> taken out of context, or entirely hallucinated by the search engine or LLM that produced the summary.
+>
+> **DO NOT copy any quote, statistic, or specific claim from this plan into the chapter.**
+> Instead, use the source paths listed in each section's "Sources needed" table to read the
+> actual source files. Every quote must come from your own reading of the source. Every number
+> must be verified against the actual paper/post. If a source cannot be read (empty folder,
+> missing file, PDF not converted), the claim MUST be dropped or the source must be downloaded
+> and read before the claim can be included.
+>
+> **The plan tells you WHERE to look. The sources tell you WHAT to write.**
+
 ## User Query
 > [Exact user query, verbatim]
 
@@ -349,7 +529,7 @@ The plan MUST follow this exact structure. Each block below corresponds to one i
 |---|--------|------|------------|---------|----------|---------|
 | 1 | [Source Name](URL) | [ACADEMIC] | `sources/arxiv-XXXX/` | <date> | <today> | KEY: <1-2 sentence summary> |
 | 2 | [Source Name](URL) | [TUTORIAL] | `sources/d2l.ai/path/` | <date> | <today> | KEY: <1-2 sentence summary> |
-| 3 | [Source Name](URL) | [COMMUNITY] | N/A | <date> | <today> | IRRELEVANT: <reason> |
+| 3 | [Source Name](URL) | [COMMUNITY] | `sources/domain.com/path/` | <date> | <today> | KEY: <1-2 sentence summary> |
 
 :::
 ```
@@ -492,6 +672,9 @@ The writing agent should copy these to `{Chapter}/images/` and embed them in the
 
 Before finalizing the plan, verify:
 - [ ] User query is included verbatim at the top
+- [ ] **ZERO `N/A` entries in any Local Path column** — run `grep -n 'N/A' TEXTBOOK-PLAN.md` and confirm zero matches in source tables. If any match, STOP and fix.
+- [ ] **Every source in the Source Processing Log has a `sources/...` local path** (except at most 2-3 "General reference" entries for books/concepts with no downloadable artifact)
+- [ ] **Every source in every section-level "Sources needed" table has a `sources/...` local path** — no section plan may reference a source that was not downloaded
 - [ ] All downloaded sources are listed in the Source Processing Log with local paths
 - [ ] **EXACTLY 5-6 body sections** planned (plus introduction and closing). If more subtopics exist, merge related ones rather than adding more sections. The total chapter should be 7,500-12,000 words.
 - [ ] Each section is 1,500-2,000 words
@@ -543,12 +726,23 @@ Keep chat messages brief. Example:
 2. Track all URLs found for downloading
 3. Chat: "✓ Research phase complete: [N] sources identified"
 
-## STEP 2: Download Sources
+## STEP 2: Download ALL Sources (ZERO FAILURES REQUIRED)
 
-1. Check for existing sources in `AI-Learning-Gems/sources/` before EVERY download
-2. Download ONLY new sources using appropriate methods (see `web-source-fetching.md`)
-3. Verify all downloads (ensure folder is not empty)
-4. Chat: "✓ Sources processed: [N] new downloaded, [M] already existed in repository"
+**This is the most failure-prone step. Agents routinely skip downloads and write `N/A` instead. DO NOT DO THIS.**
+
+1. **Build the download checklist** — list every source with its expected local path and primary download method
+2. Check for existing sources in `AI-Learning-Gems/sources/` before EVERY download
+3. **Execute the Download-Verify-Retry Loop** for each source (see Phase 1B):
+   - Download using primary method
+   - Verify: folder exists, non-empty, content is real (not HTML error page for PDFs, not <500 chars for web pages)
+   - If failed: try Fallback 1, then 2, then 3, then Last Resort (see Fallback Cascade table in Phase 1B)
+   - If ALL fallbacks exhausted: find a replacement source and download that instead
+4. **Run the verification sweep** across all source folders — print OK/FAILED for each
+5. **If any source shows FAILED: STOP. Fix it. Do not proceed.**
+6. **Run the "No N/A" audit** — grep the checklist for any unresolved entries
+7. Chat: "✓ Sources downloaded: [N] total ([M] new, [K] pre-existing). Zero failures."
+
+**THE WORKFLOW IS NOT COMPLETE UNTIL EVERY SOURCE HAS A LOCAL COPY. There is no "good enough" — either every source is downloaded or the step is not done.**
 
 ## STEP 2B: Image Inventory (CRITICAL — Do NOT skip)
 

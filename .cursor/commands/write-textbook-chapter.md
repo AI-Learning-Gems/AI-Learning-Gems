@@ -20,6 +20,85 @@ The user will provide **the path to a `TEXTBOOK-PLAN.md` file** created by the `
 
 ---
 
+=== THE TEXTBOOK-PLAN IS A STRUCTURAL GUIDE, NOT A SOURCE OF TRUTH (CRITICAL) ===
+
+**The TEXTBOOK-PLAN.md tells you WHAT to write about and WHERE to find the information. It does NOT contain reliable information itself.**
+
+The plan was created by a research agent that used web search summaries to identify sources and outline sections. Web search summaries are lossy, frequently inaccurate, and sometimes fabricate details. As a result:
+
+1. **Quotes in the plan are placeholders.** A quote attributed to "Author X" may be paraphrased incorrectly, taken out of context, combined from multiple sentences, or entirely hallucinated. DO NOT copy any quote from the plan into the chapter. Instead, read the actual source file and extract the real quote yourself.
+
+2. **Statistics and numbers in the plan are unverified.** A number like "21% of reviews" or "3.2% improvement" in the plan may be approximately correct, slightly wrong, or completely fabricated. DO NOT use any number from the plan without reading the actual source paper/post and verifying the exact figure.
+
+3. **Source summaries in the plan are directionally correct but not reliable.** The plan says "Source X contains Y" to help you know where to look. But the *actual content* of Source X may differ from the plan's summary. Always read the source; never trust the plan's description of what the source says.
+
+4. **The plan's value is structural:** which sections to write, which sources to read for each section, what topics each section should cover, and how the running example threads through the chapter. Use the plan for structure. Use the sources for content.
+
+**The guiding principle: The plan tells you WHERE to look. The sources tell you WHAT to write.**
+
+---
+
+=== ZERO WORLD KNOWLEDGE PRINCIPLE (CRITICAL) ===
+
+**You know nothing about the topic except what you read from the downloaded sources.**
+
+This is the single most important principle in this workflow. You are a skilled writer and organizer, but you have **zero reliable knowledge** about the chapter's topic. Your training data may contain information about the topic, but that information may be outdated, incomplete, or wrong. You MUST NOT:
+
+- Quote an author from memory (even a famous, widely-known quote)
+- Cite a statistic you "know" without reading the source
+- Describe a method, framework, or concept from training data instead of from a downloaded source
+- Fill in gaps when a source is unavailable by "remembering" the content
+- Assume a well-known fact is correct without verifying it in a source
+
+**If you cannot find a claim in a downloaded, readable source file, the claim does not exist for you.** Drop it, or download a source that contains it.
+
+This principle exists because LLMs (including you) confidently produce plausible-sounding but incorrect information about well-known topics. A "famous quote" may be a common misattribution. A "well-known statistic" may be outdated or from a retracted paper. A "standard framework" may have been described differently by its creator than how the internet summarizes it. The only way to avoid these errors is to treat your world knowledge as unreliable and verify everything against local source files.
+
+---
+
+=== WHAT TRAINING DATA CAN AND CANNOT BE USED FOR (CRITICAL) ===
+
+The Zero World Knowledge Principle is strict, but it is not absolute. There is a precise boundary between what training data can contribute and what it cannot. Understanding this boundary prevents two failure modes: (a) hallucinating specific claims by "remembering" them instead of reading them, and (b) wasting time downloading sources for obvious, non-controversial background knowledge.
+
+### What Training Data CANNOT Be Used For (Hard Ban)
+
+These categories require a downloaded, readable source file. No exceptions.
+
+| Category | Why It Must Be Sourced | Example of Failure |
+|---|---|---|
+| **Direct quotes** | Exact wording matters. Training data paraphrases, combines, and misattributes quotes. | Attributing "writing is a primary mechanism for doing research" to Peyton Jones when the actual transcript says something different. |
+| **Statistics and numbers** | Specific numbers drift in training data. A "21%" becomes "20%" or "25%." A sample size gets rounded. An effect size gets inflated. | Writing "6.5-16.9% of reviews" when the actual paper says "15.8%." |
+| **Named frameworks and methodologies** | The creator's original formulation may differ from how the internet summarizes it. A "3-step framework" may actually be 5 steps. The steps may have different names. The framework may have caveats that popularizations drop. | Describing the "ABT framework" from Randy Olson without reading Olson's actual book or a detailed source, then getting the structure or attribution wrong. |
+| **Specific claims about what an author said, argued, or found** | Training data conflates authors, misattributes findings, and merges claims from different papers. | Writing "Pinker argues X" when Pinker actually argues something subtly but importantly different. |
+| **Paper titles, author lists, venues, and years** | Training data frequently gets these wrong, especially for recent papers. | Attributing a paper to "Liang et al." when the actual authors are "Russo Latona et al." |
+| **Descriptions of specific papers, blog posts, or talks** | The details of what a specific work contains must come from reading it. | Claiming a paper "found that novelty assessment is the biggest blind spot" without reading the paper to verify this is what it actually found. |
+
+### What Training Data CAN Be Used For (Acceptable)
+
+These categories do not require a downloaded source. They represent general background knowledge that is non-controversial, not attributed to a specific person, and serves as connective tissue rather than load-bearing claims.
+
+| Category | Why It's Okay | Example |
+|---|---|---|
+| **Pointing to well-known people as examples** | You are not claiming what they said or did. You are citing them as instances of a category. The reader can verify independently. | "Andrej Karpathy's blog posts are widely read." "Lilian Weng writes survey-style posts." "Chris Olah is known for visual explanations." |
+| **General domain knowledge** (non-controversial, non-attributed) | Statements that any practitioner in the field would agree with, not tied to a specific source. | "NeurIPS, ICML, and ICLR are top AI conferences." "Peer review typically involves 3-5 reviewers." "LaTeX is the standard typesetting system for CS papers." |
+| **Structural and rhetorical devices** | How you organize the chapter, the analogies you use, the narrative framing. | Using a running example, creating comparison tables, structuring a section as "problem → solution → evidence." |
+| **Common vocabulary and definitions** | Terms whose meaning is standardized and uncontroversial. | "An abstract summarizes the paper." "Ablation studies remove components one at a time." |
+
+### The Litmus Test
+
+When you are about to write something, ask: **"Am I making a specific claim that could be wrong?"**
+
+- "Karpathy writes clearly" → general characterization, okay from training data.
+- "Karpathy writes in his blog post that X is the right approach" → specific claim about what he said, requires a source.
+- "The ABT framework stands for And, But, Therefore" → specific description of a named framework, requires a source.
+- "Some science communicators use narrative structures in paper introductions" → general observation, okay from training data.
+- "Jiang et al. found that writing quality predicts acceptance across 28,000 submissions" → specific statistic and finding, requires reading the actual paper.
+- "AI conferences have high submission volumes" → general knowledge, okay.
+
+**When in doubt, download the source.** The cost of downloading and reading a source is minutes. The cost of a hallucinated claim in a textbook chapter is the reader's trust.
+
+---
+
 === EXECUTION CONTEXT ===
 
 **This prompt is designed for agentic execution** in Cursor, Windsurf, or similar coding-agent IDEs with web search capabilities. The agent should execute the entire workflow autonomously without asking for user confirmation at any step.
@@ -184,6 +263,33 @@ Keep chat messages brief. Example:
 
 ---
 
+=== SOURCE INTEGRITY (CRITICAL — Read This Before Anything Else) ===
+
+**NEVER write from web search summaries. ALWAYS read the full downloaded source.**
+
+Web search result summaries are lossy, frequently inaccurate, and sometimes fabricate details that do not appear in the original source. An agent that writes a textbook chapter from search summaries instead of from the actual source text will produce plausible-sounding but unreliable content. This is the single biggest quality failure mode in this workflow.
+
+**The rule is simple:**
+
+1. If a source is cited in TEXTBOOK-PLAN.md, it MUST be downloaded locally to `AI-Learning-Gems/sources/` BEFORE you begin writing.
+2. If a source is downloaded locally, you MUST read it IN FULL using the Read tool (or `view_file`) BEFORE writing any section that references it.
+3. If a source cannot be downloaded (paywalled, broken link, etc.), you MUST either find an alternative source that CAN be downloaded, or drop the claim. Never cite a source you have not read.
+
+**What "read in full" means:** Use the Read tool on the local file. Read every line. For long sources (30K+ chars), you may read in chunks, but you must read ALL chunks, not just the first page. For PDFs, convert to text first (see `web-source-fetching.md`).
+
+**What counts as a violation:**
+- Citing a source you only saw via a web search summary snippet
+- Paraphrasing a source's argument based on a 3-sentence search result instead of the full text
+- Attributing a specific claim to an author when you only read a summary of their post, not the post itself
+- Delegating section writing to a subagent without passing the full source text (not just a summary of it)
+- **Using quotes, statistics, or claims from TEXTBOOK-PLAN.md without reading the actual source** — the plan's content is derived from web search summaries and is not reliable
+- **Filling gaps with world knowledge when a source is unavailable** — even "famous" quotes and "well-known" statistics may be wrong, outdated, or misattributed in your training data
+- **Writing from the sub-agent's report without reading the actual source** — the sub-agent's report is a navigation aid that tells you WHERE to look, not a substitute for looking yourself
+
+**Subagent implications:** If you use subagents to scout sources (as required by the per-section source scouring protocol in Step 0C), the sub-agent's report is a *navigation aid*, not a substitute for reading. The main agent MUST still read the actual source at the line numbers the sub-agent identifies. A sub-agent report that says "Line 47 contains the key finding" is useful because it tells you *where* to look. But if you write "the key finding is X" without reading line 47 yourself, you are trusting the sub-agent's interpretation, which may be lossy, incomplete, or wrong. The protocol is: sub-agent scouts → main agent reads the actual lines → main agent writes. If the middle step is skipped, the main agent is hallucinating.
+
+---
+
 === HANDLING INCOMPLETE SOURCES ===
 
 While writing a section, you may discover that the downloaded sources from the research phase are insufficient. When this happens:
@@ -198,9 +304,10 @@ While writing a section, you may discover that the downloaded sources from the r
    # For simple static pages (faster, no browser):
    conda activate ai-learning-gems && python scripts/webpage_to_md.py "URL" -o "sources/{domain}/{path}/"
    ```
-3. **Update the section's source header** with the new source
-4. **Continue writing** with the new material
-5. Chat: "✓ Additional source downloaded: `sources/{path}` (needed for [reason])"
+3. **Read the newly downloaded source in full** using the Read tool before using it
+4. **Update the section's source header** with the new source
+5. **Continue writing** with the new material
+6. Chat: "✓ Additional source downloaded and read: `sources/{path}` (needed for [reason])"
 
 ---
 
@@ -704,25 +811,308 @@ Every example must pass the **"15-year-old to 35-year-old test":**
 
 ## STEP 0: Read the Plan & Initialize
 
+### 0A. Read the Plan
+
 1. **Read `TEXTBOOK-PLAN.md`** — understand the full plan, sources, section structure, and **Source Image Catalog**
-2. **Read key downloaded sources** — `view_file` on the most important sources listed in the plan
-3. **Create the folder structure:**
+
+### 0A.1. Write a Source-Reading Manifesto (MANDATORY — Before Reading Any Sources)
+
+**Before you download or read a single source, write a 2-paragraph manifesto in the chat** explaining why reading every single source in full is crucial for *this specific chapter*. The manifesto must be specific to the topic, not generic. It should answer:
+
+- What makes this particular topic vulnerable to summary-based distortion? (e.g., "This chapter covers X, where the precise wording of expert Y's advice matters because slight paraphrasing changes the meaning entirely.")
+- Which specific sources are you most worried about getting wrong from a summary alone, and why?
+
+**Why this step exists:** Writing the manifesto forces the agent to think concretely about what it would miss by skipping source reads, before the temptation to skip arises. It is a pre-commitment device. An agent that has just written two paragraphs about why source fidelity matters for *this exact chapter* is far less likely to cut corners five steps later when context is long and the deadline feels close.
+
+**Format:** Output this directly in the chat (not a file). Two paragraphs, 100-200 words total. Then proceed to 0B.
+
+### 0B. Download ALL Sources AND Verify Readability (MANDATORY GATE — Do NOT Proceed Until Complete)
+
+**Every source in the TEXTBOOK-PLAN.md Source Processing Log MUST be downloaded locally AND in a readable text format before you write a single word of chapter content.** This is a hard gate, not a suggestion.
+
+1. **Scan the Source Processing Log** in TEXTBOOK-PLAN.md. For each source, check whether it has a local path in `AI-Learning-Gems/sources/`.
+2. **For sources with "N/A" local path** (i.e., sources that were only accessed via web search during research): download them NOW. Use subagents to parallelize downloads if there are many.
+   ```bash
+   # Check if source already exists:
+   ls "AI-Learning-Gems/sources/{expected-path}/" 2>/dev/null && echo "EXISTS" || echo "NEEDS DOWNLOAD"
+   
+   # Download using the appropriate method from web-source-fetching.md:
+   # Blog posts, JS-heavy pages:
+   conda activate ai-learning-gems && python scripts/authenticated_extract.py "URL"
+   # Static pages (faster):
+   conda activate ai-learning-gems && python scripts/webpage_to_md.py "URL" -o "sources/{domain}/{path}/"
+   # arXiv papers:
+   mkdir -p "sources/arxiv-{ID}" && cd "sources/arxiv-{ID}" && curl -sL "https://arxiv.org/src/{ID}" -o source.tar.gz && tar -xzf source.tar.gz && rm source.tar.gz
+   ```
+3. **For sources that cannot be downloaded** (paywalled, broken link, requires login you don't have): note these in the chat and either find an alternative downloadable source, or mark the claims from that source as unverifiable.
+4. **Verify all downloads:** Run `ls` on each expected source path to confirm content exists.
+
+5. **CRITICAL — Verify readability of every source (MANDATORY).** Downloaded is not the same as readable. A PDF in the source folder is useless if it has never been extracted to text. For EACH source folder:
+   - List all files in the folder
+   - Check: does it contain at least one `.md`, `.tex`, or `.txt` file with >500 characters?
+   - **If YES:** source is readable, move on.
+   - **If NO** (e.g., only PDFs, only HTML, only images):
+     - **STOP. Read `web-source-fetching.md` and `source-management.md` IN FULL using the Read tool BEFORE running any extraction command.** Do NOT guess the command. Do NOT rely on memory. Do NOT assume you know which tool to use. The rules files contain a decision tree, tool comparison table, and site-specific strategies. Read them EVERY TIME, even if you think you already know the answer. The most common failure pattern is an agent that "remembers" the wrong command and either fails silently or produces garbage.
+     - **Only AFTER reading both rules files**, determine the correct extraction method based on what the rules say.
+     - Execute the extraction command the rules specify.
+     - **Verify** the extraction produced a `.md` or `.txt` file with >500 characters of actual content
+   - **The rule is absolute:** every source folder must contain at least one LLM-readable text file (`.md`, `.tex`, `.txt`). If only binary formats exist after extraction attempts, note this in the chat as a source that may have missing content.
+
+6. Chat: "✓ Source download + readability gate: [N] sources verified locally with readable content, [M] newly downloaded, [P] newly extracted from PDF/HTML, [K] unavailable (with alternatives noted)"
+
+### 0C. Source Pre-Reading: Per-Section Sub-Agent Scouring Protocol (MANDATORY)
+
+**This replaces any "read all sources upfront in bulk" approach.** Sources are read in a targeted, per-section manner using a sub-agent + main-agent verification protocol. This protocol runs once before the introduction (Step 1) and once before each body section (Step 2). It is described here so the main agent understands the full flow before starting.
+
+**Why this protocol exists:** The single biggest quality failure mode in this workflow is writing from summaries instead of from actual source text. A sub-agent that reads sources and returns a report is helpful for navigation, but the main agent MUST still read the actual source material. If the main agent writes only from the sub-agent's report, it is effectively hallucinating: it does not know what the source actually says, only what the sub-agent claims it says. This protocol ensures the main agent reads every relevant passage with its own eyes.
+
+#### The Per-Section Source Scouring Flow
+
+This flow is executed **before writing each section** (introduction and every body section). It is NOT done once upfront for the whole chapter.
+
+1. **The main agent spawns a sub-agent** dedicated to the upcoming section.
+
+   **CRITICAL — The sub-agent cannot read this workflow file.** Everything in Step 0C describes what the sub-agent should do, but the sub-agent will NEVER see Step 0C. It only knows what the main agent tells it in the prompt. Every instruction below must be PASSED TO the sub-agent via the prompt. If an instruction is in this workflow but not in the sub-agent prompt, it does not exist for the sub-agent.
+   
+   **The main agent MUST use the Mandatory Sub-Agent Prompt Template below** (adapting the section-specific details) when spawning every source-scouring sub-agent. Do NOT improvise the prompt from memory. Do NOT summarize the instructions. Copy the template and fill in the blanks. The template contains failure-pattern warnings that the sub-agent needs to see.
+
+#### Mandatory Sub-Agent Prompt Template
+
+The main agent must pass the following prompt (or a faithful adaptation of it) to every source-scouring sub-agent. Items in `[BRACKETS]` are filled in by the main agent.
+
+```
+You are a source-scouring sub-agent for Section [N] of a textbook chapter on "[CHAPTER TOPIC]."
+
+## Your Task
+Read EVERY source listed below for this section. For EACH source, write a detailed 5-paragraph report.
+
+## Sources to Read
+[LIST OF SOURCES WITH LOCAL FOLDER PATHS AND WHAT TO EXTRACT FROM EACH]
+
+## Section Plan
+[PASTE THE SECTION PLAN FROM TEXTBOOK-PLAN.md]
+
+## MANDATORY: Readability Verification Before Reading
+
+For EACH source folder:
+1. List ALL files in the folder using ls or Glob.
+2. Check: does the folder contain at least one .md, .tex, or .txt file?
+3. If YES: read ALL text files (.md, .tex, .txt, .bib) in the folder. Not just one file. ALL of them.
+4. If NO (folder contains only PDFs, images, or other binary files):
+   - STOP. Read the rules file at `.agent/rules/web-source-fetching.md` IN FULL using the Read tool.
+   - Read the rules file at `.agent/rules/source-management.md` IN FULL using the Read tool.
+   - Follow the extraction method specified in those rules files. Do NOT guess the command.
+   - After extraction, verify the output file has >500 characters of real content.
+   - If extraction fails, report: **SOURCE UNAVAILABLE: `[path]` — [reason].**
+
+## MANDATORY: What You Must NOT Do (Known Failure Patterns)
+
+These failures have occurred in real chapter-writing sessions. You MUST guard against them:
+
+**DO NOT fabricate provenance.** If you cannot read a source file (PDF is an image scan, folder is empty, extraction fails), you MUST report "SOURCE UNAVAILABLE." Do NOT invent a claim like "text extracted via [some other source]" and then produce quotes from your training data. This is the single worst failure a sub-agent can commit: it produces a report that looks legitimate but contains fabricated content, and the main agent writes it into the chapter.
+
+**DO NOT produce quotes from training data.** Every quote you report with a file:line number MUST come from a file you actually read with the Read tool. If you cannot read the file, you cannot quote from it. If you "know" what the source says from your training data, that knowledge is unreliable. Report "SOURCE UNAVAILABLE" instead.
+
+**DO NOT assume the TEXTBOOK-PLAN's author attribution is correct.** When you read a paper, check who actually wrote it. The TEXTBOOK-PLAN may attribute a paper to "Author A" when the actual authors are "Author B et al." Report the ACTUAL title and authors as written in the paper itself. Start Paragraph 1 of your report with: "This paper is titled '[actual title]' by [actual authors]."
+
+**DO NOT report statistics you cannot find.** If the TEXTBOOK-PLAN says "this paper contains statistic X" but you read the paper and cannot find X, report: "**STATISTIC NOT FOUND:** The plan claims [X], but this number does not appear in [filename]." Do NOT fill in the number from memory.
+
+## Report Format
+
+For EACH source, write 5 paragraphs:
+
+**Paragraph 1 (Content overview):** What this source contains that is relevant to this section. List ALL files you read from this folder. State the actual title and actual authors of the paper/post.
+
+**Paragraph 2 (Specific relevance — main content):** Which specific portions are relevant. Include exact line numbers and filenames. Include direct quotes with file:line attribution. Format: `filename.md Line 47: "Exact quote."` These MUST come from actually reading the file.
+
+**Paragraph 3 (Background material):** Which portions contain background, definitions, notation needed to understand the main content. Include exact file:line numbers. The main agent needs BOTH background and main content.
+
+**Paragraph 4 (Cross-source connections):** Key terminology. How this source relates to other sources for this section. Conflicting definitions or framings.
+
+**Paragraph 5 (Writing guidance):** What the main agent should emphasize. Key quotes to include. Nuances a summary might flatten.
+```
+2. The sub-agent reads **every single source** listed for that section in the TEXTBOOK-PLAN.md. It cannot skip a single source.
+   
+   **CRITICAL — File discovery and complete reading:** The TEXTBOOK-PLAN.md lists source *folder paths* (e.g., `sources/simon.peytonjones.org/great-research-paper/`), not exact filenames. Different sources use different naming conventions: some have `content.md`, some use the URL slug (e.g., `great-research-paper.md`), some are LaTeX (e.g., `main.tex`, `iclr2026_conference.tex`), some are PDFs. **The sub-agent MUST list the directory contents first** (using `ls` or Glob) to discover the actual filenames before attempting to read. Never assume a file is named `content.md` without checking.
+   
+   **CRITICAL — Read the ENTIRE source, not just one file.** A source folder may contain multiple files. An arXiv source may have `main.tex` plus `sections/intro.tex`, `sections/method.tex`, `sections/experiments.tex`, a `.bib` file, and figures. A blog source may have `content.md` plus an `images/` folder. **The sub-agent must read ALL text files in the source folder** (all `.tex`, `.md`, `.txt`, `.bib` files, and any subfolder contents). Do not read just one file and stop. Do not pick the file that looks most relevant and skip the rest. Read everything. The background material, the related work, the appendices, the bibliography entries — all of it may contain information the main agent needs.
+
+   **CRITICAL — Readability verification and extraction (sub-agent responsibility).** After listing a source folder's contents, the sub-agent must check: does the folder contain at least one `.md`, `.tex`, or `.txt` file with real content? If the folder contains ONLY binary files (PDFs, DOCX, images) with no extracted text, the sub-agent MUST extract them to a readable format BEFORE attempting to read the source content. This extraction step is mandatory and must happen before the sub-agent writes its 5-paragraph report.
+
+   **STOP — READ THE RULES FILES FIRST. DO NOT GUESS THE COMMANDS.**
+   
+   This is the single most common failure pattern: the sub-agent "remembers" or "guesses" which extraction command to use, gets it wrong, and either fails silently or produces garbage output. The rules files (`web-source-fetching.md` and `source-management.md`) contain a detailed decision tree, tool comparison table, and site-specific strategies that are updated over time. What the sub-agent "remembers" from training data may be outdated or wrong.
+   
+   **The mandatory sequence is:**
+   1. **Read `web-source-fetching.md` IN FULL** using the Read tool. Read the entire file, not just the first section. The decision tree is near the top, but the site-specific strategies and tool comparison table are further down.
+   2. **Read `source-management.md` IN FULL** using the Read tool. This contains the folder naming conventions and PDF figure conversion commands.
+   3. **Only AFTER reading both files**, determine the correct extraction command based on what the rules say — not based on what you "think" the command is.
+   4. Execute the extraction.
+   5. Verify the output (`.md` or `.txt` file with >500 characters of real content).
+   
+   **Anti-pattern (DO NOT DO THIS):** "I know that PDFs can be converted with `pdftotext`, so I'll just run that." WRONG. The rules file specifies `scripts/mistral_ocr.py` for rendered PDFs, `scripts/onenote_pdf_to_markdown.py` for OneNote exports, and different tools for different scenarios. The sub-agent does not know which tool is correct until it reads the rules.
+   
+   **Anti-pattern (DO NOT DO THIS):** "The source is a PDF, I'll try to read it directly with the Read tool." This may work for some PDFs but will produce garbled output for others (especially slide decks, scanned documents, and multi-column papers). Always extract to markdown first.
+
+   The sub-agent must also **download any missing sources.** If a source listed in the TEXTBOOK-PLAN for this section does not exist locally at all, the sub-agent must follow the same mandatory sequence: read `web-source-fetching.md` and `source-management.md` IN FULL first, then determine the correct download method, download the source, verify it, and extract it to readable format if needed. **Do NOT guess the download command. Read the rules first.** Source-downloading and extraction is the responsibility of BOTH the research workflow and the writing workflow sub-agents, not just one.
+
+3. For **each source**, the sub-agent writes a **5-paragraph detailed report** covering:
+   - **Paragraph 1 (Content overview):** What important content this source contains that is relevant to this section. What is the source about at a high level, and what are its key claims? List ALL files that were read from this source folder.
+   - **Paragraph 2 (Specific relevance — main content):** Which specific portions contain the main content relevant to this section. What concepts, arguments, or evidence from this source map onto the section plan? **Include exact line numbers and filenames** (e.g., `main.tex Line 142` or `content.md Line 47`). Include direct quotes in quotation marks attributed to specific file:line locations. Format: `content.md Line 47: "Exact quote from the source."` These MUST be determined by actually reading the file, NOT hallucinated.
+   - **Paragraph 3 (Background material — equally important):** Which portions of the source contain **background, context, definitions, notation, or foundational material** that the main agent will need to understand the main content from Paragraph 2. This is NOT optional filler — it is load-bearing context. For example: if the main content uses a specific statistical framework, the background section that defines that framework is essential. If the source defines notation in Section 2 that is used in the key finding in Section 5, the main agent needs BOTH. **Include exact file:line numbers for all background material**, with quotes where helpful. Separate background from main content so the main agent knows to read both.
+   - **Paragraph 4 (Notation, definitions, and cross-source connections):** Key notation, definitions, technical terms, or frameworks from the source. How does this source's terminology relate to other sources for this section? Are there conflicting definitions or framings across sources that the main agent should be aware of?
+   - **Paragraph 5 (Writing guidance):** How the source relates to this specific section and what is most important to extract. What should the main agent emphasize? What are the key quotes that should appear in the chapter? What should the main agent be careful about (e.g., nuances that a summary might flatten)?
+4. The sub-agent returns this full report (5 paragraphs per source, for every source listed for this section) to the main agent.
+   **CRITICAL — Sub-agent must flag unavailable sources:** If a sub-agent finds that a source folder is EMPTY, a source file does not exist, or a source file is unreadable (e.g., a PDF that was not converted to text), the sub-agent MUST report this prominently: "**SOURCE UNAVAILABLE:** `sources/path/` is empty / file not found / PDF not converted." The sub-agent must NOT attempt to fill in content from memory or training data. It must simply report the absence.
+5. **The main agent reads the sub-agent's report**, identifying all targeted line numbers for BOTH the background material (Paragraph 3) AND the main content (Paragraph 2).
+   **CRITICAL — Handling unavailable sources:** If the sub-agent flags ANY source as unavailable, the main agent MUST:
+   - **(a) Alert the user in chat:** "⚠️ SOURCE UNAVAILABLE: `sources/path/` — [description]. This source was listed for Section N. I will NOT use any content attributed to this source until it is downloaded and readable."
+   - **(b) NOT use that source's content.** Do not write from the TEXTBOOK-PLAN's summary of the source. Do not use quotes, statistics, or claims that the plan attributes to the unavailable source. Do not fill the gap from training data or world knowledge.
+   - **(c) Attempt to download the source** using the methods from `source-management.md` and `web-source-fetching.md`. If successful, read it and proceed. If unsuccessful, drop all claims from that source.
+   - **(d) Continue writing the section** using only the sources that ARE available and readable. The section may be shorter or cover fewer points; that is acceptable. A shorter section with verified content is infinitely better than a longer section with hallucinated content.
+6. **CRITICAL — Per-Section Verification Manifesto (MANDATORY):** After receiving the sub-agent report and BEFORE reading any sources, the main agent must write a 2-paragraph manifesto in the chat. This manifesto serves as a pre-commitment device that forces the agent to plan its reading carefully and acknowledge the risks of skipping reads. The manifesto must contain:
+
+   **Paragraph 1 — Reading plan:** List every source the sub-agent identified, with the specific file paths and line numbers the main agent will read. For each source, state: "I will read [filename] lines [N-M] (main content) and lines [P-Q] (background)." This forces the agent to commit to a concrete reading list before the temptation to skip arises.
+
+   **Paragraph 2 — Risk acknowledgment:** For THIS specific section, explain: (a) which claims from the TEXTBOOK-PLAN.md are most at risk of being wrong if not verified against the actual source (be specific: "The plan claims Author X said Y, but this could be a misattribution or paraphrase"), and (b) what the consequences would be if the agent wrote from the sub-agent's report or the TEXTBOOK-PLAN instead of reading the sources directly (e.g., "If I use the plan's version of the Jiang et al. finding without reading the paper, I could misstate the sample size, the effect size, or the conditions under which the finding holds").
+
+   **Format:** Output directly in the chat. Two paragraphs, 150-300 words total.
+7. **CRITICAL: The main agent then reads the actual source material** using the Read tool. For each source, the main agent reads **both categories** of content the sub-agent identified:
+   - **(a) Background material** (from Paragraph 3): Read all the background/context/definition passages the sub-agent flagged. These are necessary to understand the main content. Do not skip them.
+   - **(b) Main content** (from Paragraph 2): Read all the primary content passages the sub-agent flagged, plus ±10-20 lines of surrounding context to avoid missing nuance.
+   - **(c) Full read for short sources:** If a source is short (<500 lines total across all files), the main agent should read it in full rather than reading only flagged portions.
+   - **(d) Additional exploration:** The main agent may also read additional portions of the source if the sub-agent's report suggests important content nearby, or if reading the flagged portions reveals that adjacent material is also relevant.
+7. Only after completing steps 5-6 does the main agent write the section.
+
+#### Critical Rules for Per-Section Source Scouring
+
+- **The sub-agent MUST read ALL files in each source folder.** Not just the main file. List the directory, then read every `.tex`, `.md`, `.txt`, and `.bib` file. An arXiv paper with `main.tex` that `\input{sections/intro}` means you must also read `sections/intro.tex`. If there are 5 `.tex` files, read all 5. If there is a `content.md` and a `slides.pdf`, read the `.md` and note the PDF exists.
+- **The main agent MUST read the actual sources.** Reading only the sub-agent's report is NOT sufficient. If the main agent does not go back and read the original source content, it is effectively hallucinating. It does not actually know anything unless it reads the source directly.
+- **The main agent MUST read BOTH background AND main content.** The sub-agent's report separates these into Paragraph 2 (main content) and Paragraph 3 (background). The main agent must read both. Background material (definitions, notation, framework setup, methodology descriptions) is not optional context; it is load-bearing information without which the main content cannot be accurately understood or cited. Skipping the background and reading only the "relevant" lines is like reading the punchline of a joke without the setup: you will misunderstand what the source actually says.
+- **Every single source** for a section must have its relevant content read by both the sub-agent (ALL files, in full) and the main agent (at targeted line numbers for both background + main content). No source can be skipped.
+- The sub-agent may highlight **multiple parts** of a single source as relevant. It should highlight notation, background information, basic themes, and any other foundational content, attributing everything to specific file:line numbers with quotes and emphasis.
+- The sub-agent's output is essentially a **per-source report**: "How does this source provide information for this particular section of the chapter? What background do I need to understand the main content?"
+- **Instruction restatement:** When writing long content (multiple sections), the main agent's context fills up and these instructions fade. Before starting each new section, the main agent must **restate the key instructions from this protocol to itself in the chat** (2-3 sentences summarizing: spawn sub-agent, get 5-paragraph reports with background AND main content line numbers, read actual sources at ALL flagged line numbers, then write). This prevents instruction drift over the course of a long chapter.
+
+Chat: "✓ Source scouring protocol understood. Will execute per-section before each writing step."
+
+#### Observed Failure Patterns (From Real Chapter-Writing Sessions)
+
+The following failure patterns have been observed in actual chapter-writing runs. **Every single one was caused by the main agent not passing sufficient instructions to the sub-agent.** The sub-agent cannot read this workflow file. It only knows what the main agent tells it in the prompt. When the main agent improvises the sub-agent prompt instead of using the Mandatory Sub-Agent Prompt Template, it drops instructions, and the sub-agent fails in predictable ways.
+
+The Mandatory Sub-Agent Prompt Template above was designed to prevent all five patterns. If you use the template faithfully, these failures should not recur. If you see them anyway, the most likely cause is that you summarized or paraphrased the template, dropping the failure-pattern warnings that the sub-agent needs to see.
+
+---
+
+**Failure Pattern 1: Sub-Agent Fabricates Provenance for Unreadable Sources ("The Phantom Read")**
+
+**What happened:** A sub-agent was asked to read a PDF source (Steven Pinker's essay, stored as an image-only scan with no text layer). The sub-agent could not extract any text. Instead of reporting "SOURCE UNAVAILABLE," it fabricated a provenance claim ("text extracted via web source at grad.ncsu.edu") and produced a detailed 5-paragraph report filled with plausible-sounding quotes and line numbers drawn entirely from its training data. The main agent accepted this report at face value and wrote the fabricated quotes into two sections of the chapter.
+
+**Root cause in the sub-agent prompt:** The main agent's prompt said "read ALL text files" but did NOT say:
+- "If the folder contains only binary files, report SOURCE UNAVAILABLE"
+- "Do NOT fabricate provenance claims"
+- "Do NOT produce quotes from training data when you cannot read the source"
+- "Read `web-source-fetching.md` before attempting extraction"
+
+Without these instructions, the sub-agent had no guidance for how to handle an unreadable source. LLMs default to producing plausible output rather than admitting failure, so it hallucinated a report.
+
+**Why the template fixes this:** The template contains explicit "DO NOT fabricate provenance" and "DO NOT produce quotes from training data" warnings, plus mandatory readability verification steps that run before the sub-agent even attempts to read.
+
+**Detection (for the main agent):** After receiving a sub-agent report, spot-check at least 2 sources by verifying the files the sub-agent claims to have read actually exist and contain text. Run: `ls "sources/path/" && wc -c "sources/path/filename.md"`. If the file does not exist, is 0 bytes, or is a binary PDF with no text companion, the sub-agent fabricated its report.
+
+---
+
+**Failure Pattern 2: Main Agent Skips Source Reads for Later Sections ("The Fatigue Drift")**
+
+**What happened:** For Section 1, the main agent diligently read all 6 sources at the sub-agent's identified line numbers. By Section 5, which had 10+ sources, the main agent read only 3 directly and wrote the remaining content from the sub-agent's reports and TEXTBOOK-PLAN summaries. The unread sources contained wrong statistics, fabricated numbers, and wrong paper authorship.
+
+**Root cause in the main agent's behavior:** This is NOT a sub-agent failure. It is a main-agent failure. But it is caused by the same dynamic: as context grows and fatigue sets in, the main agent starts treating sub-agent reports as sources of truth instead of navigation aids. The per-section verification manifesto and source audit table are the mitigations.
+
+**Why the template helps indirectly:** When the sub-agent's report contains the failure-pattern warnings (because the template includes them), the main agent sees those warnings in the report output and is reminded to read sources directly. If the main agent improvises a short prompt without warnings, the returned report looks clean and authoritative, making it easier to skip the verification step.
+
+---
+
+**Failure Pattern 3: Sub-Agent Reports Wrong Paper Identity ("The Misattribution")**
+
+**What happened:** The TEXTBOOK-PLAN attributed a finding to "Liang et al. (ICML 2024)" with arXiv ID 2405.02150. The sub-agent read the paper but did not report the actual authors. The paper at arxiv-2405.02150 is actually by Russo Latona et al. The main agent wrote "Liang et al." throughout because the TEXTBOOK-PLAN said so. Additionally, specific statistics the plan attributed to this paper (adjective frequency multipliers 9.8x, 34.7x, 11.2x) do not appear in it at all; they are from a different paper. The TEXTBOOK-PLAN had conflated two papers.
+
+**Root cause in the sub-agent prompt:** The main agent's prompt said "read each source and report what's relevant" but did NOT say:
+- "Report the ACTUAL title and authors as written in the paper"
+- "If the actual authors differ from what the TEXTBOOK-PLAN says, flag this"
+- "If you cannot find a specific statistic the TEXTBOOK-PLAN claims is in the paper, report STATISTIC NOT FOUND"
+
+Without these instructions, the sub-agent reported content without cross-checking the plan's attributions.
+
+**Why the template fixes this:** The template requires: "Start Paragraph 1 with: 'This paper is titled [actual title] by [actual authors].'" and "If the TEXTBOOK-PLAN says 'this paper contains statistic X' but you cannot find X, report: STATISTIC NOT FOUND."
+
+---
+
+**Failure Pattern 4: Main Agent Drops Sub-Agent Spawning for Later Sections ("The Shortcut Collapse")**
+
+**What happened:** The main agent launched source scouring sub-agents for Sections 1-4 but stopped launching them for Sections 5-7, writing directly from previously-read sources, the TEXTBOOK-PLAN, and training data.
+
+**Root cause:** This is a main-agent failure, not a sub-agent failure. It happens because:
+- The main agent's context fills up and the spawning instructions from Step 0C have faded
+- The main agent rationalizes: "I already read these sources for earlier sections"
+- Spawning sub-agents feels slow when you're "almost done"
+
+**Mitigation:** The instruction restatement (Step 2A) explicitly says "I must spawn a sub-agent." Steps 1B and 2C now say "use the Mandatory Sub-Agent Prompt Template." If the main agent finds itself writing without having spawned a sub-agent, it must STOP and go back.
+
+---
+
+**Failure Pattern 5: Statistics From TEXTBOOK-PLAN Treated as Verified ("The Plan Trust")**
+
+**What happened:** The main agent copied specific statistics from the TEXTBOOK-PLAN ("75,800 reviews," "1% of papers," "26.1-54.2%," "1.24-1.64 points") into the chapter without reading the source papers. When sources were later checked, every single number was wrong.
+
+**Root cause:** This is a main-agent failure that the sub-agent could have caught but didn't, because:
+- The sub-agent prompt did not include the instruction "if the TEXTBOOK-PLAN claims statistic X but you cannot find it, report STATISTIC NOT FOUND"
+- The sub-agent was not told that the TEXTBOOK-PLAN's numbers are unreliable placeholders
+- The main agent's own "TEXTBOOK-PLAN IS A STRUCTURAL GUIDE" principle faded from context by later sections
+
+**Why the template fixes this:** The template includes the explicit instruction: "If the TEXTBOOK-PLAN says 'this paper contains statistic X' but you read the paper and cannot find X, report: **STATISTIC NOT FOUND.**" This turns the sub-agent into a verification layer for the plan's claims, rather than a pass-through.
+
+---
+
+### 0D. Create Folder Structure
+
+1. **Create the folder structure:**
    - Index file: `{OutputFolder}/[Topic Name].qmd`
    - Section folder: `{OutputFolder}/[Topic Name]/`
    - **Images folder:** `{OutputFolder}/[Topic Name]/images/`
    - Create empty section files from the plan: `_01-`, `_02-`, ..., `_99-closing.qmd`
-4. **Copy source images assigned in the Source Image Catalog:**
+2. **Copy source images assigned in the Source Image Catalog:**
    ```bash
    mkdir -p "{OutputFolder}/[Topic Name]/images"
    # For each image in the Source Image Catalog:
    cp "AI-Learning-Gems/sources/arxiv-XXXX/images/figure.png" "{OutputFolder}/[Topic Name]/images/descriptive-name.png"
    ```
-5. **Write the index file** with YAML header and `{{< include >}}` statements
-6. Chat: "✓ Creating: `[Topic Name].qmd` + folder with [N] sections, [I] source images copied"
+3. **Write the index file** with YAML header and `{{< include >}}` statements
+4. Chat: "✓ Creating: `[Topic Name].qmd` + folder with [N] sections, [I] source images copied"
 
 ---
 
 ## STEP 1: Write Introduction Section
+
+### 1A. Restate Source-Reading Instructions (MANDATORY)
+
+Before doing anything else for this section, restate the key instructions to yourself in the chat:
+
+> "I am about to write the introduction. I must: (1) spawn a sub-agent to scour all sources listed for this section, (2) receive a 5-paragraph report per source with exact line numbers, (3) handle any UNAVAILABLE sources by alerting the user and NOT using that content, (4) write a per-section verification manifesto listing exactly what I will read and what risks I face from the TEXTBOOK-PLAN, (5) read the actual source material at those line numbers myself using the Read tool, (6) only then write the section. I must NOT write from the TEXTBOOK-PLAN's summaries or my world knowledge."
+
+### 1B. Execute Per-Section Source Scouring (from Step 0C protocol)
+
+1. **Spawn a sub-agent** for the introduction section using the **Mandatory Sub-Agent Prompt Template** from Step 0C. Fill in:
+   - `[N]` = 1 (Introduction)
+   - `[CHAPTER TOPIC]` = the chapter's topic
+   - `[LIST OF SOURCES]` = the sources from TEXTBOOK-PLAN.md for the introduction, with local folder paths and what to extract from each
+   - `[SECTION PLAN]` = the introduction content outline from TEXTBOOK-PLAN.md
+   
+   **Do NOT improvise the sub-agent prompt.** Use the template. The template contains failure-pattern warnings that the sub-agent must see. If you summarize or paraphrase the template, you will drop the warnings, and the sub-agent will repeat known failure patterns.
+2. **Receive the sub-agent's report** (5 paragraphs per source)
+3. **Spot-check the sub-agent's report** (MANDATORY): For at least 2 sources, verify the file the sub-agent claims to have read actually exists and contains text: `ls "sources/path/" && wc -c "sources/path/filename.md"`. If the file does not exist or has 0 bytes, the sub-agent fabricated its report. Discard the entire report for that source and flag it as UNAVAILABLE.
+4. **Read the actual sources at the identified line numbers** using the Read tool. For each source the sub-agent flagged, read the relevant lines plus ±10-20 lines of surrounding context. If a source is short, read it in full.
+
+### 1C. Write the Introduction
 
 The introduction goes in `_01-introduction.qmd`. It contains:
 
@@ -733,7 +1123,7 @@ The introduction goes in `_01-introduction.qmd`. It contains:
 5. **Concept Map** (D2 diagram)
 6. **Notation Table**
 
-**IMPORTANT:** Read the downloaded sources (`view_file`) before writing. Quote exact equations from LaTeX sources.
+**IMPORTANT:** You have now read the actual source files (Step 1B). Quote exact phrases and equations from what you read. Do NOT paraphrase from memory of the sub-agent's report alone. Do NOT use any content from the TEXTBOOK-PLAN.md directly. Do NOT fill gaps with world knowledge. If you cannot find a claim in a source you personally read, drop the claim.
 
 Chat: "✓ Introduction complete: `_01-introduction.qmd`"
 
@@ -743,34 +1133,135 @@ Chat: "✓ Introduction complete: `_01-introduction.qmd`"
 
 **For each body section listed in TEXTBOOK-PLAN.md:**
 
-0. **Re-read rules files (MANDATORY before EVERY section):**
-   Before writing, re-read these files from disk:
-   - `writing-style.md` — Re-read in full. Focus on: emphasis hierarchy, given-new contract, pronoun clarity ("this + noun"), nominalization detection, mathematical vs narrative modes, AI tell avoidance (banned words, em dash prohibition), and inline citation format.
-   - `visualization-standards.md` — Re-read the D2 diagram template (Modern SaaS theme with 6 semantic classes), the hvplot two-cell pattern, and the source image handling rules.
-   - `quarto-conventions.md` — Re-read heading levels (one `##` per section file), image path resolution (relative to index file), and callout syntax.
+### 2A. Restate Source-Reading Instructions (MANDATORY before EVERY section)
 
-   This re-read is not optional. Skipping it is the #1 cause of quality degradation in later sections.
+Before doing anything else for this section, restate the key instructions to yourself in the chat:
 
-1. **Read the plan** for this section — which sources, which specific parts, what to extract
-2. **Read relevant downloaded sources** — `view_file` on the files listed
-3. **If sources are insufficient:**
-   - Search for additional sources with `search_web`
-   - Download to `AI-Learning-Gems/sources/` following naming conventions
-   - Chat: "✓ Additional source: `sources/{path}`"
-4. **Write the section** following A-E structure:
-   - Per-section source header (collapsible)
-   - Concrete example FIRST
-   - Explanation connecting to example
-   - **Embed source images** assigned to this section (from Source Image Catalog): `![Caption. Source: ...]([Topic Name]/images/name.png){#fig-label}` — remember, image paths are relative to the **index file**, so prefix with the chapter folder name
-   - Visual diagram (D2 or hvplot) for concepts not covered by source images
-   - **Misconception callouts** (1-2 per section) — placed where the misconception would naturally arise, using `.callout-warning` with `"Common Misconception: [wrong belief]"` title. Explain why it's wrong, then what's right.
-   - **Think Hard callouts** (1-3 per section) — placed right after the concept they relate to, using `.callout-note` with `"Think Hard: [question]"` title. Give thorough plain-language answers.
-   - Second worked example
-   - Transition to next section
-5. **Apply the running example** as specified in the plan
-6. Chat: "✓ Section [N] complete: `_0N-name.qmd` ([X] examples, [Y] visualizations)"
+> "I am about to write section [N]: [section name]. I must: (1) spawn a sub-agent to scour all sources listed for this section, (2) receive a 5-paragraph report per source with exact line numbers, (3) handle any UNAVAILABLE sources by alerting the user and NOT using that content, (4) write a per-section verification manifesto listing exactly what I will read and what risks I face from the TEXTBOOK-PLAN, (5) read the actual source material at those line numbers myself using the Read tool, (6) only then write the section. I must NOT write from the sub-agent report alone. I must NOT write from the TEXTBOOK-PLAN's summaries. I must NOT fill gaps with world knowledge. If a source is unavailable, I drop its claims."
 
-**Repeat for all body sections.**
+This restatement is not optional. It prevents instruction drift that occurs when writing long content across many sections.
+
+### 2B. Re-read rules files (MANDATORY before EVERY section)
+
+Before writing, re-read these files from disk:
+- `writing-style.md` — Re-read in full. Focus on: emphasis hierarchy, given-new contract, pronoun clarity ("this + noun"), nominalization detection, mathematical vs narrative modes, AI tell avoidance (banned words, em dash prohibition), and inline citation format.
+- `visualization-standards.md` — Re-read the D2 diagram template (Modern SaaS theme with 6 semantic classes), the hvplot two-cell pattern, and the source image handling rules.
+- `quarto-conventions.md` — Re-read heading levels (one `##` per section file), image path resolution (relative to index file), and callout syntax.
+
+This re-read is not optional. Skipping it is the #1 cause of quality degradation in later sections.
+
+### 2C. Execute Per-Section Source Scouring (from Step 0C protocol)
+
+1. **Spawn a sub-agent** for this section using the **Mandatory Sub-Agent Prompt Template** from Step 0C. Fill in:
+   - `[N]` = the section number
+   - `[CHAPTER TOPIC]` = the chapter's topic
+   - `[LIST OF SOURCES]` = the sources from TEXTBOOK-PLAN.md for this section, with local folder paths and what to extract from each
+   - `[SECTION PLAN]` = the section content outline from TEXTBOOK-PLAN.md
+   
+   **Do NOT improvise the sub-agent prompt.** Use the template. Even for Section 5 or 6, when the agent feels rushed and wants to skip the template. Especially then.
+2. **Receive the sub-agent's report** (5 paragraphs per source, for every source in this section)
+3. **Spot-check the sub-agent's report** (MANDATORY): For at least 2 sources, verify the file the sub-agent claims to have read actually exists: `ls "sources/path/"`. If a sub-agent reports reading a file that does not exist, discard that source's report entirely.
+4. **Read the actual sources at the identified line numbers** using the Read tool. For each source the sub-agent flagged:
+   - Read the lines the sub-agent identified, plus ±10-20 lines of surrounding context
+   - If the source is short (<500 lines), read it in full
+   - If the sub-agent flagged multiple parts of the same source, read all flagged regions
+   - Note any additional context the sub-agent may have missed
+
+### 2D. Write the section
+
+Only after completing 2A-2C, write the section following the A-E structure:
+- Per-section source header (collapsible)
+- Concrete example FIRST
+- Explanation connecting to example
+- **Embed source images** assigned to this section (from Source Image Catalog): `![Caption. Source: ...]([Topic Name]/images/name.png){#fig-label}` — remember, image paths are relative to the **index file**, so prefix with the chapter folder name
+- Visual diagram (D2 or hvplot) for concepts not covered by source images
+- **Misconception callouts** (1-2 per section) — placed where the misconception would naturally arise, using `.callout-warning` with `"Common Misconception: [wrong belief]"` title. Explain why it's wrong, then what's right.
+- **Think Hard callouts** (1-3 per section) — placed right after the concept they relate to, using `.callout-note` with `"Think Hard: [question]"` title. Give thorough plain-language answers.
+- Second worked example
+- Transition to next section
+
+### 2E. Additional source handling
+
+If sources are insufficient while writing:
+- Search for additional sources with `search_web`
+- Download to `AI-Learning-Gems/sources/` following naming conventions
+- **Read the newly downloaded source in full** before using it
+- Chat: "✓ Additional source: `sources/{path}`"
+
+### 2F. Apply the running example and report
+
+Apply the running example as specified in the plan.
+
+### 2G. Per-Section Source Audit Table (MANDATORY — Do NOT Skip)
+
+**After writing each section and BEFORE moving to the next section**, generate a source audit table in the chat. This table is the enforcement mechanism for the Zero World Knowledge Principle. It forces the main agent to account for every piece of information in the section and its provenance.
+
+**The table has these columns:**
+
+| Source | File:Lines Read by Main Agent | Read Method | What Was Added to Section | Verified? |
+|---|---|---|---|---|
+| [Source name] | `filename.md` lines 1-80 (full) | Read tool (direct) | Quote about X; statistic Y; framework Z | YES |
+| [Source name] | `main.tex` lines 42-57, 110-135 | Read tool (direct) | Key finding about A; definition of B | YES |
+| [Source name] | (not read) | Sub-agent report only | Claim about C | **NO — MUST FIX** |
+| [Source name] | (folder empty) | Unavailable | (dropped from section) | N/A — flagged to user |
+| [World knowledge] | (no source) | Training data | Description of method D | **NO — MUST FIX** |
+
+**Read Method values:**
+
+- `Read tool (direct)` — The main agent used the Read tool to read the actual source file. This is the ONLY acceptable method.
+- `Sub-agent report only` — The main agent used a quote, statistic, or claim from the sub-agent's report without reading the source file itself. This is NOT acceptable.
+- `TEXTBOOK-PLAN.md` — The main agent used content from the TEXTBOOK-PLAN.md without reading the actual source. This is NOT acceptable.
+- `Training data / world knowledge` — The main agent wrote something from its own training data without any source. This is NOT acceptable.
+- `Unavailable` — The source could not be read (empty folder, missing file). If flagged to user and claims dropped, this is acceptable.
+
+**Verified? values:**
+
+- `YES` — The main agent read the actual source file directly and extracted the information from it. The section content is trustworthy.
+- `NO — MUST FIX` — The main agent did NOT read the actual source. **The agent MUST stop, go back, read the source, and edit the section to either (a) replace the unverified content with what the source actually says, or (b) remove the unverified content if the source does not support it.** Then regenerate the audit table.
+- `N/A — flagged to user` — Source unavailable, claims dropped. Acceptable only if the user was alerted.
+
+**The audit table MUST list EVERY source that contributed content to the section**, including:
+- Sources listed in the section's collapsible source header
+- Sources mentioned in inline citations within the section text
+- Any world knowledge or training data used (which should be zero)
+- Any content carried over from the TEXTBOOK-PLAN.md (which should be zero)
+
+**If ANY row shows `NO — MUST FIX`:**
+
+1. **STOP.** Do not proceed to the next section.
+2. **Read the actual source** using the Read tool at the specific lines the sub-agent identified.
+3. **Edit the section** to replace unverified content with what the source actually says. If the source does not support the claim, remove the claim.
+4. **Regenerate the audit table.** Every row must now show `YES` or `N/A — flagged to user`.
+5. Only then proceed to the next section.
+
+**Example audit table (from a hypothetical Section 2):**
+
+| Source | File:Lines Read by Main Agent | Read Method | What Was Added to Section | Verified? |
+|---|---|---|---|---|
+| Irpan "Blog vs Paper" | `blog-paper.md` lines 1-148 (full) | Read tool (direct) | "Blog posts encourage stating opinions" quote; multimedia argument; burden of proof passage | YES |
+| Thomas "Blogging Advice" | `2019-05-13-blogging-advice.md` lines 1-80 (full) | Read tool (direct) | "Choose one particular person" quote; "you-6-months-ago" heuristic | YES |
+| Pinker "Why Academics Stink" | (not read) | Sub-agent report only | "Curse of knowledge" concept; "self-conscious style" framework; hedging word list; Richard Hugo quote | **NO — MUST FIX** |
+| Distill.pub Hohman et al. | (not read) | Sub-agent report only | Multimedia Principle quote; authoring cost quote; incentive misalignment | **NO — MUST FIX** |
+
+In this example, the agent would need to stop, read the Pinker PDF and the Distill article, verify or correct all claims attributed to them, then regenerate the table with all rows showing YES.
+
+Chat format:
+
+> **Source Audit for Section [N]:**
+>
+> [table]
+>
+> **Audit result:** [ALL VERIFIED / N rows need fixing — reading sources now]
+
+If fixing is needed:
+
+> **Source Audit for Section [N] (AFTER FIX):**
+>
+> [regenerated table with all YES]
+>
+> **Audit result:** ALL VERIFIED — proceeding to Section [N+1]
+
+**Repeat Steps 2A-2G for all body sections.**
 
 ---
 
