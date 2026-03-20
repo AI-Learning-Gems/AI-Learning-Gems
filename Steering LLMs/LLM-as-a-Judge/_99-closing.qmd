@@ -1,0 +1,204 @@
+## Closing {#sec-closing}
+
+### Key Takeaways
+
+- **The evaluation crisis launched a paradigm.** Traditional metrics (BLEU: Spearman $\rho = 0.192$) and human annotation (slow, expensive, 81% inter-annotator agreement) are insufficient for evaluating aligned LLMs on open-ended tasks. LLM-as-a-Judge bridges the gap: GPT-4 achieves over 80% human agreement at 45x lower cost than crowdworkers.
+
+- **Judgment type matters.** Pairwise comparison is more reliable than pointwise scoring for subjective quality dimensions but costs $O(n^2)$ for ranking. Pointwise scoring with a detailed rubric is more efficient for objective tasks (factuality, safety). Reference-guided evaluation dramatically improves math and code judgment. Choose the format that matches your measurement need.
+
+- **All LLM judges have systematic biases.** Position bias (judges favor the first response), verbosity bias (longer responses get higher scores), self-enhancement bias (models prefer their own outputs), and surface anchoring (judges are misled by incorrect context) are universal. These biases must be actively measured and mitigated, not assumed away.
+
+- **Judges are deployed far beyond text evaluation.** In agentic systems, judges verify individual reasoning steps (PRMs solve 78.2% of MATH) and agent trajectories. In safety, judges moderate content (WildGuard reduces jailbreak success from 79.8% to 2.4%). In reward modeling, judges provide the training signal for RLHF and DPO.
+
+- **Prompt-level improvements are the first lever.** Chain-of-thought prompting (G-Eval), detailed rubrics (Prometheus), structured output formats (EvalPlanner), and probability-weighted scoring can dramatically improve judge reliability without any model changes.
+
+- **Training dedicated judges yields outsized returns.** A fine-tuned 7B model with LoRA (0.8% of parameters) achieves 96.2% on RewardBench, outperforming 27B-70B general-purpose models. RL-trained judges (J1) outperform SFT-only judges and even frontier reasoning models (o1-mini, DeepSeek-R1-671B). Domain-specific training consistently beats scale.
+
+- **Inference-time scaling provides the frontier.** Test-time compute (MCTS-Judge: 41%→80%), uncertainty quantification (conformal prediction with formal coverage guarantees), selective evaluation cascades (Trust-or-Escalate: 80%+ agreement at 88% cost reduction), and multi-agent debate protocols represent the cutting edge of judge reliability.
+
+- **Meta-evaluation remains open.** Who judges the judge? High model-level agreement can mask poor sample-level reliability. The Evaluation Illusion means practitioners must validate judges on the specific distribution they care about, not rely on aggregate benchmarks alone.
+
+### Completed Concept Map
+
+```{.d2}
+direction: right
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 13
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 15
+      bold: true
+    }
+  }
+}
+
+problem: " Why? (§1) " {
+  class: [base; container]
+  label.near: top-left
+  metrics: " BLEU/ROUGE fail " { class: [base; highlight] }
+  human: " Humans unscalable " { class: [base; highlight] }
+  alignment: " Alignment gap " { class: [base; highlight] }
+}
+
+taxonomy: " What type? (§2) " {
+  class: [base; container]
+  label.near: top-left
+  point: " Pointwise " { class: [base; process] }
+  pair: " Pairwise " { class: [base; process] }
+  list: " Listwise " { class: [base; process] }
+  crit: " Critique " { class: [base; process] }
+}
+
+biases: " Biases (§2) " {
+  class: [base; container]
+  label.near: top-left
+  pos: " Position " { class: [base; highlight] }
+  verb: " Verbosity " { class: [base; highlight] }
+  self: " Self-enhancement " { class: [base; highlight] }
+}
+
+apps: " Where? (§3) " {
+  class: [base; container]
+  label.near: top-left
+  agent: " Agents/PRM " { class: [base; process] }
+  safe: " Safety " { class: [base; process] }
+  reward: " Reward Models " { class: [base; process] }
+}
+
+improve: " How to improve " {
+  class: [base; container]
+  label.near: top-left
+  prompt: " Prompt (§4) " { class: [base; decision] }
+  model: " Model (§5) " { class: [base; decision] }
+  infer: " Inference (§6) " { class: [base; decision] }
+}
+
+outputs: " Results " {
+  class: [base; container]
+  label.near: top-left
+  scores: " Scores " { class: [base; output] }
+  rankings: " Rankings " { class: [base; output] }
+  guarantees: " Guarantees " { class: [base; output] }
+}
+
+problem -> taxonomy: " motivates "
+taxonomy -> biases: " limited by " { style.stroke-dash: 5 }
+taxonomy -> apps: " deployed in "
+biases -> improve: " addressed by "
+improve -> outputs: " produce "
+apps -> improve: " requires "
+```
+
+### Retrieval Practice Questions
+
+::: {.callout-tip collapse="true" title="Test your understanding"}
+
+**Q1: Why do pairwise comparisons tend to be more reliable than pointwise scores?**
+
+Pairwise comparisons ask a *relative* question ("Which is better?") rather than an *absolute* one ("How good is this?"). Relative judgments are more stable because the judge does not need a consistent internal scale across different evaluation instances. Absolute scores fluctuate more because the judge's internal calibration point can shift between evaluations. However, pairwise comparisons cost $O(n^2)$ for $n$ models and are unnecessary for objective tasks with clear correct answers.
+
+**Q2: What is position bias, and name two strategies for mitigating it.**
+
+Position bias is the tendency of an LLM judge to favor a response based on its position in the prompt (typically favoring the first response). Two mitigation strategies: (1) *Position swapping*: call the judge twice with responses in both orders, only accepting the verdict if it is consistent. (2) *Few-shot calibration*: provide exemplar judgments covering A-wins, B-wins, and tie cases to anchor the judge's internal decision process.
+
+**Q3: How does a process reward model (PRM) differ from an outcome reward model (ORM)?**
+
+An ORM receives feedback only on the final answer (correct or incorrect). A PRM receives feedback for each intermediate reasoning step (step-level labels: positive, negative, neutral). The PRM provides more precise feedback by specifying the exact location of errors, enables better credit assignment, and produces more interpretable reasoning. Lightman et al. showed PRM solves 78.2% of MATH problems vs 72.4% for ORM, with the gap widening as more candidate solutions are considered.
+
+**Q4: Describe the "Evaluation Illusion" and explain why high model-level agreement can be misleading.**
+
+The Evaluation Illusion is the gap between model-level and sample-level agreement. Model-level agreement (Spearman $\rho$ on model rankings) can reach 0.98+ because most model pairs have large, obvious quality gaps. Sample-level agreement (per-instance accuracy) is much lower because many individual instances are ambiguous. A judge that agrees with humans 95% on "GPT-4 beats LLaMA" but only 55% on close matchups can produce a perfect ranking while being nearly useless for individual filtering decisions.
+
+**Q5: What advantage does the SFT→DPO→GRPO curriculum offer over plain SFT for judge training?**
+
+SFT teaches the model to imitate good judgments (pattern matching on training data). DPO sharpens the model's ability to distinguish good from bad judgments (preference learning). GRPO optimizes for specific reliability properties through verifiable rewards (direct optimization of evaluation quality). Each phase builds on the previous: SFT provides the foundation, DPO adds discrimination ability, and GRPO teaches the model to develop systematic evaluation strategies that generalize to novel inputs. J1's ablations show RL significantly outperforms SFT-only and DPO-only baselines.
+
+**Q6: How does conformal prediction provide statistical guarantees for LLM judge outputs?**
+
+Conformal prediction constructs prediction sets that contain the true label with probability at least $1 - \alpha$. For pairwise judging, SCOPE computes a Bidirectional Preference Entropy from both response orders, creating a position-invariant confidence measure. When confidence is below a threshold (calibrated on a small held-out set), the system abstains. The framework guarantees that among non-abstained predictions, the error rate is at most $\alpha$. This converts the judge from a point predictor into a calibrated predictor with formal error control.
+
+**Q7: In a multi-agent debate setting, when does debate amplify bias vs reduce it?**
+
+Debate reduces bias when the agents have diverse perspectives (different model families, different known biases) and the adversarial structure forces each agent to articulate evidence for its position. Debate amplifies bias when the agents share the same systematic errors (same model family, same training data biases). In the latter case, multiple copies of the same bias reinforce each other. Effective debate requires diversity among agents and a meta-judge that can weigh evidence rather than defaulting to majority vote.
+
+:::
+
+### Common Mistakes to Avoid
+
+| Mistake | Why It Happens | How to Avoid It |
+|---|---|---|
+| Using pointwise Likert scoring without a rubric | Seems simpler than writing a rubric | Always define per-score-level criteria; even a 2-sentence rubric helps |
+| Ignoring position bias in pairwise comparisons | Position bias is invisible unless you test for it | Always run position-swap tests; use the conservative "swap and require consistency" approach |
+| Treating model-level agreement as proof of reliability | Model rankings are dominated by easy comparisons | Measure sample-level agreement (Cohen's $\kappa$) and check hard pairs specifically |
+| Using the same model family as judge and candidate | Convenient; one API call serves both roles | Use a different model family for judging, or measure self-enhancement bias explicitly |
+| Assuming more judges always improves accuracy | "Ensemble everything" is a common heuristic | Ensure judges are diverse; correlated errors amplify under naive ensembling |
+| Copying statistics from secondary sources without verification | Search summaries and blog posts round or misstate numbers | Read the original paper; verify exact figures from the source |
+
+### Curated Resources
+
+| # | Resource | Description |
+|---|---|---|
+| 1 | [MT-Bench and Chatbot Arena Paper](https://arxiv.org/abs/2306.05685) + [Code](https://github.com/lm-sys/FastChat/tree/main/fastchat/llm_judge) | Foundational paper and implementation |
+| 2 | [RewardBench](https://arxiv.org/abs/2403.13787) + [Leaderboard](https://huggingface.co/spaces/allenai/reward-bench) | Standard benchmark for evaluating reward models and judges |
+| 3 | [Prometheus 2](https://arxiv.org/abs/2405.01535) + [Models](https://huggingface.co/prometheus-eval) | Open-source specialized judge models |
+| 4 | [Eugene Yan, "Evaluating the Effectiveness of LLM-Evaluators"](https://eugeneyan.com/writing/llm-evaluators/) | Best practical guide to LLM judges for practitioners |
+| 5 | [Cameron R. Wolfe, "Using LLMs for Evaluation"](https://cameronrwolfe.substack.com/p/llm-as-a-judge) | Comprehensive end-to-end explainer with worked examples |
+| 6 | [Survey: LLM-as-a-Judge (Gu et al. 2024)](https://arxiv.org/abs/2411.15594) | Most comprehensive survey of the field |
+| 7 | [Survey: LLMs-as-Judges (Li et al. 2024)](https://arxiv.org/abs/2412.05579) | Five-perspective analysis of the judge paradigm |
+| 8 | [Chatbot Arena](https://lmarena.ai/) | Live crowdsourced LLM evaluation platform |
+| 9 | [J1 Paper (Whitehouse et al. 2026)](https://arxiv.org/abs/2505.10320) | State-of-the-art RL-trained thinking judges |
+| 10 | [Cameron R. Wolfe, "Applying Statistics to LLM Evaluations"](https://cameronrwolfe.substack.com/p/stats-llm-evals) | Statistical rigor for evaluation: bootstrap CIs, significance testing |

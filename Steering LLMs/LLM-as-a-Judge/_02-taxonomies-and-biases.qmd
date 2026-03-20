@@ -1,0 +1,109 @@
+## Judgment Taxonomies, Measurement Scales, and Known Failure Modes {#sec-taxonomies-and-biases}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Zheng et al., "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena" (NeurIPS 2023)](https://arxiv.org/abs/2306.05685) | Defines three judge types; documents position, verbosity, self-enhancement biases with experiments |
+| 2 | [Shi et al., "Judging the Judges: A Systematic Study of Position Bias" (ACL 2024)](https://arxiv.org/abs/2406.07791) | 150K+ evaluation instances, 15 judges; position bias varies by quality gap; weakly related to length |
+| 3 | [Thakur et al., "Judging the Judges: Evaluating Alignment and Vulnerabilities" (2024)](https://arxiv.org/abs/2406.12624) | 13 judge models; leniency bias; sample-level vs model-level agreement gap |
+| 4 | [Gu et al., "A Survey on LLM-as-a-Judge" (2024)](https://arxiv.org/abs/2411.15594) | Formal definition; four ICL approaches; reliability-enhanced framework |
+| 5 | [Eugene Yan, "Evaluating the Effectiveness of LLM-Evaluators"](https://eugeneyan.com/writing/llm-evaluators/) | Practical comparison of scoring approaches and metrics |
+| 6 | [Cameron R. Wolfe, "Using LLMs for Evaluation"](https://cameronrwolfe.substack.com/p/llm-as-a-judge) | Bias explanations with worked examples; debiasing techniques |
+
+:::
+
+Return to the customer-support chatbot team. They have decided to adopt LLM-as-a-Judge. The first question is: what kind of judgment should the judge produce? A binary pass/fail for safety violations? A numerical score for helpfulness? A head-to-head comparison between two candidate responses? Each format carries different assumptions about what you are measuring, how much it costs, and how reliable the result is.
+
+This section maps the full space of judgment types, connects them to measurement theory, and then catalogues the biases that threaten every judge regardless of format.
+
+### Judgment Formats: Four Ways to Judge
+
+The Gu et al. survey ([2024](https://arxiv.org/abs/2411.15594)) identifies four in-context learning approaches for LLM-as-a-Judge, which align with the three formats proposed by Zheng et al. ([NeurIPS 2023](https://arxiv.org/abs/2306.05685)) plus free-form critique.
+
+**Pointwise scoring** (also called "single answer grading") asks the judge to assign a score to a single response. The prompt provides a question, a response, and optionally a rubric or scoring criteria, and the judge outputs a number on a predefined scale: 1-5, 1-10, or even 0-100. Pointwise scoring is the simplest and cheapest format. It scales linearly with the number of responses: to evaluate 100 responses, you make 100 judge calls. The chatbot team would use pointwise scoring for their helpfulness dimension: "Rate this response on a scale of 1 to 5 for helpfulness."
+
+**Pairwise comparison** presents the judge with a question and two responses and asks which is better (or declares a tie). Zheng et al. called this the default setup for MT-Bench. Pairwise comparison is more reliable for subjective quality dimensions because it asks a relative question ("Which is better?") rather than an absolute one ("How good is this?"). As Cameron Wolfe explains: "absolute scores are much more likely to fluctuate compared to pairwise comparisons." The chatbot team would use pairwise comparison when deciding between two candidate model versions: "Given this customer query, which response is more helpful?"
+
+The tradeoff is cost. To rank $n$ models, pairwise comparison requires $\binom{n}{2}$ judge calls, which grows quadratically. Ranking 10 models requires 45 comparisons; ranking 100 models requires 4,950.
+
+**Listwise ranking** extends pairwise to multiple responses simultaneously: the judge sees a question and $k$ responses and ranks them from best to worst. This is efficient for generating full orderings but places a heavy cognitive burden on the judge model: it must hold and compare multiple responses in context simultaneously. Listwise ranking is less common in practice but appears in specialized settings like reward model training data generation.
+
+**Free-form textual critique** asks the judge to produce an open-ended evaluation rather than a score or ranking. This format generates the richest signal: the judge explains what is good, what is wrong, and how to improve. CriticGPT ([McAleese et al., 2024](https://arxiv.org/abs/2407.00215)) is a prime example, producing detailed critiques of code. The Reflexion framework ([Shinn et al., 2023](https://arxiv.org/abs/2303.11366)) uses textual self-evaluations to guide agent improvement loops. The chatbot team could use critique format for their most difficult cases: "Evaluate this response. What is correct? What is wrong? What is missing?"
+
+Any of these formats can be combined with **reference-guided evaluation**, where a gold-standard answer is provided alongside the response being judged. Reference-guided formats help with objective tasks like math and coding where a correct answer exists. Zheng et al. showed that reference-guided prompts reduced the failure rate on math grading from 70% (14/20) to 15% (3/20).
+
+### Measurement Scales and the NOIR Framework
+
+The choice of judgment format maps onto a deeper concept from measurement theory: the *level of measurement*. Different formats produce data at different levels on the NOIR (Nominal, Ordinal, Interval, Ratio) hierarchy, and this determines what statistical operations are valid on the output.
+
+| Judgment Format | Output Type | Measurement Level | Valid Operations | Example |
+|---|---|---|---|---|
+| Binary pass/fail | $\{0, 1\}$ | Nominal | Mode, frequency, Cohen's $\kappa$ | Safety: "Is this response harmful?" |
+| Pairwise comparison | $\{A, B, \text{tie}\}$ | Ordinal | Median, rank correlation, Bradley-Terry | "Which response is more helpful?" |
+| Likert scoring | $\{1, 2, 3, 4, 5\}$ | Ordinal | Median, Spearman's $\rho$, Kendall's $\tau$ | "Rate helpfulness 1-5" |
+| Probability-weighted scoring | $[1, 5] \subset \mathbb{R}$ | Interval | Mean, Pearson's $r$, parametric tests | G-Eval's probability-weighted scores |
+| Continuous calibrated score | $[0, 1]$ | Ratio | All arithmetic, geometric mean | Calibrated confidence output |
+
+The G-Eval framework ([Liu et al., EMNLP 2023](https://arxiv.org/abs/2303.16634)) introduced an elegant technique that effectively upgrades Likert scores from ordinal to interval. Instead of generating a single integer score, the judge outputs token probabilities for each possible score value, then computes a weighted average:
+
+$$
+s = \sum_{i=1}^{S} i \cdot P(i \mid \text{prompt, CoT, output})
+$$ {#eq-geval-score}
+
+where $P(i \mid \ldots)$ is the probability the judge assigns to score $i$. A response that the judge considers borderline between 3 and 4 might produce $P(3) = 0.4, P(4) = 0.5, P(5) = 0.1$, yielding $s = 3.7$. This continuous score carries more information than the integer 4 and enables finer-grained comparisons.
+
+### Reliability and Validity Tradeoffs
+
+Each format trades reliability against cost and information richness. The following table summarizes when to use each approach, drawing on practical guidance from Eugene Yan's evaluation guide ([2024](https://eugeneyan.com/writing/llm-evaluators/)):
+
+| Format | Cost per $n$ models | Reliability | Best For | Worst For |
+|---|---|---|---|---|
+| Pointwise | $O(n)$ | Lower (absolute scores fluctuate) | Objective tasks (factuality, safety) | Subjective quality |
+| Pairwise | $O(n^2)$ | Higher (relative comparison is stable) | Subjective tasks (helpfulness, tone) | Large model sets |
+| Listwise | $O(n)$ | Medium (multi-item cognitive load) | Generating full rankings | Fine distinctions |
+| Critique | $O(n)$ | Richest signal but hard to aggregate | Diagnostic feedback, improvement loops | Quick pass/fail decisions |
+
+::: {.callout-warning title="Common Misconception: Pairwise comparison is always better than pointwise scoring"}
+Pairwise comparison is more reliable for *subjective* quality dimensions (helpfulness, coherence, tone) because relative judgments are more stable than absolute scores. But for *objective* tasks like factuality or safety, pointwise scoring with a clear rubric can be more efficient. A response either contains factual errors or it does not; comparing two responses to decide which is "less wrong" adds complexity without adding reliability. The chatbot team should use pointwise for safety (binary pass/fail) and pairwise for helpfulness (where subjective quality matters).
+:::
+
+### The Bias Zoo
+
+Every LLM judge, regardless of format, carries systematic biases. Zheng et al. ([NeurIPS 2023](https://arxiv.org/abs/2306.05685)) identified three major biases. Shi et al. ([ACL 2024](https://arxiv.org/abs/2406.07791)) subsequently conducted the largest empirical study of position bias, covering over 150,000 evaluation instances across 15 judges.
+
+**Position bias** is the tendency of a judge to favor a response based on where it appears in the prompt rather than its quality. In pairwise comparison, the judge may systematically prefer whichever response is listed first (or second). Zheng et al. found that position bias can be severe: Claude-v1 was consistent (giving the same verdict regardless of order) in only 23.8% of cases, favoring the first position 75.0% of the time. GPT-4 was the most consistent at 65.0%. Shi et al.'s larger study confirmed that position bias is "not due to random chance" and varies significantly across judges and tasks. Their key finding: position bias is "weakly influenced by the length of prompt components" but "strongly affected by the quality gap between solutions." When two responses are clearly different in quality, position bias fades; when they are close in quality, position effects dominate.
+
+![Position bias in pairwise comparison across different judge models on MT-Bench. The heatmap shows how judge preferences shift when the order of responses is swapped. Source: Zheng et al. (2023), Figure 4.](LLM-as-a-Judge/images/position-bias.png){#fig-position-bias}
+
+**Verbosity bias** is the tendency to assign higher scores to longer responses, even when the additional length adds no new information. Zheng et al. tested this with a "repetitive list" attack: they took model answers containing numbered lists, had GPT-4 rephrase each item without adding information, and prepended the paraphrased items to the original list (doubling the length). Claude-v1 and GPT-3.5 fell for this attack 91.3% of the time, incorrectly preferring the artificially lengthened response. GPT-4 was much more robust, with only an 8.7% failure rate.
+
+![Verbosity bias demonstration: LLM judges prefer artificially lengthened responses even when no new information is added. Source: Zheng et al. (2023), Figure 5.](LLM-as-a-Judge/images/verbosity-bias.png){#fig-verbosity-bias}
+
+**Self-enhancement bias** is the tendency for a judge model to favor responses generated by itself. Zheng et al. observed that GPT-4, when judging, gave itself a 10% higher win rate than humans did. Claude-v1 favored its own outputs by 25%. However, the authors noted that this effect was difficult to isolate: "Conducting a controlled study is challenging because we cannot easily rephrase a response to fit the style of another model without changing the quality." The bias may partly reflect genuine quality and partly reflect stylistic preference for responses that match the judge's own training distribution.
+
+**Surface anchoring** (sometimes called "context corruption") is a subtler failure mode. The judge's evaluation is contaminated by the content it is evaluating. If one of the responses contains a confident but incorrect answer, the judge may be misled by that incorrect content and produce a wrong verdict. Zheng et al. demonstrated this for math problems: GPT-4 could solve a problem correctly when asked independently, but when presented with an incorrect solution to judge, it was "misled by the provided answers, ultimately resulting in incorrect judgment." The judge adopted the reasoning of the response it was supposed to evaluate.
+
+### The Evaluation Illusion
+
+::: {.callout-note title="Think Hard: Can high agreement between judges and humans be misleading?"}
+Yes, and this is one of the most important caveats in the field. The agreement between LLM judges and humans can be measured at two levels, and they tell very different stories.
+
+**Model-level agreement** asks: do the judge and humans agree on which *model* is better overall? This is typically measured by Spearman correlation on model rankings. AlpacaFarm reported Spearman $\rho = 0.98$ between LLM-simulated and human rankings ([Dubois et al., NeurIPS 2023](https://arxiv.org/abs/2305.14387)). This is excellent.
+
+**Sample-level agreement** asks: do the judge and humans agree on *individual evaluations*? This is measured by metrics like Cohen's $\kappa$ or per-instance accuracy. Here, performance is much worse. Zheng et al. found that GPT-4's agreement with human experts on MT-Bench reached 85% for non-tied comparisons, but this averaged over cases with very different difficulty levels. The agreement "progressively increases in line with the performance disparity of the model pairs, from 70% to nearly 100%." When two models are close in quality, the judge agrees with humans only 70% of the time.
+
+The gap between model-level and sample-level agreement is the *Evaluation Illusion*: high aggregate correlation masks fragile individual judgments. A judge that agrees with humans 95% on "GPT-4 beats LLaMA" but only 55% on "GPT-4 beats Claude" may produce a perfect model ranking while being nearly useless for individual evaluation decisions. If you are using the judge to filter training data (keeping "good" responses and discarding "bad" ones), model-level agreement is irrelevant; you need sample-level reliability on every single decision.
+:::
+
+### Debiasing Preview
+
+The biases documented above are not intractable. Zheng et al. proposed three mitigation strategies that are expanded in later sections:
+
+- **Position swapping**: Call the judge twice with responses in both orders. Only declare a winner if the verdict is consistent. This eliminates position bias at the cost of doubling inference expense.
+- **Few-shot calibration**: Providing exemplar judgments (with diverse verdicts: A wins, B wins, tie) improved GPT-4's consistency from 65.0% to 77.5%, though it also increased prompt length and cost by approximately 4x.
+- **Reference-guided evaluation**: For objective tasks with correct answers (math, coding), providing a reference solution reduced the judge's failure rate from 70% to 15%.
+
+@sec-prompt-improvements explores prompt-level debiasing in depth. @sec-model-improvements shows how training can bake debiasing into the model itself. @sec-inference-improvements introduces statistical techniques (conformal prediction, multi-agent debate) that provide formal guarantees on judge reliability.
+
+For now, the key takeaway is that LLM judges are powerful but imperfect. Understanding the taxonomy of judgment types and the taxonomy of failure modes is the foundation on which every improvement technique builds.

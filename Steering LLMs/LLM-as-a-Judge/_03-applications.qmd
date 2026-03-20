@@ -1,0 +1,86 @@
+## Applications: Agents, Vision-Language Models, and Beyond {#sec-applications}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Shinn et al., "Reflexion: Language Agents with Verbal Reinforcement" (NeurIPS 2023)](https://arxiv.org/abs/2303.11366) | Self-evaluation + verbal reflection; 91% pass@1 on HumanEval |
+| 2 | [Lightman et al., "Let's Verify Step by Step" (2023)](https://arxiv.org/abs/2305.20050) | Process reward models; PRM solves 78.2% of MATH; PRM800K dataset |
+| 3 | [McAleese et al., "LLM Critics Help Catch LLM Bugs (CriticGPT)" (2024)](https://arxiv.org/abs/2407.00215) | Trained critic; 63% preference over human critiques; human+AI teams |
+| 4 | [Yang et al., "TIR-Judge: Tool-Integrated RL for LLM Judges" (2025)](https://arxiv.org/abs/2510.23038) | Code executor integration via RL; 8B matches Claude-Opus-4 on listwise |
+| 5 | [Han et al., "WildGuard: Open One-Stop Moderation Tools" (2024)](https://arxiv.org/abs/2406.18495) | Safety judge; 13 risk categories; jailbreak success 79.8%→2.4% |
+| 6 | [Min et al., "FActScore" (EMNLP 2023)](https://arxiv.org/abs/2305.14251) | Atomic factuality; automated evaluation <2% error rate |
+| 7 | [Lambert et al., "RewardBench" (2024)](https://arxiv.org/abs/2403.13787) | First benchmark for reward models; 80+ models evaluated |
+| 8 | [Gu et al., "A Survey on LLM-as-a-Judge" (2024)](https://arxiv.org/abs/2411.15594) | Application taxonomy: NLP, agents, reasoning, safety, multi-modal |
+| 9 | [OpenAI, "Finding GPT-4's Mistakes with GPT-4" (CriticGPT blog)](https://openai.com/index/finding-gpt4s-mistakes-with-gpt-4) | Accessible explanation of scalable oversight motivation |
+| 10 | [OpenAI, "Improving Mathematical Reasoning with Process Supervision"](https://openai.com/index/improving-mathematical-reasoning-with-process-supervision) | PRM vs ORM visual comparison; alignment benefit |
+
+:::
+
+The customer-support chatbot team has a new challenge. Their system no longer generates simple text answers. It now calls APIs (looking up order status, querying the product database), executes code (running discount calculations), and chains multiple steps together to resolve complex tickets. A wrong answer is bad; a wrong *action* is worse. The team needs judges that can verify not just the final response but every intermediate step.
+
+This section maps how LLM judges are deployed across three major application areas: agentic systems, safety and content moderation, and reward modeling for alignment. The common thread is that judges have moved far beyond evaluating text quality; they now verify *reasoning processes*, *tool use*, *factual accuracy*, and *safety compliance*.
+
+### LLM Judges in Agentic Systems
+
+Agents that take actions in the world need a different kind of evaluation than chatbots that produce text. A text evaluator asks "Is this response good?" An agent evaluator asks "Was this sequence of actions correct, safe, and efficient?" Three distinct paradigms have emerged.
+
+**Process reward models: verifying each step.** The foundational work is Lightman et al.'s "Let's Verify Step by Step" ([2023](https://arxiv.org/abs/2305.20050)), which introduced the distinction between outcome-supervised reward models (ORMs) and process-supervised reward models (PRMs). An ORM receives feedback only on the final answer: correct or incorrect. A PRM receives feedback for *each intermediate step* in a chain of reasoning.
+
+The difference matters because a correct final answer can follow from flawed reasoning (lucky cancellation of errors), while an incorrect final answer can contain mostly correct steps with a single error late in the chain. Lightman et al. put it precisely: "process supervision provides a richer signal: it specifies both how many of the first steps were in fact correct, as well as the precise location of the incorrect step."
+
+The results were striking. On the MATH dataset, the PRM solved 78.2% of problems (via best-of-N selection), compared to 72.4% for the ORM and 69.6% for majority voting. The gap widened as more candidate solutions were considered: "Not only does the process-supervised reward model perform better across the board, but the performance gap widens as we consider more solutions per problem." Lightman et al. released PRM800K, a dataset of 800,000 step-level human feedback labels across 75,000 solutions to 12,000 problems.
+
+The alignment argument is equally important. As the OpenAI PRM blog ([2023](https://openai.com/index/improving-mathematical-reasoning-with-process-supervision)) explains: "Process supervision directly rewards the model for following an aligned chain-of-thought, since each step in the process receives precise supervision. Process supervision is also more likely to produce interpretable reasoning." In fact, process supervision incurs a *negative* alignment tax: the safer method also performs better.
+
+![The PRM800K labeling interface for step-level human feedback. Annotators label each reasoning step as positive, negative, or neutral, providing fine-grained supervision for training process reward models. Source: Lightman et al. (2023), Figure 2.](LLM-as-a-Judge/images/prm-data-interface.png){#fig-prm-data-interface}
+
+For the chatbot team, process supervision means evaluating not just the final customer answer but each intermediate step: "Did the API call use the correct endpoint?" "Did the code correctly compute the discount?" "Does the final response accurately reflect the computation results?"
+
+**Self-evaluation and reflection loops.** The Reflexion framework ([Shinn et al., NeurIPS 2023](https://arxiv.org/abs/2303.11366)) embeds an LLM judge directly inside the agent's decision loop. Reflexion's architecture has three components: an Actor ($M_a$) that generates actions, an Evaluator ($M_e$) that judges the quality of the trajectory, and a Self-Reflection module ($M_{sr}$) that converts the scalar judgment into verbal feedback stored in episodic memory.
+
+The Evaluator operates as an LLM-as-a-Judge in multiple modes. For reasoning tasks, it uses exact-match grading. For decision-making tasks, it uses heuristic functions (e.g., detecting when the agent repeats the same action for more than three cycles) or direct LLM binary classification. For programming tasks, it uses self-generated unit tests as the evaluation signal: the agent writes tests for its own code and then runs them.
+
+The self-reflection step converts sparse reward signals into rich natural language feedback. As Shinn et al. describe: "Given a sparse reward signal, such as a binary success status (success/fail), the current trajectory, and its persistent memory, the self-reflection model generates nuanced and specific feedback." This verbal feedback, stored across episodes, enables the agent to avoid repeating mistakes. Reflexion achieved 91% pass@1 on HumanEval, demonstrating that LLM self-judgment combined with memory can match sophisticated training-based methods.
+
+**Critic-guided code review.** CriticGPT ([McAleese et al., 2024](https://arxiv.org/abs/2407.00215)) addresses a specific scalable oversight challenge: as AI models become more capable, their errors become more subtle, making it harder for human reviewers to catch mistakes. As the OpenAI blog ([2024](https://openai.com/index/finding-gpt4s-mistakes-with-gpt-4)) explains: "As we make advances in reasoning and model behavior, ChatGPT becomes more accurate and its mistakes become more subtle. This can make it hard for AI trainers to spot inaccuracies when they do occur, making the comparison task that powers RLHF much harder."
+
+CriticGPT is a GPT-4-based model trained with RLHF specifically to write critiques. The key innovation is the training data: human annotators *adversarially* inserted subtle bugs into ChatGPT's code, then wrote critiques as if they had caught those bugs naturally. The bugs were collected adversarially: annotators verified that an LLM critic missed each bug in at least one out of three attempts. On naturally occurring ChatGPT errors, CriticGPT critiques were preferred over human critiques in 63% of cases. Human+CriticGPT teams produced the best results overall: more comprehensive critiques than either alone, with fewer hallucinated bugs than the model alone.
+
+::: {.callout-note title="Think Hard: If CriticGPT catches bugs that humans miss, who validates CriticGPT's critiques?"}
+This is the scalable oversight problem in miniature. CriticGPT's advantage is that it catches more bugs than unassisted humans, but it also hallucinates bugs that do not exist. The human+AI team approach is one answer: the human validates the critic's claims, rejecting false positives while benefiting from true positives. But as models grow more capable, even the combined human+AI team may miss errors or accept false critiques. CriticGPT's own limitations include: (1) it was trained on short code snippets and may not generalize to complex multi-file projects, (2) it still hallucinates, (3) real-world mistakes may be dispersed across many parts of an answer, and (4) extremely complex tasks may defeat even expert+model teams. The meta-evaluation problem (who judges the judge?) remains fundamentally open.
+:::
+
+**Tool-integrated judges.** TIR-Judge ([Yang et al., 2025](https://arxiv.org/abs/2510.23038)) pushes the frontier by integrating code executors directly into the judge via reinforcement learning. The motivation: "While these approaches enhance judge quality by equipping LLMs with long chains of textual reasoning traces, they remain inherently limited in scenarios that require precise computation or symbolic reasoning." TIR-Judge's 8B parameter model achieves listwise ranking performance matching Claude-Opus-4, surpassing strong reasoning-based judges by up to 6.4% on pointwise and 7.7% on pairwise tasks.
+
+![The LLM-as-a-Judge architecture in agentic systems, showing how judges interface with actors, tools, memory, and reasoning chains. Source: Gu et al. (2024), Figure from survey.](LLM-as-a-Judge/images/agent-judge.png){#fig-agent-judge}
+
+### Safety and Content Moderation
+
+LLM judges serve as automated content moderators and red-teaming evaluators. WildGuard ([Han et al., 2024](https://arxiv.org/abs/2406.18495)) is an open-source safety judge that achieves three goals: "identifying malicious intent in user prompts, detecting safety risks of model responses, and determining model refusal rate." It covers 13 risk categories with 92,000 labeled training examples, constituting the largest multi-task safety dataset at time of publication.
+
+WildGuard's practical impact is dramatic. When deployed as a safety moderator in an LLM interface, it reduced the success rate of jailbreak attacks from 79.8% to 2.4%. The system addresses a key limitation of prior tools: existing open-source moderators like Llama Guard 2 are "much less effective for discerning harm in adversarial prompts (i.e., jailbreaks) compared to vanilla (i.e., direct) queries." WildGuard also handles the over-refusal problem, distinguishing genuinely harmful requests from benign queries that superficially resemble harmful ones (like "How to kill a Python process?").
+
+For the chatbot team, a safety judge like WildGuard operates as a gate: every response passes through the safety judge before reaching the user. The judge classifies the response across safety dimensions and blocks or flags anything that triggers a risk category.
+
+### Factuality and Summarization
+
+FActScore ([Min et al., EMNLP 2023](https://arxiv.org/abs/2305.14251)) pioneered a fine-grained approach to factuality evaluation. Instead of asking "Is this response factually correct?" (a binary judgment that loses granularity), FActScore breaks a generation into atomic facts and evaluates each one independently against a trusted knowledge source. The formal definition: $f(y) = \frac{1}{|\mathcal{A}_y|}\sum_{a \in \mathcal{A}_y}\mathbb{1}[a \text{ is supported by } \mathcal{C}]$, where $\mathcal{A}_y$ is the set of atomic facts extracted from generation $y$ and $\mathcal{C}$ is the knowledge source.
+
+The automated FActScore estimator uses retrieval and a strong language model to approximate human annotation with less than 2% error rate. This enabled evaluation of 6,500 generations from 13 LMs at scale, a task that "would have cost $26K if evaluated by humans."
+
+### Reward Modeling for Alignment
+
+LLM judges and reward models are deeply connected. A reward model trained on human (or AI) preferences is, functionally, a judge: it takes a prompt and response and outputs a scalar indicating quality. RewardBench ([Lambert et al., 2024](https://arxiv.org/abs/2403.13787)) introduced the first comprehensive benchmark for evaluating these models, using "a collection of prompt-chosen-rejected trios spanning chat, reasoning, and safety, to benchmark how reward models perform on challenging, structured and out-of-distribution queries."
+
+RewardBench has evaluated over 80 models across four categories: chat (AlpacaEval, MT-Bench data), chat hard (adversarial trick questions), safety (jailbreak resistance, refusal calibration), and reasoning (code bugs, mathematical correctness). A key finding: "DPO models, while more plentiful due to the method's simplicity, fail to generalize to popular preference data test sets and present a higher variance in performance" compared to models trained as explicit classifiers. The relationship between DPO-trained models and explicit reward models will be explored further in @sec-model-improvements.
+
+::: {.callout-warning title="Common Misconception: Reward models and LLM judges are separate concepts"}
+They are not. A reward model is a specific *type* of judge that has been trained to produce a scalar reward signal for RLHF. An LLM judge is a broader category that includes prompted general-purpose models (GPT-4 as a zero-shot evaluator), fine-tuned evaluation specialists (Prometheus), and reward models. RewardBench evaluates all of these on the same benchmark, treating them as different implementations of the same function: mapping (prompt, response) to a quality signal. The distinction matters for @sec-model-improvements, where we discuss how training a model specifically for judgment (whether as a reward model, a DPO model, or a dedicated judge) improves over prompting a general-purpose model.
+:::
+
+### Running Example: The Chatbot Evolves
+
+The customer-support chatbot team now has judges at three levels. First, a safety judge (inspired by WildGuard) gates every response before it reaches users, checking for harmful content across 13 risk categories. Second, a process verifier (inspired by PRMs) evaluates each intermediate step in the agent's reasoning chain: was the API call correct? Did the code compute the right value? Third, a factuality judge (inspired by FActScore) breaks the final response into atomic claims and verifies each against the product knowledge base.
+
+This multi-layered architecture reflects the state of practice: no single judge covers all quality dimensions. Safety, factual accuracy, helpfulness, and step-level correctness each require specialized evaluation, and the next three sections explore how to make each of these judges more powerful.

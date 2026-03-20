@@ -1,0 +1,19 @@
+---
+title: "LLM-as-a-Judge"
+filters:
+  - ../_extensions/pandoc-ext/diagram/diagram.lua
+---
+
+{{< include "LLM-as-a-Judge/_01-introduction.qmd" >}}
+
+{{< include "LLM-as-a-Judge/_02-taxonomies-and-biases.qmd" >}}
+
+{{< include "LLM-as-a-Judge/_03-applications.qmd" >}}
+
+{{< include "LLM-as-a-Judge/_04-prompt-level-improvements.qmd" >}}
+
+{{< include "LLM-as-a-Judge/_05-model-level-improvements.qmd" >}}
+
+{{< include "LLM-as-a-Judge/_06-inference-and-architecture.qmd" >}}
+
+{{< include "LLM-as-a-Judge/_99-closing.qmd" >}}

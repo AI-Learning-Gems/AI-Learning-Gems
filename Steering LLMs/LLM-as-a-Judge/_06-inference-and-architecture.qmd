@@ -1,0 +1,105 @@
+## Inference-Time and Architectural Improvements: Scaling Judge Intelligence {#sec-inference-improvements}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Chen et al., "MCTS-Judge: Test-Time Scaling for Code Correctness" (2025)](https://arxiv.org/abs/2502.12468) | Monte Carlo Tree Search for code evaluation; accuracy 41%→80% |
+| 2 | [Saha et al., "EvalPlanner: Thinking-LLM-as-a-Judge" (2025)](https://arxiv.org/abs/2501.18099) | Plan-then-execute; SOTA RewardBench 93.9 |
+| 3 | [Gao et al., "SCOPE: Selective Conformal Pairwise LLM Judging" (2026)](https://arxiv.org/abs/2602.13110) | Bidirectional Preference Entropy + conformal prediction |
+| 4 | [Bavaresco et al., "Trust or Escalate" (2024)](https://arxiv.org/abs/2407.18370) | Selective evaluation with provable guarantees; cascaded judges |
+| 5 | [Li et al., "D3: Debate, Deliberate, Decide" (2024)](https://arxiv.org/abs/2410.04663) | Cost-aware adversarial multi-agent evaluation |
+| 6 | [Xu et al., "CollabEval" (2026)](https://arxiv.org/abs/2603.00993) | Three-phase collaborative judging |
+| 7 | [Mao et al., "Statistical Framework for Ranking" (2024)](https://arxiv.org/abs/2412.18407) | Bradley-Terry with factored ties; "leaderbot" package |
+| 8 | [LMSYS, "Chatbot Arena Elo System Update" (2023)](https://lmsys.org/blog/2023-12-07-leaderboard/) | Bradley-Terry transition from Elo; bootstrap confidence intervals |
+| 9 | [Cameron R. Wolfe, "Applying Statistics to LLM Evaluations"](https://cameronrwolfe.substack.com/p/stats-llm-evals) | Statistical rigor; significance testing; bootstrap CIs |
+
+:::
+
+The chatbot team has invested in prompt engineering (@sec-prompt-improvements) and trained a specialized safety judge (@sec-model-improvements). Their system works well on average, but they need something more: *guarantees*. When the judge says a response is safe, how confident can they be? When two judges disagree, how should they resolve the conflict? When the judge is uncertain, should they escalate to a human?
+
+This section covers three frontiers of judge improvement that operate at inference time: spending more compute per evaluation (test-time scaling), quantifying uncertainty (conformal prediction and selective evaluation), and combining multiple judges (multi-agent panels and statistical aggregation).
+
+### Test-Time Compute Scaling
+
+The emerging insight from reasoning research (o1, DeepSeek-R1) applies directly to judges: spending more compute at inference time improves judgment quality. Two approaches have been explored.
+
+**MCTS-Judge** ([Chen et al., 2025](https://arxiv.org/abs/2502.12468)) applies Monte Carlo Tree Search to code evaluation. Instead of generating a single evaluation in one pass, the judge explores a tree of evaluation strategies, backpropagating success signals to identify the most effective reasoning path. The result: accuracy improved from 41% to 80%, surpassing o1-series models while using 3x fewer tokens. The tree search effectively allows the judge to "try different evaluation angles" and converge on the one that produces the most reliable verdict.
+
+**EvalPlanner** ([Saha et al., 2025](https://arxiv.org/abs/2501.18099)) separates planning from execution, forcing the judge to first generate an evaluation plan (what criteria to check, in what order) and then execute the plan. This two-stage approach achieved SOTA on RewardBench at 93.9. The planning stage acts as a form of structured test-time compute: the model spends tokens on meta-cognition (how to evaluate) before spending tokens on evaluation itself.
+
+Both approaches share a principle: evaluation quality scales with inference compute. A judge given 100 tokens to think produces worse judgments than one given 1,000 tokens. This creates an explicit cost-quality tradeoff that organizations can tune: spend more tokens per evaluation for higher-stakes decisions, fewer for routine checks.
+
+### Uncertainty Quantification: Knowing What You Don't Know
+
+A judge that always outputs a confident verdict is dangerous. The most valuable judges are those that can say "I'm not sure" and escalate to a more expensive evaluator or a human.
+
+**Trust or Escalate** ([Bavaresco et al., 2024](https://arxiv.org/abs/2407.18370)) provides the most rigorous framework for this. The key guarantee: given a user-defined risk level $\alpha$,
+
+$$
+P(\text{LLM preference agrees with human} \mid \text{LLM evaluates instance } x) \geq 1 - \alpha
+$$ {#eq-trust-escalate}
+
+The system achieves this through **selective evaluation**: it evaluates an instance with a cheap judge, estimates confidence, and escalates to a stronger judge only when the cheap judge is not confident. The authors introduce *Simulated Annotators*, a method that simulates diverse annotator preferences through in-context learning and estimates confidence as the agreement ratio among the simulations.
+
+The practical result is impressive. Trust or Escalate achieves over 80% human agreement on ChatArena while covering 79.1% of all samples. Among the covered samples, 88.1% are evaluated by substantially cheaper models (Mistral-7B or GPT-3.5) instead of GPT-4. The system automatically decides which judge to use for each instance, maintaining the provable guarantee while dramatically reducing cost.
+
+**SCOPE** ([Gao et al., 2026](https://arxiv.org/abs/2602.13110)) applies conformal prediction specifically to pairwise judging. The method computes a *Bidirectional Preference Entropy* by aggregating preference probabilities from both response orders (A-first and B-first), providing a principled position-order invariant confidence measure. When the confidence is below a threshold, the system abstains rather than outputting an unreliable verdict. The conformal prediction framework provides a formal coverage guarantee:
+
+$$
+P(Y \in C(X)) \geq 1 - \alpha
+$$ {#eq-conformal}
+
+where $C(X)$ is the prediction set (which may include "abstain"). Empirical risk was approximately 0.097-0.099 at $\alpha = 0.10$, demonstrating that the guarantee holds in practice.
+
+::: {.callout-note title="Think Hard: If the judge can abstain, how do you handle the cases it abstains on?"}
+This is where the cascade architecture becomes essential. Trust or Escalate defines a multi-stage pipeline: cheap judge → confidence check → expensive judge → human. Cases that the cheap judge handles confidently stay cheap. Cases where the cheap judge is uncertain escalate to a stronger model. Cases where even the strong model is uncertain escalate to a human reviewer. The key insight is that most instances are "easy" (the quality gap is obvious) and can be handled cheaply, while only a small fraction of "hard" instances require expensive evaluation. The selective framework automatically routes each instance to the appropriate level of evaluation, with provable guarantees on overall reliability.
+:::
+
+### Multi-Agent Judge Panels
+
+Using multiple judges and combining their verdicts is an obvious strategy, but the implementation details matter enormously.
+
+**Simple ensembling** (majority vote, mean score) works when judges have *independent* errors. If one judge makes a mistake, the others correct it. But LLM judges often share biases: they were trained on similar data, they anchor on similar surface features, and they make correlated errors. In such cases, ensembling amplifies systematic errors rather than correcting them.
+
+**D3: Debate, Deliberate, Decide** ([Li et al., 2024](https://arxiv.org/abs/2410.04663)) introduces an adversarial multi-agent protocol. Multiple agents advocate for different positions (MORE protocol: one argues A is better, another argues B is better), then deliberate, and a meta-judge renders the final verdict (SAMRE protocol). The adversarial structure forces each agent to articulate its strongest case, exposing weaknesses in both positions.
+
+**CollabEval** ([Xu et al., 2026](https://arxiv.org/abs/2603.00993)) uses a collaborative three-phase approach where agents initially evaluate independently, then share their assessments, and finally engage in strategic consensus checking. CollabEval outperforms both single-LLM and competitive multi-agent approaches.
+
+::: {.callout-warning title="Common Misconception: More LLM judges in an ensemble always improves accuracy"}
+If judges share the same biases (from similar training data or model families), ensembling amplifies rather than corrects systematic errors. A panel of five GPT-4 variants will share GPT-4's position bias, verbosity bias, and stylistic preferences. Adding more copies of the same bias does not help. Effective ensembling requires *diverse* judges: different model families, different training methods, and ideally different known bias profiles. Alternatively, adversarial protocols (like D3's debate structure) can extract diverse perspectives from similar models by forcing them to argue opposing positions.
+:::
+
+### Statistical Aggregation from Pairwise Judgments
+
+When LLM judges produce pairwise comparisons at scale (as in Chatbot Arena), we need a statistical framework to convert individual matchups into global rankings.
+
+The **Bradley-Terry model** provides this. For two items $i$ and $j$ with latent strength parameters $\beta_i$ and $\beta_j$:
+
+$$
+P(i \succ j) = \frac{\exp(\beta_i)}{\exp(\beta_i) + \exp(\beta_j)} = \sigma(\beta_i - \beta_j)
+$$ {#eq-bradley-terry}
+
+where $\sigma$ is the logistic sigmoid. Given a dataset of pairwise comparisons, maximum likelihood estimation recovers the strength parameters $\{\beta_i\}$, producing a global ranking.
+
+The LMSYS Chatbot Arena ([2023](https://lmsys.org/blog/2023-12-07-leaderboard/)) transitioned from online Elo ratings to the Bradley-Terry model because BT provides "significantly more stable ratings and precise confidence intervals." The key advantage: BT is a statistical model with well-understood properties, enabling bootstrap confidence intervals and hypothesis testing ("Is model A significantly better than model B?").
+
+Mao et al. ([2024](https://arxiv.org/abs/2412.18407)) extended this framework with a factored tie model and covariance modeling, handling the common case where an LLM judge declares a tie. Their "leaderbot" package implements BT estimation with proper uncertainty quantification.
+
+### Meta-Evaluation: Evaluating the Evaluator
+
+The final question is unavoidable: how do you evaluate the judge itself? This is the meta-evaluation problem.
+
+**RewardBench** ([Lambert et al., 2024](https://arxiv.org/abs/2403.13787)) provides the standard benchmark: prompt-chosen-rejected trios where the "correct" answer is known, enabling measurement of judge accuracy. But RewardBench is a static benchmark that can be overfit, and it covers only certain evaluation dimensions.
+
+**Agreement metrics** provide complementary information. Cohen's $\kappa$ measures agreement while adjusting for chance. Spearman's $\rho$ and Kendall's $\tau$ measure rank correlation. But as discussed in @sec-taxonomies-and-biases, the choice of level (model-level vs sample-level) matters enormously: high model-level correlation can mask poor sample-level agreement.
+
+The meta-evaluation paradox lurks at the bottom of this hierarchy. To validate an LLM judge, you compare it to human judgments. But human judgments are noisy, expensive, and themselves variable. At some point, the LLM judge may become *more consistent* than the human baseline it was validated against. Zheng et al. found that humans deemed GPT-4's judgments reasonable in 75% of disagreement cases and were willing to change their own choices in 34% of cases. This suggests the judge is not simply matching human preferences but is, in some cases, producing better evaluations than individual humans.
+
+![Agreement between GPT-4 judgments and human preferences by category on MT-Bench. Agreement increases with the performance gap between compared models, confirming that the judge is most reliable when quality differences are clear. Source: Zheng et al. (2023), Figure 6.](LLM-as-a-Judge/images/categorized-agreement.png){#fig-categorized-agreement}
+
+### Running Example: The Chatbot's Final Architecture
+
+The chatbot team's evaluation system now has four layers. The safety judge (7B LoRA) handles binary safety checks in 10ms. The helpfulness judge (GPT-4 with rubric and CoT) scores responses on a 1-5 scale. A confidence estimator (inspired by Trust-or-Escalate) routes uncertain cases to a human review queue. And the whole system's performance is tracked on a custom RewardBench-style evaluation set, with weekly monitoring for drift in judge accuracy.
+
+The system is not perfect, and the meta-evaluation problem remains open. But it is dramatically better than where they started: BLEU scores that correlated 0.19 with human judgment. The LLM-as-a-Judge paradigm has given them evaluation that is scalable, explainable, and reliable enough for production.

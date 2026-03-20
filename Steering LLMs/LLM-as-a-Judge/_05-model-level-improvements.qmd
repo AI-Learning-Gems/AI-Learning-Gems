@@ -1,0 +1,107 @@
+## Model-Level Improvements: Training Better Judges {#sec-model-improvements}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Kim et al., "Prometheus 2" (EMNLP 2024)](https://arxiv.org/abs/2405.01535) | Fine-tuned open-source judge; dual-format training (direct + pairwise) |
+| 2 | [Whitehouse et al., "J1: Incentivizing Thinking via RL" (ICLR 2026)](https://arxiv.org/abs/2505.10320) | GRPO training for thinking-judges; J1-Qwen-32B outperforms o1-mini, o3 |
+| 3 | [Agnihotri et al., "Plug-and-Play LLM Judge with LoRA" (2025)](https://arxiv.org/abs/2506.05748) | Frozen 7B + rank-16 LoRA = 96.2% on RewardBench |
+| 4 | [Guo et al., "FairJudge" (2026)](https://arxiv.org/abs/2602.06625) | Curriculum SFT→DPO→GRPO for debiased judge training |
+| 5 | [Bai et al., "Constitutional AI" (2022)](https://arxiv.org/abs/2212.08073) | RLAIF: self-critique + RL from AI feedback |
+| 6 | [Lambert et al., "RewardBench" (2024)](https://arxiv.org/abs/2403.13787) | DPO models as implicit reward models; evaluation benchmark |
+| 7 | [Cameron R. Wolfe, "Finetuning LLM Judges"](https://cameronrwolfe.substack.com/p/finetuned-judge) | Prometheus, JudgeLM, PandaLM, AutoJ deep dive |
+| 8 | [Lilian Weng, "Reward Hacking in RL"](https://lilianweng.github.io/posts/2024-11-28-reward-hacking/) | Failure modes of reward models; training pitfalls |
+
+:::
+
+The chatbot team has hit the ceiling of prompt engineering. Their GPT-4 judge with a detailed rubric and CoT achieves 92% agreement with humans on helpfulness evaluation. For safety, the agreement is 95%. But for their most critical use case, filtering training data for the next model version, they need higher reliability at lower cost. Calling GPT-4 for every evaluation is expensive, and the remaining 5-8% disagreement introduces noise into training. The solution: train a dedicated judge model.
+
+This section covers the spectrum of model-level improvements, from supervised fine-tuning on evaluation data to reinforcement learning on judgment quality, to the surprising effectiveness of minimal adaptation via LoRA.
+
+### The Training Spectrum
+
+Model-level judge improvement spans five levels of investment, each with different cost-performance tradeoffs:
+
+| Level | Method | Data Required | Training Cost | Example |
+|---|---|---|---|---|
+| 0 | Zero-shot prompting | None | None | GPT-4 with rubric |
+| 1 | Few-shot prompting | 3-10 exemplars | None | GPT-4 with calibration examples |
+| 2 | SFT on evaluation data | 10K-100K labeled evaluations | Low | Prometheus 2 |
+| 3 | DPO/preference optimization | Preference pairs of judgments | Medium | EvalPlanner |
+| 4 | RL on verifiable rewards | Diverse prompts + reward function | High | J1, FairJudge |
+| 5 | Minimal adaptation (LoRA) | <10K preference pairs | Very low | LoRA Judge (96.2% RewardBench) |
+
+The most striking finding across the literature is that level 5 (minimal adaptation) can outperform level 0-1 (prompting) dramatically while requiring less compute than level 2-4 (full training). This is the "plug-and-play" paradigm.
+
+### SFT on Evaluation Data: Prometheus
+
+Prometheus 2 ([Kim et al., EMNLP 2024](https://arxiv.org/abs/2405.01535)) is the most prominent open-source judge model, trained via supervised fine-tuning on curated evaluation data. The key innovations are dual-format training and rubric conditioning.
+
+**Dual-format training** trains the same model to perform both direct assessment (pointwise scoring) and pairwise ranking. This is important because different evaluation tasks require different formats (as discussed in @sec-taxonomies-and-biases), and a single model that handles both is more practical than maintaining two separate judge models.
+
+**Rubric-conditioned evaluation** teaches the model to follow a custom rubric provided in the prompt. During training, each evaluation example includes a specific rubric defining what each score level means. At inference time, the user provides a new rubric for their task, and the model generalizes to evaluate against it. This makes Prometheus flexible across domains: the same model can evaluate helpfulness with a helpfulness rubric or safety with a safety rubric.
+
+The Feedback Collection dataset, used to train Prometheus, contains evaluation examples where a strong LLM (GPT-4) provides both a judgment and a detailed rationale. Training on this data teaches the student model not just to score but to *explain* its scores, inheriting the CoT evaluation pattern from the teacher.
+
+### RL-Based Judge Training: J1
+
+J1 ([Whitehouse et al., ICLR 2026](https://arxiv.org/abs/2505.10320)) represents the frontier of judge training. The core idea: use reinforcement learning (specifically GRPO) to teach an LLM to *think better about evaluation*, analogous to how DeepSeek-R1 uses RL to improve mathematical reasoning.
+
+J1's framework has three components. First, **Unified Verifiable Training** converts all judgment tasks into a format with verifiable rewards. For verifiable tasks (math, code), the reward comes from checking correctness. For subjective tasks (helpfulness, coherence), J1 constructs synthetic preference pairs and rewards the judge for agreeing with the constructed preference. This unification allows a single model to be trained across diverse domains using only synthetic data.
+
+Second, **Reasoning-Optimized Training** uses GRPO to directly optimize the quality of evaluation reasoning. The model learns to generate systematic evaluation strategies: "dynamic criteria generation, reference answer creation, iterative self-correction of initial assessments, and feedback generation for low-quality responses." These strategies emerge from RL training rather than being hard-coded in the prompt.
+
+Third, **Bias-Aware Training** addresses position bias through consistency-based rewards. The model is penalized for giving different verdicts when response order is swapped. J1 also develops a method to train inherently consistent *pointwise* judges using only pairwise supervision, then unifies both into a single multitask model.
+
+The results are remarkable. J1-Qwen-32B outperforms o1-mini, o3, and the 671B DeepSeek-R1 on some benchmarks, while training only on synthetic data. The model achieves SOTA across RewardBench, PPE, JudgeBench, RM-Bench, and FollowBenchEval.
+
+::: {.callout-note title="Think Hard: Why does RL outperform SFT for judge training?"}
+SFT teaches the model to *imitate* good judgments. RL teaches the model to *optimize* judgment quality. The difference matters because evaluation is inherently a reasoning task: the judge must consider multiple dimensions, weigh evidence, and handle edge cases. SFT on a fixed dataset of good judgments teaches the model what good judgments look like, but it does not teach the model *how to generate good judgments in novel situations*. RL, by optimizing a reward signal, incentivizes the model to develop general reasoning strategies that transfer to new evaluation scenarios. J1's ablations confirm this: the RL-trained model significantly outperforms the SFT-only baseline and the DPO-tuned baseline, with the gap growing on harder evaluation tasks.
+:::
+
+### Minimal Adaptation: LoRA Judges
+
+Perhaps the most surprising result in judge training is how little adaptation is needed. Agnihotri et al. ([2025](https://arxiv.org/abs/2506.05748)) showed that a frozen 7B instruction-tuned model augmented with a rank-16 LoRA adapter (affecting only 0.8% of the model's parameters) achieves 96.2% accuracy on RewardBench, outperforming specialized reward networks ranging from 27B to 70B parameters.
+
+The "plug-and-play" approach has three components: a JSON-formatted rubric (one line), six in-context demonstrations, and the LoRA adapter. The demonstrations provide the majority of the zero-to-few-shot improvement (+2 percentage points), while the LoRA closes the remaining gap, particularly on safety and adversarial tasks.
+
+The practical implication is striking: organizations can build a high-quality judge by fine-tuning a tiny adapter on a small dataset, without modifying the base model's weights. Multiple LoRA adapters for different evaluation tasks can coexist, activated by swapping a few megabytes of weights. This is far cheaper than training or hosting a separate judge model.
+
+### Constitutional AI and the Self-Improvement Loop
+
+Constitutional AI ([Bai et al., 2022](https://arxiv.org/abs/2212.08073)) established a fundamentally different approach: instead of training a dedicated judge model, use the model itself as its own judge through a self-improvement loop.
+
+The Constitutional AI pipeline has two phases. In the **supervised learning phase**, the model generates responses, critiques its own responses against a set of constitutional principles, and revises the responses based on the critiques. The model is then fine-tuned on the revised responses. In the **RL phase**, the model generates pairs of responses, uses itself (rather than humans) to judge which response better satisfies the constitutional principles, and trains a preference model from these AI-generated judgments. The model is then trained with RL using this preference model as the reward signal, i.e., "RL from AI Feedback" (RLAIF).
+
+The key insight is that the constitutional principles serve as the rubric, and the model itself serves as both the evaluator and the student. The only human input is writing the principles. This approach produces models that are "harmless but non-evasive," without requiring any human labels identifying harmful outputs.
+
+::: {.callout-warning title="Common Misconception: A bigger model is always a better judge"}
+Training a smaller model specifically for evaluation can outperform prompting a much larger general-purpose model. The LoRA judge (7B + 0.8% adapter = 96.2% RewardBench) outperforms many 27B-70B models. Prometheus 2 (7B and 8x7B MoE) outperforms prompted GPT-3.5. J1-Qwen-32B outperforms the 671B DeepSeek-R1 on some benchmarks. Domain-specific training concentrates the model's capacity on the evaluation task, while a general-purpose model must allocate capacity across all tasks. The lesson: for production judge deployment, train a small specialized model rather than relying on expensive API calls to a frontier model.
+:::
+
+### The DPO Connection: Implicit Reward Models
+
+There is a deep connection between judge training and preference optimization. A model trained with DPO on preference data $\{(x, y_w, y_l)\}$ implicitly learns a reward function:
+
+$$
+r(x, y) = \beta \log \frac{\pi_\theta(y \mid x)}{\pi_{\text{ref}}(y \mid x)}
+$$ {#eq-dpo-reward}
+
+where $\pi_\theta$ is the trained policy, $\pi_{\text{ref}}$ is the reference policy, and $\beta$ is the temperature. This means every DPO-trained model is, implicitly, a judge: you can extract a quality score for any (prompt, response) pair by computing the log-probability ratio.
+
+RewardBench ([Lambert et al., 2024](https://arxiv.org/abs/2403.13787)) evaluated these implicit reward models and found a mixed picture: "DPO models, while more plentiful due to the method's simplicity, fail to generalize to popular preference data test sets and present a higher variance in performance" compared to models trained as explicit classifiers. DPO models tend to overfit to the distribution of their training data, making them poor generalist judges. For judge deployment, explicit reward model training (classification head on embeddings) or generative judge training (SFT/RL on evaluation data) is more reliable than relying on DPO's implicit reward.
+
+### Curriculum Training: FairJudge
+
+FairJudge ([Guo et al., 2026](https://arxiv.org/abs/2602.06625)) combines SFT, DPO, and GRPO into a progressive curriculum specifically designed to debias the judge:
+
+1. **SFT phase:** Train the model on diverse evaluation data to establish basic judge capability
+2. **DPO phase:** Fine-tune on preference pairs where the preferred judgment is the correct one, teaching the model to distinguish good from bad evaluations
+3. **GRPO phase:** Apply RL with rewards that penalize position bias, length bias, and format inconsistency
+
+This curriculum design reflects a principle: SFT provides the foundation, DPO sharpens preferences, and RL optimizes for the specific reliability properties that matter for deployment. Each phase builds on the previous one rather than starting from scratch.
+
+### Running Example: The Chatbot's Specialized Safety Judge
+
+The chatbot team fine-tunes a 7B model with a safety-focused LoRA adapter, trained on WildGuard's 92K labeled safety examples. The resulting judge achieves 98.5% accuracy on safety classification, exceeding their GPT-4-based prompted judge (95%) at a fraction of the cost. For helpfulness evaluation, they keep the prompted GPT-4 judge (which is adequate at 92%) but save significant budget by routing safety decisions to the specialized small model. The two judges operate in parallel: safety evaluation takes 10ms (local model), helpfulness evaluation takes 2s (API call), and the system combines both signals before serving a response.
