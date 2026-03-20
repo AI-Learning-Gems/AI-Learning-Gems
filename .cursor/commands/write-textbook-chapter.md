@@ -120,15 +120,24 @@ When you are about to write something, ask: **"Am I making a specific claim that
 
 | # | File to Read | What It Contains | When It Matters |
 |---|---|---|---|
-| 1 | `writing-style.md` | Tone, sentence rhythm, emphasis hierarchy, given-new flow, pronoun clarity, AI tell avoidance, mathematical vs narrative modes, inline citations, vocabulary rules | Every paragraph you write |
-| 2 | `quarto-conventions.md` | Folder structure, index file template, heading levels, LaTeX formatting, cross-references, callout syntax, image path resolution | File structure, every section file |
+| 1 | `source-integrity.md` | **THE MOST CRITICAL FILE.** Zero World Knowledge principle, training data boundary (Hard Ban vs. Acceptable), source readability verification, sub-agent rules, observed failure patterns, proof-of-work protocol | Every source you cite, every claim you write, every section |
+| 2 | `writing-style.md` | Tone, sentence rhythm, emphasis hierarchy, given-new flow, pronoun clarity, AI tell avoidance, mathematical vs narrative modes, inline citations, vocabulary rules | Every paragraph you write |
+| 3 | `quarto-conventions.md` | Folder structure, index file template, heading levels, LaTeX formatting, cross-references, callout syntax, image path resolution | File structure, every section file |
 | 3 | `visualization-standards.md` | Image priority order, source image handling, D2 diagram template (Modern SaaS theme), hvplot/bokeh two-cell pattern | Every visualization |
 | 4 | `source-management.md` | Centralized source paths, citation format, blog attribution | Source headers, citations |
 | 5 | `high-quality-blogs.md` | Blog attribution rules | When using blog-sourced explanations |
 | 6 | `exercise-syntax.md` | Exercise div syntax (not needed for writing, but useful to avoid conflicts) | If the chapter will later have exercises |
 | 7 | `python-env.md` | Conda environment activation | Any terminal commands |
 
-**Per-section re-read (MANDATORY):** Before writing each body section (Steps 2), re-read `writing-style.md` and `visualization-standards.md`. By the third or fourth section, the detailed rules (emphasis hierarchy, given-new contract, D2 theme classes) will have faded from context. The quality difference between "re-read rules, then write" and "write from memory" is stark.
+**Per-section re-read and proof-of-work (MANDATORY):** Before writing each body section (Steps 2), you must:
+1. Re-read `source-integrity.md`, `writing-style.md`, and `visualization-standards.md` from disk.
+2. Produce a **Rules Application Analysis** in the chat. This is not a generic restatement of rules. It is a section-specific proof-of-work paragraph that maps:
+   - At least 3 specific `writing-style.md` rules to concrete decisions for THIS section (e.g., "This section explains X. The given-new contract means I start with [familiar concept] and end with [new term].")
+   - At least 2 specific `source-integrity.md` rules to THIS section's sources (e.g., "This section cites Author Y's framework. This is a Hard Ban category item, so I must read `sources/path/file.md` lines N-M before writing.")
+   - Every source that will contribute to this section, with file paths and the line numbers you will read.
+3. After writing the section, produce a **Source Audit Table** (see `source-integrity.md` for format). Every source must show `YES` under Verified. If any shows `NO — MUST FIX`, stop and fix before proceeding.
+
+By the third or fourth section, the detailed rules (emphasis hierarchy, given-new contract, D2 theme classes, Hard Ban categories) will have faded from context. The proof-of-work forces re-engagement. A generic restatement ("I will follow the rules") is not proof of work. The analysis must reference specific content from the section being written.
 
 ---
 

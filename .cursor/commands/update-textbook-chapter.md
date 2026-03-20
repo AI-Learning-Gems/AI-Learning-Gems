@@ -36,16 +36,19 @@ The user will provide:
 
 | # | File to Read | What It Contains | When It Matters |
 |---|---|---|---|
-| 1 | `writing-style.md` | Tone, sentence rhythm, emphasis hierarchy, AI tell avoidance, mathematical vs narrative modes, inline citations | Phase 5 (writing new paragraphs), Phase 6 (coherence pass) |
-| 2 | `quarto-conventions.md` | Heading levels, LaTeX formatting, cross-references, image paths, callout syntax | Phase 5 (section edits), Phase 6 (cross-references) |
-| 3 | `visualization-standards.md` | Image priority order, source image handling, D2 diagrams, hvplot patterns | Phase 5 (adding new visualizations) |
-| 4 | `source-management.md` | Centralized source storage, folder naming, download commands, citation format | Phase 2 (downloading new sources) |
-| 5 | `web-source-fetching.md` | Site-specific fetch strategies | Phase 2 (downloading new sources) |
-| 6 | `high-quality-blogs.md` | Blog attribution rules | Phase 5 (attributing blog-sourced content) |
-| 7 | `exercise-syntax.md` | Exercise div syntax | Phase 5 (to avoid breaking existing exercises during edits) |
-| 8 | `python-env.md` | Conda environment activation | Any terminal commands |
+| 1 | `source-integrity.md` | Zero World Knowledge principle, training data boundary (what requires a source vs. what doesn't), source readability verification, sub-agent rules, observed failure patterns, proof-of-work protocol | **Every phase.** This is the most critical rules file. It prevents hallucinated content from entering the chapter. |
+| 2 | `writing-style.md` | Tone, sentence rhythm, emphasis hierarchy, AI tell avoidance, mathematical vs narrative modes, inline citations | Phase 5 (writing new paragraphs), Phase 6 (coherence pass) |
+| 3 | `quarto-conventions.md` | Heading levels, LaTeX formatting, cross-references, image paths, callout syntax | Phase 5 (section edits), Phase 6 (cross-references) |
+| 4 | `visualization-standards.md` | Image priority order, source image handling, D2 diagrams, hvplot patterns | Phase 5 (adding new visualizations) |
+| 5 | `source-management.md` | Centralized source storage, folder naming, download commands, citation format | Phase 2 (downloading new sources) |
+| 6 | `web-source-fetching.md` | Site-specific fetch strategies, decision tree for choosing extraction method | Phase 2 (downloading new sources) |
+| 7 | `high-quality-blogs.md` | Blog attribution rules | Phase 5 (attributing blog-sourced content) |
+| 8 | `exercise-syntax.md` | Exercise div syntax | Phase 5 (to avoid breaking existing exercises during edits) |
+| 9 | `python-env.md` | Conda environment activation | Any terminal commands |
 
-**Per-section re-read (MANDATORY):** Before editing each section file in Phase 5, re-read `writing-style.md` from disk. New paragraphs written from memory of the rules will consistently violate the emphasis hierarchy, given-new contract, and AI tell avoidance rules.
+**Per-section re-read and proof-of-work (MANDATORY):** Before editing each section file in Phase 5, you must:
+1. Re-read `source-integrity.md`, `writing-style.md`, and `exercise-syntax.md` from disk.
+2. Produce a **Rules Application Analysis** in the chat (see `source-integrity.md` for the full protocol). This is not optional. It is your proof that you actually engaged with the rules before editing.
 
 **Shared rules (MUST follow):**
 - **Writing style:** Follow `writing-style.md`
@@ -99,7 +102,7 @@ Total Word Count: ~[estimate]
 
 === PHASE 2: PROCESS NEW SOURCES ===
 
-**Goal:** Download, read, and extract key information from each new source.
+**Goal:** Download, read, and extract key information from each new source. Every source must be both downloaded AND readable before any content from it enters the chapter.
 
 **Steps:**
 
@@ -107,15 +110,24 @@ Total Word Count: ~[estimate]
 
 2. **Download new sources** — follow the rules in `source-management.md` and `web-source-fetching.md` for site-specific strategies.
 
-3. **For each new source, extract:**
-   - Title, authors, year, venue
-   - Key claims, methods, or results (3-5 bullet points)
+3. **Verify readability of EVERY new source (MANDATORY).** For each source folder:
+   - List all files in the folder.
+   - Check: does it contain at least one `.md`, `.tex`, or `.txt` file with >500 characters?
+   - If NO: **STOP. Read `web-source-fetching.md` and `source-management.md` IN FULL** before running any extraction. Follow their decision tree. Do NOT guess the command.
+   - Verify the extraction produced readable content (>500 chars of real text).
+   - See `source-integrity.md` (Source Readability Verification) for the full protocol.
+
+4. **Read each new source IN FULL using the Read tool.** Not a summary. Not the first page. The actual file, all lines. For long sources (>500 lines), read in chunks but read ALL chunks. See `source-integrity.md` (Zero World Knowledge Principle): if you cannot find a claim in a source you personally read, the claim does not exist for you.
+
+5. **For each new source, extract:**
+   - Title, authors, year, venue — **as written in the source itself**, not from the URL or user's description
+   - Key claims, methods, or results (3-5 bullet points) — with exact line numbers
    - How it relates to the chapter's existing content (preliminary assessment)
    - Notable figures or diagrams worth including
 
-4. **Image inventory** — for new arXiv sources, convert PDF figures to PNG following `source-management.md` (PDF figure conversion section).
+6. **Image inventory** — for new arXiv sources, convert PDF figures to PNG following `source-management.md` (PDF figure conversion section).
 
-**Chat output:** Brief summary of each new source (1-2 sentences each).
+**Chat output:** Brief summary of each new source (1-2 sentences each), noting: title, actual authors, and the file path where readable content was verified.
 
 ---
 
@@ -321,14 +333,29 @@ Write `UPDATE-PLAN.md` to the chapter folder (alongside `TEXTBOOK-PLAN.md`):
 
 ### For Each Section Being Updated
 
-1. **Re-read rules (MANDATORY before each section edit):**
-   Before editing, re-read these files from disk:
-   - `writing-style.md` — Re-read in full. Focus on: AI tell avoidance (banned words, em dash prohibition), mathematical vs narrative modes, inline citation format, given-new contract, pronoun clarity.
+1. **Re-read rules AND produce proof-of-work (MANDATORY before each section edit):**
+   Before editing, re-read these files from disk using the Read tool:
+   - `source-integrity.md` — Re-read in full. Focus on: Zero World Knowledge, Hard Ban categories, the litmus test.
+   - `writing-style.md` — Re-read in full. Focus on: AI tell avoidance (banned words, em dash prohibition), given-new contract, emphasis hierarchy, inline citation format.
    - `exercise-syntax.md` — Re-read to avoid accidentally breaking existing exercise blocks during edits.
+
+   **Then produce a Rules Application Analysis in the chat.** This is your proof of work. It must contain:
+
+   **(a) Scope verification (update-specific):** "This section currently covers [topic]. The new source adds [content]. This content serves learning objective [N] because [reason]. I will place it [where] because [rationale]. This does NOT expand the section's scope because [explanation]."
+
+   **(b) Source integrity mapping:** "The new source is at `[path]`. I read it at lines [N-M]. The specific claims I will add are: [list]. Each claim traces to line [N] of the source. I am NOT using any content from: the TEXTBOOK-PLAN summary, training data, or sub-agent reports without verification."
+
+   **(c) Writing style mapping (at least 3 rules):** Map specific `writing-style.md` rules to the content you are about to add. Example: "The new paragraph explains concept X. The given-new contract means I start with [familiar term from existing text] and end with [new information from the source]. I will not use em dashes. The emphasis hierarchy means I bold [specific phrase] as the key takeaway."
+
+   **(d) Preservation check (update-specific):** "The existing content I am editing around is: [describe]. I will NOT change [what stays]. The edit is surgical: [describe exact StrReplace plan]."
+
 2. **Read the section** (or re-read if you read it in Phase 1)
 3. **Update the section's source header** — add new sources to the collapsible callout table at the top
 4. **Apply changes** using `StrReplace` — one change at a time, preserving surrounding context
 5. **Track word count change** — note how many words were added
+
+6. **Produce a Source Audit Table after each section edit (MANDATORY):**
+   See `source-integrity.md` for the full table format. Every source that contributed content to your edits must appear in the table. Every row must show `YES` under Verified. If any row shows `NO — MUST FIX`, stop and fix before proceeding.
 
 ### Word Count Discipline
 
