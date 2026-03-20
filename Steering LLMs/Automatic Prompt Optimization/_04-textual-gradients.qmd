@@ -22,7 +22,7 @@ Before looking at the algorithms, it helps to see the full range of approaches t
 
 1. **Soft prompt optimization**: Bypass the problem entirely by working in continuous embedding space. Optimize $\mathbf{c} \in \mathbb{R}^{d \times L}$ using standard backpropagation: $\mathbf{c}^* = \arg\min_{\mathbf{c}} \mathbb{E}[\ell(f(x; \mathbf{c}), y)]$. This works because $\mathbf{c}$ is continuous and differentiable. But it requires model weight access and produces uninterpretable prompts (a sequence of embedding vectors that no human can read). Covered in detail in @sec-applications.
 
-2. **Shortcut gradients**: Compute approximate gradients on discrete prompts by exploiting model internals. GReaTer ([Thaker et al., ICLR 2025](https://arxiv.org/abs/2412.09722)) computes task loss over intermediate reasoning steps. GCG ([Zou et al., 2023](https://arxiv.org/abs/2307.15043)) uses token-level gradients to identify which positions and replacements are best. PEZ ([Wen et al., NeurIPS 2023](https://arxiv.org/abs/2302.03668)) projects from continuous to discrete space. All require white-box model access.
+2. **Shortcut gradients**: Compute approximate gradients on discrete prompts by exploiting model internals. GReaTer ([Das et al., 2024](https://arxiv.org/abs/2412.09722)) computes task loss over intermediate reasoning steps. GCG ([Zou et al., 2023](https://arxiv.org/abs/2307.15043)) uses token-level gradients to identify which positions and replacements are best. PEZ ([Wen et al., NeurIPS 2023](https://arxiv.org/abs/2302.03668)) projects from continuous to discrete space. All require white-box model access.
 
 3. **Textual gradients**: Replace numerical gradients entirely with natural language feedback from an LLM. No model access needed, produces human-readable output, works through API calls. This is the focus of this section.
 
@@ -44,7 +44,7 @@ For our triage system, ProTeGi might show the LLM three misclassified tickets an
 
 ![ProTeGi's gradient descent analogy. Left: standard gradient descent on a loss surface, where the gradient points toward steepest ascent and the update moves in the opposite direction. Right: textual gradient descent, where natural language critiques play the role of gradients and prompt edits play the role of parameter updates. Source: Pryzant et al. (2023).](Automatic Prompt Optimization/images/protegi-gradient-analogy.png){#fig-protegi-gd}
 
-The beam search maintains $W$ parallel optimization paths (beam width), and a UCB-based bandit algorithm allocates evaluation budget across candidates (see @sec-math-ucb for a review of multi-armed bandits and UCB):
+The beam search maintains $b$ parallel optimization paths (beam width), and a UCB-based bandit algorithm allocates evaluation budget across candidates (see @sec-math-ucb for a review of multi-armed bandits and UCB):
 
 $$
 p_i \leftarrow \arg\max_p \left\{ Q_t(p) + c \sqrt{\frac{\log t}{N_t(p)}} \right\}
@@ -123,7 +123,7 @@ TextGrad's analogy table maps numerical gradient descent onto textual gradient d
 - Reflection helps for simple tasks but hurts for complex multi-step pipelines
 
 ::: {.predict-reveal}
-**The answer is B.** GPO's ablation showed +31% improvement *without* reflection vs. +26% *with* reflection. The textual chain rule asks the LLM to reason backward through causal chains ("how should criticisms of the output translate into criticisms of the input?"), but at each step the LLM can misattribute failures, generate vague feedback, or confabulate plausible-sounding but incorrect explanations. These errors compound through the pipeline. Numerical backpropagation avoids this because the chain rule is mathematically exact; textual backpropagation has no such guarantee.
+**The answer is B.** GPO's ablation showed that removing reflection improved results from the initial prompt by up to 31%, compared to approximately 29% with reflection enabled. The textual chain rule asks the LLM to reason backward through causal chains ("how should criticisms of the output translate into criticisms of the input?"), but at each step the LLM can misattribute failures, generate vague feedback, or confabulate plausible-sounding but incorrect explanations. These errors compound through the pipeline. Numerical backpropagation avoids this because the chain rule is mathematically exact; textual backpropagation has no such guarantee.
 :::
 
 :::
@@ -136,14 +136,14 @@ TextGrad also supports techniques from numerical optimization: **batch optimizat
 ::: {.callout-note title="Think Hard: Does the textual chain rule actually work like the numerical chain rule?"}
 The numerical chain rule is exact: $\frac{\partial \mathcal{L}}{\partial x} = \frac{\partial \mathcal{L}}{\partial z} \cdot \frac{\partial z}{\partial x}$ computes the precise sensitivity of $\mathcal{L}$ to $x$ through intermediate variable $z$. The textual chain rule asks an LLM to "explain how criticisms of the output should translate into criticisms of the input." This approximation depends entirely on the LLM's ability to reason about causal chains.
 
-Several things can go wrong: (a) the LLM might attribute failures to the wrong component; (b) it might generate vague feedback that loses specificity at each propagation step; and (c) it might introduce biases from its training data. GPO found that LLM self-reflection actually *hurts* optimization (+31% improvement without reflection vs. +26% with reflection on their benchmark). LLMs are imperfect critics, and the textual chain rule accumulates errors in a way that numerical backpropagation does not.
+Several things can go wrong: (a) the LLM might attribute failures to the wrong component; (b) it might generate vague feedback that loses specificity at each propagation step; and (c) it might introduce biases from its training data. GPO found that LLM self-reflection actually *hurts* optimization: removing reflection yielded up to +31% improvement from the initial prompt, compared to approximately +29% with reflection enabled on their benchmark. LLMs are imperfect critics, and the textual chain rule accumulates errors in a way that numerical backpropagation does not.
 
 TextGrad's empirical success may owe more to the quality of modern LLMs as critics (GPT-4 is a good feedback generator) than to the mathematical properties of the framework.
 :::
 
 ### TRACE: Execution Traces as Optimization Signal
 
-TRACE ([Nie et al., NeurIPS 2024](https://arxiv.org/abs/2406.16218)) pushed the textual gradient idea one step further by formalizing it as OPTO (Optimization with Trace Oracle). The key insight: execution traces carry richer signal than input-output pairs alone.
+TRACE ([Cheng et al., NeurIPS 2024](https://arxiv.org/abs/2406.16218)) pushed the textual gradient idea one step further by formalizing it as OPTO (Optimization with Trace Oracle). The key insight: execution traces carry richer signal than input-output pairs alone.
 
 The OPTO framework is defined as a tuple $(\Theta, \omega, T)$:
 
@@ -160,9 +160,9 @@ TRACE provides two Python primitives to build computation graphs automatically:
 
 The **OptoPrime** algorithm converts the minimal subgraph connecting parameters to the output into pseudo-code, then prompts an LLM with a ReAct-CoT (Chain of Thought) approach to reason about the execution and suggest parameter updates. Because the optimizer sees the actual execution steps (not just the final result), it can make more targeted updates.
 
-![TRACE applied to MetaWorld robot controller optimization, demonstrating that the OPTO framework generalizes beyond NLP to arbitrary computational workflows. Source: Nie et al. (2024).](Automatic Prompt Optimization/images/trace-metaworld.png){#fig-trace-metaworld}
+![TRACE applied to MetaWorld robot controller optimization, demonstrating that the OPTO framework generalizes beyond NLP to arbitrary computational workflows. Source: Cheng et al. (2024).](Automatic Prompt Optimization/images/trace-metaworld.png){#fig-trace-metaworld}
 
-TRACE's subgraph propagation has complexity $O(WN^2 \log N)$ in time and $O(WN)$ in space, where $N$ is the number of nodes and $W$ is the maximum degree. This is more expensive than standard backpropagation's $O(WNd^2)$ per step, reflecting the richer information being propagated.
+TRACE's subgraph propagation has complexity $O(WN^2 \log N)$ in time and $O(WN)$ in space, where $N$ is the number of nodes and $W$ is the maximum degree. This is more expensive than standard neural network backpropagation, reflecting the richer information being propagated through execution traces rather than just numerical gradients.
 
 TRACE's applicability extends well beyond NLP: the same framework optimizes LLM prompts, robot controllers, and numerical optimization hyperparameters. This breadth motivated GEPA's "optimize_anything" API (@sec-frameworks), which extends execution-trace-guided optimization to an even wider range of problems.
 

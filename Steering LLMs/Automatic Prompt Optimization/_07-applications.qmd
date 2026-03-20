@@ -34,9 +34,9 @@ When agents interact in non-sequential DAG structures (a retriever feeds a reaso
 
 **The TRACE approach** provides per-module feedback through execution traces. When the system fails, TRACE's minimal subgraph propagator identifies which module's output caused the failure by tracing backward through the DAG. The optimizer reads the trace as pseudo-code and proposes targeted updates.
 
-![HiveMind: multi-agent prompt optimization with DAG-Shapley credit assignment. Instead of optimizing all agents' prompts equally, HiveMind quantifies each agent's marginal contribution using Shapley values, then targets optimization budget at underperforming modules. Source: Wang et al. (2025).](Automatic Prompt Optimization/images/hivemind-architecture.png){#fig-hivemind}
+![HiveMind: multi-agent prompt optimization with DAG-Shapley credit assignment. Instead of optimizing all agents' prompts equally, HiveMind quantifies each agent's marginal contribution using Shapley values, then targets optimization budget at underperforming modules. Source: Xia et al. (2025).](Automatic Prompt Optimization/images/hivemind-architecture.png){#fig-hivemind}
 
-**The HiveMind approach ([Wang et al., AAAI 2026](https://arxiv.org/abs/2512.06432))** uses Shapley values to quantify each agent's marginal contribution (see @sec-math-shapley for a review of Shapley values in cooperative game theory):
+**The HiveMind approach ([Xia et al., AAAI 2026](https://arxiv.org/abs/2512.06432))** uses Shapley values to quantify each agent's marginal contribution (see @sec-math-shapley for a review of Shapley values in cooperative game theory):
 
 $$
 \phi_i(v) = \sum_{S \subseteq N \setminus \{i\}} \frac{|S|!(|N|-|S|-1)!}{|N|!} \cdot \left[v(S \cup \{i\}) - v(S)\right]
@@ -46,7 +46,7 @@ where $v(S)$ is the coalition value (system performance when only agents in $S$ 
 
 Computing exact Shapley values requires evaluating $2^{|N|}$ coalitions, which is exponential. HiveMind's **DAG-Shapley** exploits the DAG structure to prune non-viable coalitions (an agent whose predecessor is excluded cannot contribute), reducing LLM calls by 80%+. The CG-OPO (Contribution-Guided Online Prompt Optimization) algorithm then allocates optimization budget proportionally to each agent's contribution gap.
 
-**GEPA's optimize_anything** takes the most radical approach: treat the entire agent system (code + prompts + control flow) as a single text artifact to be evolved. On the ARC-AGI challenge, GEPA evolved a 10-line stub into a 300+ line agent achieving 89.5% accuracy (vs. 32.5% baseline). This strategy is architecture search, not just prompt optimization: the algorithm discovers not just what the prompt should say, but how the agent should be structured.
+**GEPA's optimize_anything** takes the most radical approach: treat the entire agent system (code + prompts + control flow) as a single text artifact to be evolved. In preliminary experiments on the ARC-AGI challenge, GEPA evolved a 10-line stub into a 300+ line agent, though these results were not included in the published evaluation. This strategy is architecture search, not just prompt optimization: the algorithm discovers not just what the prompt should say, but how the agent should be structured.
 
 ::: {.exercise-mcq correct="B"}
 
@@ -171,35 +171,35 @@ Not quite. Increasing prompt length (A) gives more capacity but does not prevent
 
 Prompt optimization has demonstrated impact well beyond classification and text generation:
 
-- **Code generation**: TextGrad achieves 20% relative improvement on LeetCode-Hard. GEPA's `optimize_anything` generates CUDA kernels matching or beating baselines on 87% of KernelBench problems.
+- **Code generation**: TextGrad achieves 20% relative improvement on LeetCode-Hard. GEPA's `optimize_anything` generates CUDA kernels faster than PyTorch-eager for over 20% of the 35 representative KernelBench tasks.
 - **Scientific discovery**: TextGrad designs drug-like molecules with competitive binding affinity and optimizes radiotherapy treatment plans surpassing clinician-designed plans.
-- **RAG systems**: DSPy/MIPROv2 optimizes multi-stage retrieval-augmented pipelines. SAMMO compresses and restructures prompts, achieving 40% cost reduction while maintaining accuracy.
-- **Mathematical reasoning**: GEPA improves GPT-4.1-mini from 46.67% to 60% on AIME 2025 through pure prompt optimization.
+- **RAG systems**: DSPy/MIPROv2 optimizes multi-stage retrieval-augmented pipelines. SAMMO compresses and restructures prompts, achieving over 40% cost reduction for prompt compression (and 26-133% gains on RAG pipelines) while maintaining accuracy.
+- **Mathematical reasoning**: GEPA improves GPT-4.1-mini from a 49.33% baseline to 59.33% on AIME 2025 through pure prompt optimization.
 
 ![GEPA-optimized prompt for NPU kernel generation, demonstrating prompt optimization applied to code generation tasks. The optimized prompt achieves significant performance gains on specialized hardware programming. Source: GEPA (2025).](Automatic Prompt Optimization/images/gepa-npu-prompt.png){#fig-gepa-npu}
 
-The common thread: each domain provides domain-specific evaluation signals (compiler errors for code, docking scores for molecules, retrieval relevance for RAG) that serve as richer feedback than generic accuracy. This explains why trace-aware methods (TRACE, GEPA with ASI) excel in these settings. The richer the diagnostic feedback, the fewer rollouts needed for effective optimization.
+The common thread: each domain provides domain-specific evaluation signals (compiler errors for code, docking scores for molecules, retrieval relevance for RAG) that serve as richer feedback than generic accuracy. This explains why trace-aware methods (TRACE, GEPA with diagnostic feedback) excel in these settings. The richer the diagnostic feedback, the fewer rollouts needed for effective optimization.
 
 ::: {.exercise-fillin}
 
 Match each application domain to the approach that produced its headline result:
 
-1. ARC-AGI accuracy from 32.5% to 89.5% was achieved by {B|A: TextGrad's textual gradient descent|B: GEPA's optimize_anything evolving agent architecture|C: DSPy/MIPROv2 pipeline compilation}
+1. Evolving an agent architecture on ARC-AGI from a stub to a 300+ line program was achieved by {B|A: TextGrad's textual gradient descent|B: GEPA's optimize_anything evolving agent architecture|C: DSPy/MIPROv2 pipeline compilation}
 2. LeetCode-Hard 20% relative improvement was achieved by {A|A: TextGrad refining individual code solutions at test time|B: OPRO searching over system prompts|C: SAMMO compressing prompt structure}
-3. RAG pipeline 40% cost reduction was achieved by {C|A: TextGrad backward pass through the retriever|B: GEPA evolving the full pipeline as text|C: SAMMO's structural mutations compressing and restructuring prompts}
+3. Prompt compression with over 40% cost reduction was achieved by {C|A: TextGrad backward pass through the retriever|B: GEPA evolving the full pipeline as text|C: SAMMO's structural mutations compressing and restructuring prompts}
 
 ::: {.fillin-feedback}
-**Correct: B, A, C.** The ARC-AGI result (B) came from GEPA's `optimize_anything`, which evolved an entire agent architecture (not just a prompt) from a 10-line stub to a 300+ line program. LeetCode-Hard (A) used TextGrad's *instance-level* optimization: each code solution was refined at test time by propagating compiler feedback backward through the computation graph. RAG cost reduction (C) used SAMMO's structural prompt mutations (dropping sections, changing format) to compress prompts while maintaining accuracy. The pattern: GEPA excels at architecture-level evolution, TextGrad at test-time refinement of individual instances, and SAMMO at structural compression.
+**Correct: B, A, C.** The ARC-AGI result (B) came from GEPA's `optimize_anything`, which evolved an entire agent architecture (not just a prompt) from a 10-line stub to a 300+ line program. LeetCode-Hard (A) used TextGrad's *instance-level* optimization: each code solution was refined at test time by propagating compiler feedback backward through the computation graph. Prompt compression (C) used SAMMO's structural prompt mutations (dropping sections, changing format) to compress prompts, achieving over 40% cost reduction while maintaining accuracy. The pattern: GEPA excels at architecture-level evolution, TextGrad at test-time refinement of individual instances, and SAMMO at structural compression.
 :::
 
 :::
 
 | Domain | Optimization Target | Feedback Signal | Best Methods | Key Result |
 |---|---|---|---|---|
-| Agents / pipelines | Multiple module prompts | End-to-end performance + traces | MIPRO, TRACE, HiveMind, GEPA | ARC-AGI 32.5%$\to$89.5% |
+| Agents / pipelines | Multiple module prompts | End-to-end performance + traces | MIPRO, TRACE, HiveMind, GEPA | Agent architecture evolution |
 | LLM-as-a-Judge | Judge rubric prompt | Human agreement | BLPO, SedarEval | Improved alignment |
 | Vision-language | Soft/hard prompts | Classification accuracy | CoOp, CoCoOp, MPO | BNT trade-off resolution |
-| Code generation | System/task prompts | Compiler errors, test results | TextGrad, GEPA | LeetCode +20%, CUDA 87% |
+| Code generation | System/task prompts | Compiler errors, test results | TextGrad, GEPA | LeetCode +20%, CUDA >20% of tasks |
 | Scientific discovery | Solution prompts | Docking scores, physical simulations | TextGrad | Drug molecules, radiotherapy |
-| RAG systems | Retriever + reader prompts | Retrieval relevance + answer quality | DSPy/MIPRO, SAMMO | 40% cost reduction |
-| Math reasoning | Chain-of-thought prompts | Answer correctness | OPRO, GEPA | AIME 46.67%$\to$60% |
+| RAG systems | Retriever + reader prompts | Retrieval relevance + answer quality | DSPy/MIPRO, SAMMO | 26-133% RAG gains; 40%+ compression savings |
+| Math reasoning | Chain-of-thought prompts | Answer correctness | OPRO, GEPA | AIME 49.33%$\to$59.33% |

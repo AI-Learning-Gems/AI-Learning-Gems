@@ -8,7 +8,7 @@
 
 - **Textual gradients are powerful but imperfect.** They provide rich, interpretable feedback but lack the mathematical properties of real gradients (linearity, exact chain rule, precise magnitude). GPO found that LLM self-reflection actually hurts optimization, suggesting that what the optimizer *sees* (demonstrations, traces) matters more than what it is asked to *think about*.
 
-- **GPO's ablation results should inform practice.** Relevance-based trajectory retrieval beats recency (+15%). Generation beats editing (+36%). Cosine-decay edit distance beats fixed constraints (+10%). These simple design choices matter more than algorithmic complexity.
+- **GPO's ablation results should inform practice.** Relevance-based trajectory retrieval beats recency (+15%). Generation beats editing (+36% over the initial prompt, not over editing alone). Cosine-decay edit distance beats fixed constraints (+10%). These simple design choices matter more than algorithmic complexity.
 
 - **Multi-objective optimization is nearly free.** MOPO demonstrated that balancing accuracy, safety, and conciseness costs only 1--2 percentage points per objective compared to single-objective optimization. There is little reason to optimize a single metric when real-world prompts serve multiple masters.
 
@@ -183,7 +183,7 @@ DSPy/MIPROv2 for compile-time optimization of multi-stage pipelines with 200+ tr
 
 **Q7: Design a multi-objective setup for a customer service chatbot balancing helpfulness, brand voice, and response length.**
 
-Define three objectives: $f_1$ = helpfulness (LLM judge score or human rating), $f_2$ = brand voice consistency (embedding similarity to reference brand texts), $f_3$ = $-$response length (negative because we minimize). Use MOPO's three-layer architecture with NSGA-II selection, or GEPA with scores in ASI. The Pareto front gives a menu of prompts trading off these criteria: one concise but slightly off-brand, another perfectly on-brand but verbose, etc.
+Define three objectives: $f_1$ = helpfulness (LLM judge score or human rating), $f_2$ = brand voice consistency (embedding similarity to reference brand texts), $f_3$ = $-$response length (negative because we minimize). Use MOPO's three-layer architecture with NSGA-II selection, or GEPA with scores in its diagnostic feedback. The Pareto front gives a menu of prompts trading off these criteria: one concise but slightly off-brand, another perfectly on-brand but verbose, etc.
 
 **Q8: Why is Shapley-based credit assignment preferred over per-module evaluation in multi-agent systems?**
 
@@ -199,7 +199,7 @@ Per-module evaluation (testing each module independently) misses interaction eff
 
 - **"TextGrad computes actual mathematical gradients."** Textual gradients are natural language critiques. They provide qualitative directional information but lack the mathematical properties (linearity, exact chain rule, magnitude) of numerical gradients.
 
-- **"GEPA is a multi-objective optimizer."** GEPA uses Pareto selection for per-instance diversity, but its primary mode is single-metric optimization. True multi-objective (competing metrics) requires MOPO, ParetoPrompt, or GEPA with explicit multi-metric ASI.
+- **"GEPA is a multi-objective optimizer."** GEPA uses Pareto selection for per-instance diversity, but its primary mode is single-metric optimization. True multi-objective (competing metrics) requires MOPO, ParetoPrompt, or GEPA with explicit multi-metric diagnostic feedback.
 
 - **"Prompt optimization makes manual prompt engineering obsolete."** These algorithms automate the *search* but not the *problem formulation*. You still need to define the right objectives, provide training data, and understand the task.
 

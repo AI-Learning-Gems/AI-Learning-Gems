@@ -9,7 +9,7 @@
 | 3 | [TextGrad (NeurIPS 2024)](https://arxiv.org/abs/2406.07496) | PyTorch-like API |
 | 4 | [TRACE (NeurIPS 2024)](https://arxiv.org/abs/2406.16218) | OPTO API, execution traces |
 | 5 | [GEPA (ICLR 2026)](https://arxiv.org/abs/2507.19457) | optimize_anything API |
-| 6 | [SAMMO (Microsoft, 2024)](https://arxiv.org/abs/2404.02319) | Symbolic prompt programs |
+| 6 | [SAMMO (EMNLP 2024 Findings)](https://arxiv.org/abs/2404.02319) | Symbolic prompt programs |
 | 7 | [DSPy Optimizers Docs](https://dspy.ai/learn/optimization/optimizers/) | Full optimizer ecosystem |
 
 :::
@@ -80,7 +80,7 @@ For our triage system, TextGrad would be ideal for test-time refinement: when a 
 
 ### TRACE: The Execution-Trace Paradigm
 
-TRACE ([Nie et al., NeurIPS 2024](https://arxiv.org/abs/2406.16218)) wraps Python code to automatically capture execution DAGs. Two primitives:
+TRACE ([Cheng et al., NeurIPS 2024](https://arxiv.org/abs/2406.16218)) wraps Python code to automatically capture execution DAGs. Two primitives:
 
 - **`node`**: Wraps Python objects as computational graph nodes. Nodes marked trainable become optimization parameters.
 - **`@bundle`**: Decorator that turns methods into graph operators, recording their docstrings and source code.
@@ -97,11 +97,11 @@ GEPA's ([Agrawal et al., ICLR 2026](https://arxiv.org/abs/2507.19457)) `optimize
 - **Multi-task search**: Solve related problems with cross-task transfer. Improvements on one CUDA kernel transfer to others.
 - **Generalization**: Build skills that transfer to unseen examples. This is classical prompt optimization (AIME math, ARC-AGI agent architecture).
 
-The key concept is **ASI (Actionable Side Information)**: diagnostic feedback that the optimizer LLM reads during reflection. This can be compiler errors, profiler traces, rendered images, structured scores, execution logs, or any domain-specific signal. ASI is what makes GEPA so broadly applicable: the same algorithm works for CUDA kernel optimization (ASI = compilation output + runtime profiling) and math reasoning (ASI = step-by-step error analysis).
+The key concept is **diagnostic feedback from the feedback function**: structured information that the optimizer LLM reads during reflection. This can be compiler errors, profiler traces, rendered images, structured scores, execution logs, or any domain-specific signal. This diagnostic feedback is what makes GEPA so broadly applicable: the same algorithm works for CUDA kernel optimization (feedback = compilation output + runtime profiling) and math reasoning (feedback = step-by-step error analysis).
 
-GEPA also supports **Pareto-efficient search** natively, both for per-instance diversity (as described in @sec-multi-objective) and for explicit multi-metric optimization through the `scores` field in ASI.
+GEPA also supports **Pareto-efficient search** natively, both for per-instance diversity (as described in @sec-multi-objective) and for explicit multi-metric optimization through the `scores` field in diagnostic feedback.
 
-For our triage system at full scale (multi-module pipeline with code and prompt components), GEPA's `optimize_anything` would treat the entire system as a text artifact, using execution traces as ASI, and evolve both the prompts and the code simultaneously.
+For our triage system at full scale (multi-module pipeline with code and prompt components), GEPA's `optimize_anything` would treat the entire system as a text artifact, using execution traces as diagnostic feedback, and evolve both the prompts and the code simultaneously.
 
 ::: {.exercise-mcq correct="D"}
 
@@ -122,11 +122,11 @@ Not quite. DSPy's signatures (option A) are designed for LLM calls with typed in
 
 :::
 
-SAMMO ([Ribeiro et al., 2024](https://arxiv.org/abs/2404.02319)) represents prompts as symbolic DAGs and applies structural mutations (drop section, repeat section, change format) alongside textual mutations.
+SAMMO ([Schnabel & Neville, EMNLP 2024 Findings](https://arxiv.org/abs/2404.02319)) represents prompts as symbolic DAGs and applies structural mutations (drop section, repeat section, change format) alongside textual mutations.
 
-![SAMMO symbolic prompt program overview. Source: Ribeiro et al. (2024).](Automatic Prompt Optimization/images/sammo-overview.png){#fig-sammo}
+![SAMMO symbolic prompt program overview. Source: Schnabel & Neville (EMNLP 2024 Findings).](Automatic Prompt Optimization/images/sammo-overview.png){#fig-sammo}
 
-![SAMMO headroom analysis showing where structural prompt transformations matter most. Weaker models benefit more from structural optimization, and RAG pipelines show the most headroom. Source: Ribeiro et al. (2024).](Automatic Prompt Optimization/images/sammo-headroom.png){#fig-sammo-headroom}
+![SAMMO headroom analysis showing where structural prompt transformations matter most. Weaker models benefit more from structural optimization, and RAG pipelines show the most headroom. Source: Schnabel & Neville (EMNLP 2024 Findings).](Automatic Prompt Optimization/images/sammo-headroom.png){#fig-sammo-headroom}
 
 ::: {.exercise-predict correct="C"}
 
@@ -163,7 +163,7 @@ Several newer frameworks push the boundaries:
 | **Search strategy** | Bayesian (TPE) | Textual gradient descent | Trace-guided LLM reasoning | Reflection + Pareto evolution | Beam search with structural mutations |
 | **Multi-objective?** | No (single metric) | No (single loss) | No (single feedback) | Yes (Pareto-efficient) | Yes (cost vs. accuracy) |
 | **Pipeline support?** | Native (multi-module) | Computation graphs | Arbitrary DAGs | Agent architecture evolution | DAG prompt programs |
-| **Multimodal?** | Partial | No | No | Via ASI | No |
+| **Multimodal?** | Partial | No | No | Via diagnostic feedback | No |
 | **Open-source?** | Yes | Yes | Yes | Yes (via DSPy) | Yes |
 | **Best for** | Multi-stage pipelines with training data | Test-time refinement of individual cases | Heterogeneous workflows with non-LLM components | End-to-end optimization, rich feedback domains | Prompt compression and structural tuning |
 

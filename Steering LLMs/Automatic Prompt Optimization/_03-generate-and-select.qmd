@@ -7,7 +7,7 @@
 | 1 | [APE (ICLR 2023)](https://arxiv.org/abs/2211.01910) | Forward/reverse proposal, adaptive filtering |
 | 2 | [OPRO (ICLR 2024)](https://arxiv.org/abs/2309.03409) | Meta-prompt, trajectory, ascending sort |
 | 3 | [InstructZero (ICML 2024)](https://arxiv.org/abs/2306.03082) | Bayesian optimization in soft-prompt space |
-| 4 | [Self-Refine (NeurIPS 2023)](https://arxiv.org/abs/2303.15343) | Iterative output refinement via LLM critique |
+| 4 | [Self-Refine (NeurIPS 2023)](https://arxiv.org/abs/2303.17651) | Iterative output refinement via LLM critique |
 
 :::
 
@@ -35,13 +35,13 @@ APE generates candidate instructions in two modes:
 
 For scoring, APE offers two functions. **Execution accuracy** is the hard metric: $f(\rho, Q, A) = \mathbb{1}[M([\rho; Q]) = A]$. **Log probability** provides a softer signal: $f(\rho, Q, A) = \log P(A \mid [\rho; Q])$, which gives fine-grained guidance even when the model's top prediction is wrong.
 
-The clever part is **adaptive filtering**: evaluate all candidates cheaply on a small subset, keep the top performers, evaluate survivors on a new subset, repeat. This is tournament selection. Low-quality prompts are eliminated early, saving the expensive full evaluation for the handful of finalists. APE matched human-written prompts on 19--21 of 24 Instruction Induction tasks, and the best APE-generated prompt sometimes surpassed the best human prompt.
+The clever part is **adaptive filtering**: evaluate all candidates cheaply on a small subset, keep the top performers, evaluate survivors on a new subset, repeat. This is tournament selection. Low-quality prompts are eliminated early, saving the expensive full evaluation for the handful of finalists. APE matched or exceeded human-written prompts on 24 of 24 Instruction Induction tasks, and the best APE-generated prompt sometimes surpassed the best human prompt.
 
 For our triage system, APE would take 10--20 examples of (customer message, correct urgency) pairs, ask the LLM to infer what instruction could have produced these classifications, generate 50 candidates, score them, and return the winner. Simple, effective, and entirely one-shot. The limitation: no learning from failures. If the best prompt scores 78%, APE has no mechanism to ask "why did it fail on the other 22%?" and iterate.
 
 ### Self-Refine: The Simplest Feedback Loop
 
-Before OPRO introduced iterative *prompt* refinement, Self-Refine ([Madaan et al., NeurIPS 2023](https://arxiv.org/abs/2303.15343)) showed that LLMs can iteratively improve their own *outputs*. The loop is straightforward:
+Before OPRO introduced iterative *prompt* refinement, Self-Refine ([Madaan et al., NeurIPS 2023](https://arxiv.org/abs/2303.17651)) showed that LLMs can iteratively improve their own *outputs*. The loop is straightforward:
 
 $$
 y_0 = M(p, x), \quad e_0 = M(\text{"Critique"}, y_0), \quad y_1 = M(p, x, y_0, e_0)
@@ -131,7 +131,7 @@ OPRO's optimization loop has four steps that repeat each iteration. Arrange them
 
 ### SPO: Dropping the Ground-Truth Requirement
 
-A significant limitation of APE and OPRO is that they require labeled ground truth for scoring: you need $(x, y)$ pairs where $y$ is the correct answer. SPO ([Wu et al., ICLR 2025](https://arxiv.org/abs/2405.00675)) overcomes this via **pairwise LLM comparison**: given two outputs from two candidate prompts, an LLM judge simply picks the better one. This enables prompt optimization for open-ended tasks (creative writing, summarization, customer service quality) where no single correct answer exists.
+A significant limitation of APE and OPRO is that they require labeled ground truth for scoring: you need $(x, y)$ pairs where $y$ is the correct answer. SPO ([Wu et al., 2024](https://arxiv.org/abs/2405.00675)) overcomes this via **pairwise LLM comparison**: given two outputs from two candidate prompts, an LLM judge simply picks the better one. This enables prompt optimization for open-ended tasks (creative writing, summarization, customer service quality) where no single correct answer exists.
 
 This scoring function connects to a broader point: the scoring function $F$ in @eq-apo-objective can itself be a **learned reward model** $R_\varphi$ trained on human preferences. Instead of accuracy, we optimize:
 
@@ -147,7 +147,7 @@ InstructZero ([Chen et al., ICML 2024](https://arxiv.org/abs/2306.03082), June 2
 
 The soft prompt $z \in \mathbb{R}^d$ is a continuous vector that can be optimized with Bayesian optimization (BO) (see @sec-math-bo for a review of BO, GP surrogates, and acquisition functions). At each step, BO selects a promising $z$ based on an acquisition function (Expected Improvement), the open-source LLM converts $z$ into a natural language instruction $I(z)$, and the instruction is evaluated on the black-box LLM. An instruction-coupled kernel captures the relationship between soft prompts and the instructions they produce.
 
-The result: InstructZero achieved the best performance on all 32 BIG-Bench Lite tasks compared to APE and other baselines. The key insight is that BO is extremely sample-efficient (it builds a probabilistic model of the objective function), which makes it well-suited to the expensive-evaluation setting of prompt optimization.
+The result: InstructZero achieved the best performance on all 32 BIG-Bench Instruction Induction tasks compared to APE and other baselines. The key insight is that BO is extremely sample-efficient (it builds a probabilistic model of the objective function), which makes it well-suited to the expensive-evaluation setting of prompt optimization.
 
 ::: {.exercise-mcq correct="B"}
 

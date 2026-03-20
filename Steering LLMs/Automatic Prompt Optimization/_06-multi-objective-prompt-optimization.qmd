@@ -5,8 +5,8 @@
 | # | Source | Summary |
 |---|---|---|
 | 1 | [EMO-Prompts (2024)](https://arxiv.org/abs/2401.09862) | First NSGA-II/SMS-EMOA for prompts |
-| 2 | [MORL-Prompt (EMNLP 2024)](https://arxiv.org/abs/2402.11711) | Objective collapse, HVI/product rewards |
-| 3 | [MOPO (COLING 2025)](https://arxiv.org/abs/2412.12948) | Three-layer architecture, NSGA-II |
+| 2 | [MORL-Prompt (2024)](https://arxiv.org/abs/2402.11711) | Objective collapse, HVI/product rewards |
+| 3 | [MOPO (2024)](https://arxiv.org/abs/2412.12948) | Three-layer architecture, NSGA-II |
 | 4 | [ParetoPrompt (ICLR 2025)](https://openreview.net/forum?id=HGCk5aaSvE) | RL on Pareto front, no scalarization |
 | 5 | [GEPA (ICLR 2026)](https://arxiv.org/abs/2507.19457) | Pareto candidate selection, per-instance fronts |
 | 6 | [SAMMO (Microsoft, 2024)](https://arxiv.org/abs/2404.02319) | Structure-aware multi-objective optimization |
@@ -94,16 +94,16 @@ MGDA is used in MORL-Prompt's multi-objective RL formulation. In prompt optimiza
 
 ### EMO-Prompts: Classical MOEAs Meet Prompting
 
-EMO-Prompts ([Bradley & De Lima, 2024](https://arxiv.org/abs/2401.09862)) was the first to apply classical multi-objective evolutionary algorithms (NSGA-II and SMS-EMOA) to prompt optimization. The test-bed: generating text with conflicting emotional tones (e.g., express both love and anger, or joy and fear, in the same text).
+EMO-Prompts ([Baumann & Kramer, 2024](https://arxiv.org/abs/2401.09862)) was the first to apply classical multi-objective evolutionary algorithms (NSGA-II and SMS-EMOA) to prompt optimization. The test-bed: generating text with conflicting emotional tones (e.g., express both love and anger, or joy and fear, in the same text).
 
 The population consisted of 10 parent prompts, with 20 offspring per generation. The LLM (Llama 2 7B) served as both the crossover operator ("combine these two prompts into a better one") and the mutation operator ("alter this prompt"). Selection used NSGA-II's non-dominated sorting + crowding distance, or SMS-EMOA's hypervolume-based selection.
 
-Key results: hypervolume indicators reached up to 0.45 on the Surprise vs. Fear task, surpassing the theoretical ideal of 0.44 (10 equally spaced points on the diagonal). NSGA-II was more consistent across runs; SMS-EMOA occasionally achieved higher peaks but with greater variance. The result demonstrated that classical MOEAs transfer to the prompt domain, with LLMs serving as effective crossover and mutation operators.
+Key results: hypervolume indicators reached up to 0.45 on the Surprise vs. Fear task, surpassing the benchmark value of 0.44 (the hypervolume of 10 equally spaced points on the unit anti-diagonal, not an absolute theoretical ceiling). NSGA-II was more consistent across runs; SMS-EMOA occasionally achieved higher peaks but with greater variance. The result demonstrated that classical MOEAs transfer to the prompt domain, with LLMs serving as effective crossover and mutation operators.
 
 
 ### MORL-Prompt: The Objective Collapse Problem
 
-MORL-Prompt ([Shi et al., EMNLP 2024](https://arxiv.org/abs/2402.11711)) identified the central failure mode of naive multi-objective prompt optimization: **objective collapse**. When RL is used to optimize prompts with multiple reward functions, naively averaging the rewards causes one objective to dominate while others are sacrificed.
+MORL-Prompt ([Jafari et al., EMNLP 2024 Findings](https://arxiv.org/abs/2402.11711)) identified the central failure mode of naive multi-objective prompt optimization: **objective collapse**. When RL is used to optimize prompts with multiple reward functions, naively averaging the rewards causes one objective to dominate while others are sacrificed.
 
 The RL formulation trains a small policy network (3.1M parameter MLP on frozen DistilGPT-2) to generate prompt tokens using soft Q-learning:
 
@@ -113,13 +113,13 @@ $$
 
 where $z$ is the prompt, $x$ is the input, $y$ is the generated text, and $r_i$ are per-objective rewards.
 
-![MORL-Prompt architecture showing the multi-objective RL pipeline. The policy network generates prompts, the LLM generates text, and multiple reward functions evaluate different objectives. The key insight is that different aggregation strategies for the reward functions lead to dramatically different Pareto behavior. Source: Shi et al. (2024).](Automatic Prompt Optimization/images/morl-prompt-architecture.png){#fig-morl-architecture}
+![MORL-Prompt architecture showing the multi-objective RL pipeline. The policy network generates prompts, the LLM generates text, and multiple reward functions evaluate different objectives. The key insight is that different aggregation strategies for the reward functions lead to dramatically different Pareto behavior. Source: Jafari et al. (EMNLP 2024 Findings).](Automatic Prompt Optimization/images/morl-prompt-architecture.png){#fig-morl-architecture}
 
 The averaging baseline shows textbook objective collapse: on style transfer with three objectives (content preservation, style accuracy, sentiment), the Average method achieves 79.25% on style but only 19.56% on content. Style dominates because its reward signal is stronger, and the optimizer sacrifices content to push style higher.
 
-![Hypervolume indicator convergence during training. Different multi-objective reward formulations converge at different rates and to different final values, illustrating the importance of reward design in multi-objective optimization. Source: Shi et al. (2024).](Automatic Prompt Optimization/images/morl-hvi-convergence.png){#fig-morl-hvi}
+![Hypervolume indicator convergence during training. Different multi-objective reward formulations converge at different rates and to different final values, illustrating the importance of reward design in multi-objective optimization. Source: Jafari et al. (EMNLP 2024 Findings).](Automatic Prompt Optimization/images/morl-hvi-convergence.png){#fig-morl-hvi}
 
-![Style vs. content trade-off in text style transfer. The Average method (objective collapse) achieves high style accuracy but sacrifices content preservation. The Product method achieves a more balanced Pareto front. Source: Shi et al. (2024).](Automatic Prompt Optimization/images/morl-style-content-tradeoff.png){#fig-morl-tradeoff}
+![Style vs. content trade-off in text style transfer. The Average method (objective collapse) achieves high style accuracy but sacrifices content preservation. The Product method achieves a more balanced Pareto front. Source: Jafari et al. (EMNLP 2024 Findings).](Automatic Prompt Optimization/images/morl-style-content-tradeoff.png){#fig-morl-tradeoff}
 
 MORL-Prompt proposes three alternatives to simple averaging:
 
@@ -154,7 +154,7 @@ ParetoPrompt uses RL. MORL-Prompt uses soft Q-learning. GEPA uses reflection-bas
 
 ### MOPO: A Three-Layer Evolutionary Architecture
 
-MOPO ([Tong et al., COLING 2025](https://arxiv.org/abs/2412.12948)) introduced a structured architecture with three layers of prompts:
+MOPO ([Menchaca Resendiz & Klinger, COLING 2025](https://arxiv.org/abs/2412.12948)) introduced a structured architecture with three layers of prompts:
 
 - **Layer 1**: Task-specific prompts, the actual optimization target (e.g., "Write text expressing the emotion of joy")
 - **Layer 2**: Operator prompts that govern how Layer-1 prompts are crossovered ("Combine") and mutated ("Paraphrase"). These co-evolve with the task prompts.
@@ -162,7 +162,7 @@ MOPO ([Tong et al., COLING 2025](https://arxiv.org/abs/2412.12948)) introduced a
 
 Selection uses NSGA-II, preserving the top-$n$ prompts per objective plus the Pareto-optimal set. Genetic operations include paraphrasing at both sentence level (LLM-based) and word level (RoBERTa masked prediction for addition, removal, and replacement).
 
-![MOPO per-emotion optimization trajectories showing how multi-objective optimization improves across different emotion dimensions simultaneously. Source: Tong et al. (2024).](Automatic Prompt Optimization/images/mopo-per-emotion.png){#fig-mopo-trajectories}
+![MOPO per-emotion optimization trajectories showing how multi-objective optimization improves across different emotion dimensions simultaneously. Source: Menchaca Resendiz & Klinger (COLING 2025).](Automatic Prompt Optimization/images/mopo-per-emotion.png){#fig-mopo-trajectories}
 
 MOPO achieved up to 34 percentage points improvement over seed prompts on GPT-3.5, with best prompts scoring .99 (ISEAR), .97 (TEC), and .96 (AT) across three emotion benchmarks. The critical finding: multi-objective optimization lost only 1--2 percentage points per objective compared to single-objective optimization of each metric independently. This near-free diversification is the promise of multi-objective prompt optimization: you can have accuracy *and* safety *and* conciseness, losing almost nothing on each compared to optimizing them separately.
 
@@ -188,7 +188,7 @@ The key advantage: ParetoPrompt explores the full Pareto front without requiring
 
 ### GEPA: Per-Instance Pareto Selection
 
-GEPA ([Agrawal et al., ICLR 2026 Oral](https://arxiv.org/abs/2507.19457)) represents the current state of the art. It is primarily a single-metric optimizer but uses a novel Pareto-based candidate selection mechanism that deserves careful attention.
+GEPA ([Agrawal et al., ICLR 2026](https://arxiv.org/abs/2507.19457)) represents the current state of the art. It is primarily a single-metric optimizer but uses a novel Pareto-based candidate selection mechanism that deserves careful attention.
 
 GEPA's main loop (Algorithm 1) maintains a population of candidate systems $P$. At each iteration:
 
@@ -241,7 +241,7 @@ GEPA's ablation study provides a direct answer: replacing Pareto selection with 
 
 :::
 
-GEPA's `optimize_anything` API does support true multi-objective optimization via a `scores` field in the Actionable Side Information (ASI). In this mode, each evaluation returns a dictionary of metric scores, and the Pareto selection operates over these metrics rather than over instances. This enables the same algorithm to handle both single-metric diversity-preserving optimization and genuine multi-metric optimization.
+GEPA's `optimize_anything` API does support true multi-objective optimization via a `scores` field in the structured feedback from the feedback function $\mu_f$. In this mode, each evaluation returns a dictionary of metric scores, and the Pareto selection operates over these metrics rather than over instances. This enables the same algorithm to handle both single-metric diversity-preserving optimization and genuine multi-metric optimization.
 
 ::: {.callout-note title="Think Hard: GEPA uses per-instance Pareto fronts, while MOPO uses per-objective Pareto fronts. When would each be more appropriate?"}
 Per-instance Pareto fronts (GEPA) are natural when you have a single metric but want diversity across the input distribution. Different prompts may excel at different types of inputs, and preserving this diversity avoids the failure mode where a single "best" prompt works well on average but catastrophically fails on a subpopulation. Per-objective Pareto fronts (MOPO, MORL-Prompt) are natural when you have genuinely competing metrics (accuracy vs. safety vs. cost). The choice depends on your problem structure. For our triage system: if you have one accuracy metric and want prompts that handle both financial and medical tickets, per-instance Pareto is appropriate. If you have separate accuracy, safety, and conciseness metrics that conflict, per-objective Pareto is the right tool.
@@ -256,7 +256,7 @@ Per-instance Pareto fronts (GEPA) are natural when you have a single metric but 
 | MORL-Prompt | RL (soft Q-learning) | 2--3 (style/content/sentiment) | HVI reward or product | Style transfer, translation | Identifies objective collapse |
 | MOPO | Evolutionary (NSGA-II) | 2--3 (emotions) | Top-$n$ per objective + Pareto | Affective text generation | +34pp, 1--2pp trade-off |
 | ParetoPrompt | RL (preference-based) | 2+ | Dominance relationships | General classification | Robust to metric mismatch |
-| SAMMO | Beam search | 2 (cost + accuracy) | Structure-aware mutations | RAG pipelines, compression | 40% cost reduction |
+| SAMMO | Beam search | 2 (cost + accuracy) | Structure-aware mutations | RAG pipelines, compression | 40%+ compression savings; 26-133% RAG gains |
 | GEPA | Reflection + evolution | Per-instance (or multi-metric) | Frequency-weighted Pareto | General prompt/agent optimization | +9.6%, 6x fewer rollouts |
 
 The field has produced a clear conclusion: multi-objective prompt optimization is feasible and nearly free. MOPO's finding that you lose only 1--2 percentage points per objective compared to single-objective optimization should change how practitioners think about prompt design. Instead of optimizing accuracy and hoping safety and conciseness are acceptable, you should explicitly include all objectives from the start.

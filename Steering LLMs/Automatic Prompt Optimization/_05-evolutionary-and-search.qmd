@@ -7,7 +7,7 @@
 | 1 | [EvoPrompt (ICLR 2024)](https://arxiv.org/abs/2309.08532) | GA and DE operators with LLMs |
 | 2 | [GPO (AAAI 2025)](https://arxiv.org/abs/2402.17564) | Gradient-inspired trajectory retrieval |
 | 3 | [PromptAgent (ICLR 2024)](https://arxiv.org/abs/2310.16427) | MCTS for prompt optimization |
-| 4 | [PromptBreeder (ICML 2024)](https://arxiv.org/abs/2310.03714) | Self-referential prompt evolution |
+| 4 | [PromptBreeder (ICML 2024)](https://arxiv.org/abs/2309.16797) | Self-referential prompt evolution |
 
 :::
 
@@ -60,7 +60,7 @@ The key difference is what happens to individual lineages. DE's 1-to-1 replaceme
 
 ### PromptBreeder: Evolution at the Meta-Level
 
-PromptBreeder ([Fernando et al., ICML 2024](https://arxiv.org/abs/2310.03714)) asked: if we can evolve task prompts, why not also evolve the *mutation prompts* that govern how task prompts change? This is self-referential evolution: the instructions for how to mutate are themselves subject to mutation.
+PromptBreeder ([Fernando et al., ICML 2024](https://arxiv.org/abs/2309.16797)) asked: if we can evolve task prompts, why not also evolve the *mutation prompts* that govern how task prompts change? This is self-referential evolution: the instructions for how to mutate are themselves subject to mutation.
 
 The system maintains two co-evolving populations: task-prompts (the instructions being optimized) and mutation-prompts (the instructions that tell the LLM how to mutate task-prompts). Nine mutation operators range from simple (zero-order estimation: generate a new variant) to meta (hyper-mutation: mutate the mutation prompt using itself).
 
@@ -85,16 +85,16 @@ RLPrompt trains a small neural network to generate discrete prompt tokens, optim
 - Ungrammatical, seemingly random token sequences that a human would never write
 
 ::: {.predict-reveal}
-**The answer is C.** RLPrompt discovers prompts like "thou WhereasYe WhereasOY" that are complete gibberish to humans but dramatically improve task performance. The policy network optimizes individual tokens for reward, not meaning. It exploits statistical patterns in the LLM's token-level processing that are invisible to human intuition. These gibberish prompts function as a kind of "machine language" for the LLM's discrete input interface. Even more surprisingly, they transfer across model architectures, suggesting they activate general-purpose computational patterns.
+**The answer is C.** RLPrompt discovers prompts like "AgentMediaGradeOfficials Grade" (for SST-2 sentiment analysis) and "BufferHttpRuntimeRunnerostics" (for question classification) that are complete gibberish to humans but dramatically improve task performance. The policy network optimizes individual tokens for reward, not meaning. It exploits statistical patterns in the LLM's token-level processing that are invisible to human intuition. These gibberish prompts function as a kind of "machine language" for the LLM's discrete input interface. Even more surprisingly, they transfer between model families (e.g., from RoBERTa to GPT-2), suggesting they activate general-purpose computational patterns.
 :::
 
 :::
 
-The surprising finding: RL-discovered prompts are often ungrammatical gibberish. Strings like "thou WhereasYe WhereasOY" dramatically improve task performance despite being completely uninterpretable. These prompts function as a kind of "machine language" that programs the LLM's behavior through its discrete input interface, exploiting patterns in the model's token-level processing that no human would discover.
+The surprising finding: RL-discovered prompts are often ungrammatical gibberish. Strings like "AgentMediaGradeOfficials Grade" (for sentiment analysis) and "imalimalimalivable Totally" (for review classification) dramatically improve task performance despite being completely uninterpretable. These prompts function as a kind of "machine language" that programs the LLM's behavior through its discrete input interface, exploiting patterns in the model's token-level processing that no human would discover.
 
-These gibberish prompts are surprisingly transferable across model architectures, suggesting they activate general-purpose computational patterns rather than model-specific quirks. This deepens an important trade-off: the most effective prompts may not be human-readable. Soft prompt tuning (continuous embedding vectors) and RLPrompt (discrete but uninterpretable tokens) occupy the high-performance, low-interpretability end of the spectrum. All the other methods in this chapter sacrifice some performance for interpretability.
+These gibberish prompts transfer between model families (RoBERTa and GPT-2 variants of different sizes), suggesting they activate general-purpose computational patterns rather than model-specific quirks. This deepens an important trade-off: the most effective prompts may not be human-readable. Soft prompt tuning (continuous embedding vectors) and RLPrompt (discrete but uninterpretable tokens) occupy the high-performance, low-interpretability end of the spectrum. All the other methods in this chapter sacrifice some performance for interpretability.
 
-**Simulated Annealing (Plum)** offers yet another perspective. Plum ([Pan et al., ACL 2024 Findings](https://arxiv.org/abs/2311.08364)) applies classical SA to prompt optimization with Metropolis-Hastings acceptance: $P(\text{accept}) = \exp(-\Delta E / T)$ where $T$ decreases over iterations, allowing early exploration of worse solutions. SA is a single-trajectory method with stochastic acceptance, often simpler to implement than evolutionary or tree-search methods. It represents the "minimum viable metaheuristic" for prompt optimization.
+**Simulated Annealing (Plum)** offers yet another perspective. Plum ([Pan et al., 2023](https://arxiv.org/abs/2311.08364)) applies classical SA to prompt optimization with Metropolis-Hastings acceptance: $P(\text{accept}) = \exp(-\Delta E / T)$ where $T$ decreases over iterations, allowing early exploration of worse solutions. SA is a single-trajectory method with stochastic acceptance, often simpler to implement than evolutionary or tree-search methods. It represents the "minimum viable metaheuristic" for prompt optimization.
 
 ### GPO: The Systematic Gradient-Optimizer Analogy
 
@@ -106,7 +106,7 @@ The analogy table is instructive:
 |---|---|---|
 | **Update direction** (gradient) | Current prompt + performance info | Prompt + performance (no reflection) |
 | **Momentum** (historical gradients) | Trajectory of past attempts | Relevance-based retrieval (BGE embeddings) |
-| **Learning rate** | Edit distance constraint | Cosine decay: $d_\text{max}(t) = d_\text{max} \cdot \cos\left(\frac{\pi t}{2T}\right)$ |
+| **Learning rate** | Edit distance constraint | Cosine decay schedule |
 | **Descent method** (subtraction) | Prompt refinement strategy | Generation (not editing) |
 
 The formal objective is the same as @eq-apo-objective:
@@ -117,22 +117,22 @@ $$
 
 But GPO's key contribution is the ablation study that challenges conventional wisdom:
 
-**Reflection hurts.** Adding LLM self-reflection ("Why did this prompt fail? How can it be improved?") to the optimization context actually degraded performance compared to providing just the prompt and its score. The improvement over the initial prompt was +31% without reflection vs. +26% with reflection. LLMs have limited self-reflection capabilities, and their reflections can introduce inaccurate assumptions that mislead the optimization.
+**Reflection hurts.** Adding LLM self-reflection ("Why did this prompt fail? How can it be improved?") to the optimization context actually degraded performance compared to providing just the prompt and its score. The improvement over the initial prompt was approximately +29% with reflection vs. +31% without. LLMs have limited self-reflection capabilities, and their reflections can introduce inaccurate assumptions that mislead the optimization.
 
 **Trajectory retrieval beats recency (+15%).** Instead of showing the optimizer the most recent $k$ past attempts (as OPRO does), GPO retrieves the $k$ most semantically similar past prompts using BGE embedding similarity. This provides contextually relevant demonstrations. The intuition: a triage prompt that worked for financial complaints is more relevant to improving a financial-urgency prompt than a chronologically recent prompt that addressed medical symptoms.
 
 
-**Generation beats editing (+36%).** When the optimizer receives past prompts as demonstrations and generates a new prompt from scratch (generation), it outperforms being asked to edit the current prompt (editing). Generation explores a wider search space via in-context learning; editing is constrained to local modifications.
+**Generation beats editing.** When the optimizer receives past prompts as demonstrations and generates a new prompt from scratch (generation), generation-based refinement improved over the initial prompt by up to 36%, significantly outperforming editing-based approaches. Generation explores a wider search space via in-context learning; editing is constrained to local modifications.
 
-**Cosine decay is critical (+10%).** The edit distance constraint follows a cosine schedule that starts large (allowing broad exploration) and gradually tightens (forcing convergence):
+**Cosine decay is critical (+10%).** The paper describes reducing the edit distance constraint following a cosine curve to approximately 20% of its maximum value by convergence, starting large (allowing broad exploration) and gradually tightening (forcing convergence). A natural mathematical formulation of this schedule is:
 
 $$
 d_\text{max}(t) = d_\text{max} \cdot \cos\left(\frac{\pi t}{2T}\right)
 $$ {#eq-gpo-cosine}
 
-where $t$ is the current step and $T$ is the total number of steps. This reduces to approximately 20% of the maximum edit distance by convergence. Warmup does not help; in prompt optimization, early exploration matters more than in weight optimization.
+where $t$ is the current step and $T$ is the total number of steps. Warmup does not help; in prompt optimization, early exploration matters more than in weight optimization.
 
-GPO achieved 56.8% on BBH and 62.6% on MMLU with these design choices combined.
+GPO achieved up to 56.8% relative improvement on BBH and 62.6% relative improvement on MMLU over baseline methods with these design choices combined.
 
 ::: {.exercise-fillin}
 
@@ -203,7 +203,7 @@ The evolutionary and search methods split along three axes:
 | EvoPrompt | GA / DE | Yes ($N$ prompts) | LLM as crossover/mutation | +25% on BBH |
 | PromptBreeder | Self-referential EA | Yes (prompts + mutation-prompts) | Co-evolves optimization strategy | Beats CoT on reasoning |
 | RLPrompt | Reinforcement learning | No (single policy) | Discovers uninterpretable prompts | High-performance gibberish |
-| GPO | Gradient-inspired | No (trajectory memory) | Retrieval + cosine decay | 56.8% BBH, 62.6% MMLU |
+| GPO | Gradient-inspired | No (trajectory memory) | Retrieval + cosine decay | +56.8% BBH, +62.6% MMLU (relative) |
 | PromptAgent | MCTS | Tree structure | Look-ahead via simulation | +9% on 12 tasks |
 
 The trade-offs are clear. Population-based methods (EvoPrompt, PromptBreeder) explore diverse regions but are computationally expensive (evaluating $N$ prompts per generation). Trajectory-based methods (GPO) are cheaper per step but follow a single path. Tree-search methods (PromptAgent) explore branching paths but the branching factor grows exponentially.

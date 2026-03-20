@@ -4,7 +4,7 @@
 
 | # | Source | Summary |
 |---|---|---|
-| 1 | [APO Survey (EMNLP 2025)](https://arxiv.org/abs/2502.16923) | Formal APO definition, 5-part taxonomy |
+| 1 | [APO Survey (2025)](https://arxiv.org/abs/2502.16923) | Formal APO definition, 5-part taxonomy |
 | 2 | [OPRO (ICLR 2024)](https://arxiv.org/abs/2309.03409) | Mathematical formulation, sensitivity examples |
 | 3 | [GPO (AAAI 2025)](https://arxiv.org/abs/2402.17564) | Formal optimization objective with expectation |
 
@@ -81,7 +81,7 @@ Second, the feedback function $F$ can provide information at different levels of
 
 - **Scalar feedback**: a single number (accuracy = 0.78). Used by APE, OPRO, EvoPrompt.
 - **Natural language feedback**: a critique ("the prompt failed on stroke cases because it lacks neurological symptom keywords"). Used by ProTeGi, TextGrad, TRACE.
-- **Structured diagnostics**: execution traces, compiler errors, profiler output. Used by TRACE and GEPA's Actionable Side Information (ASI).
+- **Structured diagnostics**: execution traces, compiler errors, profiler output. Used by TRACE and GEPA's diagnostic feedback function.
 
 The richness of feedback is a key differentiator among methods. Richer feedback enables more sample-efficient optimization, as we will see.
 
@@ -112,7 +112,7 @@ Not all prompt optimization operates in the same space. Three families have emer
 
 - **Continuous prompt optimization** (CPO): The "prompt" $\mathbf{c} \in \mathbb{R}^{d \times L}$ is a sequence of $L$ learnable embedding vectors, each of dimension $d$, prepended to the input. Standard gradient descent applies because $\mathbf{c}$ is continuous. But the resulting prompts are uninterpretable and require model weight access. This is the setting for CoOp/CoCoOp (covered in @sec-applications).
 
-- **Hybrid prompt optimization** (HPO): Combines discrete knowledge descriptions with continuous context vectors. KAPT, for instance, uses Wikipedia-sourced text descriptions alongside learnable embedding vectors.
+- **Hybrid prompt optimization** (HPO): Combines discrete knowledge descriptions with continuous context vectors. KAPT ([Bahar et al., 2023](https://arxiv.org/abs/2308.11186)), for instance, uses category-level text descriptions alongside learnable embedding vectors.
 
 This chapter focuses primarily on discrete prompt optimization, with continuous methods covered in @sec-applications.
 
@@ -124,7 +124,7 @@ The EMNLP 2025 survey by [Ramnath et al.](https://arxiv.org/abs/2502.16923) orga
 
 2. **Candidate generation.** How do you produce new prompt candidates from existing ones? By LLM editing (ProTeGi), by evolutionary crossover and mutation (EvoPrompt), by Bayesian surrogate optimization (InstructZero, MIPRO), or by meta-prompt-guided generation (OPRO).
 
-3. **Inference and feedback.** How do you evaluate candidates and what feedback do you collect? Scalar scores (accuracy), natural language critiques (textual gradients), execution traces (TRACE), or structured diagnostics (GEPA's ASI).
+3. **Inference and feedback.** How do you evaluate candidates and what feedback do you collect? Scalar scores (accuracy), natural language critiques (textual gradients), execution traces (TRACE), or structured diagnostics (GEPA's diagnostic feedback).
 
 4. **Iteration depth.** How many optimization rounds? Fixed (APE: 1 round) or variable with convergence checking (OPRO: up to 200 steps).
 
@@ -184,25 +184,25 @@ The convergence is not about prompts, Bayesian optimization, or evolutionary alg
 
 | Year | Method | Venue | Paradigm | Key Result |
 |---|---|---|---|---|
-| 2022 | APE | ICLR 2023 | Generate-Select | Matches human prompts on 19--21/24 tasks |
-| 2023 | OPRO | ICLR 2024 | Generate-Select | +8% on GSM8K ("Take a deep breath") |
-| 2023 | ProTeGi | EMNLP 2023 | Textual Gradient | +31% on Jailbreak detection |
-| 2023 | EvoPrompt | ICLR 2024 | Evolutionary | +25% on BBH |
-| 2023 | PromptAgent | ICLR 2024 | MCTS Search | +9% over baselines on 12 tasks |
-| 2023 | InstructZero | ICML 2024 | Bayesian | Best on all 32 BIG-Bench tasks |
-| 2024 | TextGrad | NeurIPS 2024 | Textual Gradient | GPQA 51%$\to$55%, LeetCode 26%$\to$36% |
-| 2024 | GPO | AAAI 2025 | Gradient-Inspired | +56.8% on BBH, +62.6% on MMLU |
-| 2024 | EMO-Prompts | -- | Multi-Objective | HVI up to 0.45 |
-| 2024 | MORL-Prompt | EMNLP 2024 | Multi-Objective RL | Identifies objective collapse |
-| 2024 | MOPO | COLING 2025 | Multi-Objective Evo | +34pp improvement, 1--2pp trade-off |
-| 2024 | MIPRO/MIPROv2 | -- | Bayesian Pipeline | +13% on multi-stage pipelines |
-| 2024 | TRACE | NeurIPS 2024 | Execution Trace | Generalizes backprop to workflows |
-| 2025 | ParetoPrompt | ICLR 2025 | Multi-Objective RL | RL on Pareto front, no scalarization |
-| 2025 | GEPA | ICLR 2026 Oral | Pareto Evolution | +9.6% on Qwen3-8B, 6$\times$ fewer rollouts than GRPO |
-| 2025 | HiveMind | AAAI 2026 | Multi-Agent | Shapley credit, 80%+ fewer LLM calls |
+| 2022 | [APE](https://arxiv.org/abs/2211.01910) | ICLR 2023 | Generate-Select | Matches human prompts on 24/24 Instruction Induction tasks |
+| 2023 | [OPRO](https://arxiv.org/abs/2309.03409) | ICLR 2024 | Generate-Select | +8% on GSM8K ("Take a deep breath") |
+| 2023 | [ProTeGi](https://arxiv.org/abs/2305.03495) | EMNLP 2023 | Textual Gradient | +31% on Jailbreak detection |
+| 2023 | [EvoPrompt](https://arxiv.org/abs/2309.08532) | ICLR 2024 | Evolutionary | +25% on BBH |
+| 2023 | [PromptAgent](https://arxiv.org/abs/2310.16427) | ICLR 2024 | MCTS Search | +9% over baselines on 12 tasks |
+| 2023 | [InstructZero](https://arxiv.org/abs/2306.03082) | ICML 2024 | Bayesian | Best on all 32 BIG-Bench Instruction Induction tasks |
+| 2024 | [TextGrad](https://arxiv.org/abs/2406.07496) | NeurIPS 2024 | Textual Gradient | GPQA 51%$\to$55%, LeetCode 26%$\to$36% |
+| 2024 | [GPO](https://arxiv.org/abs/2402.17564) | AAAI 2025 | Gradient-Inspired | Up to 56.8% relative improvement on BBH, 62.6% on MMLU |
+| 2024 | [EMO-Prompts](https://arxiv.org/abs/2401.09862) | -- | Multi-Objective | HVI up to 0.45 |
+| 2024 | [MORL-Prompt](https://arxiv.org/abs/2402.11711) | EMNLP 2024 | Multi-Objective RL | Identifies objective collapse |
+| 2024 | [MOPO](https://arxiv.org/abs/2412.12948) | COLING 2025 | Multi-Objective Evo | +34pp improvement, 1--2pp trade-off |
+| 2024 | [MIPRO/MIPROv2](https://arxiv.org/abs/2406.11695) | -- | Bayesian Pipeline | +13% on multi-stage pipelines |
+| 2024 | [TRACE](https://arxiv.org/abs/2406.16218) | NeurIPS 2024 | Execution Trace | Generalizes backprop to workflows |
+| 2025 | [ParetoPrompt](https://openreview.net/forum?id=HGCk5aaSvE) | ICLR 2025 | Multi-Objective RL | RL on Pareto front, no scalarization |
+| 2025 | [GEPA](https://arxiv.org/abs/2507.19457) | ICLR 2026 | Pareto Evolution | +9.6% on Qwen3-8B, 6$\times$ fewer rollouts than GRPO |
+| 2025 | [HiveMind](https://arxiv.org/abs/2512.06432) | AAAI 2026 | Multi-Agent | Shapley credit, 80%+ fewer LLM calls |
 
 ::: {.callout-note title="Think Hard: Is there a fundamental limit to prompt optimization?"}
-Is there a "Bayes-optimal" prompt for a given task and model? In principle, yes: for a fixed model $M_T$, dataset $\mathcal{D}$, and metric $F$, the prompt $p^*$ that maximizes @eq-apo-objective exists (assuming $\mathcal{P}$ is finite, which it is for bounded-length prompts). But finding it is computationally intractable (the space is combinatorial), and the optimal prompt changes with the model, the data distribution, and the evaluation metric. Moreover, as models become more capable, the "headroom" for prompt optimization may shrink. SAMMO ([Ribeiro et al., 2024](https://arxiv.org/abs/2404.02319)) found weak correlation between optimal prompts across different LLMs, suggesting that $p^*$ is highly model-specific. The practical implication: prompt optimization is not a one-time cost but an ongoing engineering investment that must be re-run when any component changes.
+Is there a "Bayes-optimal" prompt for a given task and model? In principle, yes: for a fixed model $M_T$, dataset $\mathcal{D}$, and metric $F$, the prompt $p^*$ that maximizes @eq-apo-objective exists (assuming $\mathcal{P}$ is finite, which it is for bounded-length prompts). But finding it is computationally intractable (the space is combinatorial), and the optimal prompt changes with the model, the data distribution, and the evaluation metric. Moreover, as models become more capable, the "headroom" for prompt optimization may shrink. SAMMO ([Schnabel & Neville, EMNLP 2024 Findings](https://arxiv.org/abs/2404.02319)) found weak correlation between optimal prompts across different LLMs, suggesting that $p^*$ is highly model-specific. The practical implication: prompt optimization is not a one-time cost but an ongoing engineering investment that must be re-run when any component changes.
 :::
 
 
