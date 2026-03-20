@@ -1,3 +1,10 @@
+---
+description: "Zero World Knowledge principle, source verification, training data boundaries, sub-agent rules, observed failure patterns"
+globs:
+  - "**/*.qmd"
+  - "**/TEXTBOOK-PLAN.md"
+alwaysApply: true
+---
 
 # Source Integrity Rules
 

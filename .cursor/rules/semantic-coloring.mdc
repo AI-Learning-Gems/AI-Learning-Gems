@@ -1,3 +1,10 @@
+---
+description: "WCAG-compliant semantic color-coding for key concepts in textbook chapters — applies during editing pass"
+globs:
+  - "**/*.qmd"
+alwaysApply: false
+---
+
 # Semantic Concept Coloring
 
 Rules for applying consistent semantic color-coding to key concepts throughout textbook chapters. This technique uses author-provided color as a **visual signal** (Mayer's Signaling Principle) to help readers mentally separate and track concept categories.
