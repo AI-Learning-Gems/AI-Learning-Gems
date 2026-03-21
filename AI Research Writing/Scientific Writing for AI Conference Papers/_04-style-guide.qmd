@@ -1,0 +1,247 @@
+## A Style Guide for Scientific Paper Writing in AI {#sec-style-guide}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Gopen & Swan, "The Science of Scientific Writing," American Scientist (1990)](https://yunliweb.its.unc.edu/pdf/GopenGD_SwanJA1990AS_ScientificWriting.pdf) | Topic position (old info) to stress position (new info). Most-cited article in American Scientist history. |
+| 2 | [Jacob Steinhardt, "Advice for Authors" (2017)](https://jsteinhardt.stat.berkeley.edu/blog/advice-for-authors) | Consistent phrasing, avoid complex sentences, be precise, be concise |
+| 3 | [Frédo Durand, "Notes on Writing" (MIT CSAIL)](https://people.csail.mit.edu/fredo/PUBLI/writing.pdf) | One idea per sentence, shorter sentences, simpler English, redundancy pattern |
+| 4 | [Steven Pinker, "Why Academics Stink at Writing," Chronicle of Higher Education (2014)](https://stevenpinker.com/files/pinker/files/pinker_2014_why_academics_writing_stinks.pdf) | Nominalizations, zombie nouns, compulsive hedging, curse of knowledge |
+| 5 | [Henning Schulzrinne, "Writing Technical Articles"](https://www.cs.columbia.edu/~hgs/etc/writing-style.html) | Tense usage, figure design, reporting numerical results |
+| 6 | [Michael Ernst, "How to Write a Technical Paper"](https://pag.csail.mit.edu/~mernst/advice/write-technical-paper.html) | "Elegant variation," write for readers, explain what AND why |
+| 7 | [CMU 10717: The Art of the Paper (Zachary Lipton)](https://github.com/acmi-lab/cmu-10717-the-art-of-the-paper) | Scientific voice, the meaning of "we," citation practices |
+
+:::
+
+The previous section showed you *what* goes in each section of a conference paper. This section shows you *how* to write the sentences and paragraphs that fill those sections. Every rule below comes from a specific expert, has been tested against AI conference reviewing, and is illustrated with a concrete BAD/GOOD pair. Keep this section open while you write.
+
+### Sentence-Level Style
+
+#### The Given-New Contract
+
+The single most important principle in scientific prose comes from [Gopen and Swan (1990)](https://yunliweb.its.unc.edu/pdf/GopenGD_SwanJA1990AS_ScientificWriting.pdf), in what remains the most-cited article in the history of *American Scientist*. Their framework is built on reader expectations: readers interpret information based on *where* it appears in the sentence structure. Two positions matter most.
+
+The [**topic position**]{style="color: #E11D48;"} (the beginning of the sentence) is where the reader expects to find old, familiar information that links backward to the previous sentence. The [**stress position**]{style="color: #E11D48;"} (the end of the sentence, at the point of syntactic closure) is where the reader expects to find new, important information that deserves emphasis. Gopen and Swan state the principle: "Put in the topic position the old information that links backward; put in the stress position the new information you want the reader to emphasize."
+
+When writers violate this expectation, readers must spend energy figuring out the *structure* of the prose instead of absorbing its *content*. Gopen and Swan call this "the No. 1 problem in American professional writing today."
+
+Here is the principle applied to Priya's TokenMix paper:
+
+| | BAD (new info first, context buried) | GOOD (old info first, new info at end) |
+|---|---|---|
+| **Example** | "A 3.2% improvement on GLUE was achieved by applying convex combinations of token embeddings during pre-training, which we call TokenMix." | "TokenMix applies convex combinations of token embeddings during pre-training. This approach yields a 3.2% improvement on GLUE." |
+| **Problem** | The result (3.2%) appears before the reader knows what method produced it. The method name ("TokenMix") is buried at the end, receiving structural emphasis it doesn't need here. | The method name (old information from the abstract) appears in the topic position. The result (new information) appears in the stress position where the reader naturally emphasizes it. |
+
+::: {.exercise-mcq correct="C"}
+
+Consider the following sentence from a methods section: "Significant reductions in perplexity were observed when a novel curriculum learning schedule, which alternates between easy and hard batches every 500 steps, was applied to the pre-training of our 7B-parameter language model."
+
+Which revision best applies the Given-New Contract (old information in the topic position, new information in the stress position)?
+
+- We applied a novel curriculum learning schedule to pre-training, and significant reductions in perplexity were observed as a result.
+- Significant perplexity reductions resulted from our curriculum learning schedule, which alternates between easy and hard batches every 500 steps during pre-training of the 7B-parameter model.
+- Our 7B-parameter language model uses a curriculum learning schedule that alternates between easy and hard batches every 500 steps. This schedule reduces perplexity by 12% relative to uniform sampling.
+- A curriculum learning schedule was applied, alternating between easy and hard batches every 500 steps, and perplexity was significantly reduced during the pre-training of our 7B-parameter language model.
+
+::: {.feedback-correct}
+This version places the known entity (the model) in the topic position, then delivers the new information (the curriculum schedule and its effect) in the stress position. It also splits the overloaded sentence into two, following the one-idea-per-sentence principle.
+:::
+
+::: {.feedback-incorrect}
+Look for the version that starts with something the reader already knows (the model being discussed) and ends with the new, important finding (the perplexity reduction). The Given-New Contract says: old information links backward at the start; new information receives emphasis at the end.
+:::
+
+:::
+
+#### Subject-Verb Proximity
+
+Gopen and Swan demonstrate that readers expect the verb to follow its grammatical subject immediately. Material that separates subject from verb reads as an interruption, "and therefore as something of lesser importance." Long subject-verb gaps force the reader to hold the subject in working memory while processing parenthetical material. The reader often loses track of the sentence's main action entirely.
+
+| BAD | GOOD |
+|---|---|
+| "The TokenMix augmentation technique, which operates by constructing convex combinations of token embeddings sampled from different training examples with a Beta-distributed mixing coefficient, improves pre-training performance." | "The TokenMix augmentation technique improves pre-training performance. It constructs convex combinations of token embeddings sampled from different training examples, using a Beta-distributed mixing coefficient." |
+
+The BAD version separates subject ("technique") from verb ("improves") by 23 words. The GOOD version puts the verb immediately after the subject, then explains the mechanism in a second sentence.
+
+#### One Idea Per Sentence
+
+[Durand (MIT CSAIL)](https://people.csail.mit.edu/fredo/PUBLI/writing.pdf) puts this bluntly: "Don't introduce two ideas in one sentence. Sure the sentence sounds better and more elaborate, but cognitive overload will prevent your readers to understand anything." The rule matters especially in AI papers, where many readers are not native English speakers.
+
+[Steinhardt (UC Berkeley)](https://jsteinhardt.stat.berkeley.edu/blog/advice-for-authors) reinforces this: "Avoid complex sentence structure. Most research is already difficult to understand and digest; there's no reason to make it harder by having complex run-on sentences."
+
+| BAD | GOOD |
+|---|---|
+| "While prior data augmentation methods for NLP operate at the word or sentence level, our approach works in the continuous embedding space, which enables smooth interpolation between training examples and avoids the discreteness problem." | "Prior data augmentation methods for NLP operate at the word or sentence level. TokenMix works in the continuous embedding space instead. This shift enables smooth interpolation between training examples, because the discreteness problem that plagues token-level augmentation disappears in embedding space." |
+
+#### Be Precise, Not Vague
+
+Steinhardt's advice: "Be precise. This isn't about being pedantic, but about maximizing information content. Choose your words carefully so that you say what you mean to say. For instance, replace 'performance' with 'accuracy' or 'speed' depending on what you mean." Vague words force the reader to guess what you mean. Precise words eliminate guessing.
+
+| Vague (BAD) | Precise (GOOD) |
+|---|---|
+| "Performance improved significantly" | "Accuracy improved by 3.2 percentage points (p < 0.01)" |
+| "We use several layers" | "We use 12 Transformer layers" |
+| "The model is quite large" | "The model has 350M parameters" |
+| "Recent work has shown promising results" | "Zhang et al. (2023) achieved 89.4% accuracy on SQuAD 2.0" |
+| "Our approach outperforms baselines" | "TokenMix outperforms the best baseline (CutMix-NLP) by 2.1% on GLUE" |
+
+#### Kill the Nominalizations
+
+Pinker identifies a pathology he calls "zombie nouns" (the term comes from Helen Sword): verbs and adjectives converted into lifeless nouns by adding suffixes like *-ance*, *-ment*, or *-ation*. As Pinker writes, a nominalization "takes a perfectly spry verb and embalms it into a lifeless noun." The result hides both the action and the actor. The reader must reconstruct who did what.
+
+| BAD (nominalized) | GOOD (verb restored) |
+|---|---|
+| "The optimization of the loss function was performed using SGD." | "We optimized the loss function using SGD." |
+| "An investigation of the effect of mixing ratio on accuracy was conducted." | "We investigated how the mixing ratio affects accuracy." |
+| "The utilization of pre-trained embeddings leads to an improvement in downstream task performance." | "Using pre-trained embeddings improves downstream accuracy." |
+
+::: {.exercise-fillin}
+
+De-nominalize the following sentence by restoring the hidden verbs. The original sentence is: "The **evaluation** of model **robustness** through the **application** of adversarial perturbations revealed a significant **degradation** in classification **accuracy**."
+
+1. The sentence contains three nominalizations acting as subjects or objects: "evaluation," "application," and "degradation."
+2. Restore "evaluation" and "application" to verb form to identify who is doing what.
+3. The best de-nominalized version is: {B|A: Evaluating model robustness, the application of adversarial perturbations was found to significantly degrade classification accuracy.|B: When we evaluated model robustness by applying adversarial perturbations, classification accuracy degraded significantly.|C: The evaluation of model robustness by applying adversarial perturbations was found to degrade classification accuracy significantly.}
+4. Notice how the corrected version makes the actor ("we") and the actions ("evaluated," "applying," "degraded") explicit.
+
+::: {.fillin-feedback}
+**Correct: B.** The original sentence hides three actions inside nouns: "evaluation" (evaluate), "application" (apply), and "degradation" (degrade). Option B restores all three verbs and introduces a clear actor ("we"). Option A only partially de-nominalizes (keeps "application"). Option C keeps "evaluation" as a noun and uses passive voice ("was found to"), which still obscures the actor.
+:::
+
+:::
+
+### Paragraph-Level Style
+
+#### Topic Sentence First
+
+The first sentence of every paragraph should state its main point. Reviewers skim topic sentences to build a mental map of the paper. If your topic sentence is vague ("In this section, we describe our approach"), the reviewer learns nothing. If it is specific ("TokenMix augments training data by interpolating token embeddings, creating virtual examples that lie between real ones"), the reviewer knows exactly what the paragraph will cover.
+
+#### The Preview-Explain-Recap Pattern
+
+Durand recommends deliberate redundancy: "Say what you're about to say, say it, then summarize what you've said." This preview-explain-recap pattern serves three audiences: readers who skim, readers who read linearly, and readers who return to the paper after a break.
+
+The key constraint: each repetition should operate at a different level of detail. The preview is a one-sentence summary. The explanation is the full technical content. The recap is a one-sentence takeaway. Ernst echoes this idea with his "mini-introduction" advice: each section should open with a one- or two-sentence overview.
+
+#### Transition Sentences
+
+Paragraphs must be connected by transitions that explain the logical relationship between them. Steinhardt notes that many authors default to weak transitions ("Additionally," "Moreover," "Furthermore") that say "here is more" without explaining *how* the new paragraph connects to the previous one. Stronger transitions name the relationship. "This observation raises a problem" is causal. "Unlike dropout, which regularizes weights, TokenMix regularizes data" is contrastive. "We test this prediction with an ablation study" is consequential.
+
+### The Scientific Voice
+
+#### The Scientific "We"
+
+In computer science, even single-author papers use "we." [Lipton's CMU 10-717 course](https://github.com/acmi-lab/cmu-10717-the-art-of-the-paper) covers "what we mean by 'we'" as a fundamental element of the scientific voice. The scientific "we" serves two functions. First, it signals that the work was a collaborative effort (even solo researchers build on community infrastructure). Second, it reads as more natural than passive constructions. "We trained the model for 100 epochs" is clearer than "The model was trained for 100 epochs" because the active form tells the reader who performed the action.
+
+Use "we" for your own contributions ("We propose," "We observe"). Use passive voice when the agent is irrelevant or well-known ("The dataset was collected from Wikipedia," "Cross-entropy loss is computed as..."). The choice between active and passive is functional, not ideological.
+
+#### Hedging and Confidence Calibration
+
+Papers require calibrated confidence. The strength of your language must match the strength of your evidence. Overclaim and reviewers will punish you. Undersell and your paper loses impact. The table below maps evidence levels to appropriate hedges.
+
+| Confidence Level | Language | When to Use |
+|---|---|---|
+| **Strong claim** | "We show," "We prove," "We demonstrate" | Backed by formal proof or extensive, controlled experiments with large margins |
+| **Empirical finding** | "We observe," "We find," "Results indicate" | Backed by experiments, but may not generalize beyond your setup |
+| **Tentative** | "Results suggest," "This appears to" | Pattern in data that has not been fully validated |
+| **Speculation** | "We hypothesize," "We conjecture," "One possible explanation" | No direct evidence; reasonable extrapolation from existing findings |
+| **Others' work** | "X et al. report," "It has been shown" | Describing published results that are not your own |
+
+::: {.callout-warning title="Common Misconception: Hedging is a sign of weakness"}
+The opposite is true. Appropriate hedging signals scientific maturity. Pinker's list of hedging words ("almost, apparently, comparatively, fairly, nearly, partially, presumably, rather, relatively, seemingly, somewhat, sort of, to a certain degree, to some extent") is problematic only when used mindlessly. The problem is not hedging itself but *compulsive* hedging: cushioning every claim regardless of evidence strength. The fix is not to remove all hedges but to *calibrate* them. Write "we show" where you have proof, "we observe" where you have evidence, and "we hypothesize" where you have intuition.
+:::
+
+::: {.exercise-mcq correct="B"}
+
+You ran TokenMix on three datasets (GLUE, SQuAD, MNLI) and observed improvements of 3.2%, 1.8%, and 0.4% respectively. The GLUE and SQuAD results are statistically significant (p < 0.01), but the MNLI improvement has p = 0.12. You want to write one sentence summarizing all three results. Which version uses the correct hedge level?
+
+- "We demonstrate that TokenMix improves performance across all three benchmarks: GLUE (+3.2%), SQuAD (+1.8%), and MNLI (+0.4%)."
+- "We find that TokenMix improves GLUE (+3.2%) and SQuAD (+1.8%) significantly (p < 0.01). On MNLI, results suggest a modest improvement (+0.4%, p = 0.12) that warrants further investigation."
+- "Results suggest that TokenMix may improve performance on GLUE (+3.2%), SQuAD (+1.8%), and MNLI (+0.4%), though further validation is needed."
+- "We hypothesize that TokenMix improves performance on GLUE, SQuAD, and MNLI based on our preliminary experiments."
+
+::: {.feedback-correct}
+This version calibrates hedges to evidence strength. The statistically significant results (GLUE, SQuAD) get "we find" (empirical finding level). The non-significant MNLI result gets "results suggest" (tentative level). Mixing hedge levels within a single passage is not just acceptable; it is the mark of scientific maturity.
+:::
+
+::: {.feedback-incorrect}
+Match each claim's hedge level to its evidence. Statistically significant results (p < 0.01) warrant "we find" or "we observe." Non-significant trends (p = 0.12) warrant "results suggest" or "this appears to." Using the same hedge for all three treats unequal evidence as equal, which is either overclaiming or underselling.
+:::
+
+:::
+
+#### Tense Usage
+
+Present tense for established facts and your own claims: "TokenMix improves pre-training performance." Past tense for experimental procedures: "We trained the model for 100 epochs on 8 A100 GPUs." Past tense for others' prior work: "Zhang et al. (2018) proposed Mixup for image classification." Future tense only for future work: "Future work could extend TokenMix to multimodal settings."
+
+### Citation and Attribution Style
+
+#### When to Cite
+
+Cite every factual claim that is not your own original contribution. Cite every method you use that someone else developed. Cite every dataset, every baseline, every benchmark. Missing even one citation that a reviewer considers important can trigger the dreaded response: "the authors seem unaware of key prior work." That phrase is a polite way of saying your literature review is inadequate, and it is nearly impossible to recover from in a rebuttal.
+
+#### How to Cite
+
+Two citation styles serve different functions. *Parenthetical citations* (Author et al., 2024) work for background facts: "Data augmentation has been widely studied in computer vision (Zhang et al., 2018; Yun et al., 2019; Cubuk et al., 2020)." *Narrative citations* (Author et al. (2024) showed...) work when you want to foreground a specific paper: "Zhang et al. (2018) introduced Mixup, which creates virtual training examples by interpolating between pairs of images."
+
+Steinhardt gives the LaTeX implementation: "One should write 'Widgets are awesome (Smith, 2001).' or 'Smith (2001) shows that widgets are awesome.' but never '(Smith, 2001) shows that widgets are awesome.'" Use `\citep{}` for parenthetical and `\citet{}` for narrative if you use natbib.
+
+#### Self-Citation
+
+Self-citation is necessary when building on your own prior work. During anonymous review, refer to your own papers in the third person: "Prior work (Anonymous, 2023) established that..." Excessive self-citation irritates reviewers. Cite yourself when your prior work is genuinely the most relevant reference; cite others when multiple groups have contributed to the same problem.
+
+### Figure and Table Design
+
+Jason Wei's rule: "I make figures that stand alone." Ernst elaborates: "A figure should stand on its own, containing all the information that is necessary to understand it. Good captions contain multiple sentences." A reviewer who looks only at your figures and captions should grasp the main results without reading the body text.
+
+Farquhar identifies Figure 1 as "the most important figure. Many readers will literally skip all your writing and go straight to figure 1." In two-column format, Figure 1 should be in the top-right of the first page, opposite the abstract.
+
+Practical rules for figure and table design:
+
+- **Tables:** Bold the best result in each column. Include standard deviations or confidence intervals. Label rows and columns clearly. The caption goes *above* the table (LaTeX convention).
+- **Figures:** Use vector formats (PDF/SVG) for diagrams. Use color-blind-safe palettes. The caption goes *below* the figure. Reference specific lines and data points in the text ("As shown in Figure 3, the blue curve crosses the baseline at epoch 50").
+- **Architecture diagrams:** Durand's advice: "It's often very useful to have a big figure summarizing the technique. It could be a big flow diagram with iconic or real visualizations of the intermediate results." The overview figure should be self-contained, readable without any surrounding prose.
+
+### Common Anti-Patterns
+
+These are the writing mistakes that most frequently trigger reviewer complaints. Each mistake is sourced and paired with a concrete fix.
+
+| # | Anti-Pattern | BAD Example | GOOD Alternative | Source |
+|---|---|---|---|---|
+| 1 | **Vague field-importance opening** | "In recent years, large language models have gained increasing attention..." | "Pre-training language models on raw text produces representations that transfer to downstream tasks (Devlin et al., 2019)." | Farquhar, Steinhardt |
+| 2 | **Burying the contribution** | The contribution appears on page 2, paragraph 5, after lengthy background. | State contributions in paragraph 3 of the introduction, with explicit bullet points. | Kurose, Peyton Jones |
+| 3 | **Synonym cycling** | "The encoder... the model... the network... the system..." | Pick one term ("the encoder") and use it consistently throughout. | Ernst ("elegant variation"), Steinhardt |
+| 4 | **Marketing language** | "Our novel state-of-the-art groundbreaking method..." | "Our method achieves 92.3% accuracy on GLUE, outperforming the best baseline by 3.2%." Let numbers do the selling. | Steinhardt |
+| 5 | **"It is" / "There are" openings** | "There are several methods that address this problem." | "Several methods address this problem (Zhang et al., 2018; Li et al., 2020)." | Ernst |
+| 6 | **Equations without motivation** | An equation appears with no explanation of what it computes or why. | "To compute the augmented embedding, we take a convex combination of two token embeddings:" [equation] "where $\lambda$ controls the interpolation ratio." | Ernst, Durand |
+| 7 | **Undefined notation** | Symbol $\alpha$ appears on page 4 without definition. | Define every symbol at first use: "$\alpha \sim \text{Beta}(0.2, 0.2)$, the mixing coefficient." | Steinhardt, Gopen & Swan |
+| 8 | **Paper-by-paper related work** | "Li et al. (2020) proposed X. Wang et al. (2021) proposed Y. Chen et al. (2022) proposed Z." | "Token-level augmentation methods fall into two categories: discrete replacement (Li et al., 2020; Wang et al., 2021) and continuous interpolation (Chen et al., 2022). Our approach belongs to the second category but differs in..." | Farquhar, SPUR Lab |
+| 9 | **Missing ablation** | Results table shows only the full method vs. baselines, with no component analysis. | Add rows removing each component one at a time: "TokenMix (full), w/o soft labels, w/o Beta sampling, w/o embedding mixing." | Schulzrinne, Ernst |
+| 10 | **Walls of text** | A full column of unbroken prose with no visual relief. | Break into shorter paragraphs. Add figures, equations, or tables to create visual variety. Use white space between ideas. | Durand, Mayer's multimedia principle |
+
+::: {.exercise-mcq correct="D"}
+
+Read this sentence from a draft paper's introduction: "In recent years, natural language processing has witnessed remarkable progress, and our innovative framework leverages these advances to deliver a comprehensive solution that achieves state-of-the-art results on multiple benchmarks."
+
+How many anti-patterns from the table above does this single sentence exhibit?
+
+- One: marketing language ("innovative," "state-of-the-art").
+- Two: marketing language and vague field-importance opening ("In recent years").
+- Three: marketing language, vague field-importance opening, and synonym cycling.
+- Two: vague field-importance opening ("In recent years, natural language processing has witnessed remarkable progress") and marketing language ("innovative," "comprehensive," "state-of-the-art"). No synonym cycling is present because only one term is used for the framework.
+
+::: {.feedback-correct}
+The sentence exhibits exactly two anti-patterns. Anti-pattern 1 (vague field-importance opening): "In recent years, natural language processing has witnessed remarkable progress" is the prototypical offender. Anti-pattern 4 (marketing language): "innovative," "comprehensive," and "state-of-the-art" are all promotional filler with no informational content. There is no synonym cycling because the sentence refers to the system once ("our framework"). The fix: replace the opening with a specific claim and replace the marketing adjectives with numbers.
+:::
+
+::: {.feedback-incorrect}
+Count carefully by matching each clause of the sentence against the 10 anti-patterns in the table. "In recent years... has witnessed remarkable progress" matches one anti-pattern. "Innovative," "comprehensive," "state-of-the-art" match another. Check whether the sentence actually uses multiple different terms for the same concept (synonym cycling) or just refers to the framework once.
+:::
+
+:::
+
+::: {.callout-note title="Think Hard: Why does Steinhardt say local style matters more than global structure?"}
+Steinhardt opens his advice post by saying "good local style probably contributes substantially more to readability than global structure." The claim is counterintuitive. Most writing advice focuses on global structure (abstract, introduction, related work). Steinhardt argues that word-level and sentence-level choices, the kind covered in this section, actually determine whether a paper is pleasant or painful to read.
+
+His reasoning: global structure is relatively standardized (everyone puts the abstract first), so there is little variance to exploit. Local style varies enormously. A paper with perfect global structure but imprecise word choices, inconsistent terminology, and nominalizations will still frustrate reviewers. A paper with slightly unconventional structure but precise, clear, consistent prose will be forgiven. That is why Steinhardt says he is "in general pretty willing to break rules about global structure, but not to break local stylistic rules without strong reasons."
+:::

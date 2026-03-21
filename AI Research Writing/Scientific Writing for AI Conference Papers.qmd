@@ -1,0 +1,21 @@
+---
+title: "Scientific Writing for AI Conference Papers"
+filters:
+  - ../_extensions/pandoc-ext/diagram/diagram.lua
+---
+
+{{< include "Scientific Writing for AI Conference Papers/_01-introduction.qmd" >}}
+
+{{< include "Scientific Writing for AI Conference Papers/_02-two-genres.qmd" >}}
+
+{{< include "Scientific Writing for AI Conference Papers/_03-anatomy.qmd" >}}
+
+{{< include "Scientific Writing for AI Conference Papers/_04-style-guide.qmd" >}}
+
+{{< include "Scientific Writing for AI Conference Papers/_05-ai-reviewer.qmd" >}}
+
+{{< include "Scientific Writing for AI Conference Papers/_06-top-researchers.qmd" >}}
+
+{{< include "Scientific Writing for AI Conference Papers/_07-blog-craft.qmd" >}}
+
+{{< include "Scientific Writing for AI Conference Papers/_99-closing.qmd" >}}

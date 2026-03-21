@@ -1,0 +1,175 @@
+## Anatomy of a Conference Paper {#sec-anatomy}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Sebastian Farquhar, "How to Write ML Papers" (2024)](https://sebastianfarquhar.com/on-research/2024/11/04/how_to_write_ml_papers/) | Abstract formula, introduction structure, Figure 1, methods pacing, prior work |
+| 2 | [Jacob Steinhardt, "Advice for Authors" (2017)](https://jsteinhardt.stat.berkeley.edu/blog/advice-for-authors) | Two-sentence abstract opening, "don't make readers wait," local style rules, precision |
+| 3 | [Simon Peyton Jones, "How to Write a Great Research Paper"](https://simon.peytonjones.org/great-research-paper/) | "Nail your contributions to the mast." 4-sentence abstract. 1-page introduction. |
+| 4 | [Jim Kurose, "Writing a Good Introduction" (2004)](https://www-net.cs.umass.edu/kurose/writing/intro-style.html) | Five-paragraph introduction formula: motivation, problem, thesis, differentiation, roadmap |
+| 5 | [SPUR Lab / Barbara Engelhardt, "Writing a Related Work Section"](https://www.spur.science/resources/related_work) | Three goals, thematic organization, detail calibration, ~1 page |
+| 6 | [Henning Schulzrinne, "Writing Technical Articles"](https://www.cs.columbia.edu/~hgs/etc/writing-style.html) | 100-150 word abstract, four types of results, paper structure, reporting guidelines |
+| 7 | [Michael Ernst, "How to Write a Technical Paper"](https://pag.csail.mit.edu/~mernst/advice/write-technical-paper.html) | "Important, hard, solved" triad. Give away the punchline. Mini-introductions. Figure design. |
+| 8 | [Jason Wei, "Practicing AI Research" (~2023)](https://www.jasonwei.net/blog/practicing-ai-research) | "Spend more time on abstract and introduction." Figures that stand alone. Simple language. |
+
+:::
+
+Every AI conference paper, whether submitted to NeurIPS, ICML, ICLR, ACL, or CVPR, follows roughly the same architecture: abstract, introduction, related work, method, experiments, conclusion. The sections appear in the same order, serve the same functions, and follow the same unwritten rules. This standardization is not accidental. Reviewers read twenty papers in two weeks, so they have learned to extract information from specific locations. A well-structured paper lets the reviewer find what they need quickly. A badly structured paper forces the reviewer to hunt, and hunting effort translates directly into lower scores.
+
+[Michael Ernst (UW / MIT CSAIL)](https://pag.csail.mit.edu/~mernst/advice/write-technical-paper.html) frames the meta-goal behind every section: "your paper needs to convince the audience of three key points. The problem is important. The problem is hard. You have solved the problem." Every section serves one or more of these three goals. The abstract previews all three. The introduction establishes importance and difficulty. The method section shows the solution. The experiments prove that the solution works. Keep this triad in mind as we walk through each section.
+
+### The Abstract
+
+The abstract is the most-read part of your paper, and the part most researchers write worst. Richard Hamming's advice, quoted by [Jason Wei](https://www.jasonwei.net/blog/practicing-ai-research), applies here:
+
+> "I believed, in my early days, that you should spend at least as much time in the polish and presentation as you did in the original research."
+
+Wei adds his own emphasis: "Most readers will only skim or look at a screenshot of a figure on Twitter, so I spend more time on the abstract and introduction than other parts of the paper."
+
+[Sebastian Farquhar (DeepMind, 2024)](https://sebastianfarquhar.com/on-research/2024/11/04/how_to_write_ml_papers/) provides the most concrete abstract formula for ML papers: a five-sentence structure.
+
+1. **(1 sentence) What have you achieved?** "Should often be something like 'We introduce...', 'We prove...', 'We demonstrate...'" After this sentence, the reader should already know the main contribution.
+2. **(1 sentence) Why is this result hard and important?** This sentence situates the work within the field.
+3. **(1 sentence) How do you do it?** This is a teaser for knowledgeable specialists, including keywords someone might search for.
+4. **(2 sentences) What evidence do you have?** The results of main theorems or key empirical numbers. Farquhar's rule: "If empirical, include your most remarkable number."
+
+[Jacob Steinhardt (UC Berkeley, 2017)](https://jsteinhardt.stat.berkeley.edu/blog/advice-for-authors) offers a different opening strategy, better suited for papers presenting unfamiliar ideas: "The first sentence / phrase should be something that all readers will agree with. The second should be something that many readers would find surprising, or wouldn't have thought about before; but it should follow from (or at least be supported by) the first sentence." He illustrates with his own Reified Context Models paper: the first sentence states a familiar tension in the field, and the second reframes that tension in a way the reader did not expect. The key insight is to warm the reader up before delivering the contribution.
+
+[Henning Schulzrinne (Columbia)](https://www.cs.columbia.edu/~hgs/etc/writing-style.html) provides a concrete length guideline: "typically not more than 100-150 words." He also offers a micro-rule that catches many first-time authors: "Avoid use of 'in this paper' in the abstract. What other paper would you be talking about here?"
+
+Here is how Priya's TokenMix abstract might look under Farquhar's formula:
+
+> We introduce TokenMix, a token-level mixup augmentation technique that improves language model pre-training without additional data. Despite the success of data augmentation in computer vision, applying mixup-style techniques to discrete token sequences has remained challenging because linear interpolation in token space is undefined. TokenMix addresses this by operating in the continuous embedding space, constructing virtual training examples through convex combinations of token embeddings and their corresponding soft labels. On four standard benchmarks (GLUE, SuperGLUE, SQuAD, WMT14), TokenMix improves a 350M parameter model by 2.1-3.8% over the baseline, matching the performance of a model trained on 40% more data. Ablation studies confirm that the improvement stems from embedding-space diversity rather than implicit regularization.
+
+Five sentences. Achievement, difficulty, mechanism, evidence (with numbers), additional evidence. The reviewer knows exactly what the paper claims before turning the page.
+
+::: {.exercise-mcq correct="B"}
+
+According to Farquhar's five-sentence abstract formula, what should the very first sentence of an ML paper abstract accomplish?
+
+- Establish that the research field is important and growing ("Large language models have shown remarkable progress...")
+- State the main achievement so the reader immediately knows the contribution ("We introduce...", "We prove...", "We demonstrate...")
+- Provide background context so the reader understands the problem space before learning the contribution
+- Present the key empirical result with a specific number so the reader sees evidence first
+
+::: {.feedback-correct}
+Correct. Farquhar's formula puts the achievement first: "Should often be something like 'We introduce...', 'We prove...', 'We demonstrate...' After this sentence, the reader should already know the main contribution." The field-importance opening is the exact anti-pattern Farquhar warns against. Background and evidence come in sentences 2-5.
+:::
+
+::: {.feedback-incorrect}
+Review Farquhar's five-sentence structure. Sentence 1 is the achievement ("We introduce..."). Sentence 2 is why this is hard and important. Sentence 3 is the mechanism. Sentences 4-5 are evidence. The "field is important" opening is precisely what Farquhar warns against, and Schulzrinne's advice to avoid "in this paper" in the abstract reinforces the same principle: lead with the contribution, not the context.
+:::
+
+:::
+
+### The Introduction
+
+The introduction carries disproportionate weight. As Steinhardt observes: "I frequently find that I have to wait until Section 4 to find out why I should care about a paper; while I might read that far, most reviewers are going to give up about halfway through Section 1."
+
+[Jim Kurose (UMass, 2004)](https://www-net.cs.umass.edu/kurose/writing/intro-style.html) provides the classic five-paragraph formula that has trained a generation of CS researchers:
+
+1. **Motivation.** "At a high level, what is the problem area you are working in and why is it important?"
+2. **Specific problem.** "This paragraph narrows down the topic area of the paper."
+3. **Thesis / contributions.** "In this paper, we show that... This is the key paragraph in the intro. If you can't 'sell' your work at a high level in a paragraph in the intro, then you are in trouble."
+4. **Differentiation.** "At a high level what are the differences in what you are doing, and what others have done?"
+5. **Roadmap.** "The remainder of this paper is structured as follows..."
+
+Farquhar compresses this into four blocks for ML papers and drops the roadmap paragraph entirely. His introduction structure: (a) a 2-3 sentence opening paragraph stating the achievement and its importance, (b) a 2-4 sentence paragraph on your approach, (c) 2-4 sentences of evidence, and (d) a bullet-point contributions list of 2-4 items. The entire introduction should fit in about one page.
+
+Farquhar is emphatic about four things that should *not* appear in the introduction. First, no "our field is a huge deal" opening: "Many people love using the first paragraph to say some variant of 'Large Language Models are a big deal'. Don't bother. Nobody needs to read this again." Second, no lengthy prior work recap; that belongs in its own section. Third, no future work speculation; save it for the end. Fourth, no misrepresentation of prior work: "This poisons the field, annoys your colleagues, and makes reviewers angry."
+
+The contributions list deserves special attention. Simon Peyton Jones, in his talk ["How to Write a Great Research Paper,"](https://simon.peytonjones.org/great-research-paper/) treats contributions as the specification of the paper: "The contributions of your paper are like the specification of a program, and the body of the paper is like the implementation." He urges authors to literally say "the contributions are these and then give a list of bullets," because each contribution is a refutable claim that the reader can verify against the paper's body.
+
+Peyton Jones adds two rules for writing contribution bullets. First, each bullet should include a forward reference to the section where the claim is substantiated: "you want to say as precisely as you can where the evidence is." Second, each contribution must be falsifiable: "you must state in your contribution something which could be false." Vague statements like "we study the properties of this formal system" are irrefutable and tell the reader nothing. Farquhar recommends 2-4 contributions, each "maximally one line in a 1-column format and two lines in 2-column."
+
+::: {.callout-warning title="Common Misconception: A good introduction needs a broad opening paragraph about the importance of the field"}
+This is the single most common mistake in AI paper introductions. Sentences like "In recent years, large language models have demonstrated remarkable capabilities across a wide range of tasks" are true but useless. Every reviewer already knows this. Farquhar calls it the "our field is a huge deal" paragraph and says your eyes should glaze over when you see it. Start with *your* problem, not the field's importance. The reviewer is not reading your paper to learn that language models matter.
+:::
+
+::: {.exercise-fillin}
+
+Kurose's five-paragraph introduction formula has a specific function for each paragraph. Fill in the missing paragraph:
+
+1. Motivation: what is the problem area and why is it important?
+2. {B|A: Roadmap: how is the remainder of the paper structured?|B: Specific problem: narrow the topic area of the paper|C: Related work: survey what others have done in the field}
+3. Thesis and contributions: "In this paper, we show that..."
+4. Differentiation: how does your approach differ from prior work?
+5. Roadmap: "The remainder of this paper is structured as follows..."
+
+::: {.fillin-feedback}
+**Correct: B (Specific problem).** Kurose's formula moves from broad to narrow: paragraph 1 establishes the general problem area, paragraph 2 narrows to the specific problem your paper addresses, and only then does paragraph 3 present your thesis. The roadmap comes last (paragraph 5), not second. Related work gets its own section and does not belong in the introduction's second paragraph.
+:::
+
+:::
+
+### Related Work
+
+The related work section has three goals, as articulated by the [SPUR Lab / Barbara Engelhardt (Princeton/Stanford)](https://www.spur.science/resources/related_work): (a) bring the reader up to speed on the topic, (b) convince the reviewer that you know the field, and (c) show that what you are doing is novel by identifying the gap in existing knowledge.
+
+The most important structural principle: **organize thematically, not paper-by-paper.** Farquhar puts this bluntly: "Good prior work sections are methodological. E.g., 'One line of previous research used Floogledoodle's assumption [32,71,89] whereas we make Doobersnoddle's assumption instead.' Bad prior work sections are paper-by-paper. E.g., 'Snap et al. [1989] introduced a cross-pollinating Bayesian oculon while Crackle et al. [1992] introduced a penny-wise frequentist snickersnoop.'" The paper-by-paper format fails because each citation is compressed to the point of meaninglessness. The reader cannot see *why* any given citation matters.
+
+The Engelhardt guidance adds a critical nuance on tone: "Better to teach here and tell a story than just to establish dominance in a (possibly) crowded area." Be generous to prior work. [Frédo Durand's "Notes on Writing" (MIT CSAIL)](https://people.csail.mit.edu/fredo/PUBLI/writing.pdf) reinforces this point: "Try to avoid direct confrontation. Rather than listing all the negative points of other techniques, say how you improve them. Use constructions such as 'we build on' or 'we extend.'"
+
+The SPUR Lab recommends calibrating detail based on closeness to your work. General background gets a citation at the end of a summary sentence. Closely related work gets 1-3 sentences of explanation. Very closely related work gets an explicit comparison showing how yours differs. Total length: roughly one page in two-column format. The final paragraph should place your contributions in context: "The main contributions of our work to the problem of X are (i)..."
+
+::: {.exercise-mcq correct="C"}
+
+A reviewer writes: "The related work section reads like an annotated bibliography. I cannot tell how the proposed method relates to prior approaches." Which structural mistake did the author most likely make?
+
+- The related work section was too short, covering fewer than 20 citations
+- The author was too generous to prior work and failed to identify flaws
+- The author organized the section paper-by-paper instead of thematically, so the reader cannot see methodological threads or where the gap lies
+- The author placed the related work section after the method section instead of before it
+
+::: {.feedback-correct}
+Correct. Farquhar calls this the cardinal sin of related work: organizing paper-by-paper ("Snap et al. introduced X... Crackle et al. introduced Y...") instead of thematically ("One line of research assumes X, while another assumes Y; we instead assume Z"). The paper-by-paper format compresses each citation to meaninglessness and never shows the reader *why* the citations are relevant or where the gap in knowledge lies. Thematic organization groups prior work by methodological approach, making the novelty of your contribution visible.
+:::
+
+::: {.feedback-incorrect}
+The reviewer's complaint is about structure, not length, tone, or section ordering. Reread Farquhar's distinction between good and bad related work sections. The "annotated bibliography" feel comes from paper-by-paper organization, where each citation gets a one-sentence summary but no methodological thread connects them. The fix is thematic organization: group papers by approach, identify the assumptions each group shares, and show where your method makes a different assumption.
+:::
+
+:::
+
+### Method
+
+The method section is where you present your technical contribution. Ernst's meta-principle applies: explain both *what* you did and *why* you did it. [Durand](https://people.csail.mit.edu/fredo/PUBLI/writing.pdf) reinforces this: "Don't just say 'our method does this, this, and this.' Provide motivation, say that since you want to achieve this, you need this step."
+
+Farquhar gives a pacing rule worth memorizing: "If your methods section starts after page 3 try to rearrange things. It is rarely correct for methods to start after page 2." The reason is what he calls *information-momentum*: the reader should feel pulled forward toward the core contribution, not bogged down in background.
+
+Farquhar also recommends that the methods section be self-contained: "if somebody already understands the problem and its importance, already knows the background, and trusts you on the experiments, they could, in principle, just read this section and know what you do and why."
+
+Start with a high-level overview (a figure helps enormously here), then zoom into the details. Notation must be consistent throughout. If you explored multiple design choices during development, present only your final choice in the main text and put the comparison in an appendix.
+
+Ernst recommends that each section begin with a "mini-introduction" saying what the section covers and how its parts relate. This mini-introduction advice applies with special force to the method section, where readers often get lost in formalism and need periodic signposting to stay oriented.
+
+### Experiments
+
+The experiments section must demonstrate that your method works (Ernst's third goal: "you have solved the problem"). Farquhar recommends giving each experiment its own subsection with a clear four-part structure: (a) what claim the experiment supports, (b) how that claim connects to the paper's main contribution, (c) the experimental setting, and (d) references to specific lines and points in figures. His emphasis: "Literally talk about lines and points here, don't just tell me what the figure overall leads you to conclude."
+
+Every experiment needs context. Jason Wei frames results "in the broader context of the field, so that readers know why the results are important and how they can be used." The standard elements number four: baselines (what are you comparing against?), datasets (what data?), metrics (what are you measuring?), and ablation studies (which components of your method contribute to the improvement?).
+
+Figures and tables must be self-contained. Wei's rule: "I make figures that stand alone." Ernst elaborates: "A figure should stand on its own, containing all the information that is necessary to understand it. Good captions contain multiple sentences." A reviewer who looks only at your figures and their captions should understand the main results. Bold the best result in each column of a comparison table. Include standard deviations or confidence intervals.
+
+Schulzrinne warns against describing figures with empty prose: do not just write "the delay rises with the load" when anyone can read that from the graph. Instead, explain *why* the delay rises and what the implication is for the system.
+
+Farquhar adds a practical check: "figure 1 is the most important figure. Many readers will literally skip all your writing and go straight to figure 1." For empirical ML papers, Figure 1 should appear in the top-right of the first page (in two-column format) and should convey the paper's core contribution at a glance.
+
+::: {.callout-note title="Think Hard: Should you present negative results?"}
+Durand's advice is instructive: "Be critical of your own results before deciding to include them. Too often, only the authors see why a given result demonstrates that the technique is good." If you ran an experiment and the result does not support your claim, you have two choices: understand why and address the discrepancy (which often strengthens the paper), or omit the result and risk a reviewer running the same experiment and finding the failure. Many venues now explicitly encourage or require reporting limitations and failure modes. Farquhar's section on "Discussion and Limitations" recommends honest reporting: "Here's where you admit all the things that don't quite work about your paper." Being honest about limitations actually increases reviewer trust. A paper that acknowledges its weaknesses signals scientific maturity; a paper that pretends to have none signals carelessness or dishonesty.
+:::
+
+### Conclusion
+
+The conclusion restates your contributions and places them in broader context. It should not be a copy of the abstract. Steinhardt offers a distinctive strategy: "I generally put in the conclusion everything that I wanted to put in the introduction, but couldn't because readers wouldn't be able to appreciate the context without reading the rest of the paper first." After reading the method and experiments, the reader now has enough context to appreciate deeper implications, connections to other areas, and open questions that would have been meaningless in the introduction.
+
+Keep the conclusion brief: half a page to one page. Farquhar considers it "mostly unnecessary" but acknowledges that "some readers like to skip to the conclusion and you have to cater for them." Limitations and future work belong either here or in a separate "Discussion and Limitations" section, depending on venue norms. Farquhar's advice on future work: frame it as a limitation of the current work rather than speculation about what you might do next. The phrasing "our method does not yet handle X, which future work could address" is more concrete than "in the future, we plan to extend our method to X."
+
+### The Writing Order
+
+A natural question: should you write the paper in the order the reader will read it? Most experienced researchers say no. [Schulzrinne](https://www.cs.columbia.edu/~hgs/etc/writing-style.html) recommends: "Write the approach and results sections first... Then the conclusions, then the intro. Write the intro last since it glosses the conclusions... Finally, write the abstract. Last, give your paper a title." The logic is simple: you cannot write a good introduction until you know exactly what you are introducing. The method and results are the foundation; everything else rests on top.
+
+Farquhar's order is similar: start with the methods and experiments (the core), then write the background and prior work, then the introduction and abstract last. Many researchers write the abstract as the very last step, because only at that point do they know the paper's actual contribution (which may have shifted during writing).
+
+Simon Peyton Jones takes an even more radical position: start writing the paper as soon as you have an idea, before the research is complete. In his talk, he describes the typical (wrong) approach as "you have some idea, you spend some months developing the idea, and then you write the paper." His recommended approach reverses the order: "You have an idea, you start to write the paper. And in writing the paper, you think, oh, I didn't really understand that idea very well. The act of writing the paper forces out the research." Both Schulzrinne's write-last and Peyton Jones's write-first approaches agree on one point: **writing is iterative**, and you should expect to rewrite every section at least twice.

@@ -1,0 +1,121 @@
+## How Top Researchers Write {#sec-top-researchers}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Qiu et al., "Counterfactual LLM Framework for Measuring Rhetorical Style" (2025)](https://arxiv.org/abs/2512.19908) | "Visionary framing significantly predicts citations and media attention" |
+| 2 | [Simon Peyton Jones, "How to Write a Great Research Paper"](https://simon.peytonjones.org/great-research-paper/) | "Tell a story": problem, interesting, my idea, works, compares |
+| 3 | [CMU 10717: The Art of the Paper (Zachary Lipton)](https://github.com/acmi-lab/cmu-10717-the-art-of-the-paper) | "Superior writing skills differentiate influential scientists from their peers" |
+| 4 | [Jason Wei, "Practicing AI Research" (~2023)](https://www.jasonwei.net/blog/practicing-ai-research) | Four skills: idea conception, experiments, writing, maximizing impact |
+| 5 | [Sebastian Farquhar, "How to Write ML Papers" (2024)](https://sebastianfarquhar.com/on-research/2024/11/04/how_to_write_ml_papers/) | Style as costly signal: "The stylistic fluff IS signalling" |
+
+:::
+
+There is a persistent myth in AI research that only results matter. Build a model that beats everything on the leaderboard, the thinking goes, and the paper will write itself. The evidence says otherwise. As Zachary Lipton writes in the CMU 10-717 course description: "Superior writing skills are often what differentiates influential scientists and principal investigators from their peers. Strong writers are better able to convince the wider field of what problems are worth solving (and funding) in the first place."
+
+The data backs this up. [Qiu et al. (2025)](https://arxiv.org/abs/2512.19908) demonstrated that visionary framing predicts citations and media attention even after controlling for reviewer scores. The effect is independent of paper quality as measured by peer review. Two papers with identical reviewer scores will receive different citation counts based partly on how their contributions are framed. The rest of this section breaks down the specific writing techniques that top AI researchers use to make their papers not just accepted, but influential.
+
+### Naming as Influence
+
+Consider the most memorable AI papers of the past decade. "Attention Is All You Need." "BERT." "ResNet." "Chain-of-Thought." "GPT." Each of these names has entered the community's working vocabulary. Researchers say "let's use a ResNet backbone" the way cooks say "let's add some olive oil." The name has become shorthand for a whole family of techniques.
+
+Good names are not accidents. They share three properties: (a) they are short (one or two words); (b) they are descriptive enough that someone who has never read the paper can guess roughly what it does; and (c) they are distinctive enough to be found in a search engine. "Attention Is All You Need" doubles as a title and a thesis statement. "BERT" is a memorable acronym that also suggests human-like language understanding through the Sesame Street association. "Chain-of-Thought" describes the method in three words. Compare these successes to forgettable names: "A Multi-Scale Feature Fusion Approach for Enhanced Temporal Modeling" tells you nothing memorable and cannot be used in a sentence.
+
+Frédo Durand makes this point explicitly in his "Notes on Writing": "A good marketing idea is to make sure that part of the title (the method name) can be used in a sentence that cites your paper." He gives the example of "light field," a term so successful that it became the standard vocabulary for an entire subfield. He contrasts this with Greg Ward's 1988 paper, which introduced a technique now called "irradiance caching." The technique is foundational and widely used, "yet most people can cite Henrik's contributions, but few people can identify and name 'irradiance caching'" because the term did not appear in the title.
+
+::: {.exercise-mcq correct="C"}
+
+A junior researcher names their paper "An Efficient Multi-Head Cross-Attention Framework for Improved Visual-Linguistic Alignment in Downstream Tasks." Based on the naming principles discussed above, what is the most significant problem with this title?
+
+- It is too short to convey the paper's contribution
+- It does not mention the benchmark datasets used for evaluation
+- It cannot be used as a noun phrase in a sentence like "we use X as our backbone"
+- It includes too many technical terms that reviewers will not understand
+
+::: {.feedback-correct}
+The core principle from Durand is that a good paper name can be dropped into a sentence as a noun phrase: "we use ResNet," "we apply Chain-of-Thought," "we fine-tune BERT." A title that is an entire descriptive clause cannot function this way. Nobody will say "we use An Efficient Multi-Head Cross-Attention Framework for Improved Visual-Linguistic Alignment." The best names are short, distinctive, and usable as vocabulary.
+:::
+
+::: {.feedback-incorrect}
+The issue is not length alone, benchmark mentions, or jargon. The key principle is that good paper names become *vocabulary*: short enough to be used as noun phrases in other people's sentences. "Attention Is All You Need," "BERT," "ResNet" can all be dropped into a sentence naturally. A long descriptive clause cannot. Durand's test: "Can part of the title be used in a sentence that cites your paper?"
+:::
+
+:::
+
+### Storytelling in Scientific Papers
+
+Simon Peyton Jones, in his talk "How to Write a Great Research Paper," describes a paper's narrative arc through the metaphor of a whiteboard conversation:
+
+> "I kind of imagine that I'm standing at a whiteboard with a friend. And I want to convey my idea. So what am I going to do? I'm going to say, here's the problem I'm trying to solve. I'm going to say, it's an interesting problem and here's why. Moreover, it's an unsolved problem. And now I'm going to tell you about my idea. And then I'm going to give you some evidence to make you believe that the idea actually works in practice."
+
+This five-beat story (problem, interesting, unsolved, my idea, evidence) is the narrative backbone of a good paper. A framework from science communication formalizes the same structure: the ABT, developed by [Randy Olson](http://www.scienceneedsstory.com/2015/12/14/16-for-students-of-the-abt-the-delicate-power-of-the-abt-words/) in *Houston, We Have a Narrative* (2015). ABT stands for And, But, Therefore. As Olson explains, "but" and "therefore" are "the core words of narrative, the words that cause the brain to activate the narrative centers." The structure maps onto paper introductions naturally:
+
+- **And** (setup): "Language models can solve many NLP tasks, **and** pre-training on raw text produces powerful representations."
+- **But** (complication): "**But** these models require massive datasets, and data augmentation techniques from vision do not transfer directly because token spaces are discrete."
+- **Therefore** (resolution): "**Therefore**, we propose TokenMix, which operates in the continuous embedding space to create virtual training examples."
+
+Every influential paper contains this structure, whether or not the author was consciously following it. The "Attention Is All You Need" paper follows the ABT pattern: recurrent models have been dominant (And), but they are slow because they process tokens sequentially (But), therefore we propose the Transformer, which uses self-attention to process all tokens in parallel (Therefore).
+
+The ABT structure works because it creates tension ("But") and then resolves it ("Therefore"). Tension holds the reader's attention. Without the "But," the paper is a list of facts. Without the "Therefore," the paper poses a problem without solving it.
+
+::: {.exercise-mcq correct="B"}
+
+Consider this opening paragraph from a hypothetical paper: "Vision Transformers (ViTs) have achieved strong results on image classification benchmarks. Recent work has extended ViTs to video understanding, object detection, and medical imaging. We propose PatchDrop, which randomly drops image patches during training to improve efficiency."
+
+Which sentence corresponds to the "But" in the ABT framework?
+
+- "Vision Transformers (ViTs) have achieved strong results on image classification benchmarks."
+- There is no "But" sentence; that is the problem with this paragraph
+- "Recent work has extended ViTs to video understanding, object detection, and medical imaging."
+- "We propose PatchDrop, which randomly drops image patches during training to improve efficiency."
+
+::: {.feedback-correct}
+This paragraph jumps from "And" (ViTs work well, and they have been extended to many domains) directly to "Therefore" (we propose PatchDrop). There is no tension, no complication, no "But." Why is PatchDrop needed? What goes wrong without it? The reader has no reason to care about the solution because no problem has been established. An effective "But" might be: "But applying ViTs to high-resolution images is prohibitively expensive, because self-attention scales quadratically with the number of patches."
+:::
+
+::: {.feedback-incorrect}
+The first sentence establishes the setup ("And"), the second sentence extends the setup (still "And"), and the third sentence proposes a solution ("Therefore"). The missing piece is the "But": the complication or tension that makes the reader care about the solution. Without a "But," the paragraph reads as a flat list of facts followed by a non sequitur proposal. The ABT framework requires all three elements to create narrative momentum.
+:::
+
+:::
+
+::: {.exercise-predict correct="B"}
+
+The next subsection examines the writing style of the most influential AI papers and researchers. What do you think characterizes the prose in the best AI papers?
+
+- Dense, technical language that signals deep expertise and methodological sophistication
+- Unusually simple and clear prose that makes complex ideas look easy
+- A formal academic register with extensive use of passive voice and hedging language
+
+::: {.predict-reveal}
+**The answer is B.** The best papers in AI are often the *easiest* to read. "Attention Is All You Need" is remarkably clear for a paper that introduced a decade-defining architecture. Karpathy's writing is legendary for accessibility. As Durand advises: "Use shorter sentences and simpler English." This simplicity is not a sign of shallow thinking; it is a signal of deep understanding. You cannot explain something simply unless you understand it thoroughly. The researcher who writes "We leverage a multi-scale hierarchical attention-based feature fusion paradigm" probably understands their method less clearly than the one who writes "We combine features from three different resolutions using attention."
+:::
+
+:::
+
+### Simplicity as a Signal of Mastery
+
+The best papers in AI are often the easiest to read. "Attention Is All You Need" is remarkably clear for a paper that introduced the architecture dominating the field for a decade. Andrej Karpathy's papers and blog posts are legendary for accessibility. Durand advises: "Use shorter sentences and simpler English. Most readers and reviewers are not native English speakers." Jason Wei echoes this point: "I try to use simple words and avoid jargon because much of the AI research community is not native English speakers."
+
+This simplicity is not a sign of shallow thinking; it is a signal of deep understanding. You cannot explain something simply unless you understand it thoroughly. The researcher who writes "We leverage a multi-scale hierarchical attention-based feature fusion paradigm" probably understands their method less clearly than the one who writes "We combine features from three different resolutions using attention." Farquhar makes the connection explicit: "The stylistic fluff IS signalling. It is a costly signal that you care about your work enough to make it look nice."
+
+Here is the paradox: making hard ideas look simple is the hardest writing skill. It requires many drafts. Richard Hamming, as quoted by Jason Wei, recommended spending "at least 50% of the time" on presentation. Many researchers spend 90% of their time on experiments and 10% on writing. The most successful researchers often invert that ratio.
+
+### Framing Your Contribution Generously
+
+Top researchers frame their contributions as general principles, not task-specific tricks. Wei's advice: "Choose topics that are simple, general, and stand the test of time." The same counsel applies not only to which topics you choose, but to how you frame your results. A paper titled "Token-Level Augmentation for Improved GLUE Scores" is narrower than "TokenMix: Token-Level Mixup Augmentation for Improved Language Model Pre-Training." The first title is about a benchmark. The second is about a method with broad applicability.
+
+The framing trick is to show downstream implications without overclaiming. Priya's TokenMix paper could end with: "While we demonstrate TokenMix on language model pre-training, the principle of embedding-space interpolation applies to any model that operates on continuous representations, including vision transformers and multimodal architectures." That closing sentence positions the work as a general principle without making unsupported claims. She does not say the method *will* work on vision models, only that the principle *applies*.
+
+Framing must be honest, though. The Qiu et al. study warns about *rhetorical inflation*: if visionary framing is rewarded with citations, conferences risk a cycle where increasingly bold claims are rewarded over careful exposition. The line between confident framing and overclaiming is simple. Can you back up every claim with evidence in the paper? If yes, frame boldly. If no, hedge appropriately.
+
+### The Post-Publication Writing
+
+Jason Wei identifies a fourth research skill that most researchers neglect: maximizing impact. "There are many ways of maximizing impact, and it's worth doing all of them: advertising the work on twitter, giving talks, presenting at conferences, writing follow-up papers, recording youtube videos, writing blog posts." The paper is only the first draft of your contribution's public narrative. Everything that follows (the Twitter thread, the conference talk, the blog post summary) is a chance to reach people who would never read the paper itself.
+
+Post-publication outreach is not self-promotion for its own sake. It extends the same communication principle that this entire chapter is built on: research that is not communicated effectively does not exist in practice. A paper published at NeurIPS that nobody reads has not increased the store of human knowledge any more than a paper that was never submitted.
+
+::: {.callout-note title="Think Hard: Is there a tension between simplicity and sophistication?"}
+Durand advises shorter sentences and simpler English. Pinker advocates classic style that shows the world directly. But top venues reward papers that demonstrate technical depth and methodological sophistication. Is there a risk that writing too simply makes a paper look shallow? The answer is that simplicity and sophistication operate at different levels. The *ideas* should be sophisticated. The *prose* should be simple. A paper that explains a complex method in clear, direct sentences signals mastery. A paper that explains a simple method in convoluted sentences signals insecurity. The reader's conclusion from clear writing is not "this work must be simple" but "this author understands their work deeply enough to explain it clearly."
+:::

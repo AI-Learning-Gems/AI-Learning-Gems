@@ -1,0 +1,283 @@
+## Closing {#sec-closing}
+
+### Key Takeaways
+
+- **Writing quality independently predicts paper acceptance and citation impact.** [Jiang et al. (2025)](https://openreview.net/forum?id=iSqOXQ7bCc) showed this across 28,000+ ICLR submissions; [Qiu et al. (2025)](https://arxiv.org/abs/2512.19908) showed that rhetorical framing predicts citations even after controlling for reviewer scores.
+
+- **Papers and blogs differ on four axes: purpose, audience, burden of proof, and genre conventions.** The difference is not "formal vs. informal" but a systematic divergence in communication goals. Papers establish verifiable claims for the scientific record. Blog posts teach, explain, and argue for a broad audience.
+
+- **The abstract and introduction carry disproportionate weight in peer review.** Invest heavily in them. Use Farquhar's five-sentence abstract formula or Steinhardt's context-surprise opening strategy. For the introduction, use Kurose's five-paragraph formula or Farquhar's compressed four-block structure. State your contributions with explicit bullet points.
+
+- **Follow concrete structural formulas for every section.** The abstract (Farquhar, Steinhardt, Peyton Jones). The introduction (Kurose). Related work (SPUR Lab: thematic grouping, not paper-by-paper listing, approximately one page). Method (Ernst: explain what AND why). Experiments (Wei: figures that stand alone).
+
+- **The style guide rules apply to every sentence you write.** Gopen and Swan's given-new contract (old information first, new information at the end). Steinhardt's precision ("accuracy" not "performance"). Durand's simplicity (one idea per sentence, short sentences). Pinker's nominalization test (restore the verb). Consistent terminology throughout (no synonym cycling).
+
+- **At least 21% of conference reviews are now AI-generated.** Write for dual audiences using four strategies: maximize internal consistency, make novelty explicit, structure for parseability, and avoid LLM-detectable language. Pre-check your paper with AI review tools before submission.
+
+- **Top researchers treat writing as a separate, cultivated skill.** Five elements determine whether a paper shapes the field or gets forgotten: naming, storytelling (the ABT framework), simplicity, generous framing, and post-publication communication. Hamming's rule: spend at least 50% of your time on presentation.
+
+- **Papers and blogs can learn from each other.** Papers need better hooks, more figures, and clearer intuitive explanations. Blog posts need better citations, reproducibility details, and limitation awareness.
+
+- **The future of research communication lies between the two genres.** Distill.pub demonstrated that peer-reviewed, interactive, multimedia-first publications are possible. Hybrid AI-human reviewing is becoming the norm.
+
+### Completed Concept Map
+
+```{.d2}
+# =========================================================================
+# 1. LAYOUT CONFIGURATION
+# =========================================================================
+direction: down
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+# =========================================================================
+# 2. DESIGN SYSTEM (6 Semantic Classes)
+# =========================================================================
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 14
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 16
+      bold: true
+    }
+  }
+}
+
+# =========================================================================
+# 3. CONTENT
+# =========================================================================
+center: {
+  class: [base; highlight]
+  label: "  Scientific Writing in AI  "
+}
+
+paper_box: "  Conference Paper  " {
+  class: [base; container]
+  label.near: top-left
+
+  p_purpose: {
+    class: [base; process]
+    label: "  Purpose: Verifiable Claim  "
+  }
+  p_audience: {
+    class: [base; process]
+    label: "  Audience: Expert Reviewers  \n  (Human + AI)  "
+  }
+  p_burden: {
+    class: [base; process]
+    label: "  Burden: Evidence + Citations  "
+  }
+  p_conventions: {
+    class: [base; process]
+    label: "  Conventions: Rigid Structure  \n  (Abstract-Intro-RW-Method-Exp-Conc)  "
+  }
+  p_style: {
+    class: [base; process]
+    label: "  Style: Given-New, Hedged,  \n  Precise, Consistent  "
+  }
+}
+
+blog_box: "  Technical Blog Post  " {
+  class: [base; container]
+  label.near: top-left
+
+  b_purpose: {
+    class: [base; input]
+    label: "  Purpose: Teach / Explain  "
+  }
+  b_audience: {
+    class: [base; input]
+    label: "  Audience: Broad, Benevolent  "
+  }
+  b_burden: {
+    class: [base; input]
+    label: "  Burden: Reputation-Based  "
+  }
+  b_conventions: {
+    class: [base; input]
+    label: "  Conventions: Flexible,  \n  Multimedia-First  "
+  }
+  b_style: {
+    class: [base; input]
+    label: "  Style: Opinionated, Visual,  \n  Narrative  "
+  }
+}
+
+ai_review: {
+  class: [base; decision]
+  label: "  Dual Audience Model  "
+}
+
+ai_checks: {
+  class: [base; decision]
+  label: "  AI Reviewer Checks:  \n  Structure, Consistency,  \n  Writing Quality  "
+}
+
+human_checks: {
+  class: [base; decision]
+  label: "  Human Reviewer Checks:  \n  Novelty, Significance,  \n  Deep Correctness  "
+}
+
+impact: {
+  class: [base; output]
+  label: "  Impact Factors  "
+}
+
+naming: {
+  class: [base; output]
+  label: "  Naming  "
+}
+
+storytelling: {
+  class: [base; output]
+  label: "  Storytelling (ABT)  "
+}
+
+simplicity: {
+  class: [base; output]
+  label: "  Simplicity  "
+}
+
+framing: {
+  class: [base; output]
+  label: "  Framing  "
+}
+
+convergence: {
+  class: [base; highlight]
+  label: "  Convergence Zone  \n  (Distill.pub, Karpathy,  \n  Weng, Olah)  "
+}
+
+# Connections
+center -> paper_box: "Genre 1" {style.stroke: "#10B981"}
+center -> blog_box: "Genre 2" {style.stroke: "#6366F1"}
+paper_box -> ai_review: "Modern Reality" {style.stroke: "#F59E0B"}
+ai_review -> ai_checks {style.stroke: "#F59E0B"}
+ai_review -> human_checks {style.stroke: "#F59E0B"}
+paper_box -> impact: "Influence" {style.stroke: "#10B981"}
+impact -> naming {style.stroke: "#1D4ED8"}
+impact -> storytelling {style.stroke: "#1D4ED8"}
+impact -> simplicity {style.stroke: "#1D4ED8"}
+impact -> framing {style.stroke: "#1D4ED8"}
+paper_box -> convergence: "Lessons" {style.stroke: "#10B981"}
+blog_box -> convergence: "Lessons" {style.stroke: "#6366F1"}
+```
+
+### Retrieval Practice Questions
+
+::: {.callout-tip collapse="true" title="Test yourself: 9 questions with answers"}
+
+**Q1: What are the four axes that distinguish conference papers from blog posts?**
+
+Purpose (verifiable claim vs. teach/explain), audience (expert reviewers vs. broad readership), burden of proof (evidence-based vs. reputation-based), and genre conventions (rigid structure vs. flexible/multimedia).
+
+**Q2: Describe Farquhar's abstract formula. What goes in each sentence?**
+
+Five sentences: (1) What you achieved ("We introduce..."), (2) Why the result is hard and important, (3) How you do it (a teaser with keywords), (4-5) What evidence you have (include your most remarkable number).
+
+**Q3: What is the "topic position to stress position" principle from Gopen and Swan?**
+
+Put old, familiar information at the beginning of the sentence (topic position) to provide context and backward linkage. Put new, important information at the end (stress position) where the reader naturally emphasizes it. This is the given-new contract.
+
+**Q4: Name three common anti-patterns in conference paper introductions.**
+
+(1) "Our field is a huge deal" opening paragraph that wastes space on field importance. (2) Burying the contribution deep in the paper instead of stating it in the first page. (3) Long recaps of prior work that belong in a separate Related Work section.
+
+**Q5: What is the ABT (And, But, Therefore) framework?**
+
+A storytelling structure from science communication: And (setup/context), But (complication/problem), Therefore (resolution/your contribution). Every influential paper contains this narrative arc.
+
+**Q6: Why does Steinhardt advise using "accuracy" instead of "performance"?**
+
+Because "performance" is vague and could mean accuracy, speed, memory usage, or any other metric. "Accuracy" is precise and maximizes information content. The reader should not have to guess what you mean.
+
+**Q7: What did the Jiang et al. 2025 study find about writing quality and paper acceptance?**
+
+Across 28,000+ ICLR submissions from 2017-2025, factors beyond scientific novelty significantly shaped acceptance outcomes. Clearer writing, balanced visual presentation, and concise professional tone each independently correlated with higher acceptance probability.
+
+**Q8: What percentage of ICLR 2026 reviews were AI-generated, and what are the key blind spots?**
+
+21% fully AI-generated (Pangram Labs analysis of ~70,000 ICLR 2026 reviews). Key blind spots include: novelty assessment (LLMs over-focus on technical validity), cross-section consistency (only 36.4% caught abstract-methods discrepancies), multimodal inconsistency (28-54% detection accuracy), and rating inflation for lower-quality papers.
+
+**Q9: Name three concrete strategies for writing papers robust to both AI and human reviewers.**
+
+(1) Maximize internal consistency (abstract numbers match results tables). (2) Make novelty explicit ("To the best of our knowledge, this is the first work to..."). (3) Structure for parseability (clear headings, numbered contributions, labeled ablations, bold best results).
+
+:::
+
+### Common Mistakes
+
+The five mistakes that most frequently sink first-time AI conference paper submissions:
+
+1. **Writing the paper last.** Starting the paper one week before the deadline guarantees poor writing. Peyton Jones advocates writing the paper *during* the research. Durand: "Good writing is critical for acceptance and good writing takes time. No one can write a good paper in 24 hours."
+
+2. **Vague contributions.** State your contributions as 2-4 bullet points, each one sentence long. If you cannot, you do not yet know what your paper contributes. Write the contribution list first. Everything else flows from it.
+
+3. **Ignoring the introduction.** The introduction is 10-15% of the paper but determines 50%+ of the reviewer's first impression. Steinhardt: "I frequently find that I have to wait until Section 4 to find out why I should care about a paper." Front-load the payoff.
+
+4. **Paper-by-paper related work.** Listing papers chronologically without thematic organization reads like a bibliography, not an argument. Organize by methodological theme. End each theme by showing how your work fits.
+
+5. **Figures that cannot stand alone.** If a reviewer looks at your figure without reading the text and cannot understand the main result, the figure has failed. Captions should be multiple sentences. Axes should be labeled. The best result should be visually obvious.
+
+### Curated Resources
+
+| # | Resource | URL | Why It's Useful |
+|---|---|---|---|
+| 1 | Simon Peyton Jones, "How to Write a Great Research Paper" (talk + slides) | [simon.peytonjones.org/great-research-paper](https://simon.peytonjones.org/great-research-paper/) | The canonical CS writing talk. Seven concrete suggestions. Watch the video. |
+| 2 | Sebastian Farquhar, "How to Write ML Papers" | [sebastianfarquhar.com](https://sebastianfarquhar.com/on-research/2024/11/04/how_to_write_ml_papers/) | The most ML-specific and modern guide. Covers every section with concrete formulas. |
+| 3 | Jacob Steinhardt, "Advice for Authors" | [jsteinhardt.stat.berkeley.edu](https://jsteinhardt.stat.berkeley.edu/blog/advice-for-authors) | Local style rules. Precision, conciseness, consistent phrasing. Reviewer's perspective. |
+| 4 | Gopen & Swan, "The Science of Scientific Writing" (1990) | [American Scientist PDF](https://yunliweb.its.unc.edu/pdf/GopenGD_SwanJA1990AS_ScientificWriting.pdf) | The theoretical foundation. Topic position, stress position, given-new contract. |
+| 5 | Michael Ernst, "How to Write a Technical Paper" | [pag.csail.mit.edu](https://pag.csail.mit.edu/~mernst/advice/write-technical-paper.html) | The most comprehensive guide. Covers everything from message to rejection handling. |
+| 6 | CMU 10-717: The Art of the Paper (Zachary Lipton) | [github.com/acmi-lab](https://github.com/acmi-lab/cmu-10717-the-art-of-the-paper) | Full graduate course on scientific writing. Syllabus, schedule, and curated resource list. |
+| 7 | Rachel Thomas, "Advice for Better Blog Posts" | [fast.ai](https://www.fast.ai/posts/2019-05-13-blogging-advice.html) | The best short guide to technical blog writing for AI researchers. |

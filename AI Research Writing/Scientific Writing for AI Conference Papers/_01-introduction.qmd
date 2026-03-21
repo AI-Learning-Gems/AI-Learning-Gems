@@ -1,0 +1,295 @@
+## Why Writing Is the Research {#sec-introduction}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [CMU 10717: The Art of the Paper (Zachary Lipton)](https://github.com/acmi-lab/cmu-10717-the-art-of-the-paper) | Lipton: "failures of writing nearly always betray failures of critical thinking" |
+| 2 | [Jiang et al., "What Drives Paper Acceptance?" (ICLR 2017-2025 study)](https://openreview.net/forum?id=iSqOXQ7bCc) | Writing clarity independently predicts acceptance across 28K+ ICLR submissions |
+| 3 | [Simon Peyton Jones, "How to Write a Great Research Paper"](https://simon.peytonjones.org/great-research-paper/) | "Writing is a primary mechanism for doing research, not just reporting it" |
+| 4 | [Michael Ernst, "How to Write a Technical Paper"](https://pag.csail.mit.edu/~mernst/advice/write-technical-paper.html) | "The purpose of research is to increase the store of human knowledge" |
+| 5 | [Frédo Durand, "Notes on Writing" (MIT CSAIL)](https://people.csail.mit.edu/fredo/PUBLI/writing.pdf) | "It is NOT superficial for a committee to reject an article based on writing alone" |
+| 6 | [Qiu et al., "Counterfactual LLM Framework for Measuring Rhetorical Style" (2025)](https://arxiv.org/abs/2512.19908) | "Visionary framing significantly predicts downstream attention, including citations" |
+
+:::
+
+### The Rejection
+
+You spent six months on this project. You ran thousands of experiments. You tested twelve baselines, conducted ablation studies on every component, and your method beat every prior approach on four benchmarks. You even cleaned up the code and released it on GitHub. Then you submitted to NeurIPS.
+
+Three weeks later, the reviews arrived. Reviewer 1: "Contribution unclear." Reviewer 2: "Paper is hard to follow; reads more like a blog post than a research paper." Reviewer 3: "The writing quality makes it difficult to assess the technical merit." Your overall score: 4, 4, 5. Reject.
+
+You stare at the reviews. Not a single one disputes your results. Nobody found a flaw in the experiments. Nobody questioned the baselines. The method is sound. The results are strong. But the *paper* is bad, and in the world of AI conferences, a bad paper with good results is still a rejected paper.
+
+This scenario is not hypothetical. It plays out at every major AI venue, every submission cycle, for researchers at every career stage. Strong technical work paired with weak writing is one of the most common causes of rejection. It is also one of the most preventable.
+
+The fictional researcher here, who we will call Priya, is writing up a data augmentation technique she calls "TokenMix." Her method is real and effective. Her paper is not. Over the course of this chapter, we will follow Priya as she rewrites TokenMix twice: once as a technical blog post for a broad ML audience, and once as a NeurIPS main conference submission for three anonymous reviewers who each have twenty papers to evaluate in two weeks. By watching the same idea take two different written forms, you will develop an intuition for how purpose, audience, and genre conventions shape every sentence you write.
+
+But before we get to the how, we need to answer a prior question: does writing actually matter?
+
+### The Empirical Case: Writing Predicts Acceptance and Impact
+
+Many researchers treat writing as a cosmetic layer that sits on top of the real work. Get the results right, the thinking goes, and the paper will sell itself. The evidence says otherwise.
+
+A large-scale empirical study by [Jiang et al. (2025)](https://openreview.net/forum?id=iSqOXQ7bCc) analyzed the complete OpenReview record of ICLR from 2017 to 2025, covering over 28,000 submissions. The study measured four dimensions of each manuscript: reviewer disagreement patterns, rebuttal dynamics, external signals (such as arXiv posting and submission timing), and the visual, linguistic, and reference characteristics of the writing itself.
+
+The central finding: "factors beyond scientific novelty significantly shape acceptance outcomes." Clearer writing, balanced visual presentation, and a concise, professional tone all independently correlated with higher acceptance probability, even after controlling for the novelty and technical contribution of the work.
+
+Before the LLM era (2017 to 2023), easier-to-read writing with slightly longer sentences was modestly advantageous. After 2024, the pattern shifted: a professional but concise tone with shorter sentences became a clear positive signal.
+
+The takeaway is simple. Writing quality is not a tiebreaker that matters only for borderline papers. It is a measurable predictor of acceptance across tens of thousands of submissions.
+
+That finding covers the peer review gate. But what about after acceptance? A separate study by [Qiu et al. (2025)](https://arxiv.org/abs/2512.19908) introduces a counterfactual framework for measuring rhetorical style in ML papers, independent of their substantive content. The method works by having multiple LLM "personas" rewrite the same abstract with different rhetorical intensities, then using pairwise comparisons and a Bradley-Terry model to estimate each paper's rhetorical strength.
+
+Qiu et al. applied this framework to 8,485 ICLR submissions from 2017 to 2025, generating over 250,000 counterfactual rewrites. The finding is striking: "visionary or confident framing significantly predicts both scholarly impact (citations) and public attention (media mentions), even after accounting for reviewer scores as a proxy for quality."
+
+The effect size is concrete. A one-unit increase in rhetorical score predicted 24 additional citations, 3 more media posts, and 2.5 more tweets. The rhetorical score showed *no* correlation with reviewer scores, so the rhetorical effect operates independently of what reviewers thought about the paper's quality. Rhetorical style determines how far your work travels after it clears the peer review bar.
+
+These two studies together establish something that researchers at every level need to internalize: **writing quality predicts whether your paper gets accepted, and rhetorical framing predicts whether it gets cited.** Neither study claims that writing substitutes for good science. Both show that good science with bad writing reaches fewer people than good science with good writing.
+
+### Writing as a Research Tool, Not a Report
+
+The empirical evidence is recent, but the argument is old. The most cited researchers in computer science have been saying for decades that writing is not a downstream task you perform after the research is "done." Writing *is* part of the research.
+
+Simon Peyton Jones, the legendary programming language researcher, frames writing as a thinking tool. In his widely viewed talk "How to Write a Great Research Paper," he puts it directly: "For me, writing is the way that you develop the ideas in the first place. It's the machinery of research, not the output, not the printer for research." Starting to write a paper, he argues, forces out the research itself: "I can't tell you how often I've started to write a paper and I've realized that something I thought I understood I don't understand after all. But when you write it down, it all seems more complicated than you thought it was." The talk has been translated into Arabic and Japanese, and is assigned as required viewing at multiple top CS departments.
+
+Michael Ernst, a professor at MIT CSAIL and the University of Washington, makes a complementary argument. As he writes in his guide on technical paper writing: "The purpose of research is to increase the store of human knowledge, and so even the very best work is useless if you cannot effectively communicate it to the rest of the world. If a paper is poorly written, then readers might conclude you spent as little effort on the research that it describes."
+
+Ernst then goes further: "writing papers and giving talks will clarify your thinking and thereby improve your research. You may be surprised how difficult it is to clearly communicate your ideas and contributions; doing so will force you to understand them more deeply and enable you to improve them." Ernst is not saying that communication matters because it spreads your results. He is saying that the *process* of communicating changes the results themselves.
+
+Frédo Durand, also at MIT CSAIL, puts the point most bluntly. In his "Notes on Writing," he opens with a declaration that many early-career researchers find startling: "It is NOT superficial for a committee to reject an article based on writing alone. Even if ideas are great, when nobody can understand them, they are useless."
+
+Durand then makes an observation that connects writing quality to impact beyond the initial review: "I can cite a number of great contributions that did not have as much impact as they should have because no one (except maybe the reviewers) was able to understand the paper."
+
+Zachary Lipton, a professor of machine learning at Carnegie Mellon University, puts the relationship between writing and thinking most forcefully. CMU 10-717, "The Art of the Paper," is one of the only graduate courses at a top CS department devoted entirely to scientific writing. In its course description, Lipton writes: "the role of scientific papers is far greater: they are the sole vehicle for expressing whole categories of scientific arguments, and failures of writing nearly always betray failures of critical thinking. Ultimately, superior writing skills are often what differentiates influential scientists and principal investigators from their peers."
+
+The course exists because Lipton believes that writing is not a "presentation skill" to be developed remedially. Writing is a core scientific competency that shapes whether your ideas spread and whether your career advances.
+
+These four perspectives converge on a single claim: writing is not the packaging. It is part of the product.
+
+### What This Chapter Delivers
+
+This chapter gives you two things.
+
+First, a systematic framework for understanding the deep structural and stylistic differences between writing a [**conference paper**]{style="color: #4F46E5;"} and writing a [**technical blog post**]{style="color: #047857;"} in AI. These two genres are the primary written forms that AI researchers work in, and most people conflate them. They are not the same. The difference is not just "formal versus informal." Papers and blog posts differ on four fundamental axes: purpose, audience, burden of proof, and genre conventions. Understanding these axes transforms vague advice ("write more formally for papers") into specific, actionable principles.
+
+Second, the chapter delivers a reference-grade [**style guide**]{style="color: #E11D48;"} for scientific paper writing in AI and CS. The style guide draws entirely from top researchers, professors, and large-scale empirical studies. It covers six areas: (a) sentence-level mechanics (how to order information within a sentence); (b) paragraph-level structure (how to organize claims within a paragraph); (c) the scientific voice (how to use "we," when to hedge, what tense to use); (d) citation and attribution norms; (e) figure and table design; and (f) a catalog of the most common anti-patterns that sink papers. Every rule comes with a source, a rationale, and a concrete BAD/GOOD example pair. If you read nothing else, read that section and keep it open while you write.
+
+### Roadmap
+
+@sec-two-genres builds the four-axis framework for comparing papers and blog posts, showing how the same technical contribution looks different in each medium. @sec-anatomy walks through each section of a conference paper (abstract, introduction, related work, method, experiments, conclusion) with concrete, sourced advice from top researchers. @sec-style-guide provides the reference-grade style guide: sentence-level rules, paragraph-level patterns, the scientific voice, citation norms, figure design, and common anti-patterns.
+
+The chapter then turns to two newer topics. @sec-ai-reviewer tackles the reality that at least 21% of conference reviews are now [**AI-generated**]{style="color: #B45309;"}. It covers what LLM reviewers focus on, what they miss, and how to write papers that are robust to both AI and human reviewers. @sec-top-researchers examines how the most influential AI researchers use writing as a tool for impact, covering naming, storytelling, simplicity, and framing. Finally, @sec-blog-craft gives the blog post genre its own thorough treatment and flips the lens: what can conference paper authors learn from the best blog writers, and vice versa?
+
+By the end, you will have a concrete mental model for the difference between these two genres and a toolkit of sourced, tested principles for writing AI conference papers that get accepted, get read, and get cited. You will also have a vocabulary for talking about writing quality that goes beyond "it sounds good" or "it needs to be more formal."
+
+### Learning Objectives
+
+After reading this chapter, you will be able to:
+
+- Articulate the four axes (purpose, audience, burden of proof, genre conventions) that distinguish conference papers from blog posts, and use these axes to make writing decisions
+- Write a structured abstract following established formulas from top researchers (Farquhar, Steinhardt, Peyton Jones)
+- Construct an introduction using Kurose's five-paragraph formula and Peyton Jones's contribution-nailing strategy
+- Apply Gopen and Swan's given-new contract to order information within sentences for maximum reader comprehension
+- Distinguish appropriate hedging levels ("we show" vs. "results suggest" vs. "we hypothesize") and calibrate confidence claims
+- Identify and fix the most common writing anti-patterns that lead to paper rejection
+- Write papers that are robust to both human and AI reviewers by maximizing internal consistency, making novelty explicit, and structuring for parseability
+
+### Chapter Concept Map
+
+```{.d2}
+# =========================================================================
+# 1. LAYOUT CONFIGURATION
+# =========================================================================
+direction: down
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+# =========================================================================
+# 2. DESIGN SYSTEM (6 Semantic Classes)
+# =========================================================================
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 14
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 16
+      bold: true
+    }
+  }
+}
+
+# =========================================================================
+# 3. CONTENT
+# =========================================================================
+center: {
+  class: [base; highlight]
+  label: "  Scientific Writing in AI  "
+}
+
+paper_genre: "  Conference Paper Genre  " {
+  class: [base; container]
+  label.near: top-left
+
+  purpose_p: {
+    class: [base; process]
+    label: "  Purpose: Verifiable Claim  "
+  }
+  audience_p: {
+    class: [base; process]
+    label: "  Audience: Expert Reviewers  "
+  }
+  burden_p: {
+    class: [base; process]
+    label: "  Burden: Evidence-Based  "
+  }
+  conventions_p: {
+    class: [base; process]
+    label: "  Conventions: Rigid Structure  "
+  }
+}
+
+blog_genre: "  Technical Blog Genre  " {
+  class: [base; container]
+  label.near: top-left
+
+  purpose_b: {
+    class: [base; input]
+    label: "  Purpose: Teach / Explain  "
+  }
+  audience_b: {
+    class: [base; input]
+    label: "  Audience: Broad Readership  "
+  }
+  burden_b: {
+    class: [base; input]
+    label: "  Burden: Reputation-Based  "
+  }
+  conventions_b: {
+    class: [base; input]
+    label: "  Conventions: Flexible  "
+  }
+}
+
+anatomy: {
+  class: [base; process]
+  label: "  Paper Anatomy  \n  (Section by Section)  "
+}
+
+style_guide: {
+  class: [base; output]
+  label: "  Style Guide  \n  (Sentence to Figure)  "
+}
+
+ai_reviewer: {
+  class: [base; decision]
+  label: "  AI Reviewer  \n  (Dual Audience)  "
+}
+
+impact: {
+  class: [base; output]
+  label: "  Impact Factors  \n  (Naming, Framing, Story)  "
+}
+
+convergence: {
+  class: [base; highlight]
+  label: "  Convergence Zone  \n  (Distill.pub, Blog-to-Paper)  "
+}
+
+# Connections
+center -> paper_genre: "Genre 1" {
+  style.stroke: "#10B981"
+}
+center -> blog_genre: "Genre 2" {
+  style.stroke: "#6366F1"
+}
+paper_genre -> anatomy: "Structure" {
+  style.stroke: "#10B981"
+}
+anatomy -> style_guide: "Craft" {
+  style.stroke: "#10B981"
+}
+style_guide -> ai_reviewer: "Modern Reality" {
+  style.stroke: "#F59E0B"
+}
+paper_genre -> impact: "Influence" {
+  style.stroke: "#10B981"
+}
+blog_genre -> convergence: "Lessons" {
+  style.stroke: "#6366F1"
+}
+paper_genre -> convergence: "Lessons" {
+  style.stroke: "#10B981"
+}
+```
+
+### Check Your Understanding
+
+::: {.exercise-mcq correct="C"}
+
+Based on the empirical evidence presented in this section, which statement best characterizes the relationship between writing quality and paper acceptance at top AI venues?
+
+- Writing is a cosmetic layer; only the novelty and correctness of results determine acceptance
+- Writing matters only for borderline papers where reviewers need a tiebreaker
+- Writing quality is an independent predictor of acceptance across tens of thousands of submissions, even after controlling for technical contribution
+- Strong results will always overcome poor writing because reviewers evaluate scientific merit, not prose
+
+::: {.feedback-correct}
+Correct. The Jiang et al. (2025) study of 28,000+ ICLR submissions found that writing clarity, visual presentation, and professional tone all independently correlated with higher acceptance probability, even after controlling for novelty and technical contribution. This is not a tiebreaker effect; it is a measurable, systematic predictor.
+:::
+
+::: {.feedback-incorrect}
+Review the subsection "The Empirical Case: Writing Predicts Acceptance and Impact." The Jiang et al. (2025) study analyzed over 28,000 ICLR submissions and found that writing quality independently predicts acceptance, not just for borderline papers but across the full distribution. The chapter's central claim is that writing quality predicts whether your paper gets accepted, and rhetorical framing predicts whether it gets cited.
+:::
+
+:::

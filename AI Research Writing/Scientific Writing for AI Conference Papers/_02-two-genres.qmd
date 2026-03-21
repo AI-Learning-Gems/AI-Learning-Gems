@@ -1,0 +1,177 @@
+## Two Genres, One Author {#sec-two-genres}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Alex Irpan, "Blog Posts and Research Papers" (2018)](https://www.alexirpan.com/2018/03/07/blog-paper.html) | "Blog posts encourage stating opinions; papers encourage stating truths." Direct comparison of genres. |
+| 2 | [Hohman et al., "Communicating with Interactive Articles," Distill (2020)](https://distill.pub/2020/communicating-with-interactive-articles) | Interactive articles improve recall and engagement vs. static formats. Theory from education and journalism. |
+| 3 | [Rachel Thomas, "Advice for Better Blog Posts," fast.ai (2019)](https://www.fast.ai/posts/2019-05-13-blogging-advice.html) | "Choose one specific target audience member." Blog writing best practices for AI researchers. |
+| 4 | [Steven Pinker, "Why Academics Stink at Writing," Chronicle of Higher Education (2014)](https://stevenpinker.com/files/pinker/files/pinker_2014_why_academics_writing_stinks.pdf) | Curse of knowledge, classic vs. self-conscious style, hedging, nominalizations. |
+
+:::
+
+Priya is sitting at her desk with two open documents. On the left, a draft blog post titled "TokenMix: A Simple Trick That Makes Language Models Better." On the right, a NeurIPS submission titled "TokenMix: Token-Level Mixup Augmentation for Improved Language Model Pre-Training." The underlying contribution is identical. The writing is not.
+
+The blog post opens with a story: "Last month, I was training a 1B parameter language model and noticed something strange." The paper opens with a problem statement: "Data augmentation has proven effective for computer vision tasks, yet its application to language model pre-training remains limited due to the discrete nature of token spaces." Both are correct openings for their genre. Neither would work in the other's place. The story would feel out of place to a NeurIPS reviewer expecting a crisp problem statement. The problem statement would bore a blog reader who has no stake in the data augmentation literature.
+
+The paper-blog difference is not just about tone. It reflects a structural divergence between two communication systems that AI researchers move between daily. To understand why Priya must write so differently for each audience, we need to examine four axes along which papers and blog posts systematically differ: (a) purpose; (b) audience; (c) burden of proof; and (d) genre conventions.
+
+### Axis 1: Purpose
+
+A [**conference paper**]{style="color: #4F46E5;"} exists to contribute a *verifiable claim* to the scientific record. That claim might be that a new method achieves state-of-the-art results on a benchmark. It might be that a theoretical analysis reveals a previously unknown property of an algorithm. It might be that an existing assumption in the field is wrong. Whatever the specific claim, it must be precise enough to be tested, reproduced, or refuted by subsequent work. The paper will be indexed, cited, and built upon. Its purpose is permanence.
+
+A [**blog post**]{style="color: #047857;"} exists to *teach, explain, or argue* to a broad audience. The blogger might explain how attention mechanisms work, survey the state of reinforcement learning, or argue that a popular technique is overrated. The goal is not to establish a verifiable claim in the scientific record but to change how readers think about a topic. Blog posts are bookmarked, shared on Twitter, and linked in course syllabi. Their purpose is influence through understanding.
+
+This purpose distinction has a concrete consequence for Priya's TokenMix writing. In the paper, her central purpose is to establish the claim "TokenMix improves pre-training performance by X% on benchmarks Y and Z." Every sentence should support or contextualize that claim. In the blog post, her central purpose is to help readers understand *why* token-level augmentation works and *when* they should use it. She is free to explore tangents, include intuition-building analogies, and speculate about future directions, because these digressions serve the teaching purpose even if they do not advance a verifiable claim.
+
+### Axis 2: Audience
+
+The audience for a conference paper is small, expert, and skeptical by design. Your paper will be read by three to five anonymous reviewers, each a domain expert with a stack of twenty other papers to evaluate. These readers are looking for flaws. They are trained to identify unsupported claims, missing baselines, and gaps in the argument. If they find any such flaw, they will penalize the paper. The secondary audience is future researchers who discover the paper through citation searches; those readers will skim selectively, looking for specific results, methods, or comparisons.
+
+The audience for a blog post is large, varied, and benevolent. Blog readers chose to read your post. Nobody assigned it to them. They will stop reading the moment they get bored, confused, or frustrated. Your job is to keep them engaged.
+
+Rachel Thomas, co-founder of fast.ai, captures the audience targeting difference precisely: "Choose one particular person that you can think of as your target audience. Be as specific as possible." Her advice for AI researchers converting papers into blog posts is equally revealing: "Assume that unlike your paper reviewers, the reader of your blog post has not read the related research papers. Assume your audience is intelligent, but not in your subfield."
+
+Alex Irpan, a Google Brain researcher, describes the flip side from the blog perspective. When he wrote his viral "Deep RL Doesn't Work Yet" post, he "specifically wrote the post towards people who either worked on deep RL, or had a lot of interest in deep RL." The advantage of that narrow targeting: "I was free to jump directly to the points I wanted to make."
+
+In a paper, you cannot jump directly to the points. You must build up from the problem definition, establish notation, review related work, and position your contribution. The paper must be self-contained for a reviewer who may not share your exact background. As Irpan puts it: "The research paper format encourages the authors to be complete. Papers are written for everyone, from the enthusiast to the new undergrad and the tenured professor."
+
+This audience difference explains something that frustrates many first-time paper authors: why do reviewers demand so much boilerplate? Because the paper must be legible to all qualified reviewers, not just those who share the author's specific expertise. The blog post makes the opposite trade-off: it assumes a shared context and links out for anything the reader might not know.
+
+### Axis 3: Burden of Proof
+
+Here is the deepest difference between the two genres, and the one most researchers underestimate.
+
+Irpan frames it with a sentence that deserves to be memorized: "Blog posts encourage stating opinions, whereas papers encourage stating truths." He then unpacks the consequence: "If papers are supposed to be kernels of truth about the world, then it's only natural that people expect high-quality arguments, where every claim is backed up with evidence. But the flip side of this is that it's harder for papers to speculate. Increasing the burden of proof restricts what you can say."
+
+In a paper, every factual claim must be supported. "Our method achieves 92% accuracy" requires a table with results, error bars, and a description of the experimental setup. "Prior methods struggle with long sequences" requires citations to papers that demonstrate the struggle. "We hypothesize that the improvement comes from increased token diversity" must be clearly marked as speculation, not fact. The language of papers reflects this high burden: "we observe," "results suggest," "to the best of our knowledge." These hedges are not signs of weakness. They are genre conventions that signal calibrated confidence.
+
+Steven Pinker, the cognitive scientist and linguist, provides the theoretical framework for understanding why paper prose is so heavily hedged. In his essay "Why Academics Stink at Writing," Pinker identifies what he calls *self-conscious style*, a concept drawn from Thomas and Turner's *Clear and Simple as the Truth*. In classic style, the writer sees something the reader hasn't noticed and orients the reader to see it. In self-conscious style, the writer's chief concern is "to escape being convicted of philosophical naiveté about his own enterprise."
+
+Academic papers gravitate toward self-conscious style because the consequences of overclaiming are severe. A reviewer who catches an unsupported claim will use it to justify rejection. As Pinker puts it, many of the "hallmarks of academese are symptoms of this agonizing self-consciousness."
+
+Blog posts operate with a different warrant system. The author's reputation and track record serve as the primary warrant for claims. When a well-known researcher writes "I think X is the right approach" on their blog, readers trust the claim partly because of who the author is, not solely because the claim is backed by a controlled experiment. As Irpan notes: "People still expect your argument to be solid, but the burden of proof for 'acceptable blog post' feels lower."
+
+Blog authors can say "I think," "I believe," and "in my experience" without hedging. Rachel Thomas even encourages it: "Don't be afraid to have an opinion."
+
+::: {.callout-warning title="Common Misconception: Hedging in papers is a sign of weakness"}
+New researchers sometimes read advice about hedging ("we observe," "results suggest") and conclude that confident writing is better. The opposite is true in the paper genre. Appropriate hedging signals scientific maturity and calibrated confidence. A paper that says "we prove" when the evidence only supports "results suggest" will be penalized by reviewers for overclaiming. The key is to match the strength of your language to the strength of your evidence. "We show" (strong claim backed by proof or extensive experiments) and "we observe" (empirical finding that may not generalize) are both correct in the right context.
+:::
+
+::: {.exercise-mcq correct="B"}
+
+A reviewer writes: "The authors claim their method 'solves' the long-context problem, but Table 2 shows only marginal improvements on two benchmarks." Which axis best explains why this reviewer reaction is predictable in the paper genre but would be unlikely from a blog reader?
+
+- Purpose: the paper exists to teach, so reviewers expect pedagogical clarity
+- Burden of proof: papers require every claim to be supported by evidence, so "solves" without strong results triggers reviewer pushback
+- Audience: blog readers are experts who would also catch this overclaim
+- Genre conventions: the rigid structure of a paper forces authors to overclaim in the abstract
+
+::: {.feedback-correct}
+Correct. The burden-of-proof axis is the key. As Irpan puts it, "papers encourage stating truths" with every claim backed by evidence. The word "solves" implies a strong, settled result, but "marginal improvements on two benchmarks" does not support that strength of language. A blog reader might tolerate the same phrasing because the burden of proof is lower and reputation-based. The reviewer, operating under the paper genre's high evidentiary standard, flags the mismatch between claim strength and evidence strength.
+:::
+
+::: {.feedback-incorrect}
+Reread Axis 3 (Burden of Proof). The issue here is a mismatch between the strength of the claim ("solves") and the strength of the evidence ("marginal improvements"). In the paper genre, Irpan's principle applies: "papers encourage stating truths," so every factual claim must be calibrated to the evidence. Blog posts operate under a lower burden where reputation warrants opinions. The reviewer is not objecting to structure, teaching quality, or audience expertise; the objection is that the claim exceeds its evidence.
+:::
+
+:::
+
+### Axis 4: Genre Conventions
+
+Conference papers follow rigid structural conventions: abstract, introduction, related work, method, experiments, conclusion, references. These sections appear in approximately the same order across NeurIPS, ICML, ICLR, ACL, and CVPR. Papers are typeset in LaTeX using conference-specific templates in double-column format, with strict page limits (typically 8-10 pages excluding references). Review is anonymous: the author's name does not appear on the manuscript during evaluation.
+
+Blog posts have no required structure. There is no page limit, no template, and no anonymity. The author's name, photo, and affiliation appear prominently. Multimedia is not supplementary; it is core.
+
+Irpan chose the blog format partly because "I knew I wanted lots of videos. It is so, so much easier to explain the behavior of these algorithms if you can actually show videos of those behaviors. Papers have videos too, but they're often marked as supplemental material, whereas I wanted them to be front and center." Blog posts can embed interactive visualizations, runnable code, animated GIFs, and hyperlinks to related material. Papers cannot.
+
+Pinker identifies another convention that separates the genres: *professional narcissism*, his term for the habit of describing what you are about to do rather than doing it. He gives a devastating example of a typical paper opening: "In recent years, an increasing number of psychologists and linguists have turned their attention to the problem of child language acquisition. In this article, recent research on this process will be reviewed." Pinker rewrites it in what he calls classic style: "All children acquire the ability to speak a language without explicit lessons. How do they accomplish this feat?"
+
+The first version talks about *the paper*. The second talks about *the world*. Papers tend toward the first pattern because genre conventions reward explicit signposting ("In this paper, we propose..."). Blog posts tend toward the second because readers will stop reading if you describe your own process instead of teaching them something.
+
+::: {.exercise-mcq correct="D"}
+
+Priya is converting her NeurIPS submission on TokenMix into a blog post. She currently has a paragraph that reads: "In this paper, we propose TokenMix, a novel augmentation technique. In Section 2, we define the problem. In Section 3, we describe our method. In Section 4, we present experiments." Which axis explains why this paragraph works in a paper but fails in a blog post?
+
+- Purpose: the blog post has a different central claim than the paper
+- Audience: blog readers are less intelligent and cannot follow signposting
+- Burden of proof: the blog post requires less evidence, so the roadmap is unnecessary
+- Genre conventions: papers reward explicit signposting, but blog readers expect the writer to teach them something rather than describe the document's own structure
+
+::: {.feedback-correct}
+Correct. Pinker calls this pattern "professional narcissism": describing what the paper is about to do rather than doing it. Papers tolerate (and even reward) this signposting because reviewers use it to navigate a dense, structured document. Blog readers, by contrast, will stop reading if you describe your own process instead of teaching them something. The paragraph talks about *the paper* rather than *the world*, which violates blog genre norms.
+:::
+
+::: {.feedback-incorrect}
+This is about genre conventions (Axis 4), not purpose, audience intelligence, or burden of proof. Pinker identifies the pattern as "professional narcissism," where the writer describes the document's structure rather than engaging the reader directly. Papers reward signposting ("In Section 3, we describe...") because reviewers need navigational cues. Blog readers expect the writer to teach them something directly. The paragraph fails as a blog post because it talks about the document rather than the subject.
+:::
+
+:::
+
+### The Side-by-Side View
+
+The following table maps common writing tasks across both genres, using Priya's TokenMix example.
+
+| Writing Task | Conference Paper | Blog Post |
+|---|---|---|
+| **Opening** | Problem statement: "Data augmentation remains underexplored for language model pre-training..." | Story: "Last month, I noticed something strange while training a 1B model..." |
+| **Making a claim** | Hedged and evidence-backed: "We observe a 3.2% improvement (Table 2), suggesting that token-level mixing..." | Direct and personal: "TokenMix works. It gave me a 3.2% boost on every benchmark I tried." |
+| **Citing prior work** | Parenthetical: "(Zhang et al., 2018; Yun et al., 2019)" with thematic organization | Inline with links: "If you've seen [Mixup](https://arxiv.org/abs/1710.09412), this is the same idea applied to tokens." |
+| **Showing results** | Table with baselines, error bars, and ablations. Bold best results. | Interactive plot or screenshot. "Here's what happened when I varied the mix ratio." |
+| **Visual presentation** | LaTeX figures with captions. Vector PDF diagrams. Supplemental videos. | Inline GIFs, embedded videos, interactive widgets, code blocks. |
+| **Author identity** | Anonymous during review. "We propose..." | Named and personal. Photo, bio, Twitter handle. "I built..." |
+| **Speculation** | Marked and hedged: "We hypothesize that future work could extend this approach to..." | Free and direct: "I think this could work for vision models too. I haven't tested it, but here's my reasoning..." |
+| **Length** | 8-10 pages (strict limit, excluding references) | No limit. As long or as short as the explanation requires. |
+
+::: {.exercise-order correct="C,D,B,A"}
+
+Rank the four axes from MOST different between papers and blogs (top) to LEAST different (bottom). Consider the side-by-side table and the preceding discussion.
+
+- Purpose (to claim vs. to teach)
+- Audience (expert reviewers vs. broad readership)
+- Genre conventions (rigid structure vs. flexible format)
+- Burden of proof (evidence-based vs. reputation-based)
+
+::: {.order-feedback}
+**Correct order: C (Burden of proof), D (Genre conventions), B (Audience), A (Purpose).**
+
+Burden of proof is the deepest difference: Irpan calls it the axis that "restricts what you can say." Papers demand evidence for every claim; blogs let reputation carry the warrant. Genre conventions differ dramatically (LaTeX templates, page limits, and anonymity vs. no constraints, multimedia, and named authorship). Audience differs meaningfully (skeptical expert reviewers vs. self-selected interested readers), but both audiences are technically sophisticated. Purpose is the least different because both genres ultimately communicate technical ideas; the distinction between "verifiable claim" and "teach/explain" is real but narrower than the other axes.
+:::
+
+:::
+
+::: {.exercise-mcq correct="A"}
+
+In the side-by-side table, the "Making a claim" row shows that a paper says "We observe a 3.2% improvement (Table 2), suggesting that token-level mixing..." while a blog post says "TokenMix works. It gave me a 3.2% boost on every benchmark I tried." Both report the same number. What is the critical difference?
+
+- The paper hedges ("we observe," "suggesting") to match evidence strength, while the blog states it as personal experience ("it gave me") warranted by the author's identity
+- The paper uses more formal vocabulary, which makes it more trustworthy to any reader
+- The blog is less accurate because it says "every benchmark" without specifying which ones
+- The paper's phrasing is longer, which signals more thorough research
+
+::: {.feedback-correct}
+Correct. The difference is not vocabulary formality or length; it is the warrant system. The paper uses hedged language ("we observe," "suggesting") because every claim must be calibrated to the evidence under the paper genre's high burden of proof. The blog uses personal framing ("it gave me") because the author's reputation serves as the primary warrant. Both report the same number, but the language reflects which proof system (evidence vs. reputation) is operating.
+:::
+
+::: {.feedback-incorrect}
+The key difference is the warrant system, not formality, accuracy, or length. The paper hedges ("we observe," "suggesting") because the burden of proof requires calibrating language strength to evidence strength. The blog uses first-person experience ("it gave me") because the author's identity and track record serve as the warrant. Reread Axis 3 (Burden of Proof) to see why Irpan's distinction between "stating opinions" and "stating truths" drives this difference.
+:::
+
+:::
+
+### The Convergence Zone
+
+The paper-blog distinction is a spectrum, not a binary. Some publications sit between the two genres, borrowing conventions from both.
+
+The most ambitious attempt to merge papers and blogs was *Distill.pub*, a peer-reviewed journal of interactive explanations that ran from 2016 to 2021. Distill borrowed from the paper world: DOIs, ISSN numbers, and expert peer review. It borrowed equally from the blog world: interactive visualizations, animations, explorable explanations, and a design philosophy that assumed no expertise in the specific topic.
+
+The results were striking. As [Hohman et al. (Distill, 2020)](https://distill.pub/2020/communicating-with-interactive-articles) documented, interactive articles "have been shown to be more engaging, can help improve recall and learning, and attract broad readership and acclaim." The theoretical basis is Mayer's Multimedia Principle: "people learn better from words and pictures rather than words or pictures alone."
+
+Why did Distill shut down? Two reasons. First, the authoring cost. Hohman et al. noted that "the act of creating a successful interactive article is closer to building a website than writing a blog post, often taking significantly more time and effort than a static article, or even an academic publication." Second, misaligned incentives: "why should a researcher spend time on an 'extra' interactive exposition of their work when they could instead publish more papers, a metric by which their career depends on?" Pinker identified the same structural problem in his essay: academia has "few incentives for writing well." That problem applies with even greater force to interactive explanations, which demand web development skills on top of writing skills.
+
+::: {.callout-note title="Think Hard: Is the paper format fundamentally broken for communicating ML research?"}
+Irpan's provocative claim that "research papers are a shockingly inefficient way to communicate new ideas" reflects a real frustration. Once you know a field well, most of a paper's content is predictable boilerplate. But the format persists because it solves a different problem: it provides a verifiable, self-contained, peer-reviewed unit of scientific contribution that can be indexed, cited, and reproduced. Blog posts are better at teaching. Papers are better at establishing claims in the scientific record. The two purposes are genuinely different, which is why both formats survive. The interesting question is whether a third format (interactive, peer-reviewed, multimedia-first) could serve both purposes simultaneously. Distill tried. The jury is still out on whether the model can be sustained.
+:::
+
+Some movements go the other direction: blog posts that become papers. Irpan's "Deep RL Doesn't Work Yet" could have been submitted to arXiv as a position paper. Some researchers write a blog post first, gather community feedback, then formalize the ideas into a submission. Andrej Karpathy's writing regularly blurs the line: his papers read with unusual clarity, and his blog posts are cited in academic work. Lilian Weng's blog posts on lilianweng.github.io function as survey papers with blog accessibility. These hybrid writers succeed because they understand both genres well enough to borrow the best conventions from each. That cross-genre fluency is exactly the skill this chapter aims to build.

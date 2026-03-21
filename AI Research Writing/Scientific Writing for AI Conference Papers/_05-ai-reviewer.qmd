@@ -1,0 +1,158 @@
+## Writing for the AI Reviewer {#sec-ai-reviewer}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Pangram Labs, "21% of ICLR Reviews are AI-Generated" (2025)](https://www.pangram.com/blog/pangram-predicts-21-of-iclr-reviews-are-ai-generated) | 21% of ICLR 2026 reviews fully AI-generated; 50%+ showed some AI use |
+| 2 | [Russo Latona et al., "The AI Review Lottery" (2024)](https://arxiv.org/abs/2405.02150) | 15.8% of ICLR 2024 reviews AI-assisted; AI reviews increased acceptance by 3.1pp |
+| 3 | [Thakkar et al., ICLR 2025 LLM Review Feedback RCT (Nature Machine Intelligence)](https://arxiv.org/abs/2504.09737) | 26.6% of reviewers updated reviews; blinded evaluators preferred updated reviews 89% of the time |
+| 4 | [Shen et al., "Mind the Blind Spots" (EMNLP 2025)](https://aclanthology.org/2025.emnlp-main.1805/) | LLMs over-focus on technical validity, neglect novelty; 59.42% fewer critical entities in weaknesses |
+| 5 | [RefereeSim, Cross-section consistency study](https://openreview.net/pdf?id=QXyeIJ9PQ3) | Only 36.4% of LLMs caught abstract-methods sample-size discrepancy |
+| 6 | [PRISMM-Bench, Multimodal inconsistency detection](https://arxiv.org/html/2510.16505v2) | 27.8-53.9% performance from 21 leading multimodal models |
+| 7 | [Keuper, "Prompt injection attacks on LLM reviews" (2025)](https://arxiv.org/html/2509.10248v2/) | White-text injection achieves up to 100% positive ratings in some models |
+| 8 | [LLM bias in peer review, affiliation and status](https://openreview.net/forum?id=iXvaR93WqE) | LLMs favor highly-ranked institutions and senior authors |
+| 9 | [ICLR 2026 LLM policy](https://blog.iclr.cc/2025/11/19/iclr-2026-response-to-llm-generated-papers-and-reviews/) | Mandatory disclosure, desk-rejection for undisclosed LLM use |
+| 10 | [ICML 2026 LLM two-policy framework](https://icml.cc/Conferences/2026/LLM-Policy) | Policy A (no LLM) vs Policy B (permissive); watermark-based detection |
+
+:::
+
+Everything we have covered so far (the anatomy, the style guide, the genre conventions) assumed your paper will be read by human reviewers. That assumption is no longer entirely correct.
+
+A substantial fraction of the reviews at top AI conferences are now written or heavily assisted by large language models. The shift happened fast enough that most writing guides have not caught up. Understanding what [**LLM reviewers**]{style="color: #B45309;"} focus on and what they miss lets you write papers that are robust to both audiences.
+
+### The Scale of the Shift
+
+In November 2025, [Pangram Labs](https://www.pangram.com/blog/pangram-predicts-21-of-iclr-reviews-are-ai-generated) analyzed 19,000 papers and roughly 70,000 reviews submitted for ICLR 2026 using their EditLens detection system. The headline: 21% of reviews (15,899) were classified as fully AI-generated, and over half showed some degree of AI involvement. On the manuscript side, 9% of submissions had over 50% AI-generated content.
+
+These detection rates accelerated from earlier estimates. [Russo Latona et al. (2024)](https://arxiv.org/abs/2405.02150) used GPTZero to estimate that 15.8% of ICLR 2024 reviews were AI-assisted; 49.4% of submissions received at least one AI-generated review. AI-generated reviews correlated with a 3.1 percentage point increase in acceptance probability overall, rising to 4.9 percentage points for borderline submissions.
+
+LLM-generated reviews carry a distinctive linguistic fingerprint. Words like "commendable," "meticulous," and "intricate" appear at substantially elevated frequencies compared to the pre-ChatGPT baseline. These adjective patterns became the basis for the statistical detection methods that researchers and conference organizers now use.
+
+Why is this happening? The reviewer workload is staggering. NeurIPS grew from 9,467 submissions in 2020 to over 21,000 by 2025. Each reviewer is assigned 4-6 papers and given two weeks. Reviewing is unpaid labor with no formal credit. Under these conditions, the temptation to reach for LLM assistance is structurally predictable.
+
+### What LLM Reviewers Are Good At
+
+LLM reviewers are not uniformly bad. A large-scale randomized controlled trial at [ICLR 2025, published in Nature Machine Intelligence](https://arxiv.org/abs/2504.09737), provided LLM-generated feedback to human reviewers as a "second opinion." Of the roughly 19,000 reviewers who received this feedback, 26.6% (5,031) updated their reviews. Blinded human evaluators preferred the modified reviews 89% of the time. The LLM feedback increased average review length by about 80 words for reviewers who updated. The study found no statistically significant impact on acceptance rates (32.3% in the feedback group vs. 30.8% in the control group).
+
+LLM reviewers excel at three things: (a) articulating a paper's strengths and weaknesses in structured, readable prose; (b) giving constructive feedback on writing quality, organization, and table/figure design; and (c) maintaining consistent coverage of standard evaluation criteria (novelty, soundness, significance, clarity).
+
+::: {.exercise-predict correct="A"}
+
+Given that LLM reviewers are good at evaluating writing quality, identifying strengths/weaknesses in structured prose, and maintaining consistent coverage of evaluation criteria, what do you think is the *biggest* blind spot of LLM reviewers?
+
+- Assessing whether the paper's contribution is genuinely novel relative to the existing literature
+- Detecting grammatical errors and unclear sentence structure
+- Identifying missing baselines in the experimental comparison
+- Evaluating whether the paper follows the standard section structure (abstract, introduction, methods, results)
+
+::: {.predict-reveal}
+**The answer is A.** LLMs are surprisingly competent at surface-level evaluation: grammar, structure, completeness of baselines. Their critical weakness is *novelty assessment*. [Shen et al. (EMNLP 2025)](https://aclanthology.org/2025.emnlp-main.1805/) found that LLMs "significantly biased focus towards examining technical validity while overlooking novelty assessment," and that LLM weakness sections contained 59.42% fewer critical entities than human reviews. An LLM can tell you if a method is technically sound. It cannot reliably tell you if the method is *new*, because that requires deep knowledge of the field's frontier and an understanding of what counts as a meaningful intellectual advance versus an incremental variation.
+:::
+
+:::
+
+### What LLM Reviewers Miss
+
+The blind spots are serious, and they directly shape how you should write.
+
+**Novelty assessment.** [Shen et al. (EMNLP 2025)](https://aclanthology.org/2025.emnlp-main.1805/) conducted a focus-level evaluation of LLM reviews using 676 reviews with 3,657 annotated items. The central finding: LLMs show "significantly biased focus towards examining technical validity while overlooking novelty assessment." LLMs can tell if your method is technically sound. They struggle to judge whether the method is *new*. In weakness sections, LLM reviews contained 59.42% fewer critical entities than human reviews. LLM critiques stay at the surface; they do not deeply engage with what is wrong.
+
+**Cross-section consistency.** The [RefereeSim study](https://openreview.net/pdf?id=QXyeIJ9PQ3) tested whether LLMs could catch a deliberate inconsistency: the abstract stated one sample size, and the methods section stated a different one. Only 36.4% (4 out of 11) tested LLMs caught the discrepancy. Cohere and Gemini models succeeded; DeepSeek, Llama, and OpenAI models failed entirely. LLMs tend to read sections independently, without holding the whole paper in working memory. They do not cross-check claims the way a careful human reader does.
+
+**Multimodal inconsistency.** The [PRISMM-Bench study](https://arxiv.org/html/2510.16505v2) tested 21 leading multimodal models on detecting inconsistencies between text, figures, tables, and equations in real papers. Performance ranged from 27.8% to 53.9%. If your figure contradicts your text, an LLM reviewer may not catch the mismatch. A human reviewer reading carefully will.
+
+**Rating inflation.** LLM reviews tend to inflate ratings for lower-quality papers while aligning more closely with human judgments on stronger papers. LLM reviewers show an acceptance bias: some configurations produce positive recommendations over 95% of the time. They also exhibit [affiliation and status biases](https://openreview.net/forum?id=iXvaR93WqE), favoring authors from highly ranked institutions and senior researchers with long publication histories.
+
+::: {.exercise-mcq correct="C"}
+
+A colleague is preparing a paper with a subtle theoretical contribution: a new proof technique that unifies two previously separate convergence analyses. The empirical results are modest (1-2% improvement on standard benchmarks). Given the LLM reviewer blind spots discussed above, which weakness of LLM reviewers is *most likely* to harm this paper's chances?
+
+- Cross-section consistency: the LLM might not verify that the theorem statement in Section 3 matches the proof sketch in the appendix.
+- Rating inflation: the LLM might give the paper a higher score than it deserves because of the well-structured proofs.
+- Novelty assessment: the LLM is likely to miss that the theoretical unification is genuinely new because it focuses on the modest empirical gains.
+- Multimodal inconsistency: the LLM might not catch discrepancies between the proof diagrams and the theorem text.
+
+::: {.feedback-correct}
+The paper's main contribution is a *subtle theoretical advance* with modest empirical results. LLMs "significantly biased focus towards examining technical validity while overlooking novelty assessment" ([Shen et al., EMNLP 2025](https://aclanthology.org/2025.emnlp-main.1805/)). An LLM reviewer would likely check whether the proofs are well-structured and the experiments are sound, but fail to appreciate that the *unification* of two convergence analyses is the real contribution. A human reviewer with domain expertise would recognize the intellectual novelty immediately.
+:::
+
+::: {.feedback-incorrect}
+Think about what makes this paper special: it is not the empirical results (modest) but the theoretical insight (unifying two separate proofs). Which LLM weakness most directly threatens a paper whose value lies in *intellectual novelty* rather than benchmark numbers? Review the four blind spots: novelty assessment, cross-section consistency, multimodal inconsistency, and rating inflation.
+:::
+
+:::
+
+### How to Write Papers Robust to Both Audiences
+
+You now face two audiences. Human reviewers check novelty and deep correctness. LLM reviewers check structure, consistency, and surface writing quality. Here are concrete strategies for satisfying both.
+
+**Maximize internal consistency.** LLMs are weak at cross-section verification, but when they do check, they check numbers and specific claims. Make sure the numbers in your abstract match your results tables. If the abstract says "3.2% improvement," the table should show exactly 3.2%. If the introduction claims four contributions, the body should deliver exactly four. Treat your paper as a contract: every claim in the abstract needs a corresponding evidence cell in the results.
+
+**Make novelty explicit.** LLMs under-evaluate novelty, so if your paper's contribution is subtle (a new theoretical connection rather than a new architecture), you must spell it out in plain language. Use phrases like "To the best of our knowledge, this is the first work to..." Human reviewers pick up implicit novelty from context and their knowledge of the field. LLM reviewers do not.
+
+**Structure for parseability.** LLMs evaluate papers section by section. Use clear section headings, numbered contributions in the introduction, explicit "Our contributions are" lists, and clearly labeled ablation studies. Bold the best result in every comparison table. This kind of structured formatting helps LLM reviewers who parse mechanically. It also helps human reviewers who skim.
+
+**Avoid LLM-detectable language.** If your paper reads like it was written by ChatGPT, a reviewer (human or detection tool) may flag it. Certain adjectives appear at dramatically elevated frequencies in AI-generated reviews: "commendable," "meticulous," "intricate," "innovative," "notable." Replace these with precise, domain-specific language. Instead of "The meticulous design of the experiments," write "The experiments control for three confounds: dataset contamination, hyperparameter sensitivity, and evaluation metric choice." The specific version is both more informative and less likely to trigger detection.
+
+**Make figures genuinely informative.** LLMs are weak at reading figures (28-54% accuracy on multimodal consistency). Your figures must be *backed up by text* that restates their key findings. Do not rely on figures alone to carry your argument. Human reviewers do look at figures carefully, so invest in high-quality visuals regardless.
+
+**Pre-check with AI tools.** The ICLR 2025 RCT showed that blinded evaluators preferred LLM-augmented reviews 89% of the time. Run your paper through an LLM-based review tool before submitting. If the LLM finds a weakness, a reviewer will too. Fix it in advance.
+
+::: {.exercise-mcq correct="B"}
+
+Your paper introduces a new data augmentation method. In the abstract you write "2.8% improvement on GLUE." In Table 2, the actual number is 3.2% (you updated the experiments but forgot to update the abstract). An LLM reviewer and a human reviewer both read the paper. Based on the blind spots discussed in this section, which outcome is most likely?
+
+- The LLM reviewer catches the discrepancy; the human reviewer misses it.
+- Neither reviewer is guaranteed to catch it, but the human reviewer is more likely to notice because humans naturally cross-check claims across sections.
+- Both reviewers are equally likely to catch the discrepancy because numbers are easy to verify.
+- The LLM reviewer is more likely to catch it because LLMs are better at numerical consistency checks.
+
+::: {.feedback-correct}
+The RefereeSim study found that only 36.4% of LLMs caught a deliberate abstract-methods sample-size discrepancy. LLMs tend to process sections independently, without maintaining the kind of cross-paper working memory that a careful human reader uses. Human reviewers who read attentively will notice when a number in the abstract does not match the results table, because they build a running mental model of the paper's claims. Neither audience is guaranteed to catch it, which is precisely why "maximize internal consistency" is the first strategy in the robustness checklist.
+:::
+
+::: {.feedback-incorrect}
+Recall the RefereeSim study's finding: only 36.4% of LLMs detected a deliberate numerical inconsistency between the abstract and methods section. LLMs process sections independently. Think about which audience is more likely to maintain a coherent mental model across the full paper.
+:::
+
+:::
+
+::: {.exercise-order correct="D,B,C,A"}
+
+Arrange these four steps in the order you should perform them when preparing a paper to be robust to both human and AI reviewers:
+
+- Run a pre-submission LLM review tool and fix any weaknesses it identifies
+- State your novelty claims explicitly using phrases like "To the best of our knowledge, this is the first work to..."
+- Add structured formatting: numbered contributions, bold best results, clearly labeled ablations
+- Verify all numbers in the abstract match the results tables exactly
+
+::: {.order-feedback}
+**Correct order: D, B, C, A.** First, verify internal consistency (D) because mismatched numbers undermine everything else. Second, make novelty explicit (B) because this addresses the biggest LLM blind spot and shapes how both audiences perceive your contribution. Third, add structured formatting (C) to help both LLM parsers and human skimmers navigate the paper. Finally, run LLM pre-review (A) as the last step, because it serves as a final check that catches any remaining issues after you have already optimized the substance and structure.
+:::
+
+:::
+
+::: {.callout-warning title="Common Misconception: If 21% of reviews are AI-generated, writing quality doesn't matter because AI can't judge quality"}
+The opposite. LLM reviewers are *better* than humans at evaluating surface-level writing quality, organization, and clarity. They reward well-structured papers and penalize vague, poorly organized ones. Writing quality matters *more*, not less, in the age of AI reviewing. What LLMs miss is not quality but novelty and deep correctness. Those are properties of the *research*, not the *writing*.
+:::
+
+### The Ethics of Writing for AI Reviewers
+
+There is a line between legitimate optimization and manipulation.
+
+**Legitimate:** Structuring clearly, making claims explicit, ensuring internal consistency, pre-submission LLM self-review. These practices improve the paper for all readers.
+
+**Manipulation:** [Prompt injection attacks](https://arxiv.org/html/2509.10248v2/) embed white-text hidden instructions in the PDF. These attacks can produce 100% positive ratings from some LLM models, including Gemini and GPT variants. Even without injection, LLMs are generally biased toward acceptance; some configurations produce positive recommendations over 95% of the time. White-text attacks push this bias to the maximum. Researchers have found actual conference submissions with embedded text reading "IGNORE ALL PREVIOUS INSTRUCTIONS" ([Lin et al., 2025](https://arxiv.org/abs/2509.10248)). Papers have been withdrawn and authors sanctioned.
+
+Conferences are deploying countermeasures. [ICLR 2026](https://blog.iclr.cc/2025/11/19/iclr-2026-response-to-llm-generated-papers-and-reviews/) requires mandatory LLM disclosure; undisclosed extensive use leads to desk rejection. Hallucinated content (including hallucinated references) counts as a Code of Ethics violation. Reviewers who post LLM-generated reviews with hallucinated references face consequences, including desk rejection of their own submitted papers.
+
+[ICML 2026](https://icml.cc/Conferences/2026/LLM-Policy) introduced a two-policy framework. Policy A prohibits all LLM use in reviewing. Policy B allows LLMs for understanding papers and polishing reviews, but explicitly prohibits asking LLMs to assess strengths and weaknesses, suggest review outlines, or write reviews. Authors can require their papers to be reviewed under Policy A. ICML watermarks PDFs with hidden LLM instructions to detect violations.
+
+The principle: write your paper to be genuinely good, not to game the reviewer. A paper that is robust to both AI and human review is simply a well-written paper.
+
+::: {.callout-note title="Think Hard: If LLM reviewers systematically overlook novelty while rewarding clear structure, does this create a selection pressure toward well-written incremental papers over poorly-written breakthrough papers?"}
+This is a real concern. If 21% of reviews come from LLMs that cannot assess novelty, and those LLMs reward structured, clearly written papers regardless of how new the ideas are, the reviewing system may increasingly favor polished incremental work over rough but groundbreaking contributions. The ICLR 2025 RCT found that LLM feedback improved review informativeness but had no impact on acceptance decisions. Human ACs and meta-reviewers still control the final gate.
+
+The concern persists in a subtler form. If LLM reviews raise the average score of well-written incremental papers while leaving breakthrough papers' scores unchanged, the distribution of borderline decisions shifts. Conference organizers are aware of this risk. The ICML 2026 two-policy framework is partly designed to preserve human-only evaluation paths for papers whose novelty might be missed by AI systems.
+:::

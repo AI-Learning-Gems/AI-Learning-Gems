@@ -1,0 +1,133 @@
+## The Art of the Technical Blog Post {#sec-blog-craft}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Rachel Thomas, "Advice for Better Blog Posts," fast.ai (2019)](https://www.fast.ai/posts/2019-05-13-blogging-advice.html) | Choose one audience, combine persuasion methods, motivation before algorithms |
+| 2 | [Alex Irpan, "Blog Posts and Research Papers" (2018)](https://www.alexirpan.com/2018/03/07/blog-paper.html) | Blogs = free to be opinionated. Lower burden of proof. Multimedia front-and-center. |
+| 3 | [Hohman et al., "Communicating with Interactive Articles," Distill (2020)](https://distill.pub/2020/communicating-with-interactive-articles) | Interactive articles improve recall and engagement. The future of research communication. |
+| 4 | [Andrej Karpathy, "A Survival Guide to a PhD"](https://karpathy.github.io/2016/09/07/phd/) | Writing and learning approach; building understanding from scratch |
+
+:::
+
+We have spent five sections on the conference paper. Now the blog post gets its own thorough treatment, because the blog genre in AI is not a lesser form of communication. It is a different form, with its own craft, its own rules, and its own impact.
+
+Some of the most influential writing in AI has been blog posts, not papers. Andrej Karpathy's "The Unreasonable Effectiveness of Recurrent Neural Networks" shaped how a generation thought about sequence models. Chris Olah's "Understanding LSTM Networks" is the most-referenced explanation of LSTMs anywhere. Jay Alammar's "The Illustrated Transformer" has been read millions of times and is assigned as required reading in graduate courses. These posts were not summaries of papers. They were original pedagogical contributions that filled gaps no paper could.
+
+### Know Your One Reader
+
+The most common mistake in blog writing is writing for "everyone." [Rachel Thomas (fast.ai)](https://www.fast.ai/posts/2019-05-13-blogging-advice.html) gives the cleanest advice: "Choose one particular person that you can think of as your target audience. Be as specific as possible." Not "ML practitioners" but "a second-year PhD student who knows PyTorch but hasn't seen attention mechanisms." Not "people interested in NLP" but "a software engineer who has used BERT as a black box and wants to understand what it is doing internally."
+
+The reason for this specificity is practical. If you write for "everyone," you end up including both beginner material (defining what a training set is) and advanced material (describing a novel architecture). Thomas warns: "Experts would be bored and beginners would get lost." Picking one specific reader lets you calibrate three things at once: the background knowledge you assume, the vocabulary you use, and the depth of explanation you provide.
+
+Thomas offers a heuristic for AI researchers converting papers to blog posts: "Your target audience could be you-6-months-ago. For grad students, you may need to change this to you-2-years-ago. Assume that unlike your paper reviewers, the reader of your blog post has not read the related research papers."
+
+::: {.exercise-mcq correct="D"}
+
+A researcher writes a blog post about their new attention mechanism. The post opens with: "Attention mechanisms have gained increasing importance in NLP. In this post, we explain our novel Sparse Local Attention method. We assume familiarity with multi-head attention, the QKV formulation, causal masking, FlashAttention, and ring attention." According to Rachel Thomas's audience-targeting principle, what is the most likely problem with this post?
+
+- The opening sentence is too generic and should start with a specific result
+- It should not mention the technical prerequisites at all
+- Blog posts should never explain novel research contributions
+- The assumed background is too broad, suggesting the author has not picked a specific reader
+
+::: {.feedback-correct}
+Thomas's principle is to pick *one specific person* as your audience. Requiring familiarity with multi-head attention, QKV formulation, causal masking, FlashAttention, *and* ring attention describes a very narrow expert audience, yet the generic opening sentence ("has gained increasing importance") targets a broad audience. These two signals conflict. If the audience is an expert who knows all five prerequisites, the opening is patronizing. If the audience is someone who knows only multi-head attention, the post will lose them by paragraph three. The author needs to commit: pick one reader and write consistently for that reader's level.
+:::
+
+::: {.feedback-incorrect}
+The issue is not the opening sentence style, the listing of prerequisites, or the choice to explain research. The problem is that the post has not committed to a specific reader. Thomas advises picking "one particular person" as your target. The long prerequisite list signals the author is vaguely imagining "someone technical" rather than a concrete individual at a specific knowledge level. A well-targeted version might assume "a PyTorch practitioner who has used `nn.MultiheadAttention` but hasn't read the FlashAttention paper."
+:::
+
+:::
+
+### Motivation Before Formalism
+
+Thomas's second piece of advice applies to blog posts even more strongly than to papers: "Provide motivation and context before explaining algorithms." Blog readers chose to be here. They will leave the moment they are confused or bored. You must earn their attention continuously.
+
+The best AI blog posts follow a consistent pattern: they open with a question the reader cares about, build intuition with examples and analogies, and only then introduce the formal machinery. Karpathy's "Unreasonable Effectiveness of RNNs" opens with a simple question: what happens when you train a neural network on sequences of characters? He then shows *results* before explaining how the model works: generated Shakespeare, generated LaTeX, generated C code. The reader is hooked by the output and motivated to understand the mechanism. Compare this sequencing to a paper, which typically presents the method before the results.
+
+This principle is not just personal preference. The [Distill.pub article by Hohman et al.](https://distill.pub/2020/communicating-with-interactive-articles) synthesizes research from education and cognitive science showing that "people learn better from words and pictures rather than words or pictures alone" (Mayer's Multimedia Principle). Blog posts that combine narrative, code, visualizations, and interactive elements activate multiple learning channels at once. Papers, constrained by the PDF format, can only do a fraction of this.
+
+### Visual-First Explanation
+
+The most distinctive blog writers in AI design the diagram first, then write the explanation around it. Chris Olah and Jay Alammar are the masters of this approach. Alammar's "The Illustrated Transformer" is organized around a sequence of diagrams, each one adding one more component of the architecture. The text exists to explain the diagrams, not the other way around.
+
+This visual-first approach inverts the design philosophy of papers, where text is primary and figures are supplementary. In a blog post, the figure *is* the explanation. The text is the narration.
+
+Blogs can embed interactive visualizations that let the reader manipulate parameters and see results change in real time. They can include animated GIFs showing learning dynamics. They can embed runnable code blocks. None of these affordances exist in a static LaTeX PDF. Irpan chose the blog format partly because, as he wrote, "I knew I wanted lots of videos. It is so, so much easier to explain the behavior of these algorithms if you can actually show videos of those behaviors."
+
+### Be Opinionated
+
+Papers encourage stating truths. Blog posts encourage stating opinions. Irpan's observation from @sec-two-genres applies here with full force: "Blog posts are much more free to be opinionated. People still expect your argument to be solid, but the burden of proof for 'acceptable blog post' feels lower." That freedom is what makes blog posts useful for a category of contribution that papers cannot accommodate: field-level commentary, honest assessments of what works and what does not, and predictions about where things are headed.
+
+Thomas echoes this point: "Don't be afraid to have an opinion." Her example: she wrote a blog post saying that TensorFlow (circa 2016) made her feel unintelligent, even though everyone else was praising it. The post was popular precisely because it said something honest that many people felt but nobody had written.
+
+### What Papers Can Learn From Blogs
+
+The traffic is not one-way. Blog posts succeed at several things that papers routinely fail at, and paper authors should borrow these four techniques:
+
+**Better opening hooks.** Blog posts never start with "In recent years, X has gained increasing attention." They start with a question, a result, a story, or a surprising observation. Paper authors can do the same. Nothing in the conference paper format requires a dull opening.
+
+**More and better figures.** A typical blog post has 10-20 images. A typical paper has 3-5. Blog writers understand that every complex concept needs a visual. Paper writers should aspire to the same standard, within page constraints. Durand's advice: "I find it easier to write once I have the figures."
+
+**Clearer intuitive explanations.** Blog posts explain the *why* before the *how*. They use analogies, examples, and thought experiments to build intuition before presenting the formalism. Papers can do this too, particularly in the introduction and the overview section.
+
+**Running examples.** The best blog posts thread a single example through the entire piece, adding complexity incrementally. Papers can use the same technique. The TokenMix running example in this chapter is modeled on this blog convention.
+
+::: {.exercise-mcq correct="C"}
+
+A paper author reads this section and decides to make their paper "more like a blog post." They add 15 colorful diagrams, use first-person voice throughout, include personal anecdotes about debugging, and remove all equations. Which of the following blog-to-paper transfers would have been more effective?
+
+- Adding personal anecdotes to make the paper feel more authentic and human
+- Removing equations in favor of purely visual explanations
+- Opening with a concrete question or surprising result instead of "In recent years, X has gained attention"
+- Using informal language and humor to keep reviewers engaged
+
+::: {.feedback-correct}
+The section identifies four specific things papers can borrow from blogs: better opening hooks, more and better figures, clearer intuitive explanations, and running examples. The opening hook is the most universally applicable: replacing "In recent years, X has gained attention" with a concrete question, a surprising result, or a compelling example. This costs nothing in terms of page budget, adds no informality, and is explicitly recommended by both Farquhar and Steinhardt. The other options either go too far (removing equations, adding anecdotes) or misjudge what makes blogs effective (humor is not the key ingredient; visual explanation and motivation are).
+:::
+
+::: {.feedback-incorrect}
+The section identifies four specific transfers from blogs to papers: (1) better opening hooks, (2) more and better figures, (3) clearer intuitive explanations before formalism, and (4) running examples. The most universally applicable is replacing generic field-importance openings with a concrete question or surprising result. The options involving personal anecdotes, removing equations, or adding humor misunderstand the transfer: the goal is not to make papers *informal* but to borrow blogs' commitment to reader engagement and visual explanation within the paper's formal constraints.
+:::
+
+:::
+
+### What Blogs Can Learn From Papers
+
+Blog posts have their own weaknesses, and rigorous paper writing offers three corrections:
+
+**Systematic citation and attribution.** Blog posts frequently make claims without citing sources, or cite a single convenient source rather than surveying the literature. Thomas warns against plagiarism and advises citing and linking generously. The paper convention of systematic, balanced citation is a higher standard that blogs should aspire to.
+
+**Reproducibility.** Papers specify model architectures, training hyperparameters, datasets, and evaluation procedures in enough detail to reproduce the results. Blog posts often skip these details. If you present experimental results in a blog post, include the specifications that would let a reader replicate your work: random seeds, hardware, software versions, and training duration.
+
+**Limitation awareness.** Papers require (and increasingly demand) explicit discussion of limitations. Blog posts rarely include a limitations section, so blog readers may overestimate the generality of the claims. Good blog posts should include a "caveats" section that mirrors the paper's limitations discussion.
+
+### The Convergence
+
+The paper and blog genres are converging from both directions. Some papers now read with unusual clarity (Karpathy's work, many Google Brain papers). Some blog posts function as survey papers with blog accessibility (Lilian Weng's lilianweng.github.io). Distill.pub attempted to formalize this convergence into a peer-reviewed interactive journal. The Distill experiment ended in 2021, but its model has influenced subsequent efforts.
+
+The lesson for you as a writer: **master both genres**. Blog writing teaches you to motivate before formalizing and to respect the reader's attention. Paper writing teaches you to organize claims systematically and cite rigorously. The skills transfer in both directions, and the best AI communicators do both.
+
+::: {.exercise-order correct="D,B,C,E,A,F"}
+
+Arrange these steps in the order a researcher should follow when writing a great technical blog post, based on the principles from this section:
+
+- Include code examples and invite the reader to experiment
+- Open with a motivating question or surprising result that hooks the reader
+- Build intuition with visual diagrams and concrete examples before formalism
+- Pick one specific reader as your target audience
+- Present the formal method or algorithm, now that the reader has intuition
+- State your honest opinions and caveats about the approach
+
+::: {.order-feedback}
+**Correct order: D, B, C, E, A, F.** First, pick one specific reader (Thomas's principle: "Choose one particular person"). Second, open with a motivating question or result to hook them (Karpathy showed results before explaining how RNNs work). Third, build intuition with visual diagrams and concrete examples (Alammar and Olah design diagrams first, then write text around them). Fourth, present the formal method, now that the reader has the intuition to follow it. Fifth, include code so readers can experiment (blogs can embed runnable code, unlike PDFs). Sixth, state your honest opinions and caveats (Irpan: blogs are "free to be opinionated," but Thomas also advises honest assessment of limitations).
+:::
+
+:::
+
+::: {.callout-note title="Think Hard: Alex Irpan argues that blogs are 'much more free to be opinionated' than papers. Is this always a strength?"}
+Opinions in blog posts become a liability when they are presented as established facts, when they are not grounded in evidence, or when they are used to dismiss competing approaches without fair treatment. Irpan's "Deep RL Doesn't Work Yet" was effective because he supported his opinions with extensive examples, acknowledged counterarguments, and invited disagreement. A blog post that says "Method X is terrible" without evidence or context is not opinionated; it is irresponsible. The burden of proof for blogs is lower than for papers, but it is not zero.
+:::
