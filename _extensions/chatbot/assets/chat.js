@@ -79,6 +79,7 @@ function initChat() {
     let contextInitialized = false;
     let currentStreamController = null;
     let editingState = null; // { wrapper, previousInput } when editing a message
+    let chatGeneration = 0; // incremented on clearChat to invalidate stale saves
 
     // V2 FIX: All markdown→HTML goes through DOMPurify
     function safeParse(markdownText) {
@@ -198,6 +199,7 @@ function initChat() {
     }
 
     function clearChat() {
+        chatGeneration++;
         if (currentStreamController) {
             currentStreamController.abort();
             currentStreamController = null;
@@ -625,12 +627,13 @@ function initChat() {
 
     function initConversationIfNeeded() {
         if (contextInitialized) return;
-        const contentEl = document.getElementById("quarto-document-content") || document.querySelector("main") || document.body;
-        const pageText = contentEl.innerText;
+        var contentEl = document.getElementById("quarto-document-content") || document.querySelector("main") || document.body;
+        var clone = contentEl.cloneNode(true);
+        var chatInClone = clone.querySelector("#gemini-chat-container");
+        if (chatInClone) chatInClone.remove();
+        var pageText = clone.innerText;
         conversationHistory = [
-            { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: "Chapter content:\n\n" + pageText + "\n\n(Please acknowledge this context.)" },
-            { role: "assistant", content: "I have received the chapter content and am ready to answer your questions." }
+            { role: "system", content: SYSTEM_PROMPT + "\n\n---\n\nCHAPTER CONTENT (for reference when answering the user's questions):\n\n" + pageText }
         ];
         contextInitialized = true;
     }
@@ -639,6 +642,7 @@ function initChat() {
         const query = chatInput.value.trim();
         if (!query) return;
         if (editingState) commitEdit();
+        var sendGeneration = chatGeneration;
         const apiKey = getApiKey();
         if (!apiKey) { addMessage("To chat, sign in with OpenRouter (one click) or paste your API key above. It\u2019s free at [openrouter.ai/keys](https://openrouter.ai/keys) \u2014 no credit card required.", "assistant"); return; }
 
@@ -750,7 +754,7 @@ function initChat() {
 
             if (fullResponse) { msgDiv.innerHTML = safeParse(fullResponse); msgDiv.setAttribute("data-raw", fullResponse); conversationHistory.push({ role: "assistant", content: fullResponse }); attachCopyButton(msgDiv); }
             else { msgDiv.textContent = "No response received. The model may be temporarily unavailable."; }
-            saveChatMessages();
+            if (sendGeneration === chatGeneration) saveChatMessages();
         } catch (err) {
             if (err.name === "AbortError") return;
             if (err.name === "RateLimited") {
@@ -759,7 +763,7 @@ function initChat() {
                 console.error("Chat error:", err);
                 msgDiv.textContent = "Something went wrong. Check the browser console for details.";
             }
-            saveChatMessages();
+            if (sendGeneration === chatGeneration) saveChatMessages();
         }
         currentStreamController = null;
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
