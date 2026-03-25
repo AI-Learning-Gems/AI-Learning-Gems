@@ -13,7 +13,7 @@
 
 ## Source Processing Log
 
-::: {.callout-note collapse="true" title="Source Processing Log (25 sources reviewed)"}
+::: {.callout-note collapse="true" title="Source Processing Log (27 sources reviewed)"}
 
 | # | Source | Type | Local Path | Written | Accessed | Summary |
 |---|--------|------|------------|---------|----------|---------|
@@ -41,7 +41,8 @@
 | 22 | [BLPO: Bi-Level Prompt Optimization for Multimodal LLM-as-a-Judge](https://arxiv.org/abs/2602.11340) | [ACADEMIC] | `sources/arxiv-2602.11340/` | Feb 2026 | 2026-02-28 | KEY: Joint optimization of judge prompt + image-to-text conversion prompt for multimodal evaluation. |
 | 23 | [MPO: Multimodal Prompt Optimization](https://arxiv.org/abs/2510.09201) | [ACADEMIC] | `sources/arxiv-2510.09201/` | Oct 2025 | 2026-02-28 | KEY: Unified framework optimizing text + visual prompts jointly across images, video, molecules. ICLR 2026 submission. |
 | 24 | [PE2: Prompt Engineering a Prompt Engineer](https://arxiv.org/abs/2311.05661) | [ACADEMIC] | `sources/arxiv-2311.05661/` | Nov 2023 | 2026-03-20 | KEY: Hybrid approach combining trajectory memory (OPRO-style) + textual reflection (ProTeGi-style) + fixed edit distance. Two-stage meta-prompt with structured per-example reasoning template. 92.3% MultiArith, 64.0% GSM8K. ACL 2024 Findings. |
-| 25 | [SPO: Self-Supervised Prompt Optimization](https://arxiv.org/abs/2502.06855) | [ACADEMIC] | N/A | Feb 2025 | 2026-03-20 | KEY: Pairwise LLM comparison for reference-free prompt optimization; enables optimization for open-ended tasks without ground truth. EMNLP 2025 Findings. (Note: previously incorrectly cited as arXiv 2405.00675, which is SPPO, a different RLHF alignment paper.) |
+| 25 | [SPO: Self-Supervised Prompt Optimization](https://arxiv.org/abs/2502.06855) | [ACADEMIC] | `sources/arxiv-2502.06855/` | Feb 2025 | 2026-03-20 | KEY: Pairwise LLM comparison for reference-free prompt optimization; Output-vs-Output (OvO) evaluation; achieves SOTA at 1.1-5.6% cost of baselines. EMNLP 2025 Findings. (Note: previously incorrectly cited as arXiv 2405.00675, which is SPPO, a different RLHF alignment paper.) |
+| 26 | [BPO: Black-Box Prompt Optimization](https://arxiv.org/abs/2311.04155) | [ACADEMIC] | `sources/arxiv-2311.04155/` | Nov 2023 | 2026-03-20 | KEY: Amortized prompt optimization via seq2seq rewriter (LLaMA-2-7B-chat) trained on preference data; model-agnostic; 22% win-rate increase on ChatGPT; outperforms PPO/DPO and is additive with them. ACL 2024. |
 
 :::
 

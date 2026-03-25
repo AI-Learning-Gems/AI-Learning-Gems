@@ -8,6 +8,8 @@
 | 2 | [OPRO (ICLR 2024)](https://arxiv.org/abs/2309.03409) | Meta-prompt, trajectory, ascending sort |
 | 3 | [InstructZero (ICML 2024)](https://arxiv.org/abs/2306.03082) | Bayesian optimization in soft-prompt space |
 | 4 | [Self-Refine (NeurIPS 2023)](https://arxiv.org/abs/2303.17651) | Iterative output refinement via LLM critique |
+| 5 | [SPO (Xiang et al., EMNLP 2025 Findings)](https://arxiv.org/abs/2502.06855) | Reference-free pairwise LLM comparison |
+| 6 | [BPO (Cheng et al., ACL 2024)](https://arxiv.org/abs/2311.04155) | Amortized prompt rewriting via preference data |
 
 :::
 
@@ -131,7 +133,23 @@ OPRO's optimization loop has four steps that repeat each iteration. Arrange them
 
 ### SPO: Dropping the Ground-Truth Requirement
 
-A significant limitation of APE and OPRO is that they require labeled ground truth for scoring: you need $(x, y)$ pairs where $y$ is the correct answer. SPO ([Xiang et al., EMNLP 2025 Findings](https://arxiv.org/abs/2502.06855)) overcomes this via **pairwise LLM comparison**: given two outputs from two candidate prompts, an LLM judge simply picks the better one. This enables prompt optimization for open-ended tasks (creative writing, summarization, customer service quality) where no single correct answer exists.
+A significant limitation of APE and OPRO is that they require labeled ground truth for scoring: you need $(x, y)$ pairs where $y$ is the correct answer. For many real-world tasks (creative writing, customer service quality, summarization), no single correct answer exists. How do you score a triage prompt when "good" is a judgment call?
+
+SPO ([Xiang et al., EMNLP 2025 Findings](https://arxiv.org/abs/2502.06855)) solves this with a simple but powerful insight: instead of comparing outputs to ground-truth answers (*Output vs. Ground Truth*, or OvG), compare outputs from two different prompts against each other (*Output vs. Output*, or OvO). An LLM judge receives two sets of outputs (from the current best prompt and a new candidate) and picks the better set. The algorithm is hill-climbing: if the new prompt's outputs win, it becomes the new best; otherwise, the old prompt survives.
+
+The mechanism has two components. First, an *optimizer LLM* generates a new candidate prompt by reading the current prompt and its outputs, then analyzing what could be improved. The optimizer never sees ground-truth labels or scores; it works entirely from the outputs themselves. Second, an *evaluator LLM* performs pairwise comparison of the two prompts' outputs, picking the set that better meets the task requirements. Four rounds of randomized evaluation mitigate position bias.
+
+The efficiency is striking. SPO uses just 3 sample questions (without answers) per iteration, and 8 LLM calls total per iteration. Across five benchmarks (GPQA-Diamond, AGIEval-MATH Level 5, LIAR, WSC, BBH-Navigate), SPO achieved 66.9% average accuracy at $0.15 per dataset, compared to OPRO's 66.6% at $4.51 and TextGrad's 63.9% at $13.14. SPO achieves comparable or better performance at 1.1% to 5.6% of existing methods' costs. The practical implication: prompt optimization no longer requires a labeled evaluation set, which opens the door to optimizing prompts for any task where an LLM can judge output quality.
+
+### BPO: Learning a Prompt-Rewriting Function
+
+Every method discussed so far searches for prompts at the *task level*: one prompt per task, optimized through iteration. BPO ([Cheng et al., ACL 2024](https://arxiv.org/abs/2311.04155)) takes a categorically different approach. Instead of searching for a single task-level prompt, BPO trains a dedicated seq2seq model that rewrites individual user prompts to elicit better responses from any target LLM.
+
+The method has three stages. First, BPO collects preference data from four public datasets (OASST1, HH-RLHF, Chatbot Arena, Alpaca-GPT4), each containing triples of (user prompt, preferred response, dispreferred response). Second, ChatGPT analyzes each triple to identify what makes the preferred response better, then rewrites the original prompt to explicitly encourage those qualities. For example, the user prompt "Write a story ending with 'Are they really happy?'" becomes "Write a story that naturally builds toward the question. Ensure the story ends with the question without providing a response." This step produces approximately 14,000 (original, rewritten) prompt pairs. Third, a LLaMA-2-7B-chat model is fine-tuned on these pairs as a standard seq2seq rewriter.
+
+At inference time, BPO is a single forward pass: the user's prompt enters the rewriter, and the rewritten version is sent to whatever target LLM is in use. No search, no iteration, no scoring. The rewriter is model-agnostic because it learns general patterns of human preference (explanation generation, hint provision, safety enhancement) rather than model-specific tricks. BPO-aligned ChatGPT yields a 22% win-rate increase over the original, and the same rewriter improves GPT-4 by 10%. Remarkably, BPO outperforms both PPO and DPO as an alignment method while being additive with them: combining DPO training with BPO yields 30% win-rate gains on Vicuna models.
+
+The conceptual distinction from APE and OPRO is important. APE and OPRO optimize a *single prompt template per task* through search. BPO trains a *rewriting model* that transforms *any individual prompt* into a better version, amortizing the optimization cost into a one-time training step. This is amortized optimization: the offline training replaces the per-task search entirely. The trade-off is that BPO requires a training phase with preference data, while APE and OPRO work from a handful of examples.
 
 This scoring function connects to a broader point: the scoring function $F$ in @eq-apo-objective can itself be a **learned reward model** $R_\varphi$ trained on human preferences. Instead of accuracy, we optimize:
 
@@ -139,7 +157,7 @@ $$
 p^* = \arg\max_p \; \mathbb{E}_{y \sim M_T(x; p)} \left[ R_\varphi(p, x, y) \right]
 $$
 
-This preference-based framing links prompt optimization to the RLHF pipeline. **BPO** ([Cheng et al., ACL 2024](https://arxiv.org/abs/2311.04155)) takes this further by pre-training a lightweight prompt-rewriting model on preference data (pairs of original and human-preferred prompts). Instead of iterative search, BPO learns a *function* from bad prompts to good ones, amortizing the optimization cost. For instance, the user's prompt "Write a story ending with 'Are they really happy?'" gets automatically rewritten by BPO to add "Ensure the story ends with the question without providing a response."
+SPO and BPO represent two poles of how preference signals can replace ground truth. SPO uses pairwise comparison at test time (cheap, no training data needed). BPO uses preference data at training time (expensive to train, free at inference). Both eliminate the dependence on labeled $(x, y)$ pairs that constrains APE and OPRO to tasks with known correct answers.
 
 ### InstructZero: Bayesian Optimization in Disguise
 
@@ -250,11 +268,11 @@ APE -> SPO: "drops ground\ntruth requirement" {
 | APE | LLM proposal + tournament | Yes | No | Prompts as programs |
 | Self-Refine | LLM critique + revision | No | Yes (outputs) | LLM self-feedback loop |
 | OPRO | Meta-prompt with trajectory | Yes | Yes (prompts) | Ascending sort, trajectory memory |
-| SPO | Pairwise LLM comparison | No | Yes | Reference-free optimization |
-| BPO | Learned rewriting model | Preference data | No (amortized) | Prompt rewriter function |
+| SPO | Pairwise LLM output comparison | No | Yes (hill-climbing) | Reference-free OvO evaluation, 3 samples |
+| BPO | Seq2seq rewriter (LLaMA-2-7B) | Preference data | No (amortized) | Per-prompt rewriting, model-agnostic |
 | InstructZero | Bayesian optimization | Yes | Yes | Continuous proxy space |
 
-Each represents a progressively richer optimization signal. APE is random search with intelligent initialization. OPRO is hill-climbing with memory. InstructZero is Bayesian surrogate optimization. BPO is amortized learned optimization. The common limitation: all of these methods receive only scalar feedback (a score). They know *how well* a prompt performed, but not *why* it succeeded or failed, and not *which direction* to move. That directional information is what the next section provides.
+Each represents a progressively richer optimization signal. APE is random search with intelligent initialization. OPRO is hill-climbing with memory. SPO replaces ground-truth scoring with pairwise output comparison. BPO amortizes the entire search into a learned rewriting function. InstructZero is Bayesian surrogate optimization. The common limitation of APE, OPRO, and InstructZero: they receive only scalar feedback (a score). They know *how well* a prompt performed, but not *why* it succeeded or failed, and not *which direction* to move. SPO replaces scalars with pairwise preferences, and BPO replaces search with a trained model, but neither provides directional feedback about *what to change*. That directional information is what the next section provides.
 
 ::: {.exercise-fillin}
 
