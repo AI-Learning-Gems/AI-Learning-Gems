@@ -10,17 +10,21 @@
 
 :::
 
-As Ava scales up her SQL model training with GRPO, she starts noticing something odd. After about 5,000 training steps, the model's incorrect SQL queries start getting *longer*. A wrong query that used to be 30 tokens is now 120 tokens, padded with unnecessary comments, redundant subqueries, and repeated clauses. Meanwhile, the model's correct queries are getting *shorter*. The entropy of the model's output distribution is dropping steadily: it is converging to a narrow set of "safe" patterns and losing its ability to explore novel approaches to hard queries. These symptoms are not bugs in Ava's implementation; they are fundamental issues with the GRPO algorithm that three research teams independently identified and fixed in early-to-mid 2025.
+As Ava scales up her SQL model training with GRPO, she starts noticing something odd. After about 5,000 training steps, the model's incorrect SQL queries start getting *longer*. A wrong query that used to be 30 tokens is now 120 tokens, padded with unnecessary comments, redundant subqueries, and repeated clauses. Meanwhile, the model's correct queries are getting *shorter*.
+
+At the same time, the entropy of the model's output distribution is dropping steadily. The model is converging to a narrow set of "safe" patterns and losing its ability to explore novel approaches to hard queries. These symptoms are not bugs in Ava's implementation. They are fundamental issues with the [**GRPO**]{style="color: #4F46E5;"} algorithm that three research teams independently identified and fixed in early-to-mid 2025.
 
 ### The Three Biases of Vanilla GRPO
 
-Let us examine each bias through the lens of GRPO's objective (@eq-grpo-objective) and understand exactly where it comes from.
+We examine each bias through the lens of GRPO's objective (@eq-grpo-objective) and trace exactly where it comes from.
 
-**Bias 1: Response-level length bias.** Vanilla GRPO divides the loss for each output by the output's length $|o_i|$. For a correct output with positive advantage ($\hat{A}_{i,t} > 0$), dividing by a larger $|o_i|$ means each token gets a *smaller* gradient push toward higher probability. The model learns that shorter correct outputs produce stronger reinforcement per token. Conversely, for an incorrect output with negative advantage ($\hat{A}_{i,t} < 0$), dividing by a larger $|o_i|$ means each token gets a *smaller* penalty. The model learns that making incorrect outputs longer reduces the penalty per token. The combined effect is twofold: correct outputs shrink, and incorrect outputs grow.
+**Bias 1: [Response-level length bias]{style="color: #E11D48;"}.** Vanilla GRPO divides the loss for each output by the output's length $|o_i|$. For a correct output with positive advantage ($\hat{A}_{i,t} > 0$), dividing by a larger $|o_i|$ means each token gets a *smaller* gradient push toward higher probability. The model learns that shorter correct outputs produce stronger reinforcement per token. Conversely, for an incorrect output with negative advantage ($\hat{A}_{i,t} < 0$), dividing by a larger $|o_i|$ means each token gets a *smaller* penalty. The model learns that making incorrect outputs longer reduces the penalty per token. The combined effect is twofold: correct outputs shrink, and incorrect outputs grow.
 
-**Bias 2: Question-level difficulty bias.** GRPO normalizes advantages by dividing by $\text{std}(\mathbf{r})$, the standard deviation of the rewards within the group. For questions where all outputs have the same reward (all correct or all incorrect), $\text{std}(\mathbf{r}) \approx 0$, and the advantage magnitude explodes. A numerically stable implementation clamps this value to some minimum, but the effective weight of these "trivial" questions is still too high. Very easy questions (where the model succeeds on all $G$ outputs) and very hard questions (where it fails on all $G$ outputs) dominate the gradient, even though they carry almost no useful learning signal. Questions of medium difficulty, where some outputs succeed and some fail, get relatively less weight despite being the most informative for learning.
+**Bias 2: [Question-level difficulty bias]{style="color: #E11D48;"}.** GRPO normalizes advantages by dividing by $\text{std}(\mathbf{r})$, the standard deviation of the rewards within the group. For questions where all outputs have the same reward (all correct or all incorrect), $\text{std}(\mathbf{r}) \approx 0$, and the advantage magnitude explodes. A numerically stable implementation clamps this value to some minimum, but the effective weight of these "trivial" questions is still too high. Very easy questions (where the model succeeds on all $G$ outputs) and very hard questions (where it fails on all $G$ outputs) dominate the gradient, even though they carry almost no useful learning signal. Questions of medium difficulty, where some outputs succeed and some fail, get relatively less weight despite being the most informative for learning.
 
-**Bias 3: Entropy collapse.** Entropy collapse is not a bias in the mathematical sense but an emergent pathology (see @sec-math-entropy for the definition of Shannon entropy). PPO's symmetric clipping ($1 - \epsilon$ to $1 + \epsilon$, where $\epsilon$ is typically 0.2) constrains how much any token's probability can change in a single update. When a "good" token already has high probability (say 0.9), the upper clip allows it to reach $0.9 \times 1.2 = 1.08$ (clipped to 1.0 in practice), a near-unlimited increase. But when an "exploration" token has low probability (say 0.01), the upper clip only allows it to reach $0.01 \times 1.2 = 0.012$, a negligibly small increase. Symmetric clipping therefore favors high-probability tokens and prevents low-probability tokens from gaining traction.Over many training steps, the model collapses to a deterministic policy that always generates the same output for a given question.
+**Bias 3: [Entropy collapse]{style="color: #E11D48;"}.** Entropy collapse is not a bias in the mathematical sense but an emergent pathology (see @sec-math-entropy for the definition of Shannon entropy). PPO's symmetric clipping ($1 - \epsilon$ to $1 + \epsilon$, where $\epsilon$ is typically 0.2) constrains how much any token's probability can change in a single update.
+
+Consider two tokens. A high-probability token (say 0.9) can reach $0.9 \times 1.2 = 1.08$ (clipped to 1.0 in practice); that is almost a full jump to certainty. A low-probability token (say 0.01) can only reach $0.01 \times 1.2 = 0.012$, a negligible absolute increase. Symmetric clipping therefore favors tokens that are already likely and prevents rare tokens from growing. Over many training steps, the model collapses to a deterministic policy that always generates the same output for a given question.
 
 ![GRPO's two biases illustrated. The std normalization reweights questions by difficulty (the size of blue circles), and the length normalization reweights outputs by length (the brightness of orange arrows). Together, they create a biased optimization landscape. Source: Liu et al. (2025), Figure 3.](GRPO and RLVR/images/grpo-bias-illustration.png){#fig-bias-illustration}
 
@@ -38,18 +42,18 @@ Correct! Length bias arises from GRPO's per-output $1/|o_i|$ normalization. For 
 :::
 
 ::: {.feedback-incorrect}
-Not quite. The symptom described (incorrect responses growing longer, correct responses shrinking) is caused by **length bias**: GRPO divides each output's loss by its length $|o_i|$. This makes long incorrect outputs receive smaller per-token penalties and long correct outputs receive smaller per-token reinforcement. Entropy collapse would manifest as the model converging to a single deterministic output, not as a length asymmetry between correct and incorrect responses.
+Not quite. The symptom described (incorrect responses growing longer, correct responses shrinking) is caused by **length bias**: GRPO divides each output's loss by its length $|o_i|$. This per-length division makes long incorrect outputs receive smaller per-token penalties and long correct outputs receive smaller per-token reinforcement. Entropy collapse would manifest as the model converging to a single deterministic output, not as a length asymmetry between correct and incorrect responses.
 :::
 
 :::
 
-Let us now see how three variants address these issues, each with a different philosophy.
+Now let us see how three variants address these three biases, each with a different philosophy.
 
 ### Dr. GRPO: Remove the Biases Entirely
 
-Dr. GRPO ([Liu et al., 2025](https://arxiv.org/abs/2503.20783)) takes the most mathematically principled approach: simply *remove* the two normalization terms that cause the biases. The key observation is that the "correct" policy gradient (see @eq-reinforce-baseline) does *not* divide by $|o_i|$ or by $\text{std}(\mathbf{r})$. These normalizations were added to GRPO for practical reasons (numerical stability, comparable loss scales across questions), but the theory does not require them.
+[**Dr. GRPO**]{style="color: #4F46E5;"} ([Liu et al., 2025](https://arxiv.org/abs/2503.20783)) takes the most mathematically principled approach: simply *remove* the two normalization terms that cause the biases. The key observation is that the "correct" policy gradient (see @eq-reinforce-baseline) does *not* divide by $|o_i|$ or by $\text{std}(\mathbf{r})$. These normalizations were added to GRPO for practical reasons (numerical stability, comparable loss scales across questions), but the theory does not require them.
 
-The Dr. GRPO objective replaces GRPO's $\hat{A}_{i,t} = \frac{R_i - \text{mean}(\mathbf{R})}{\text{std}(\mathbf{R})}$ with the unnormalized advantage $\tilde{A}_{i,t} = R_i - \text{mean}(\mathbf{R})$, and removes the $\frac{1}{|o_i|}$ length normalization. For implementation, the loss is divided by a global constant (the maximum generation length) instead of the variable response length:
+The Dr. GRPO objective replaces GRPO's $\hat{A}_{i,t} = \frac{R_i - \text{mean}(\mathbf{R})}{\text{std}(\mathbf{R})}$ with the unnormalized advantage $\tilde{A}_{i,t} = R_i - \text{mean}(\mathbf{R})$, and removes the $\frac{1}{|o_i|}$ length normalization. In practice, the loss is divided by a global constant (the maximum generation length) instead of the variable response length:
 
 ::: {.exercise-predict correct="C"}
 
@@ -83,7 +87,7 @@ This difference is exactly one line of code, but the impact is significant. Dr. 
 
 ![Dr. GRPO vs. GRPO training dynamics. Top row: training metrics (reward and length over steps). Bottom row: evaluation results. Dr. GRPO achieves similar accuracy with substantially shorter incorrect responses, demonstrating better token efficiency. Source: Liu et al. (2025), Figure 6.](GRPO and RLVR/images/dr-grpo-training-dynamics.png){#fig-dr-grpo-dynamics}
 
-A surprising finding from the Dr. GRPO paper was that long chain-of-thought "emerging" during R1-Zero-like training may be partially an artifact of GRPO's length bias rather than a genuine capability improvement. When the bias is removed, the model still develops reasoning chains, but they are shorter and more efficient. This finding is a cautionary tale for the field: **not all emergent behaviors during RL training are genuine capabilities; some are optimization artifacts**.
+A surprising finding from the Dr. GRPO paper: long chain-of-thought "emerging" during R1-Zero-like training may be partially an artifact of GRPO's length bias rather than a genuine capability improvement. When the bias is removed, the model still develops reasoning chains, but those chains are shorter and more efficient. This length-bias artifact is a cautionary tale for the field: **not all emergent behaviors during RL training are genuine capabilities; some are optimization artifacts**.
 
 ::: {.callout-warning title="Common Misconception: Longer chain-of-thought always means better reasoning"}
 Researchers initially celebrated when models trained with GRPO spontaneously generated longer and longer responses, interpreting this as "emergence of sophisticated reasoning." Dr. GRPO's analysis showed that much of this length increase comes from incorrect responses growing longer (due to the length bias), not from correct responses becoming more thorough. The unbiased estimator shows that reasoning quality can be maintained or improved while substantially reducing response length, especially for incorrect outputs. The lesson: monitor *correct* and *incorrect* response lengths separately during training. If incorrect responses are growing faster than correct ones, your optimizer may have a length bias.
@@ -91,19 +95,19 @@ Researchers initially celebrated when models trained with GRPO spontaneously gen
 
 ### DAPO: Four Targeted Fixes
 
-While Dr. GRPO takes a theoretically motivated minimalist approach, DAPO ([Yu et al., 2025](https://arxiv.org/abs/2503.14476)) takes an engineering-driven approach, addressing each observed problem with a specific technique. The four DAPO innovations are:
+While Dr. GRPO takes a theoretically motivated minimalist approach, [**DAPO**]{style="color: #4F46E5;"} ([Yu et al., 2025](https://arxiv.org/abs/2503.14476)) takes an engineering-driven approach, addressing each observed problem with a specific technique. The four DAPO innovations are:
 
-**1. Clip-Higher (addressing entropy collapse).** DAPO decouples the lower and upper clipping bounds: $\text{clip}(r_{i,t}, 1 - \epsilon_{low}, 1 + \epsilon_{high})$. By setting $\epsilon_{high} > \epsilon_{low}$ (DAPO uses $\epsilon_{low} = 0.1$, $\epsilon_{high} = 0.28$), the algorithm gives low-probability tokens more room to increase their probability. This asymmetric clipping breaks the systematic suppression of exploration tokens and maintains higher entropy throughout training.
+**1. Clip-Higher (addressing entropy collapse).** DAPO decouples the lower and upper clipping bounds: $\text{clip}(r_{i,t}, 1 - \epsilon_{low}, 1 + \epsilon_{high})$. By setting $\epsilon_{high} > \epsilon_{low}$ (DAPO uses $\epsilon_{low} = 0.2$, $\epsilon_{high} = 0.28$), the algorithm gives low-probability tokens more room to increase their probability. This asymmetric clipping breaks the systematic suppression of exploration tokens and maintains higher entropy throughout training.
 
-The intuition is elegant. Consider a token with probability 0.01 under the old policy. With symmetric clipping ($\epsilon = 0.2$), the maximum new probability is $0.01 \times 1.2 = 0.012$, a 20% relative increase. With Clip-Higher ($\epsilon_{high} = 0.28$), it can reach $0.01 \times 1.28 = 0.0128$, a 28% relative increase. This small relative increase may seem negligible, but compounded over many training steps, it makes a substantial difference in maintaining the diversity of the model's output distribution.
+The intuition is straightforward. Consider a token with probability 0.01 under the old policy. With symmetric clipping ($\epsilon = 0.2$), the maximum new probability is $0.01 \times 1.2 = 0.012$: a 20% relative increase. With Clip-Higher ($\epsilon_{high} = 0.28$), the token can reach $0.01 \times 1.28 = 0.0128$: a 28% relative increase. This small per-step difference may seem negligible, but compounded over many training steps, it makes a substantial difference in maintaining the diversity of the model's output distribution.
 
-**2. Dynamic Sampling (addressing gradient sparsity).** As training progresses, more and more questions become "too easy" (all $G$ outputs are correct) or "too hard" (all fail). For these questions, the group-relative advantage is zero for all outputs, contributing no gradient signal. This zero-advantage outcome means the effective batch size shrinks over training, increasing gradient noise.
+**2. Dynamic Sampling (addressing gradient sparsity).** As training progresses, more and more questions become "too easy" (all $G$ outputs are correct) or "too hard" (all fail). For these questions, the group-relative advantage is zero for all outputs, so they contribute no gradient signal. This zero-advantage outcome shrinks the effective batch size over training, increasing gradient noise.
 
-DAPO's fix is elegant: over-sample questions and filter out any where all outputs have the same reward. The training loop keeps sampling until the batch is filled with questions that have at least one correct and one incorrect output. This constraint ensures every question in the batch contributes a non-zero gradient, maintaining sample efficiency throughout training. Mathematically, the filtering condition is: $0 < |\{o_i \mid \text{is\_correct}(o_i)\}| < G$.
+DAPO's fix is to over-sample questions and filter out any question where all outputs share the same reward. The training loop keeps sampling until the batch is filled with questions that have at least one correct and one incorrect output. This filtering ensures every question in the batch contributes a non-zero gradient, maintaining sample efficiency throughout training. Mathematically, the filtering condition is: $0 < |\{o_i \mid \text{is\_correct}(o_i)\}| < G$.
 
 **3. Token-Level Loss (addressing length bias via redistribution).** Where Dr. GRPO divides by a constant (MAX_TOKENS), DAPO normalizes by the *total* number of tokens across all outputs in the group: $\frac{1}{\sum_{i=1}^{G} |o_i|}$. This normalization means that each token, regardless of which output it belongs to, contributes equally to the gradient. Longer outputs contribute more tokens (and thus more gradient), while shorter outputs contribute fewer. This redistribution prevents the pathological behavior where long incorrect outputs are under-penalized.
 
-**4. Overlong Reward Shaping (addressing truncation noise).** When outputs exceed the maximum generation length, they are truncated. Vanilla GRPO assigns a punitive reward to truncated outputs, but this can penalize good reasoning that simply ran too long. DAPO introduces a soft penalty that smoothly decreases the reward as the output approaches the maximum length:
+**4. Overlong Reward Shaping (addressing truncation noise).** When outputs exceed the maximum generation length, they are truncated. Vanilla GRPO assigns a punitive reward to truncated outputs, but this penalty can harm good reasoning that simply ran too long. DAPO introduces a soft penalty that smoothly decreases the reward as the output approaches the maximum length:
 
 $$
 R_{length}(o) = \begin{cases}
@@ -113,7 +117,7 @@ R_{length}(o) = \begin{cases}
 \end{cases}
 $$ {#eq-dapo-overlong}
 
-This soft wall gradually discourages the model from generating overly long outputs without abruptly penalizing good reasoning chains that happen to be long.
+This soft wall gradually discourages the model from generating overly long outputs without abruptly penalizing reasoning chains that happen to be long.
 
 ![DAPO's entropy and accuracy curves compared to GRPO baselines. The Clip-Higher strategy maintains higher entropy throughout training, preventing the collapse that limits exploration in vanilla GRPO. Source: Yu et al. (2025).](GRPO and RLVR/images/dapo-entropy.png){#fig-dapo-entropy}
 
@@ -134,9 +138,11 @@ DAPO introduces four fixes to vanilla GRPO, each targeting a specific failure mo
 
 ### REINFORCE++: Back to Basics with Better Normalization
 
-REINFORCE++ ([Hu et al., 2025](https://arxiv.org/abs/2501.03262)) takes yet another approach. Instead of fixing GRPO's group-relative advantage, it returns to the simpler REINFORCE algorithm and adds PPO's stabilization techniques (clipping, KL regularization) without the group-relative baseline. The key innovation is in how advantage normalization is performed.
+[**REINFORCE++**]{style="color: #4F46E5;"} ([Hu et al., 2025](https://arxiv.org/abs/2501.03262)) takes yet another approach. The paper argues that GRPO's per-prompt (local) advantage normalization is a "theoretically biased estimator" because "the numerator (centered reward) and the denominator (local standard deviation) are not independent."
 
-REINFORCE++ normalizes advantages across the *entire batch* rather than per-question. The baseline is therefore the average reward across all questions in the batch, not just the group of outputs for a single question. This batch-level approach eliminates the difficulty bias (since there is no per-group std normalization) but introduces a different trade-off: the baseline is less question-specific, potentially increasing variance for individual questions.
+REINFORCE++ comes in two variants. The base version (k=1) generates a single output per prompt and normalizes advantages globally across the entire batch. REINFORCE++-Baseline (k>1) uses group sampling like GRPO but replaces local normalization with a two-step process: first subtract the group mean, then normalize globally across the batch. Because the global statistics converge to true constants as batch size grows, the estimator becomes effectively unbiased.
+
+REINFORCE++ also replaces GRPO's k3 KL estimator with a simpler per-token KL penalty, $\text{KL}(t) = \log(\pi_{\theta_{old}} / \pi_{ref})$. The authors argue that the k3 estimator "suffers from extremely high variance" and "numerical instability" when the importance weight explodes. On multi-step agent benchmarks, REINFORCE++-Baseline outperformed both GRPO (22.6 vs. 24.1 average) and full-critic PPO (21.9 vs. 24.1), while showing more robust generalization to out-of-distribution task difficulty.
 
 ![The REINFORCE++ architecture. Unlike GRPO, it uses a global baseline across the batch rather than per-question group statistics. Source: Hu et al. (2025).](GRPO and RLVR/images/reinforce-plus-plus-architecture.png){#fig-reinforce-pp}
 
@@ -147,7 +153,7 @@ The following table summarizes the key differences:
 | Aspect | Vanilla GRPO | Dr. GRPO | DAPO | REINFORCE++ |
 |---|---|---|---|---|
 | **Length normalization** | Per-output ($1/\lvert o_i \rvert$) | Per-constant ($1/L_{max}$) | Per-group total ($1/\sum \lvert o_i \rvert$) | Per-batch |
-| **Advantage normalization** | Per-group (mean + std) | Per-group (mean only) | Per-group (mean + std) | Per-batch (mean + std) |
+| **Advantage normalization** | Per-group (mean + std) | Per-group (mean only) | Per-group (mean + std) | Two-step: group-mean subtraction, then global batch normalization |
 | **Clipping** | Symmetric ($\epsilon$) | Symmetric ($\epsilon$) | Asymmetric ($\epsilon_{low}, \epsilon_{high}$) | Symmetric ($\epsilon$) |
 | **Entropy management** | None | None (but bias fix helps) | Clip-Higher | None |
 | **Dynamic sampling** | No | No | Yes (filter 0% and 100%) | No |
@@ -170,13 +176,13 @@ Correct! The two key symptoms are (1) entropy collapse (output diversity plummet
 :::
 
 ::: {.feedback-incorrect}
-Not quite. The correct answer is **DAPO**. The colleague's primary problem is entropy collapse (the model is converging to a narrow, deterministic policy), and DAPO's Clip-Higher technique is the only variant that directly targets this by asymmetrically widening the upper clipping bound. Additionally, with 1,000+ token CoT responses, DAPO's Overlong Reward Shaping provides a soft penalty near the length limit instead of an abrupt truncation. Dr. GRPO addresses length and difficulty biases but does not explicitly prevent entropy collapse.
+Not quite. The correct answer is **DAPO**. The colleague's primary problem is entropy collapse (the model is converging to a narrow, deterministic policy), and DAPO's Clip-Higher technique is the only variant that directly targets this problem by asymmetrically widening the upper clipping bound. Additionally, with 1,000+ token CoT responses, DAPO's Overlong Reward Shaping provides a soft penalty near the length limit instead of an abrupt truncation. Dr. GRPO addresses length and difficulty biases but does not explicitly prevent entropy collapse.
 :::
 
 :::
 
-- **Dr. GRPO** is the most theoretically principled and requires the smallest code change. If you are running GRPO already, switching to Dr. GRPO is a one-line fix that eliminates the length and difficulty biases. Start here.
-- **DAPO** is the best choice for long chain-of-thought training (multi-step math, complex reasoning) where entropy collapse and response length growth are primary concerns. Its four techniques work synergistically.
-- **REINFORCE++** is suitable when you cannot afford the additional sampling cost of generating $G$ outputs per prompt, or when your batch is large enough that batch-level normalization provides adequate variance reduction.
+- **Dr. GRPO** is the most theoretically principled variant and requires the smallest code change. If you are already running GRPO, switching to Dr. GRPO is a one-line fix that eliminates the length and difficulty biases. Start here.
+- **DAPO** is the best choice for long chain-of-thought training (multi-step math, complex reasoning) where entropy collapse and response length growth are the primary concerns. Its four techniques work synergistically.
+- **REINFORCE++** is suitable when you want more stable training dynamics, especially for long-horizon tasks. Its global normalization prevents the overfitting that GRPO's local normalization can cause. On AIME benchmarks with limited data, GRPO achieved 95% on training data but 0% on test data; REINFORCE++ generalized much better. REINFORCE++ also provides a simpler alternative when group sampling cost is a concern, since the k=1 variant needs only one output per prompt.
 
-For Ava's SQL task, where outputs are relatively short (50-200 tokens) and the reward is binary (correct/incorrect), Dr. GRPO's fix is likely sufficient. The length bias matters less when outputs are short, and the difficulty bias is the more pressing concern. If Ava later moves to training a "thinking" SQL model with long chain-of-thought reasoning (step-by-step query planning), DAPO's entropy management and overlong reward shaping become more relevant.
+For Ava's SQL task, where outputs are relatively short (50-200 tokens) and the reward is binary (correct/incorrect), Dr. GRPO's fix is likely sufficient. The length bias matters less when outputs are short; the difficulty bias is the more pressing concern. If Ava later moves to training a "thinking" SQL model with long chain-of-thought reasoning (step-by-step query planning), DAPO's entropy management and overlong reward shaping become more relevant.

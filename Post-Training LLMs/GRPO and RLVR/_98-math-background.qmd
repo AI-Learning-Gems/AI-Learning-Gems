@@ -21,7 +21,7 @@ $$
 \nabla_\theta \mathbb{E}_{x \sim p_\theta(x)}[f(x)] = \nabla_\theta \int p_\theta(x) f(x) \, dx
 $$
 
-The function $f(x)$ might not be differentiable (it could be a binary reward, a database execution result, or anything else). So you cannot simply push the gradient through $f$. But here is the trick: you push it through $p_\theta(x)$ instead. Using the identity $\nabla_\theta p_\theta(x) = p_\theta(x) \nabla_\theta \log p_\theta(x)$ (which follows from the chain rule: $\nabla_\theta \log p = \frac{1}{p} \nabla_\theta p$), we get:
+The function $f(x)$ might not be differentiable (it could be a binary reward, a database execution result, or anything else). So you cannot push the gradient through $f$. The trick is to push it through $p_\theta(x)$ instead. Using the identity $\nabla_\theta p_\theta(x) = p_\theta(x) \nabla_\theta \log p_\theta(x)$ (which follows from the chain rule: $\nabla_\theta \log p = \frac{1}{p} \nabla_\theta p$), we get:
 
 $$
 \nabla_\theta \int p_\theta(x) f(x) \, dx = \int p_\theta(x) \nabla_\theta \log p_\theta(x) \, f(x) \, dx = \mathbb{E}_{x \sim p_\theta}[\nabla_\theta \log p_\theta(x) \cdot f(x)]
@@ -47,11 +47,11 @@ $$
 \text{Var}(X) = \mathbb{E}[(X - \mathbb{E}[X])^2] = \mathbb{E}[X^2] - (\mathbb{E}[X])^2
 $$
 
-Given $N$ independent samples $x_1, \ldots, x_N$ from $p$, the **sample mean** $\bar{x} = \frac{1}{N}\sum_{i=1}^N x_i$ is an unbiased estimator of $\mathbb{E}[X]$: its expected value equals the true expectation regardless of $N$. However, the *variance* of the sample mean is $\text{Var}(\bar{x}) = \text{Var}(X)/N$. More samples mean lower variance, but with diminishing returns: you need 4x the samples to halve the standard deviation ($\text{SD} \propto 1/\sqrt{N}$).
+Given $N$ independent samples $x_1, \ldots, x_N$ from $p$, the **sample mean** $\bar{x} = \frac{1}{N}\sum_{i=1}^N x_i$ is an unbiased estimator of $\mathbb{E}[X]$: its expected value equals the true expectation regardless of $N$. However, the *variance* of the sample mean is $\text{Var}(\bar{x}) = \text{Var}(X)/N$. More samples reduce the variance, but with diminishing returns: you need 4x the samples to halve the standard deviation ($\text{SD} \propto 1/\sqrt{N}$).
 
 The **sample standard deviation** $s = \sqrt{\frac{1}{N-1}\sum_{i=1}^N(x_i - \bar{x})^2}$ estimates $\sqrt{\text{Var}(X)}$. The $N-1$ in the denominator (Bessel's correction) ensures unbiasedness.
 
-These concepts appear throughout the chapter. GRPO's group-relative advantage (@sec-grpo-core) uses the sample mean $\text{mean}(\mathbf{r})$ and sample standard deviation $\text{std}(\mathbf{r})$ of the $G$ rewards as a baseline. The variance of the policy gradient estimator (@sec-policy-gradients) is what makes REINFORCE training so noisy: with one sample per question ($N = 1$), the variance of the sample mean equals the full variance of the underlying distribution. Increasing the group size $G$ in GRPO directly reduces this variance.
+These concepts appear throughout the chapter. In GRPO's group-relative advantage (@sec-grpo-core), the sample mean $\text{mean}(\mathbf{r})$ and sample standard deviation $\text{std}(\mathbf{r})$ of the $G$ rewards serve as a baseline. The variance of the policy gradient estimator (@sec-policy-gradients) is what makes REINFORCE training so noisy: with one sample per question ($N = 1$), the variance of the sample mean equals the full variance of the underlying distribution. Increasing the group size $G$ in GRPO directly reduces this variance.
 
 ### Importance Sampling {#sec-math-importance-sampling}
 
@@ -67,11 +67,13 @@ $$
 \hat{\mu} = \frac{1}{N} \sum_{i=1}^N \frac{p(x_i)}{q(x_i)} f(x_i)
 $$
 
-This estimator is unbiased: $\mathbb{E}_q[\hat{\mu}] = \mathbb{E}_p[f(x)]$. But its variance depends on how different $p$ and $q$ are. If the two distributions are similar, the importance weights are close to 1 and the variance is low. If they differ substantially, some weights become very large (or very small), making the estimate noisy and unreliable.
+This estimator is unbiased: $\mathbb{E}_q[\hat{\mu}] = \mathbb{E}_p[f(x)]$. But its variance depends on how different $p$ and $q$ are. If the two distributions are similar, the importance weights stay close to 1 and the variance is low. If the distributions differ substantially, some weights become very large (or very small), making the estimate noisy and unreliable.
 
-A numerical example: suppose $p$ is a fair coin ($p(\text{heads}) = 0.5$) and $q$ is a biased coin ($q(\text{heads}) = 0.8$). You flip the biased coin 10 times, getting 8 heads and 2 tails. To estimate the expected heads probability under the fair coin: each "heads" sample gets weight $0.5/0.8 = 0.625$ and each "tails" gets weight $0.5/0.2 = 2.5$. The per-sample weighted mean is $8 \times 0.625/10 + 2 \times 2.5/10 = 0.5$, which is exactly the fair-coin heads probability. The estimate is correct, but notice the tails samples get 4x more weight than the heads samples.
+A numerical example: suppose $p$ is a fair coin ($p(\text{heads}) = 0.5$) and $q$ is a biased coin ($q(\text{heads}) = 0.8$). You flip the biased coin 10 times, getting 8 heads and 2 tails. To estimate the expected heads probability under the fair coin, each "heads" sample gets weight $0.5/0.8 = 0.625$ and each "tails" sample gets weight $0.5/0.2 = 2.5$. The per-sample weighted mean is $8 \times 0.625/10 + 2 \times 2.5/10 = 0.5$, which is exactly the fair-coin heads probability. The estimate is correct, but notice that the tails samples get 4x more weight than the heads samples.
 
-In GRPO, importance sampling appears as the ratio $r_{i,t}(\theta) = \pi_\theta(o_{i,t} \mid q, o_{i,<t}) / \pi_{\theta_{old}}(o_{i,t} \mid q, o_{i,<t})$ (see @eq-grpo-objective in @sec-grpo-core). The outputs $\{o_i\}$ were generated by the *old* policy $\pi_{\theta_{old}}$, but we want to estimate gradients for the *current* policy $\pi_\theta$. The importance ratio reweights each token's contribution to account for this distributional mismatch. PPO's clipping mechanism (constraining $r_{i,t}$ to $[1-\epsilon, 1+\epsilon]$) is a safeguard against large importance weights destabilizing the gradient estimate. Without clipping, a token whose probability changed dramatically between the old and new policies would dominate the gradient, potentially causing training to diverge.
+In GRPO, importance sampling appears as the ratio $r_{i,t}(\theta) = \pi_\theta(o_{i,t} \mid q, o_{i,<t}) / \pi_{\theta_{old}}(o_{i,t} \mid q, o_{i,<t})$ (see @eq-grpo-objective in @sec-grpo-core). The outputs $\{o_i\}$ were generated by the *old* policy $\pi_{\theta_{old}}$, but we want to estimate gradients for the *current* policy $\pi_\theta$. The importance ratio reweights each token's contribution to account for this distributional mismatch.
+
+PPO's clipping mechanism (constraining $r_{i,t}$ to $[1-\epsilon, 1+\epsilon]$) is a safeguard against large importance weights destabilizing the gradient estimate. Without clipping, a token whose probability changed dramatically between the old and new policies would dominate the gradient. That domination can cause training to diverge.
 
 ### KL Divergence {#sec-math-kl-divergence}
 
@@ -81,7 +83,7 @@ $$
 D_{KL}(P \| Q) = \sum_x P(x) \log \frac{P(x)}{Q(x)}
 $$ {#eq-kl-bg}
 
-For continuous distributions, replace the sum with an integral. KL divergence is always non-negative ($D_{KL}(P \| Q) \geq 0$), with equality if and only if $P = Q$. The divergence is *not* symmetric: $D_{KL}(P \| Q) \neq D_{KL}(Q \| P)$ in general. Think of it as the "extra cost" (in nats when using natural log, or in bits when using log base 2) of encoding data from $P$ using a code optimized for $Q$.
+For continuous distributions, replace the sum with an integral. KL divergence is always non-negative ($D_{KL}(P \| Q) \geq 0$), with equality if and only if $P = Q$. The divergence is *not* symmetric: $D_{KL}(P \| Q) \neq D_{KL}(Q \| P)$ in general. Think of KL divergence as the "extra cost" (in nats when using natural log, or in bits when using log base 2) of encoding data from $P$ using a code optimized for $Q$.
 
 A concrete example: let $P = (0.7, 0.3)$ and $Q = (0.5, 0.5)$. Then:
 
@@ -89,7 +91,7 @@ $$
 D_{KL}(P \| Q) = 0.7 \ln\frac{0.7}{0.5} + 0.3 \ln\frac{0.3}{0.5} \approx 0.7 \times 0.336 + 0.3 \times (-0.511) \approx 0.082 \text{ nats}
 $$
 
-KL divergence appears in two places in this chapter. First, in the GRPO objective (@eq-grpo-objective in @sec-grpo-core), the term $\beta D_{KL}[\pi_\theta \| \pi_{ref}]$ penalizes the current policy $\pi_\theta$ for drifting too far from the reference policy $\pi_{ref}$. This prevents the model from collapsing to a narrow set of outputs that happen to score well on the reward (reward hacking, discussed in @sec-rlvr). The coefficient $\beta$ controls the trade-off: large $\beta$ forces conservative updates, small $\beta$ allows more aggressive optimization.
+KL divergence appears in two places in this chapter. First, in the GRPO objective (@eq-grpo-objective in @sec-grpo-core), the term $\beta D_{KL}[\pi_\theta \| \pi_{ref}]$ penalizes the current policy $\pi_\theta$ for drifting too far from the reference policy $\pi_{ref}$. This penalty prevents the model from collapsing to a narrow set of outputs that happen to score well on the reward (reward hacking, discussed in @sec-rlvr). The coefficient $\beta$ controls the trade-off: large $\beta$ forces conservative updates; small $\beta$ allows more aggressive optimization.
 
 Second, GRPO uses a specific **unbiased KL estimator** (@eq-kl-estimator in @sec-grpo-core) rather than the naive sample estimate. The standard definition above requires computing the full distributions $P$ and $Q$, which is intractable for autoregressive LLMs (the output space is exponentially large). The per-token estimator $\hat{D}_{KL} \approx \frac{\pi_{ref}}{\pi_\theta} - \log \frac{\pi_{ref}}{\pi_\theta} - 1$ is guaranteed to be non-negative, making it suitable for use in a loss function.
 
@@ -107,15 +109,15 @@ For a binary distribution $P = (p, 1-p)$, entropy is $H = -p\log p - (1-p)\log(1
 
 In the context of LLM training, the entropy of the policy's token distribution at each position measures how "diverse" the model's next-token predictions are. High entropy means the model assigns non-negligible probability to many tokens (diverse, exploratory outputs). Low entropy means the model strongly favors one or a few tokens (deterministic, repetitive outputs).
 
-**Entropy collapse**, one of the major failure modes discussed in @sec-grpo-variants, occurs when the policy's entropy drops to near zero over the course of training. The model becomes unable to generate diverse outputs, which means the group of $G$ samples contains nearly identical outputs, the group-relative advantages become nearly zero, and learning stalls. DAPO's Clip-Higher mechanism directly addresses this collapse by giving low-probability tokens more room to increase their probability, maintaining the distribution's entropy above a useful threshold.
+**Entropy collapse**, one of the major failure modes discussed in @sec-grpo-variants, occurs when the policy's entropy drops to near zero over the course of training. The model becomes unable to generate diverse outputs. When that happens, the group of $G$ samples contains nearly identical outputs, the group-relative advantages become nearly zero, and learning stalls. DAPO's Clip-Higher mechanism directly addresses this collapse by giving low-probability tokens more room to increase their probability, maintaining the distribution's entropy above a useful threshold.
 
 ### The Clipped Surrogate Objective {#sec-math-clipping}
 
-The clipped surrogate objective is a constrained optimization technique introduced by PPO and inherited by GRPO. The core idea is to prevent excessively large policy updates by "clipping" the objective function so that the gradient vanishes when the policy changes too much.
+The clipped surrogate objective is a constrained optimization technique introduced by PPO and inherited by GRPO. The core idea: prevent excessively large policy updates by "clipping" the objective function so that the gradient vanishes when the policy changes too much.
 
-Define the importance ratio $r_t(\theta) = \pi_\theta(o_t \mid q, o_{<t}) / \pi_{\theta_{old}}(o_t \mid q, o_{<t})$. When $\theta = \theta_{old}$ (no update yet), $r_t = 1$ exactly. The unclipped objective for a single token with advantage $\hat{A}_t$ is simply $r_t \hat{A}_t$. The meaning is straightforward: if the advantage is positive (this token was part of a good output), increase $r_t$ (make the token more likely); if negative, decrease $r_t$.
+Define the importance ratio $r_t(\theta) = \pi_\theta(o_t \mid q, o_{<t}) / \pi_{\theta_{old}}(o_t \mid q, o_{<t})$. When $\theta = \theta_{old}$ (no update yet), $r_t = 1$ exactly. The unclipped objective for a single token with advantage $\hat{A}_t$ is simply $r_t \hat{A}_t$. The meaning is straightforward: if the advantage is positive (the token was part of a good output), increase $r_t$ to make the token more likely; if negative, decrease $r_t$.
 
-The problem is that nothing stops $r_t$ from becoming very large or very small. If a token's probability changes from 0.01 to 0.10, the ratio becomes $r_t = 10$, amplifying the gradient tenfold. Such large ratio swings can destabilize training: the policy jumps to a region where the advantage estimates (computed under $\pi_{\theta_{old}}$) are no longer valid.
+The problem is that nothing stops $r_t$ from becoming very large or very small. If a token's probability changes from 0.01 to 0.10, the ratio is $r_t = 10$, amplifying the gradient tenfold. Such large ratio swings can destabilize training: the policy jumps to a region where the advantage estimates (computed under $\pi_{\theta_{old}}$) are no longer valid.
 
 The clipped objective solves this by taking the *minimum* of the unclipped and clipped versions:
 
@@ -127,17 +129,17 @@ where $\text{clip}(x, a, b) = \max(a, \min(x, b))$ restricts $x$ to the interval
 
 The minimum operator creates a "pessimistic" bound that behaves differently depending on the sign of the advantage.
 
-When $\hat{A}_t > 0$ (good token): the clipped term caps $r_t$ at $1+\epsilon$. The objective stops increasing once the token's probability has grown by more than a factor of $1+\epsilon$ from its old value. The $\min$ picks the lower of the two terms, preventing over-reinforcement.
+When $\hat{A}_t > 0$ (good token): the clipped term caps $r_t$ at $1+\epsilon$. The objective stops increasing once the token's probability has grown by more than a factor of $1+\epsilon$ from its old value. The $\min$ operator picks the lower of the two terms, preventing over-reinforcement.
 
-When $\hat{A}_t < 0$ (bad token): the clipped term caps $r_t$ at $1-\epsilon$ from below. The objective stops decreasing once the token's probability has shrunk by more than a factor of $1-\epsilon$. The $\min$ again picks the less aggressive update.
+When $\hat{A}_t < 0$ (bad token): the clipped term caps $r_t$ at $1-\epsilon$ from below. The objective stops decreasing once the token's probability has shrunk by more than a factor of $1-\epsilon$. Again, the $\min$ picks the less aggressive update.
 
-The net effect: the gradient is active only within a "trust region" around the old policy where $r_t \in [1-\epsilon, 1+\epsilon]$. Outside this region, the gradient is zero, and the optimizer cannot push the policy further. Typical values are $\epsilon = 0.2$ (PPO/GRPO) or the asymmetric $\epsilon_{low} = 0.1, \epsilon_{high} = 0.28$ (DAPO, see @sec-grpo-variants). DAPO's asymmetric clipping widens the upper bound specifically to allow low-probability "exploration" tokens more room to grow, counteracting entropy collapse while still preventing large destabilizing decreases.
+The net effect: the gradient is active only within a "trust region" around the old policy where $r_t \in [1-\epsilon, 1+\epsilon]$. Outside this region, the gradient is zero, and the optimizer cannot push the policy further. Typical values are $\epsilon = 0.2$ (PPO/GRPO) or the asymmetric $\epsilon_{low} = 0.2, \epsilon_{high} = 0.28$ (DAPO, see @sec-grpo-variants). DAPO's asymmetric clipping widens the upper bound specifically to allow low-probability "exploration" tokens more room to grow, counteracting entropy collapse while still preventing large destabilizing decreases.
 
 ### Unbiased Estimators and Baselines {#sec-math-unbiased-estimators}
 
-An estimator $\hat{\mu}$ of a quantity $\mu$ is **unbiased** if $\mathbb{E}[\hat{\mu}] = \mu$, that is, the estimator is correct "on average" across many independent trials. An estimator is **biased** if $\mathbb{E}[\hat{\mu}] = \mu + b$ for some nonzero $b$ (the bias term). Bias does not mean the estimator is useless; it means that averaging many estimates converges to the wrong value.
+An estimator $\hat{\mu}$ of a quantity $\mu$ is **unbiased** if $\mathbb{E}[\hat{\mu}] = \mu$; that is, the estimator is correct "on average" across many independent trials. An estimator is **biased** if $\mathbb{E}[\hat{\mu}] = \mu + b$ for some nonzero $b$ (the bias term). Bias does not mean the estimator is useless; it means that averaging many estimates converges to the wrong value.
 
-The sample mean $\bar{x} = \frac{1}{N}\sum x_i$ is an unbiased estimator of $\mathbb{E}[X]$. The sample variance with $N$ in the denominator ($\frac{1}{N}\sum(x_i - \bar{x})^2$) is biased; the corrected version with $N-1$ (Bessel's correction) is unbiased. For the GRPO chapter, the important result is the **unbiasedness of baselines** in policy gradients.
+The sample mean $\bar{x} = \frac{1}{N}\sum x_i$ is an unbiased estimator of $\mathbb{E}[X]$. The sample variance with $N$ in the denominator ($\frac{1}{N}\sum(x_i - \bar{x})^2$) is biased; the corrected version with $N-1$ (Bessel's correction) is unbiased. For this chapter, the important result is the **unbiasedness of baselines** in policy gradients.
 
 The proof that subtracting a state-dependent baseline $B(q)$ from the reward does not bias the policy gradient is the mathematical foundation of @sec-policy-gradients. The key step is:
 
@@ -147,4 +149,6 @@ $$
 
 The probabilities sum to 1 regardless of $\theta$, so the gradient of that sum is zero, and the entire baseline term vanishes in expectation. This vanishing property is why GRPO can subtract $\text{mean}(\mathbf{r})$ from each reward without biasing the gradient: the group mean depends only on the question (and the *other* outputs in the group), not on the specific output whose gradient is being computed.
 
-However, the **standard deviation normalization** in vanilla GRPO ($\hat{A}_{i,t} = (r_i - \text{mean}(\mathbf{r})) / \text{std}(\mathbf{r})$) *does* introduce a bias, because $\text{std}(\mathbf{r})$ depends on $r_i$ itself. Dividing by a quantity that depends on the current sample breaks the independence condition. This dependence is exactly the "difficulty bias" that Dr. GRPO removes (see @sec-grpo-variants). Similarly, the per-output length normalization $1/|o_i|$ introduces a "length bias" because it makes the effective gradient magnitude depend on the length of the output rather than treating all tokens equally. The difficulty bias and the length bias are the two biases that Dr. GRPO's analysis revealed and corrected.
+However, the **standard deviation normalization** in vanilla GRPO ($\hat{A}_{i,t} = (r_i - \text{mean}(\mathbf{r})) / \text{std}(\mathbf{r})$) *does* introduce a bias, because $\text{std}(\mathbf{r})$ depends on $r_i$ itself. Dividing by a quantity that depends on the current sample breaks the independence condition. This dependence is exactly the "difficulty bias" that Dr. GRPO removes (see @sec-grpo-variants).
+
+Similarly, the per-output length normalization $1/|o_i|$ introduces a "length bias" because it makes the effective gradient magnitude depend on the length of the output rather than treating all tokens equally. The difficulty bias and the length bias are the two biases that Dr. GRPO's analysis revealed and corrected.

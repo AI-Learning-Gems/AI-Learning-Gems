@@ -2,21 +2,21 @@
 
 ### Key Takeaways
 
-Let us return to Ava. She started this chapter with a 7B SQL model stuck at 55% accuracy on complex queries, unable to learn from its own mistakes. Through the ideas in this chapter, she now has a practical path to improving that model. Here are the five key takeaways:
+Let's return to Ava. She started this chapter with a 7B SQL model stuck at 55% accuracy on complex queries, unable to learn from its own mistakes. Through the ideas in this chapter, she now has a practical path to improving that model. Here are the five key takeaways:
 
-1. **GRPO eliminates the critic bottleneck** (@sec-grpo-core). By sampling $G$ outputs per question and using the group's mean reward as a baseline, GRPO provides variance reduction comparable to PPO's learned value function while cutting 50% of the GPU memory cost. The group-relative advantage naturally adjusts for question difficulty and requires no additional neural network.
+1. **GRPO eliminates the critic bottleneck** (@sec-grpo-core). By sampling $G$ outputs per question and using the group's mean reward as a baseline, GRPO provides variance reduction comparable to PPO's learned value function while significantly reducing GPU memory cost. The group-relative advantage adjusts naturally for question difficulty and requires no additional neural network.
 
 2. **Three biases, three fixes** (@sec-grpo-variants). Vanilla GRPO suffers from length bias (per-output normalization), difficulty bias (per-group std normalization), and entropy collapse (symmetric clipping). Dr. GRPO removes the first two with a one-line code change. DAPO addresses all three plus adds dynamic sampling and overlong reward shaping. REINFORCE++ uses batch-level normalization as an alternative.
 
-3. **RLVR makes RL practical for objective tasks** (@sec-rlvr). For any task where correctness can be verified programmatically (SQL execution, code testing, math checking, schema validation), verifiable rewards are strictly preferred over learned reward models. Verifiable rewards are cheaper, more accurate, and free from reward hacking. KL regularization becomes optional rather than essential.
+3. **RLVR makes RL practical for objective tasks** (@sec-rlvr). For any task where correctness can be verified programmatically (SQL execution, code testing, math checking, schema validation), verifiable rewards are strictly preferred over learned reward models. Verifiable rewards are cheaper, more accurate, and free from reward hacking, which makes KL regularization optional rather than essential.
 
-4. **RL amplifies, it does not create** (@sec-multi-turn). The R1-Zero experiments showed that RL can dramatically improve reasoning performance, but the reasoning capabilities were already present in the base model's pretraining. RL's value is in extracting and refining pre-existing capabilities, not in teaching fundamentally new skills. Invest in pretraining and SFT data quality first, then use RL to push performance to the frontier.
+4. **RL amplifies, it does not create** (@sec-multi-turn). The R1-Zero experiments showed that RL can dramatically improve reasoning performance, but the reasoning capabilities were already present in the base model's pretraining. RL's value lies in extracting and refining pre-existing capabilities, not in teaching fundamentally new skills. Invest in pretraining and SFT data quality first, then use RL to push performance to the frontier.
 
 5. **Practical engineering matters** (@sec-grpo-environments). The choice of inference engine (vLLM), reward design (multi-signal over pure binary), hyperparameters ($G = 16$, $\eta = 10^{-6}$, $\beta = 0$), and monitoring (separate tracking of correct/incorrect response lengths) are as important as the algorithm itself.
 
 ### Review Questions
 
-The following five questions test conceptual understanding, mathematical derivation, system design, quantitative analysis, and critical thinking.
+The following five questions test conceptual understanding, mathematical derivation, system design, quantitative analysis, and critical thinking, respectively.
 
 1. **Conceptual**: Explain why GRPO's group-relative baseline is an unbiased estimator of the expected reward. Under what conditions does it provide higher or lower variance than PPO's learned value function?
 
@@ -24,16 +24,16 @@ The following five questions test conceptual understanding, mathematical derivat
 
 3. **Design**: You are building a GRPO training pipeline for a model that generates API responses in JSON format. Design the verifiable reward function with three components: (a) the primary correctness signal, (b) at least two auxiliary signals, and (c) the relative weights. Explain how you would detect and prevent reward hacking.
 
-4. **Analysis**: DAPO's Clip-Higher uses $\epsilon_{low} = 0.1$ and $\epsilon_{high} = 0.28$. Calculate the maximum probability change for a token under two scenarios: (a) current probability 0.9 and (b) current probability 0.01. Compare both symmetric ($\epsilon = 0.2$) and asymmetric clipping. Explain qualitatively why the asymmetric version maintains higher entropy.
+4. **Analysis**: DAPO's Clip-Higher uses $\epsilon_{low} = 0.2$ and $\epsilon_{high} = 0.28$. Calculate the maximum probability change for a token under two scenarios: (a) current probability 0.9, and (b) current probability 0.01. Compare both symmetric ($\epsilon = 0.2$) and asymmetric clipping. Explain qualitatively why the asymmetric version maintains higher entropy.
 
-5. **Critical Thinking**: The Dr. GRPO paper showed that "Aha moments" already exist in base models before RL training. Does this undermine the value of R1-Zero-style training? Argue both sides and state your conclusion.
+5. **Critical Thinking**: The Dr. GRPO paper showed that "Aha moments" already exist in base models before RL training. Does this finding undermine the value of R1-Zero-style training? Argue both sides and state your conclusion.
 
 ### Further Reading and Resources
 
 **Papers:**
 
 - Shao et al. (2024), [DeepSeekMath](https://arxiv.org/abs/2402.03300): The original GRPO paper with the unified paradigm analysis
-- Guo et al. (2025), [DeepSeek-R1](https://arxiv.org/abs/2501.12948): GRPO at scale, R1-Zero, multi-stage training pipeline
+- DeepSeek-AI (2025), [DeepSeek-R1](https://arxiv.org/abs/2501.12948): GRPO at scale, R1-Zero, multi-stage training pipeline
 - Yu et al. (2025), [DAPO](https://arxiv.org/abs/2503.14476): Four targeted fixes for GRPO in long-CoT settings
 - Liu et al. (2025), [Dr. GRPO](https://arxiv.org/abs/2503.20783): Bias analysis, unbiased optimization, critical analysis of emergent reasoning
 - Hu et al. (2025), [REINFORCE++](https://arxiv.org/abs/2501.03262): Batch-level normalization as an alternative to group-relative baselines

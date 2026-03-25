@@ -11,30 +11,30 @@
 
 :::
 
-Ava now understands the theory behind GRPO and RLVR. But theory alone does not produce a working model. She needs to translate the algorithms into a running training pipeline: choose a framework, configure the reward environment, set hyperparameters, and monitor training. This section provides that practical engineering guide.
+Ava now understands the theory behind [**GRPO**]{style="color: #4F46E5;"} and RLVR. But theory alone does not produce a working model. She needs to translate the algorithms into a running training pipeline, which means four things: choosing a framework, configuring the [**reward environment**]{style="color: #047857;"}, setting hyperparameters, and monitoring training. This section provides that practical engineering guide.
 
 ### The Four Components of a GRPO Pipeline
 
-Every GRPO training setup has four core components. You need to understand how they interact to debug and tune effectively.
+Every GRPO training setup has four core components. Understanding how they interact is essential for debugging and tuning.
 
 **1. The inference engine (sampling).** GRPO requires generating $G$ outputs per prompt, which means the sampling phase dominates training time. Efficient inference is critical. The three leading options are:
 
 - **vLLM**: High-throughput inference engine with PagedAttention. Best for large-scale sampling where throughput matters more than latency.
 - **SGLang**: Efficient structured generation with batch scheduling. Good for tasks that require structured outputs (JSON, SQL).
-- **Naive sampling**: Using the training framework's built-in generation (e.g., HuggingFace `model.generate()`). Easier to set up but 3-5x slower than vLLM.
+- **Naive sampling**: Using the training framework's built-in generation (e.g., HuggingFace `model.generate()`). Easier to set up but substantially slower than dedicated inference engines.
 
-**2. The reward environment (verification).** For RLVR, this is the verifier. For SQL, it is a database execution sandbox. For code, a Docker container running test cases. For math, a symbolic equivalence checker. The reward environment must be deterministic, fast, and isolated (so model-generated code cannot corrupt the training server).
+**2. The reward environment (verification).** For [**RLVR**]{style="color: #047857;"}, this component is the [**verifier**]{style="color: #047857;"}. For SQL, the verifier is a database execution sandbox. For code, a Docker container running test cases. For math, a symbolic equivalence checker. The reward environment must be deterministic, fast, and isolated (so model-generated code cannot corrupt the training server).
 
 **3. The training engine (optimization).** The framework that computes the GRPO loss and performs gradient updates. The four leading options are:
 
 - **TRL (Transformers Reinforcement Learning)**: Part of the HuggingFace ecosystem. Easy to configure, integrates with transformers models. Supports GRPO and its variants natively.
 - **verl (Volcano Engine RL)**: High-performance framework from ByteDance. Used in DAPO's production training. Supports advanced features like pipeline scheduling between sampling and training.
 - **OpenRLHF**: Focused on RLHF but supports GRPO-style training. Ray-based distributed architecture.
-- **Oat**: Modular research framework from Sea AI Lab. Used in Dr. GRPO's experiments. Designed for rapid prototyping of new RL algorithms.
+- **Oat**: Modular research framework from Sea AI Lab. Used in [**Dr. GRPO**]{style="color: #4F46E5;"}'s experiments. Designed for rapid prototyping of new RL algorithms.
 
-**4. The data pipeline (prompt management).** Manages the training prompts, ensures diversity, and handles batch construction. For DAPO's dynamic sampling, the data pipeline must support over-sampling and filtering.
+**4. The data pipeline (prompt management).** Manages the training prompts, ensures diversity, and handles batch construction. For [**DAPO**]{style="color: #4F46E5;"}'s dynamic sampling, the data pipeline must support over-sampling and filtering.
 
-![The RL infrastructure for DeepSeek-R1 training, showing the interaction between sampling (inference), reward computation, and policy update stages. Source: Guo et al. (2025), Figure 5.](GRPO and RLVR/images/rl-infra.png){#fig-rl-infra}
+![The RL infrastructure for DeepSeek-R1 training, showing the interaction between sampling (rollout), reward computation (rule-based and model-based), and policy update stages. The framework offloads model instances from VRAM between phases to maximize memory efficiency. Source: DeepSeek-AI (2025).](GRPO and RLVR/images/rl-infra.png){#fig-rl-infra}
 
 ::: {.exercise-order correct="B,D,A,C"}
 
@@ -58,18 +58,18 @@ The following table summarizes the key hyperparameters with recommended ranges, 
 | Hyperparameter | Symbol | DeepSeekMath | Dr. GRPO | DAPO | Recommended Start |
 |---|---|---|---|---|---|
 | Group size | $G$ | 64 | 8 | 16 | 16 |
-| Learning rate | $\eta$ | 1e-6 | 5e-6 | 1e-6 | 1e-6 |
-| Clip epsilon | $\epsilon$ | 0.2 | 0.2 | $\epsilon_{low}=0.1, \epsilon_{high}=0.28$ | 0.2 |
+| Learning rate | $\eta$ | 1e-6 | 1e-6 | 1e-6 | 1e-6 |
+| Clip epsilon | $\epsilon$ | (not specified) | 0.2 | $\epsilon_{low}=0.2, \epsilon_{high}=0.28$ | 0.2 |
 | KL coefficient | $\beta$ | 0.04 | 0 | 0 | 0 (for RLVR) |
 | Max generation length | $L_{max}$ | 1024 | 3000 | 16384 | 2048 |
-| Batch size (prompts) | $B$ | 1024 | 128 | 256 | 128 |
+| Batch size (prompts) | $B$ | 1024 | (not reported) | 512 | 128 |
 | PPO epochs per batch | $\mu$ | 1 | 1 | 1 | 1 |
 
-**Group size ($G$)** is the most impactful hyperparameter. A larger $G$ gives better baseline estimates (lower variance) but increases sampling cost linearly. DeepSeekMath used $G = 64$ because they had massive compute; for most practitioners, $G = 16$ is a good balance. If your reward is binary (0/1) and the success rate is around 50%, $G = 16$ gives you enough samples to produce meaningful variance in the advantages.
+**Group size ($G$)** is the most impactful hyperparameter. A larger $G$ gives better baseline estimates (lower variance) but increases sampling cost linearly. DeepSeekMath used $G = 64$ because they had massive compute; for most practitioners, $G = 16$ is a good balance. If your reward is binary (0/1) and the success rate is around 50%, then $G = 16$ gives you enough samples to produce meaningful variance in the advantages.
 
-**Learning rate** should be small. GRPO updates are noisy (no critic to smooth them), and large learning rates cause the policy to oscillate. Start with 1e-6 and increase cautiously. If training reward plateaus early, the learning rate may be too high: the model is overshooting optimal policies.
+**Learning rate** should be small. GRPO updates are noisy (no critic to smooth them), and large learning rates cause the policy to oscillate. Start with 1e-6 and increase cautiously. If training reward plateaus early, the learning rate may be too high, causing the model to overshoot good policies.
 
-**KL coefficient ($\beta$)**: For pure RLVR with verifiable rewards, set $\beta = 0$ (or very small, like 0.01). KL regularization primarily prevents reward model exploitation in RLHF. In RLVR, the verifier cannot be exploited, so the KL term mainly preserves general capabilities. If you want a specialized model (SQL-only), drop it. If you want to maintain broad capabilities alongside the specific skill, keep a small $\beta$.
+**KL coefficient ($\beta$)**: For pure RLVR with verifiable rewards, set $\beta = 0$ (or very small, like 0.01). KL regularization primarily prevents reward model exploitation in RLHF. In RLVR, the verifier cannot be exploited, so the KL term mainly preserves general capabilities. If you want a specialized model (SQL-only), drop KL. If you want to maintain broad capabilities alongside the specific skill, keep a small $\beta$.
 
 ::: {.exercise-mcq correct="C"}
 
@@ -110,21 +110,21 @@ Ava sets up three dashboards for her GRPO training run. Each tracks metrics that
 
 **Dashboard 1: Reward metrics.**
 
-- **Mean reward per batch**: Should increase monotonically (with noise). If it plateaus early, the model may have reached the limit of the training data difficulty or the group size is too small.
-- **Reward variance (across prompts)**: Should decrease over training as the model improves on more questions. If it *increases*, the model may be catastrophically forgetting some question types while over-specializing on others.
-- **Fraction of uninformative prompts**: The percentage of prompts where all $G$ outputs have the same reward. Should stay below 50%. If it exceeds 70%, use DAPO's dynamic sampling or increase $G$.
+- **Mean reward per batch**: Should increase monotonically (with noise). If the mean reward plateaus early, the model may have reached the limit of the training data difficulty, or the group size is too small.
+- **Reward variance (across prompts)**: Should decrease over training as the model improves on more questions. If variance *increases*, the model may be catastrophically forgetting some question types while over-specializing on others.
+- **Fraction of uninformative prompts**: The percentage of prompts where all $G$ outputs have the same reward. This fraction should stay below 50%. If it exceeds 70%, use DAPO's dynamic sampling or increase $G$.
 
 **Dashboard 2: Policy metrics.**
 
-- **Entropy of the token distribution**: Should decrease slowly but stay above a minimum threshold. Rapid entropy decrease is a sign of entropy collapse. Consider switching to DAPO's Clip-Higher.
-- **KL divergence from reference model**: If using $\beta > 0$, monitor how far the policy has drifted. Large KL (> 50 nats) suggests the model has changed substantially from its starting point.
-- **Mean response length** (separate for correct and incorrect outputs): If incorrect response length is growing faster than correct response length, you have a length bias. Switch to Dr. GRPO.
+- **Entropy of the token distribution**: Should decrease slowly but stay above a minimum threshold. A rapid entropy decrease signals [**entropy collapse**]{style="color: #E11D48;"}. Consider switching to DAPO's Clip-Higher.
+- **KL divergence from reference model**: If using $\beta > 0$, monitor how far the policy has drifted. Large KL values (> 50 nats) suggest the model has changed substantially from its starting point.
+- **Mean response length** (separate for correct and incorrect outputs): If incorrect response length grows faster than correct response length, the training has a [**length bias**]{style="color: #E11D48;"}. Switch to Dr. GRPO.
 
 **Dashboard 3: Evaluation metrics.**
 
-- **Task accuracy on held-out test set**: The ultimate measure of success. Evaluate every 500-1000 steps.
+- **Task accuracy on held-out test set**: The ultimate measure of success. Evaluate every 500 to 1,000 steps.
 - **Pass@k accuracy**: Sample $k$ outputs per test question and report whether *any* are correct. This metric measures the model's exploration capability, not just its greedy output quality.
-- **Format compliance rate**: What fraction of outputs are in the correct format (valid SQL, parseable JSON, etc.)? This should reach 95%+ early in training.
+- **Format compliance rate**: What fraction of outputs are in the correct format (valid SQL, parseable JSON, etc.)? This rate should reach 95%+ early in training.
 
 
 ### Common Failure Modes and Fixes
@@ -153,14 +153,14 @@ Correct! Identical outputs across different prompts is the hallmark of entropy c
 :::
 
 ::: {.feedback-incorrect}
-Not quite. The key symptom here is that the model generates *the same output for all prompts*. This points to entropy collapse, not length bias (which manifests as incorrect responses growing longer) or reward oscillation (which shows up as wild reward swings). Entropy collapse means the model's token distribution has become degenerate. The fix is DAPO's Clip-Higher (which prevents the policy from becoming too peaked) combined with a reduced learning rate.
+Not quite. The key symptom here is that the model generates *the same output for all prompts*. This symptom points to entropy collapse, not length bias (which manifests as incorrect responses growing longer) or reward oscillation (which shows up as wild reward swings). Entropy collapse means the model's token distribution has become degenerate. The fix is DAPO's Clip-Higher (which prevents the policy from becoming too peaked) combined with a reduced learning rate.
 :::
 
 :::
 
 ### Ava's SQL Setup: A Concrete Example
 
-After reading all of the above, Ava sets up her pipeline:
+After reading all of the above, Ava sets up her pipeline with the following configuration:
 
 - **Base model**: Qwen2.5-Coder-7B-Instruct (already SFT'd on code tasks)
 - **Framework**: TRL with vLLM for generation
@@ -173,4 +173,4 @@ After reading all of the above, Ava sets up her pipeline:
 - **Max generation**: 512 tokens (SQL queries are typically short)
 - **Evaluation**: 1,000 held-out questions, evaluated every 500 steps
 
-After 5,000 training steps (~8 hours on 4 A100s), the model's execution accuracy on held-out questions improves from 55% (SFT baseline) to 72%. The biggest gains are on multi-table joins and queries with complex WHERE clauses, exactly the patterns where the model previously failed. GRPO's group-relative advantage lets the model learn from comparing its own correct and incorrect SQL queries for the same question, reinforcing the join patterns that work and penalizing the ones that do not.
+After 5,000 training steps (~8 hours on 4 A100s), the model's execution accuracy on held-out questions improves from 55% (SFT baseline) to 72%. The biggest gains are on multi-table joins and queries with complex WHERE clauses, exactly the patterns where the model previously failed. GRPO's [**group-relative advantage**]{style="color: #B45309;"} lets the model learn from comparing its own correct and incorrect SQL queries for the same question. The model reinforces the join patterns that work and penalizes the ones that do not.
