@@ -185,6 +185,61 @@ body.quarto-dark #chat-model-select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2398a2b3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
 }
 
+/* ── Custom model input row ── */
+.custom-model-input-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  animation: msgAppear 0.2s var(--chat-transition) both;
+}
+
+.custom-model-input-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  font-size: 0.73rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  border: 1px solid var(--chat-border);
+  border-radius: var(--chat-radius-xs);
+  background: var(--chat-surface);
+  color: var(--chat-text);
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.custom-model-input-row input:focus {
+  border-color: var(--chat-primary);
+}
+
+.custom-model-input-row button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--chat-border);
+  border-radius: var(--chat-radius-xs);
+  background: var(--chat-surface);
+  color: var(--chat-text-secondary);
+  cursor: pointer;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.custom-model-input-row button:first-of-type:hover {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.custom-model-input-row button:last-of-type:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
 #clear-chat-btn,
 #close-chat-btn {
   background: none;

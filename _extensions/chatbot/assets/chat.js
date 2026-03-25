@@ -46,6 +46,11 @@ function initChat() {
     const apiKeyStatus = document.getElementById("chat-api-key-status");
     const authMethodLabel = document.getElementById("chat-auth-method-label");
     const authClearBtn = document.getElementById("chat-auth-clear");
+    const customModelRow = document.getElementById("custom-model-input-row");
+    const customModelInput = document.getElementById("custom-model-input");
+    const customModelConfirm = document.getElementById("custom-model-confirm");
+    const customModelCancel = document.getElementById("custom-model-cancel");
+    const CUSTOM_SENTINEL = "__custom__";
 
     const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
     const OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models";
@@ -54,6 +59,7 @@ function initChat() {
     const STORAGE_KEY_MODELS_TS = "openrouter_free_models_ts";
     const MODELS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
     const STORAGE_KEY_SELECTED_MODEL = "openrouter_selected_model";
+    const STORAGE_KEY_CUSTOM_MODEL = "openrouter_custom_model";
     const STORAGE_KEY_LAST_ACTIVITY = "openrouter_last_activity";
     const KEY_EXPIRY_MS = 24 * 60 * 60 * 1000;
     const STORAGE_KEY_CHAT_MESSAGES = "chat_messages_" + window.location.pathname;
@@ -400,10 +406,11 @@ function initChat() {
     function resetModelSelect() {
         if (!modelSelect) return;
         modelSelect.innerHTML = "";
-        const opt = document.createElement("option");
+        var opt = document.createElement("option");
         opt.value = "openrouter/free";
         opt.textContent = "Auto (Best Free Model)";
         modelSelect.appendChild(opt);
+        appendCustomSentinel();
     }
 
     async function loadFreeModels(apiKey) {
@@ -436,18 +443,23 @@ function initChat() {
     function populateModelSelect(freeModels) {
         if (!modelSelect) return;
         modelSelect.innerHTML = "";
-        const autoOpt = document.createElement("option");
+        var autoOpt = document.createElement("option");
         autoOpt.value = "openrouter/free";
         autoOpt.textContent = "Auto (Best Free Model)";
         modelSelect.appendChild(autoOpt);
-        for (const m of freeModels) {
+        for (var i = 0; i < freeModels.length; i++) {
+            var m = freeModels[i];
             if (m.id === "openrouter/free") continue;
-            const opt = document.createElement("option");
+            var opt = document.createElement("option");
             opt.value = m.id;
-            const ctxLabel = m.ctx ? " (" + Math.round(m.ctx / 1000) + "K)" : "";
+            var ctxLabel = m.ctx ? " (" + Math.round(m.ctx / 1000) + "K)" : "";
             opt.textContent = m.name + ctxLabel;
             modelSelect.appendChild(opt);
         }
+        // Restore saved custom model if present
+        var savedCustom = localStorage.getItem(STORAGE_KEY_CUSTOM_MODEL);
+        if (savedCustom) insertCustomModelOption(savedCustom);
+        appendCustomSentinel();
         // Restore saved model choice if it's still in the list
         var saved = localStorage.getItem(STORAGE_KEY_SELECTED_MODEL);
         if (saved && modelSelect.querySelector('option[value="' + CSS.escape(saved) + '"]')) {
@@ -455,9 +467,90 @@ function initChat() {
         }
     }
 
+    function appendCustomSentinel() {
+        if (!modelSelect) return;
+        var existing = modelSelect.querySelector('option[value="' + CUSTOM_SENTINEL + '"]');
+        if (existing) return;
+        var sep = document.createElement("option");
+        sep.disabled = true;
+        sep.textContent = "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500";
+        modelSelect.appendChild(sep);
+        var opt = document.createElement("option");
+        opt.value = CUSTOM_SENTINEL;
+        opt.textContent = "Custom model\u2026";
+        modelSelect.appendChild(opt);
+    }
+
+    function insertCustomModelOption(modelId) {
+        if (!modelSelect) return;
+        // Remove any previous custom option
+        var prev = modelSelect.querySelector('option[data-custom="true"]');
+        if (prev) prev.remove();
+        var opt = document.createElement("option");
+        opt.value = modelId;
+        opt.setAttribute("data-custom", "true");
+        opt.textContent = "\u2605 " + formatModelName(modelId);
+        // Insert before the separator (second-to-last) or at end
+        var sentinel = modelSelect.querySelector('option[value="' + CUSTOM_SENTINEL + '"]');
+        if (sentinel && sentinel.previousElementSibling) {
+            modelSelect.insertBefore(opt, sentinel.previousElementSibling);
+        } else {
+            modelSelect.appendChild(opt);
+        }
+    }
+
     if (modelSelect) {
         modelSelect.addEventListener("change", function () {
+            if (modelSelect.value === CUSTOM_SENTINEL) {
+                showCustomModelInput();
+                return;
+            }
             localStorage.setItem(STORAGE_KEY_SELECTED_MODEL, modelSelect.value);
+        });
+    }
+
+    function showCustomModelInput() {
+        if (!customModelRow || !customModelInput) return;
+        customModelRow.style.display = "";
+        var existing = localStorage.getItem(STORAGE_KEY_CUSTOM_MODEL);
+        customModelInput.value = existing || "";
+        customModelInput.focus();
+        // Revert dropdown to the previously selected model (don't leave it on the sentinel)
+        var saved = localStorage.getItem(STORAGE_KEY_SELECTED_MODEL);
+        if (saved && modelSelect.querySelector('option[value="' + CSS.escape(saved) + '"]')) {
+            modelSelect.value = saved;
+        } else {
+            modelSelect.value = "openrouter/free";
+        }
+    }
+
+    function hideCustomModelInput() {
+        if (customModelRow) customModelRow.style.display = "none";
+        if (customModelInput) customModelInput.value = "";
+    }
+
+    function confirmCustomModel() {
+        var modelId = customModelInput ? customModelInput.value.trim() : "";
+        if (!modelId) return;
+        // Normalize: strip leading/trailing whitespace, ensure no spaces
+        modelId = modelId.replace(/\s+/g, "");
+        localStorage.setItem(STORAGE_KEY_CUSTOM_MODEL, modelId);
+        insertCustomModelOption(modelId);
+        modelSelect.value = modelId;
+        localStorage.setItem(STORAGE_KEY_SELECTED_MODEL, modelId);
+        hideCustomModelInput();
+    }
+
+    if (customModelConfirm) {
+        customModelConfirm.addEventListener("click", confirmCustomModel);
+    }
+    if (customModelCancel) {
+        customModelCancel.addEventListener("click", hideCustomModelInput);
+    }
+    if (customModelInput) {
+        customModelInput.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") { e.preventDefault(); confirmCustomModel(); }
+            if (e.key === "Escape") { e.preventDefault(); hideCustomModelInput(); }
         });
     }
 

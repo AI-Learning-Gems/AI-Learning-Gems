@@ -8,6 +8,11 @@
         <select id="chat-model-select" aria-label="Select AI Model">
           <option value="openrouter/free">Auto (Best Free Model)</option>
         </select>
+        <div id="custom-model-input-row" class="custom-model-input-row" style="display:none;">
+          <input id="custom-model-input" type="text" placeholder="e.g. anthropic/claude-sonnet-4" autocomplete="off" spellcheck="false" />
+          <button id="custom-model-confirm" aria-label="Confirm custom model">&#x2713;</button>
+          <button id="custom-model-cancel" aria-label="Cancel">&#x2715;</button>
+        </div>
       </div>
       <button id="clear-chat-btn" aria-label="Clear chat history"></button>
       <button id="close-chat-btn" aria-label="Close Chat"></button>
