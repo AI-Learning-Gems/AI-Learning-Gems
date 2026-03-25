@@ -1,0 +1,21 @@
+---
+title: "AI Reviewers for Scientific Literature"
+filters:
+  - ../_extensions/pandoc-ext/diagram/diagram.lua
+---
+
+{{< include "AI Reviewers for Scientific Literature/_01-introduction.qmd" >}}
+
+{{< include "AI Reviewers for Scientific Literature/_02-landscape.qmd" >}}
+
+{{< include "AI Reviewers for Scientific Literature/_03-how-reviewers-use-ai.qmd" >}}
+
+{{< include "AI Reviewers for Scientific Literature/_04-failure-modes.qmd" >}}
+
+{{< include "AI Reviewers for Scientific Literature/_05-building-reviewer.qmd" >}}
+
+{{< include "AI Reviewers for Scientific Literature/_06-defense.qmd" >}}
+
+{{< include "AI Reviewers for Scientific Literature/_07-ethics-future.qmd" >}}
+
+{{< include "AI Reviewers for Scientific Literature/_99-closing.qmd" >}}

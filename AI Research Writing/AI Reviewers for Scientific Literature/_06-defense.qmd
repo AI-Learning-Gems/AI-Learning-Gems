@@ -1,0 +1,109 @@
+## Making Your Paper AI-Reviewer-Resistant {#sec-defense}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Shen et al., "Mind the Blind Spots" (EMNLP 2025)](https://arxiv.org/abs/2502.17086) | LLMs over-focus on validity; novelty must be made explicit |
+| 2 | [Lin et al., "Breaking the Reviewer" (EMNLP 2025 Findings)](https://arxiv.org/abs/2506.11113) | Rubric-keyword exploitation; defenses through anchored scoring |
+| 3 | [LLM-REVal (2025)](https://arxiv.org/abs/2510.12367) | Writing style bias; revisions guided by LLM feedback improve quality |
+| 4 | [Thakkar et al., ICLR 2025 RCT](https://arxiv.org/abs/2504.09737) | Pre-submission self-review is empirically effective (89% preference) |
+| 5 | [PRISMM-Bench (2025)](https://arxiv.org/abs/2510.16505) | Cross-section consistency failure; models degrade at document-level |
+
+:::
+
+Priya has feedback from all three tiers. Now she needs to act on it. This section translates the failure taxonomy from @sec-failure-modes into six concrete [defense strategies]{style="color: #0369A1;"}. The core insight is that your paper faces two audiences simultaneously: human reviewers who evaluate novelty and intellectual depth, and AI reviewers who evaluate structure, consistency, and writing quality. The strategies that make your paper robust to AI review also make it better for human readers, because they are fundamentally about clarity, precision, and explicitness.
+
+### Defense Strategy 1: Maximize Internal Consistency
+
+AI reviewers fail at cross-section consistency (@sec-failure-modes, Failure 3 and 8). You can exploit this in two ways: by ensuring your paper has zero inconsistencies (so AI reviewers cannot flag false positives), and by making consistency so explicit that even a limited-context model can verify it.
+
+**Concrete actions:**
+
+- Numbers in the abstract must exactly match the results tables. If the abstract says "12% improvement," the table must show 12.0%, not 11.7% rounded up.
+- Each claimed contribution in the introduction must map 1:1 to a section or subsection. If you claim three contributions, there should be three clearly labeled sections delivering them.
+- Every claim must be traceable to specific evidence. When you write "our method outperforms all baselines," include a parenthetical: "(Table 2, row 3)."
+- Check figure captions against the text. If the text says "Figure 3 shows the ablation on attention heads," Figure 3 must show exactly that, not a different ablation.
+
+### Defense Strategy 2: Make Novelty Unmistakable
+
+Because AI reviewers almost completely overlook novelty in weaknesses (F1 = 0.126, from @sec-failure-modes Failure 1), they will not notice your paper's novelty unless you make it impossible to miss. This helps human reviewers too: many human reviewers skim, and explicit novelty statements help them recognize your contribution quickly.
+
+**Concrete actions:**
+
+- State the novelty in the first sentence of the abstract: "We propose X, the first method that Y."
+- Include an explicit comparison table against the 2-3 closest prior methods, with a column for each axis of difference.
+- In the related work section, after describing each prior method, add one sentence stating how your work differs: "Unlike [method], our approach does not require [assumption/resource]."
+- Use a "Contributions" bullet list in the introduction. Number each contribution. Refer back to these numbers in the relevant sections: "Fulfilling Contribution 2, we show that..."
+
+### Defense Strategy 3: Structure for Parseability
+
+AI reviewers are good at evaluating structure and writing quality. Lean into this strength. A well-structured paper will receive higher scores from AI reviewers and will also be easier for human reviewers to follow.
+
+**Concrete actions:**
+
+- Number your contributions explicitly: "Our contributions are: (1)..., (2)..., (3)..."
+- Bold the best results in every table. Use `\textbf{}` for the best value in each column.
+- Label ablation studies clearly: "Ablation 1: Effect of removing component X" as a subsection header.
+- Use consistent section naming that matches the review rubric. If the rubric asks about "reproducibility," include a subsection titled "Reproducibility" or "Implementation Details."
+
+### Defense Strategy 4: Avoid LLM-Detectable Language
+
+LLM-REVal found that AI reviewers prefer LLM-style writing: concise, high lexical diversity, syntactically complex ([LLM-REVal, 2025](https://arxiv.org/abs/2510.12367)). Conversely, conference detection tools flag papers with characteristic LLM vocabulary. The defense is not to avoid AI assistance entirely, but to ensure your final text sounds like *you*, not like an LLM.
+
+**Concrete actions:**
+
+- Remove words that are statistical tells of LLM generation: "commendable," "meticulous," "intricate," "delve," "bolster." The Russo Latona et al. paper identified these as the top vocabulary indicators of AI-assisted text.
+- Prefer domain-specific precise language over generic academic phrases. Write "we use a 3-layer MLP with ReLU activations" not "we employ a sophisticated neural network architecture."
+- Read your paper aloud. If any sentence sounds like it came from a corporate press release, rewrite it.
+
+### Defense Strategy 5: Pre-Submission AI Self-Review
+
+The strongest defense is to run your paper through an AI reviewer before submission and fix every weakness it finds. The ICLR 2025 RCT by Thakkar et al. provides direct evidence that this works: AI feedback improved review quality in 89% of paired comparisons, and reviewers who received AI feedback wrote more specific, actionable reviews ([Thakkar et al., 2025](https://arxiv.org/abs/2504.09737)). If AI feedback improves *reviews*, it certainly improves *papers*.
+
+**Concrete actions:**
+
+- Run all three tiers from @sec-building-reviewer before submission.
+- For each issue flagged, decide: is this a real weakness (fix it) or a false positive from the AI's failure modes (document why it is wrong in your paper, so human reviewers are not misled by the same confusion).
+- Pay special attention to Tier 2 output: missing related work is the most actionable category of feedback, and it is the easiest to fix.
+
+### Defense Strategy 6: Write for the Rubric
+
+Conference review forms have specific criteria: soundness, significance, novelty, clarity, reproducibility, ethics. Lin et al. showed that AI reviewers latch onto rubric keywords: if the paper contains clear markers for each rubric category, the AI assigns higher scores in that category ([Lin et al., "Breaking the Reviewer," EMNLP 2025 Findings](https://arxiv.org/abs/2506.11113)). This is not gaming; it is good communication. A paper that makes its contributions easy to evaluate on every rubric dimension is a paper that respects the reviewer's time.
+
+**Concrete actions:**
+
+- Include a "Broader Impact" or "Limitations" section. Many review forms now require evaluation of these, and their absence is a rubric-level flag.
+- Address each review criterion explicitly somewhere in the paper. If the rubric asks about "reproducibility," provide code links, hyperparameter tables, and compute requirements.
+- If the paper has ethical considerations, address them proactively. LLM-REVal found that papers discussing bias and risk receive *lower* AI scores, but addressing these issues proactively prevents human reviewers from raising them as unaddressed concerns.
+
+::: {.callout-note title="Think Hard: Is there a tension between optimizing for AI reviewers and writing compelling papers for humans?"}
+Partially, yes. AI reviewers reward explicit structure, numbered contributions, and rubric-aligned organization. Human reviewers also appreciate these, but the best papers for humans also include narrative surprise, intellectual tension, and stylistic personality. A paper that optimizes purely for AI parseability might feel mechanical to a human reader. The resolution is to use AI optimization as a floor, not a ceiling: make sure every rubric criterion is explicitly addressed and every claim is internally consistent (the AI floor), and then add the narrative depth, provocative framing, and intellectual ambition that make human reviewers excited (the human ceiling). Defense strategies 1-3 and 5-6 apply to both audiences. Strategy 4 (avoiding LLM-detectable language) is specifically about maintaining your authentic voice.
+:::
+
+### What NOT to Do
+
+There is a line between defense and manipulation. Crossing it carries real consequences.
+
+- **Do not inject hidden prompts into your paper.** Prompt injection attacks work (100% acceptance rates in some models), but conferences are deploying countermeasures. ICML 2026's watermarking caught 795 violators. Getting caught means desk rejection and potential banning.
+- **Do not use white-text or tiny-font manipulation.** PDF tools parse these. Conference organizers know about them.
+- **Do not fabricate citations to make your paper look better-grounded.** NeurIPS 2025 had 100 fabricated citations in accepted papers. This is a Code of Ethics violation at every major venue.
+
+The defense strategies above make your paper genuinely better. Prompt injection makes your paper fraudulent. The distinction is simple: if you would be embarrassed to explain your optimization strategy to an area chair, it crosses the line.
+
+### Priya's Pre-Submission Checklist
+
+Priya translates the six strategies into a concrete checklist that she runs before every submission.
+
+| # | Check | Strategy | How to Verify |
+|---|---|---|---|
+| 1 | Abstract numbers match results tables | Consistency | Grep abstract claims, compare to tables |
+| 2 | Each contribution maps to a section | Consistency | Number contributions, label sections |
+| 3 | Novelty stated in abstract sentence 1 | Novelty | Read abstract aloud |
+| 4 | Comparison table against closest methods | Novelty | Create if missing |
+| 5 | Bold best results in all tables | Parseability | Visual scan |
+| 6 | No LLM-tell vocabulary | Language | Search for "commendable," "meticulous," etc. |
+| 7 | Tier 1, 2, 3 AI reviews completed | Self-review | Run all three tiers |
+| 8 | Each rubric criterion addressed | Rubric | Map review form to paper sections |
+| 9 | Limitations section present | Rubric | Check paper structure |
+| 10 | All citations verified as real | Integrity | Spot-check DOIs and arXiv links |

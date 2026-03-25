@@ -1,0 +1,267 @@
+## Closing {#sec-closing}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+This section synthesizes findings from all sources cited in previous sections.
+:::
+
+### Key Takeaways
+
+1. **AI reviewing is the current reality, not a hypothetical.** At least 15.8% of ICLR 2024 reviews were AI-assisted (Russo Latona et al.), rising to 21% fully AI-generated at ICLR 2026 (Pangram). Over half of ICLR 2026 reviews showed some AI involvement.
+
+2. **AI reviews inflate scores and compress ratings.** Fully LLM-generated reviews assign scores almost exclusively between 6 and 7 regardless of paper quality. Receiving an AI-assisted review boosts borderline papers' acceptance by 4.9 percentage points.
+
+3. **Novelty blindness is the most damaging failure mode.** LLMs overlook novelty in weaknesses (F1 = 0.126) while over-focusing on technical validity. This gap means AI reviewers cannot tell you whether your idea is new.
+
+4. **All LLMs exhibit measurable social bias in reviewing.** Affiliation bias favoring highly-ranked institutions is statistically significant across all nine tested models, with RS win rates up to 94.2%.
+
+5. **Three tiers of AI reviewer address progressively more failure modes.** Zero-shot (fast, generic), RAG-augmented (adds literature grounding), and deep research (agentic, iterative, verifiable). No fine-tuning required for any tier.
+
+6. **Pre-submission AI self-review has empirical backing.** The ICLR 2025 RCT showed that AI feedback improved review quality in 89% of cases without changing acceptance rates. If AI feedback makes reviews better, it makes papers better too.
+
+7. **The line between optimization and manipulation is clear.** Running AI self-review, ensuring consistency, and making novelty explicit are legitimate. Prompt injection, white-text attacks, and citation fabrication are manipulation, with documented consequences: 497 desk rejections at ICML 2026.
+
+8. **Human oversight reduces AI review bias by 85%.** The hybrid model (AI assists, human decides) is the evidence-based path forward. Both ICLR and ICML are moving toward structured AI integration rather than outright bans.
+
+### Completed Concept Map
+
+```{.d2}
+direction: down
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 14
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 16
+      bold: true
+    }
+  }
+}
+
+paper: {
+  class: [base; input]
+  label: "   Your Paper   "
+}
+
+landscape: {
+  class: [base; process]
+  label: "   AI Review Landscape   \n   15.8-21% prevalence   \n   Conference enforcement   "
+}
+
+how_used: {
+  class: [base; process]
+  label: "   How Reviewers Use AI   \n   56.5% information-seeking   \n   2.5% full automation   "
+}
+
+failures: {
+  class: [base; container]
+  label: "8 Failure Modes"
+  label.near: top-left
+  f1: {
+    class: [base; decision]
+    label: "   Novelty Blindness   \n   F1 = 0.126   "
+  }
+  f2: {
+    class: [base; decision]
+    label: "   Rating Inflation   \n   85-99% neutral accept   "
+  }
+  f3: {
+    class: [base; decision]
+    label: "   Multimodal Blindness   \n   27.8-53.9%   "
+  }
+  f4: {
+    class: [base; decision]
+    label: "   Social Bias   \n   Up to 94.2% RS win   "
+  }
+}
+
+tiers: {
+  class: [base; container]
+  label: "Three-Tier AI Reviewer"
+  label.near: top-left
+  t1: {
+    class: [base; process]
+    label: "   Tier 1: Zero-Shot   \n   $0.05-0.50   "
+  }
+  t2: {
+    class: [base; process]
+    label: "   Tier 2: RAG-Augmented   \n   $0.50-3.00   "
+  }
+  t3: {
+    class: [base; process]
+    label: "   Tier 3: Deep Research   \n   $3-15   "
+  }
+}
+
+defenses: {
+  class: [base; container]
+  label: "6 Defense Strategies"
+  label.near: top-left
+  d1: {
+    class: [base; output]
+    label: "   Consistency   "
+  }
+  d2: {
+    class: [base; output]
+    label: "   Explicit Novelty   "
+  }
+  d3: {
+    class: [base; output]
+    label: "   Parseability   "
+  }
+  d4: {
+    class: [base; output]
+    label: "   Language   "
+  }
+  d5: {
+    class: [base; output]
+    label: "   Self-Review   "
+  }
+  d6: {
+    class: [base; output]
+    label: "   Rubric Alignment   "
+  }
+}
+
+ethics: {
+  class: [base; process]
+  label: "   Ethics   \n   Optimization vs Manipulation   \n   Hybrid Human+AI Model   "
+}
+
+goal: {
+  class: [base; highlight]
+  label: "   AI-Reviewer-Resistant Paper   "
+}
+
+paper -> landscape
+landscape -> how_used
+how_used -> failures
+failures -> tiers: "build tools to\ncompensate"
+tiers -> defenses: "apply feedback"
+defenses -> ethics: "where is the line?"
+ethics -> goal
+
+tiers.t1 -> tiers.t2
+tiers.t2 -> tiers.t3
+```
+
+### Retrieval Practice Questions
+
+::: {.callout-tip collapse="true" title="Questions and Answers"}
+
+**Q1.** What percentage of ICLR 2024 reviews were estimated to be AI-assisted, and who conducted the study?
+**A1.** At least 15.8%, estimated by Russo Latona et al. using GPTZero. This estimate is a lower bound because the false-negative rate was not corrected for.
+
+**Q2.** Name three specific failure modes of AI reviewers and the paper that documents each.
+**A2.** (1) Novelty blindness (Shen et al., "Mind the Blind Spots"), (2) Rating inflation/leniency (Keuper, "Prompt Injection Attacks"), (3) Affiliation bias (Macharla Vasu et al., "Justice in Judgment").
+
+**Q3.** In the CHIWORK 2025 experiment, what percentage of reviewer-AI interactions were information-related vs. full automation?
+**A3.** 56.5% were information-related (summarization, retrieval, translation); only 2.5% were full automation (delegating the entire review).
+
+**Q4.** What is the key difference between ICLR 2026 and ICML 2026's approaches to AI review policy?
+**A4.** ICLR uses a disclosure-based model (use AI but disclose it). ICML uses a two-policy opt-in model (Policy A: no AI; Policy B: AI for understanding and polishing only), with watermark-based detection and enforcement.
+
+**Q5.** How does the three-tier AI reviewer system address novelty blindness specifically?
+**A5.** Tier 1 (zero-shot) cannot assess novelty because it lacks access to current literature. Tier 2 (RAG-augmented) adds retrieval from Semantic Scholar or a local corpus, enabling comparison against recent related work. Tier 3 (deep research) uses agentic paper search with structured novelty queries.
+
+**Q6.** In the Sharma et al. study, by how much did human oversight reduce the leniency differential in AI-generated reviews?
+**A6.** By approximately 85%, from 0.625 points to 0.096 points.
+
+**Q7.** What did the ICLR 2025 RCT find about the effect of AI feedback on acceptance rates?
+**A7.** No statistically significant difference (32.3% in the feedback group vs. 30.8% in the control group). AI feedback improved review quality without distorting decisions.
+
+:::
+
+### Common Mistakes
+
+1. **Treating all AI-reviewing as equally bad.** The spectrum runs from responsible reading support (56.5% of interactions) to full delegation (2.5%). Banning all AI use ignores the evidence that structured AI assistance improves review quality.
+
+2. **Ignoring AI review feedback because "it's just AI."** Tier 1 AI reviews catch real issues: inconsistencies, unclear writing, missing sections. Dismissing AI feedback wholesale means missing low-hanging fruit.
+
+3. **Over-optimizing for AI reviewers at the expense of human readers.** Your paper needs to impress both audiences. A paper that scores 8/10 from an AI but bores a human area chair will not succeed.
+
+4. **Assuming your paper will only face human reviewers.** With 21% fully AI-generated and 50%+ AI-assisted reviews at ICLR, the assumption that all your reviewers are human is increasingly incorrect.
+
+5. **Using prompt injection or citation fabrication.** The consequences are documented and severe: 497 desk rejections at ICML 2026. The risk-reward calculation does not favor manipulation.
+
+### Curated Resources
+
+| # | Resource | URL | What It Provides |
+|---|---|---|---|
+| 1 | **Poldrack ai-peer-review** | [github.com/poldrack/ai-peer-review](https://github.com/poldrack/ai-peer-review) | Multi-LLM meta-review tool; ready to use |
+| 2 | **MARG reviewer (Allen AI)** | [github.com/allenai/marg-reviewer](https://github.com/allenai/marg-reviewer) | Multi-agent review with Docker setup |
+| 3 | **DeepReviewer v2** | [github.com/ResearAI/DeepReviewer-v2](https://github.com/ResearAI/DeepReviewer-v2) | Agentic tool-grounded reviewer; PDF annotation |
+| 4 | **OpenNovelty** | [opennovelty.org](https://www.opennovelty.org/) | Public novelty reports for ICLR 2026 submissions |
+| 5 | **Pangram Labs ICLR analysis** | [pangram.com/blog](https://www.pangram.com/blog/pangram-predicts-21-of-iclr-reviews-are-ai-generated) | Detection methodology and prevalence data |
+| 6 | **ICML 2026 LLM Policy** | [icml.cc/Conferences/2026/LLM-Policy](https://icml.cc/Conferences/2026/LLM-Policy) | Two-policy framework reference |
+| 7 | **Semantic Scholar API** | [api.semanticscholar.org](https://api.semanticscholar.org/) | Paper search for Tier 2 reviewer |
+| 8 | **AgentReview** | [github.com/Ahren09/AgentReview](https://github.com/Ahren09/AgentReview) | Peer review simulation framework |
+
+### Pre-Submission Checklist
+
+| # | Check | Maps to |
+|---|---|---|
+| 1 | Abstract numbers match results tables exactly | Defense Strategy 1 |
+| 2 | Each contribution maps to a labeled section | Defense Strategy 1 |
+| 3 | Novelty stated in abstract sentence 1 | Defense Strategy 2 |
+| 4 | Comparison table against closest prior work | Defense Strategy 2 |
+| 5 | Best results bolded in all tables | Defense Strategy 3 |
+| 6 | Contributions numbered and referenced by number | Defense Strategy 3 |
+| 7 | No LLM-tell vocabulary (commendable, meticulous, etc.) | Defense Strategy 4 |
+| 8 | Tier 1, 2, and 3 AI reviews completed | Defense Strategy 5 |
+| 9 | Each review rubric criterion addressed | Defense Strategy 6 |
+| 10 | Limitations section present | Defense Strategy 6 |
+| 11 | All citations verified as real (spot-check DOIs) | Integrity |
+| 12 | No hidden prompts or white-text manipulation | Ethics |

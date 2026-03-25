@@ -1,0 +1,57 @@
+## How Reviewers Actually Use AI (The HCI Evidence) {#sec-how-reviewers-use-ai}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Chen et al., "Envisioning the Future of Peer Review" (CHIWORK 2025)](https://discovery.ucl.ac.uk/id/eprint/10208390/) | Within-subject experiment: 24 HCI reviewers; reduced workload but not time or quality |
+| 2 | [Kanada, "How I Use ChatGPT During Peer Review" (Medium, 2026)](https://medium.com/@nirvana_shamrock_bear_975/how-i-use-chatgpt-during-peer-review-reading-section-by-section-with-ai-ab25ac9138ef) | Section-by-section dialogical review; translation as reading aid |
+| 3 | [Sharma et al., "Do LLMs Favor LLMs?" (2026)](https://arxiv.org/abs/2601.20920) | 125K+ paper-review pairs; 26.65% of reviews LLM-modified; rating compression |
+| 4 | [Thakkar et al., "Can LLM Feedback Enhance Review Quality?" ICLR 2025 RCT](https://arxiv.org/abs/2504.09737) | 26.6% update rate; 89% preference for updated reviews |
+| 5 | [IOP Publishing, "AI and Peer Review 2025"](https://ioppublishing.org/ai-and-peer-review-2025-conclusion/) | More than one-third of respondents use AI for reviewing |
+
+:::
+
+Priya knows the numbers: 21% of ICLR reviews fully AI-generated, over half with some AI involvement. But those numbers aggregate wildly different behaviors. The reviewer who pastes a whole paper into ChatGPT and submits whatever comes out is doing something fundamentally different from the reviewer who uses an LLM to translate each section into their native language while reading, or the researcher who asks an LLM to search for related work they might have missed. Understanding *how* reviewers actually use AI is the key to building useful AI review tools, because the design of each tool should match the behavior pattern it supports.
+
+### Three Levels of AI-Assisted Reviewing
+
+Empirical evidence from HCI research and practitioner accounts reveals three distinct patterns of AI use in peer review. These patterns form a spectrum from shallow automation to deep augmentation.
+
+**Level 1: "Give me a quick take" (Zero-shot world knowledge).** The reviewer feeds the entire paper (or a substantial portion) to an LLM and asks for a review. The LLM draws on its training data to produce a structured response with strengths, weaknesses, and recommendations. This is the fastest and most common pattern. It is also the one that produces the generic, hollow reviews that Priya received: bold section headers, shallow nit-picks, and low information density. Fully AI-generated reviews, the 21% identified by Pangram, almost certainly fall into this category. In the CHIWORK 2025 experiment by Chen et al., this pattern mapped to the "Automation" category, which accounted for only 2.5% of interactions among researchers who were *trying* to use AI responsibly ([Chen et al., CHIWORK 2025](https://discovery.ucl.ac.uk/id/eprint/10208390/)). The low percentage suggests that when reviewers are conscious of their process, they instinctively avoid pure delegation; the high rate in the wild suggests that many reviewers are not conscious of their process at all.
+
+**Level 2: "Help me understand this paper" (Section-by-section dialogue).** The reviewer reads the paper alongside an LLM, working through it section by section. They might translate each section into their native language, ask the LLM to summarize key claims, or check whether they understand a particular method correctly. The LLM serves as a reading companion, not a judge. Yasusi Kanada, a reviewer who published a detailed account of this workflow, described it as transforming peer review "from a one-directional reading task to an ongoing dialogue" ([Kanada, "How I Use ChatGPT During Peer Review," Medium, 2026](https://medium.com/@nirvana_shamrock_bear_975/how-i-use-chatgpt-during-peer-review-reading-section-by-section-with-ai-ab25ac9138ef)). Kanada translates each section into Japanese, not for stylistic fluency but to preserve the sentence structure and logical progression so he can return to the English original. The LLM occasionally provides structural annotations: noting that a particular paragraph functions as a transition between experimental design and simulation, or that a parameter introduced early becomes important later. These signals do not determine Kanada's evaluation, but they direct his attention.
+
+**Level 3: "What does the literature say?" (Deep research with retrieval).** The reviewer uses AI to search for related work, verify claims against the literature, and ground their critique in specific prior publications. This is the rarest and most valuable pattern. It corresponds to what multi-agent review systems like MARG and OpenNovelty attempt to automate (covered in @sec-building-reviewer). In practice, few human reviewers currently use AI this way, because it requires more setup than a simple prompt: the reviewer must provide the LLM with access to a search API, a local corpus, or a literature database. But when done well, this pattern produces the kind of review that catches missing baselines, identifies uncited prior work, and verifies whether the claimed novelty actually holds.
+
+### What the CHIWORK 2025 Experiment Found
+
+The most rigorous empirical evidence on how reviewers use AI comes from Chen et al., who conducted a within-subject experiment at UCL with 24 HCI reviewers. Each reviewer completed two reviews: one with ChatGPT (GPT-3.5, the free version) and one without. The researchers analyzed chat histories, measured workload via NASA-TLX scales, and had expert raters evaluate review quality.
+
+The distribution of activities across all recorded interactions tells a clear story. **Information-related use dominated at 56.5%**, primarily involving providing contextual content (27.3%), assigning task-specific roles to ChatGPT (11.2%), summarizing manuscript sections (6.8%), and clarifying unfamiliar concepts (6.2%). Creation-related activities accounted for 23.6%, with most of that focused on generating evaluative comments (15.5%) and expanding review text (5.6%). Advice-seeking (14.3%) centered on language refinement, particularly phrasing and grammar. Automation (delegating the full review to ChatGPT) was just 2.5%. Discussion-related use (asking ChatGPT to reflect or consider alternative viewpoints) was 3.1%.
+
+The temporal pattern was equally revealing. Information-related activities peaked sharply at the beginning of the review process and declined steadily. Reviewers front-loaded their ChatGPT use for understanding the paper, then tapered off as their own comprehension solidified. Creation and advice activities were more evenly distributed over time, appearing throughout the review as reviewers drafted and refined their text.
+
+The performance results showed a clear asymmetry between effort and outcomes. ChatGPT significantly reduced perceived workload for drafting reviews (effort scores: $p < 0.001$) and making judgments ($p = 0.003$). Mental demand during drafting also dropped significantly ($p = 0.002$). But review completion time showed no significant difference (69 minutes with ChatGPT vs. 76 minutes without, $p = 0.456$). And review quality, as rated by expert evaluators across five dimensions (accuracy, constructiveness, completeness, clarity, tone), showed no statistically significant improvement in any dimension.
+
+The punchline: ChatGPT made reviewing feel easier without making reviews better or faster. As one participant put it: "Psychologically, I feel like I have one more person helping...if ChatGPT's review aligns with mine, I feel more confident." Another was less charitable: "You don't know how reliable ChatGPT is as a work partner."
+
+::: {.callout-warning title="Common Misconception: 'AI reviewing means the reviewer didn't read the paper'"}
+The CHIWORK experiment tells a different story. The dominant use of AI in reviewing (56.5% of interactions) was for *understanding* the paper: summarizing sections, clarifying concepts, checking related work. Only 2.5% of interactions involved delegating the full review. Most reviewers who use AI are reading the paper; they are using the LLM as a reading aid, not a replacement for reading. The problem is the 21% who skip the reading step entirely, not the 50%+ who use AI as part of their reading process.
+:::
+
+### The Rating Compression Problem
+
+What happens at scale when AI is involved in reviewing? Sharma et al. analyzed over 125,000 paper-review pairs across ICLR, NeurIPS, and ICML and found that up to 26.65% of reviews at the most recent editions showed substantial LLM modification ([Sharma et al., "Do LLMs Favor LLMs?" 2026](https://arxiv.org/abs/2601.20920)).
+
+The most concerning finding was *rating compression*. Fully LLM-generated reviews assigned scores almost exclusively between 6 and 7, regardless of paper quality. They systematically inflated ratings for weak papers and slightly deflated ratings for strong ones. The effect was not that LLMs favor LLM-written papers specifically (an initial finding that turned out to be a confound); rather, LLM-generated reviews simply cannot discriminate quality. They give middle-of-the-road scores to everything.
+
+The good news: human oversight dramatically reduces this problem. When comparing fully synthetic LLM reviews to observational data (where humans mediated the LLM output), the leniency differential dropped by approximately 85% (from 0.625 points to 0.096 points). A reviewer who reads the LLM output and adjusts the scores based on their own judgment produces substantially less biased reviews than the LLM alone.
+
+This connects back to the three levels. Level 1 reviewing (pure delegation) produces the rating compression problem. Level 2 reviewing (section-by-section dialogue with human judgment retained) avoids it. The ICLR 2025 RCT by Thakkar et al. demonstrated that structured AI feedback to human reviewers improved review quality in 89% of cases without changing acceptance rates. The lesson is not "don't use AI for reviewing." The lesson is "keep the human in the loop."
+
+### Priya's Three-Tier Design
+
+Priya now understands the spectrum. Level 1 (zero-shot delegation) is fast but produces the exact failure modes documented in @sec-failure-modes. Level 2 (reading support) helps understanding but does not catch what the reviewer does not know to look for. Level 3 (deep research with retrieval) catches the most subtle issues but is expensive and complex.
+
+Her plan for building three tiers of AI reviewer directly mirrors these three levels. Tier 1 will replicate what a lazy reviewer does, so she can catch the low-hanging fruit. Tier 2 will add retrieval to compensate for the world-knowledge limitation. Tier 3 will use multi-agent architecture to perform the deep research that even most human reviewers skip. Before she builds, though, she needs to know exactly what breaks. The complete failure taxonomy is next.

@@ -1,0 +1,211 @@
+## Introduction {#sec-introduction}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [ICML 2026, "On Violations of LLM Review Policies"](https://blog.icml.cc/2026/03/18/on-violations-of-llm-review-policies/) | 497 desk-rejected papers, 795 flagged reviews, watermark-based detection |
+| 2 | [Pangram Labs, "21% of ICLR Reviews are AI-Generated" (Nov 2025)](https://www.pangram.com/blog/pangram-predicts-21-of-iclr-reviews-are-ai-generated) | 21% fully AI-generated at ICLR 2026, 50%+ with some AI involvement |
+| 3 | [Russo Latona et al., "The AI Review Lottery" (2024)](https://arxiv.org/abs/2405.02150) | 15.8% prevalence at ICLR 2024, 4.9 pp acceptance boost for borderline papers |
+| 4 | [ICLR 2026 LLM Policy (Nov 2025)](https://blog.iclr.cc/2025/11/19/iclr-2026-response-to-llm-generated-papers-and-reviews/) | Disclosure requirements, desk-rejection policy, reviewer sanctions |
+| 5 | [IOP Publishing, "AI and Peer Review 2025"](https://ioppublishing.org/ai-and-peer-review-2025-conclusion/) | More than one-third of respondents use AI for reviewing |
+
+:::
+
+### The Review That Wrote Itself
+
+Priya stares at the three reviews of her TokenMix paper that just arrived from NeurIPS. Two are thoughtful, specific, and fair. One praises the ablation study on attention head pruning. The other asks a pointed question about why her method underperforms on long-context benchmarks, citing the specific table where the gap appears.
+
+The third review reads differently. It opens with "The paper presents a commendable approach to token-level mixing strategies." It identifies a weakness about "limited baselines," despite the paper reporting comparisons against eight methods. It recommends "evaluating on more diverse datasets," despite the paper covering four standard benchmarks. The prose is fluent, the structure is clean, and the substance is hollow. Priya suspects Reviewer 3 fed her paper to an LLM and submitted whatever came out.
+
+She is not paranoid. In March 2026, ICML's program chairs published a blog post titled "On Violations of LLM Review Policies" that documented the consequences of exactly this behavior. They reported that 795 reviews, roughly 1% of all reviews, had been flagged for violating the conference's no-LLM policy. These were written by 506 unique reviewers who had explicitly agreed not to use LLMs. The result: **497 papers were desk-rejected**, corresponding to the submissions of those violating reviewers. Fifty-one reviewers had used LLMs in more than half of their reviews and were removed from the reviewer pool entirely ([ICML 2026 Program Chairs, "On Violations of LLM Review Policies," March 2026](https://blog.icml.cc/2026/03/18/on-violations-of-llm-review-policies/)).
+
+The ICML numbers capture only the most blatant cases. The watermark-based detection method catches reviewers who paste the entire PDF into an LLM and copy the output directly. More sophisticated AI use, where a reviewer reads the paper themselves and then asks an LLM to polish their draft, would not trigger the watermark at all. An independent analysis by Pangram Labs, an AI detection company, used their EditLens model on all 70,000 ICLR 2026 reviews and found that 21% (15,899 reviews) were fully AI-generated, and over half had some form of AI involvement ([Bradley Emi, "Pangram Predicts 21% of ICLR Reviews are AI-Generated," Nov 2025](https://www.pangram.com/blog/pangram-predicts-21-of-iclr-reviews-are-ai-generated)). A year earlier, Russo Latona et al. had estimated that at least 15.8% of ICLR 2024 reviews were AI-assisted, and that receiving an AI-assisted review boosted a borderline paper's acceptance rate by 4.9 percentage points ([Russo Latona et al., "The AI Review Lottery," 2024](https://arxiv.org/abs/2405.02150)). The problem is growing, not shrinking.
+
+![Distribution of AI involvement levels in ICLR 2026 reviews, as classified by Pangram's EditLens model. Source: Bradley Emi, "Pangram Predicts 21% of ICLR Reviews are AI-Generated" (2025).](AI Reviewers for Scientific Literature/images/pangram-iclr-prevalence.png){#fig-pangram-prevalence}
+
+But Priya is a systems thinker. Instead of complaining, she decides to build the weapon that is being used against her. If lazy reviewers can use an LLM to generate a review in five minutes, she can use the *same* technology to stress-test her paper before submission. Her plan: build three AI review systems of increasing sophistication, run her paper through all three, and fix every weakness before a single human or AI reviewer sees it.
+
+This chapter follows Priya's journey. Along the way, it answers three questions that every AI researcher now faces: (a) What does the AI review world actually look like in 2025-2026, and how should you think about it? (b) How can you build your own AI reviewer at three levels of depth? (c) How do you write papers that are genuinely robust to both shoddy AI reviews and rigorous human reviews?
+
+### Chapter Overview
+
+To understand why Priya's plan makes sense, you need to see the full picture of how AI has entered peer review, where it fails, and what you can do about it. This overview walks through the entire chapter so that nothing in the detailed sections comes as a surprise.
+
+The story starts with [**prevalence**]{style="color: #4F46E5;"}. AI reviewing is not a hypothetical future concern; it is the documented reality of every major ML conference in 2024-2026. At ICLR 2024, at least 15.8% of reviews were AI-assisted. By ICLR 2026, that figure had risen to 21% fully AI-generated, with over half of reviews showing some AI involvement. Across the broader academic community, an IOP Publishing survey found that more than one-third of respondents admitted to using generative AI for peer review, even though most publisher policies prohibit this ([IOP Publishing, "AI and Peer Review 2025"](https://ioppublishing.org/ai-and-peer-review-2025-conclusion/)). Conferences have responded with increasingly aggressive enforcement: ICLR 2026 requires disclosure and sanctions undisclosed use with desk rejection ([ICLR 2026 Program Chairs, "ICLR 2026 Response to LLM-Generated Papers and Reviews," Nov 2025](https://blog.iclr.cc/2025/11/19/iclr-2026-response-to-llm-generated-papers-and-reviews/)), while ICML 2026 introduced a two-policy opt-in system with watermark-based detection that caught 506 violators. @sec-landscape covers this entire arc in detail.
+
+The next question is *how* human reviewers actually use AI. Not all AI-assisted reviewing is the same. Some reviewers paste the entire paper into ChatGPT and submit the output. Others use AI as a reading aid, working through the paper section by section with the LLM as a dialogue partner. A few use AI to search for related work and verify claims against the literature. These three patterns map roughly onto three levels of sophistication: zero-shot world knowledge prompting, RAG-assisted section-by-section dialogue, and deep research with literature grounding. @sec-how-reviewers-use-ai examines the empirical evidence for these patterns, including a controlled HCI experiment with 24 reviewers and practitioner accounts of section-by-section AI-assisted reviewing.
+
+Understanding how reviewers use AI naturally leads to the question of what AI reviewers get wrong. The [**failure modes**]{style="color: #047857;"} are specific, predictable, and well-documented. AI reviewers systematically overlook novelty while rewarding clear structure. They inflate scores, particularly for borderline papers. They cannot reliably cross-check figures against text or catch inconsistencies between the abstract and the methods section. They carry social biases (favoring papers from highly ranked institutions) and linguistic biases (preferring LLM-style writing). They are vulnerable to adversarial manipulation: prompt injection attacks can flip a borderline reject into an accept. And they produce generic feedback, the kind where "more ablations" and "limited baselines" appear regardless of how thorough the paper actually is. @sec-failure-modes catalogs every known failure mode with the specific papers that document each one.
+
+This failure taxonomy is what makes Priya's [**three-tier system**]{style="color: #B45309;"} possible. If you know exactly where AI reviewers fail, you can design systems that compensate for those weaknesses. @sec-building-reviewer walks through the implementation of three reviewer tiers that you can run locally in Cursor: a Tier 1 zero-shot reviewer that uses a strong LLM's world knowledge (fast, cheap, catches surface issues); a Tier 2 RAG-augmented reviewer that searches for related papers and augments its review with retrieved context (catches missing baselines and related work gaps); and a Tier 3 deep research reviewer inspired by multi-agent systems like MARG and OpenNovelty that performs verifiable novelty assessment and cross-validates claims against the literature.
+
+Armed with AI reviewer output, Priya needs to know how to act on it. @sec-defense translates the failure taxonomy into concrete [**defense strategies**]{style="color: #0369A1;"}. The core insight is that your paper faces two audiences: human reviewers who evaluate novelty and intellectual depth, and AI reviewers who evaluate structure, consistency, and writing quality. The strategies that make your paper robust to AI review (maximizing internal consistency, making novelty unmistakable, structuring for parseability) also make it better for human readers. Pre-submission AI self-review, the strategy Priya adopts, has empirical backing: a randomized controlled trial at ICLR 2025 found that providing LLM feedback to reviewers improved review quality in 89% of paired comparisons.
+
+The chapter closes with the ethical questions that Priya must resolve for herself. There is a line between legitimate optimization (running your paper through an AI reviewer before submission, structuring your paper for clarity) and manipulation (injecting hidden prompts to bias an AI reviewer, using white-text attacks to inflate scores). @sec-ethics-future examines the prompt injection arms race, the selection pressure problem (if AI rewards structure over novelty, does this push the field toward incremental work?), and the emerging hybrid model where AI assists but does not replace human judgment.
+
+### Learning Objectives
+
+After reading this chapter, you will be able to:
+
+- Explain the current prevalence of AI-assisted reviewing at major conferences, citing specific studies and their methods
+- Identify the three levels at which human reviewers use AI in practice, and describe the empirical evidence for each
+- Name and describe the eight major failure modes of AI reviewers, with the specific paper that documents each one
+- Build three tiers of AI reviewer (zero-shot, RAG-augmented, and deep research) that run locally
+- Apply six concrete defense strategies to make your paper robust to both human and AI reviewers
+- Articulate the ethical boundary between legitimate pre-submission optimization and adversarial manipulation
+
+### Concept Map
+
+```{.d2}
+# =========================================================================
+# 1. LAYOUT CONFIGURATION
+# =========================================================================
+direction: down
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+# =========================================================================
+# 2. DESIGN SYSTEM (6 Semantic Classes)
+# =========================================================================
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 14
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 16
+      bold: true
+    }
+  }
+}
+
+# =========================================================================
+# 3. CONTENT
+# =========================================================================
+paper: {
+  class: [base; input]
+  label: "   Your Paper   "
+}
+
+landscape: {
+  class: [base; process]
+  label: "   AI Review Landscape   \n   (Prevalence, Detection, Policy)   "
+}
+
+how_used: {
+  class: [base; process]
+  label: "   How Reviewers Use AI   \n   (3 Levels of Sophistication)   "
+}
+
+failures: {
+  class: [base; process]
+  label: "   Failure Taxonomy   \n   (8 Known Failure Modes)   "
+}
+
+tiers: {
+  class: [base; container]
+  label: "Three-Tier AI Reviewer"
+  label.near: top-left
+
+  t1: {
+    class: [base; decision]
+    label: "   Tier 1: Zero-Shot   "
+  }
+  t2: {
+    class: [base; decision]
+    label: "   Tier 2: RAG-Augmented   "
+  }
+  t3: {
+    class: [base; decision]
+    label: "   Tier 3: Deep Research   "
+  }
+}
+
+defenses: {
+  class: [base; container]
+  label: "Defense Strategies"
+  label.near: top-left
+
+  d1: {
+    class: [base; output]
+    label: "   Internal Consistency   "
+  }
+  d2: {
+    class: [base; output]
+    label: "   Unmistakable Novelty   "
+  }
+  d3: {
+    class: [base; output]
+    label: "   Structured Parseability   "
+  }
+  d4: {
+    class: [base; output]
+    label: "   Pre-Submission Self-Review   "
+  }
+}
+
+goal: {
+  class: [base; highlight]
+  label: "   AI-Reviewer-Resistant Paper   "
+}
+
+paper -> landscape: "understand the field"
+landscape -> how_used
+how_used -> failures: "know what breaks"
+failures -> tiers: "build tools"
+tiers -> defenses: "apply feedback"
+defenses -> goal: "submit with confidence"
+
+tiers.t1 -> tiers.t2: "adds retrieval"
+tiers.t2 -> tiers.t3: "adds agents"
+```

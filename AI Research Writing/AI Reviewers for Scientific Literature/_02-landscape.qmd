@@ -1,0 +1,86 @@
+## The AI Review Landscape in 2025-2026 {#sec-landscape}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Russo Latona et al., "The AI Review Lottery" (2024)](https://arxiv.org/abs/2405.02150) | 15.8% of ICLR 2024 reviews AI-assisted; 4.9pp acceptance boost for borderline papers |
+| 2 | [Pangram Labs, "21% of ICLR Reviews are AI-Generated" (2025)](https://www.pangram.com/blog/pangram-predicts-21-of-iclr-reviews-are-ai-generated) | 21% fully AI-generated at ICLR 2026; EditLens five-category detection |
+| 3 | [ICML 2026, "On Violations of LLM Review Policies" (2026)](https://blog.icml.cc/2026/03/18/on-violations-of-llm-review-policies/) | 497 desk-rejected papers, 795 flagged reviews, watermark-based detection |
+| 4 | [ICML 2026 LLM Policy](https://icml.cc/Conferences/2026/LLM-Policy) | Two-policy framework (A=Conservative, B=Permissive); self-selection; reciprocity |
+| 5 | [ICLR 2026 LLM Policy (2025)](https://blog.iclr.cc/2025/11/19/iclr-2026-response-to-llm-generated-papers-and-reviews/) | Disclosure-based enforcement; desk rejection for undisclosed LLM use |
+| 6 | [Ansari, "Compound Deception" NeurIPS 2025 (2026)](https://arxiv.org/abs/2602.05930) | 100 fabricated citations in 53 accepted NeurIPS 2025 papers; five-category taxonomy |
+| 7 | [IOP Publishing, "AI and Peer Review 2025"](https://ioppublishing.org/ai-and-peer-review-2025-conclusion/) | More than one-third of respondents use AI for reviewing |
+| 8 | [Thakkar et al., "Can LLM Feedback Enhance Review Quality?" ICLR 2025 RCT](https://arxiv.org/abs/2504.09737) | 26.6% update rate; 89% preference for updated reviews; no impact on acceptance rates |
+
+:::
+
+Priya's first step is to understand the field she is entering. How widespread is AI reviewing? How are conferences responding? What has already gone wrong? This section maps the current state of affairs, so that every tool and strategy in later sections is grounded in the empirical reality of 2025-2026.
+
+### The Scale of AI Reviewing
+
+The first rigorous [prevalence]{style="color: #4F46E5;"} measurement came from Russo Latona et al. at EPFL, who analyzed all 28,028 reviews from ICLR 2024 using the GPTZero LLM detector ([Russo Latona et al., "The AI Review Lottery," 2024](https://arxiv.org/abs/2405.02150)). Their estimate: at least 15.8% of reviews were written with LLM assistance. Because GPTZero's false-negative rate was not corrected for, this is a *lower bound*. Nearly half of all submissions (49.4%) received at least one review classified as AI-assisted.
+
+The more troubling finding was causal. Using a matched quasi-experimental design that compared papers similar in topic, reviews, and scores but differing in whether they received an AI-assisted review, Russo Latona et al. estimated that receiving an AI-assisted review boosted a borderline paper's acceptance rate by 4.9 percentage points ($p = 0.024$), a 31.1% relative increase in the odds of acceptance. In score comparisons, when one review in a pair was AI-assisted and the other was human, **the AI-assisted review scored higher 53.4% of the time** ($p = 0.002$). Whether your paper gets an AI review is effectively a lottery, and the lottery is not fair.
+
+By the 2026 conference cycle, the numbers had grown. Pangram Labs, an AI detection company, used their EditLens model to classify all 70,000 ICLR 2026 reviews into five categories: fully human-written, lightly AI-edited, medium AI-edited, heavily AI-edited, and fully AI-generated ([Emi, "Pangram Predicts 21% of ICLR Reviews are AI-Generated," Nov 2025](https://www.pangram.com/blog/pangram-predicts-21-of-iclr-reviews-are-ai-generated)). The result: 21% of reviews (15,899) were fully AI-generated. Over half showed some form of AI involvement. And the correlation between AI involvement and inflated scores appeared here too: the more AI was present in a review, the higher the score.
+
+Across the broader academic community, the pattern holds. An IOP Publishing survey of the global reviewer community found that more than one-third of respondents admitted to using generative AI for peer review reports, even though most publisher policies prohibit the practice ([IOP Publishing, "AI and Peer Review 2025"](https://ioppublishing.org/ai-and-peer-review-2025-conclusion/)).
+
+### How AI Reviews Are Detected
+
+Detection methods fall into three categories, each with different tradeoffs.
+
+**Third-party AI text detectors** like GPTZero and Pangram's EditLens classify text based on statistical properties of AI-generated writing. Russo Latona et al. used GPTZero and estimated a 1.7% false-positive rate by running the detector on pre-ChatGPT ICLR reviews (2018-2023). Pangram reported even lower false-positive rates: 1 in 10,000 on general test documents and 1 in 100,000 on held-out arXiv papers. These detectors are useful for measuring prevalence at scale, but conferences have hesitated to use them for individual enforcement because even a 1-in-10,000 error rate produces false accusations when applied to tens of thousands of reviews.
+
+**Watermark-based detection** takes a different approach. ICML 2026 embedded hidden LLM instructions into submission PDFs using a dictionary of 170,000 phrases, sampling two phrases per paper. If a reviewer fed the PDF to an LLM and pasted the output, the review would contain the specific watermark phrases. The probability of a random match was less than one in ten billion ([ICML 2026 Program Chairs, "On Violations of LLM Review Policies," March 2026](https://blog.icml.cc/2026/03/18/on-violations-of-llm-review-policies/)). Every flagged instance was manually verified by a human. This approach has strong false-positive control, but it only catches the most blatant use: reviewers who paste the entire PDF into an LLM and copy the output directly. Success rates were "over 80% for most models."
+
+**Behavioral and statistical signals** form a third category. Pangram's analysis identified specific "tells" of AI reviews: bold section headers with two-to-three-word summary tags followed by a colon (like "**Clear problem formulation:**"), shallow nit-picks rather than substantive analysis, and low information density (many words, little content). These signals help individual authors identify suspicious reviews, even without access to detection tools.
+
+### Conference Policy Responses
+
+Conferences have taken two distinct approaches to enforcement, reflecting the community's split opinions.
+
+ICLR 2026 chose a disclosure-based model. The core policy has two requirements: (a) any use of an LLM must be disclosed, and (b) authors and reviewers must not make false or misleading claims. Papers that make extensive undisclosed LLM use are desk-rejected. Reviews with hallucinated references or false claims constitute a Code of Ethics violation. Enforcement is AC/SAC-driven: LLM detection tools are used for triage, but action is only taken when a human editor identifies concrete evidence ([ICLR 2026 Program Chairs, "ICLR 2026 Response to LLM-Generated Papers and Reviews," Nov 2025](https://blog.iclr.cc/2025/11/19/iclr-2026-response-to-llm-generated-papers-and-reviews/)).
+
+ICML 2026 chose a two-policy opt-in model. Reviewers self-selected into Policy A (no LLM use allowed) or Policy B (LLMs allowed for understanding and polishing, but not for generating critiques or scores). Authors could require that their papers be reviewed under Policy A. A reciprocity rule ensured fairness: any reviewer who authored a paper requiring Policy A also had to follow Policy A themselves. The matching algorithm paired papers with compatible reviewers. Crucially, ICML treated the policy itself as a quasi-experiment, randomizing some assignments to generate data on whether the two policies produce different outcomes ([ICML 2026, "Policy for LLM Use in Reviewing"](https://icml.cc/Conferences/2026/LLM-Policy)).
+
+The enforcement consequences were real. When 795 reviews were flagged for violating Policy A, the program chairs desk-rejected 497 papers (roughly 2% of all submissions) whose reciprocal reviewers had violated the rules. Fifty-one reviewers who had used LLMs in more than half of their reviews were removed from the reviewer pool entirely. As the chairs wrote: "we hope that by taking strong action against violations of agreed-upon policy we will remind the community that as our field changes rapidly the thing we must protect most actively is our trust in each other."
+
+::: {.callout-warning title="Common Misconception: 'AI reviewing is a niche problem that only affects lazy reviewers'"}
+The numbers tell a different story. At ICLR 2024, 49.4% of all submissions received at least one AI-assisted review. At ICLR 2026, over half of reviews showed some AI involvement. AI reviewing is not a corner case; it is the median experience of submitting a paper to a top AI conference. If you submit a paper to ICLR, the odds are better than even that at least one of your reviewers used AI in some capacity.
+:::
+
+### The Parallel Crisis: Hallucinated Citations
+
+While AI reviews raise questions about review quality, AI-written papers raise questions about scientific integrity. Ansari analyzed 100 hallucinated citations that appeared in 53 papers accepted by NeurIPS 2025, roughly 1% of the 5,290 accepted papers ([Ansari, "Compound Deception," 2026](https://arxiv.org/abs/2602.05930)). These were not typos or formatting errors. They were citations to papers that do not exist, with fabricated authors, invented titles, and false publication details.
+
+Ansari developed a five-category taxonomy of how these fabrications work:
+
+| Category | Prevalence | Mechanism |
+|---|---|---|
+| **Total Fabrication (TF)** | 66% | All elements invented: authors, title, venue, DOIs |
+| **Partial Attribute Corruption (PAC)** | 27% | Blends real and fake: real authors with fabricated papers, or real venues with wrong years |
+| **Identifier Hijacking (IH)** | 4% | Uses a valid DOI or arXiv ID that points to a different paper |
+| **Semantic Hallucination (SH)** | 1% | Plausible-sounding title that fits the domain but corresponds to no real work |
+| **Placeholder Hallucination (PH)** | 2% | Template text like "Firstname Lastname" or "arXiv:2305.XXXX" |
+
+The most striking finding was that **every single hallucination (100%) exhibited compound failure modes**, combining multiple deception strategies simultaneously. A totally fabricated citation might also include a semantically plausible title (SH secondary) and a hijacked DOI that links to an unrelated but real paper (IH secondary). This compound nature is what makes them hard to detect: a reviewer who checks the DOI link sees a real paper and stops checking. The distribution of papers was bimodal: 49 of 53 papers contained only 1-2 hallucinations, while 4 outlier papers contained 4-13 each. This suggests two behaviors: authors who unknowingly included a few AI-generated citations alongside their own, and authors who outsourced citation generation wholesale.
+
+::: {.callout-note title="Think Hard: If researchers who specialize in LLMs cannot catch fabricated citations in their own review process, what does this say about AI-assisted reviewing in fields where reviewers have less AI expertise?"}
+NeurIPS is a top AI conference. Its reviewers are among the most technically sophisticated consumers of LLM output in the world. Yet 100 fabricated citations passed their review. The implication extends beyond AI conferences: if domain experts in AI cannot reliably detect LLM hallucinations, then reviewers in biology, social science, law, and medicine are almost certainly more vulnerable. This is why the IOP survey finding that more than one-third of reviewers across fields use AI is concerning: the detection capabilities of the broader research community are lower, not higher, than those of the AI research community.
+:::
+
+### The Constructive Side: AI That Improves Reviews
+
+Not all AI involvement in peer review is destructive. The largest controlled experiment on AI-assisted reviewing was deployed at ICLR 2025 by Thakkar et al., who built a "Review Feedback Agent" and tested it in a randomized controlled trial covering over 20,000 reviews ([Thakkar et al., "Can LLM Feedback Enhance Review Quality?" 2025](https://arxiv.org/abs/2504.09737)).
+
+The design was clean: reviews were randomly assigned to a control group (no feedback) or a feedback group. The agent, a pipeline of five Claude Sonnet 3.5 models (two actors, an aggregator, a critic, and a formatter), generated constructive suggestions for reviewers, such as "To make this critique more actionable, it would be helpful to elaborate on why the interpolation assumption is problematic in this context." Of the 18,946 reviews that received feedback, 26.6% (5,031) were updated by the reviewer. Among updated reviews, 89% incorporated at least one piece of agent feedback.
+
+Two human AI researchers conducted a blind preference evaluation, comparing initial and modified reviews in 100 cases where the reviewer had incorporated at least 60% of the feedback items. They preferred the modified reviews 89% of the time. Reviewers who received feedback wrote longer, more specific, and more actionable reviews, and authors wrote 6% longer rebuttals in response (suggesting the reviews gave them more to engage with).
+
+The critical null result: acceptance rates did not differ significantly between the feedback and control groups (32.3% vs. 30.8%, not statistically significant). AI feedback improved review *quality* without distorting review *outcomes*. This is the best evidence to date that AI can be a genuine ally in the review process when deployed with proper guardrails: reliability tests, human control over the final review, and constructive (not evaluative) framing.
+
+### Priya's Takeaway
+
+Priya now has her bearings. AI reviewing is not a fringe phenomenon; it is the documented reality of every major ML conference. Detection is improving but imperfect. Conferences are enforcing, but enforcement catches only the most blatant violations. The flip side is genuine: structured AI assistance can make reviews better. The question is not whether AI will be part of peer review. The question is how to use it well, and how to defend against those who use it badly. Priya's next step is to understand exactly *how* human reviewers use AI in practice, which determines what kind of AI reviewer she needs to build.

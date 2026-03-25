@@ -1,0 +1,70 @@
+## The Ethics and Future of AI Reviewing {#sec-ethics-future}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Keuper, "Prompt Injection Attacks" (2025)](https://arxiv.org/abs/2509.10248) | 100% positive-injection acceptance; white-text attacks parsed by PDF tools |
+| 2 | [In-Paper Prompt Injection (2025)](https://arxiv.org/abs/2511.01287) | Static and iterative attacks; detection countermeasures |
+| 3 | [ICML 2026, "On Violations of LLM Review Policies"](https://blog.icml.cc/2026/03/18/on-violations-of-llm-review-policies/) | 497 desk-rejected papers; real enforcement consequences |
+| 4 | [ICLR 2026 LLM Policy](https://blog.iclr.cc/2025/11/19/iclr-2026-response-to-llm-generated-papers-and-reviews/) | Mandatory disclosure; hallucinated references as Code of Ethics violation |
+| 5 | [Ansari, "Compound Deception" (2026)](https://arxiv.org/abs/2602.05930) | 100 fabricated citations at NeurIPS 2025; systemic integrity risk |
+| 6 | [Sharma et al., "Do LLMs Favor LLMs?" (2026)](https://arxiv.org/abs/2601.20920) | Selection pressure: LLM reviews favor LLM-style writing |
+| 7 | [Thakkar et al., ICLR 2025 RCT](https://arxiv.org/abs/2504.09737) | AI feedback improves reviews without changing decisions |
+
+:::
+
+Priya has built her three-tier AI reviewer and applied the defense strategies. Her paper is tighter, more consistent, and better grounded. But she pauses before submission to consider a question that does not appear on any review form: where is the line between legitimate optimization and manipulation? This section examines the ethical dimensions that every researcher using AI for self-review must confront.
+
+### The Manipulation Spectrum
+
+Not all AI-assisted paper preparation is the same. The behaviors fall on a clear spectrum:
+
+| Clearly Legitimate | Gray Zone | Clearly Manipulation |
+|---|---|---|
+| Running AI self-review before submission | Paraphrasing to avoid LLM-detection tools | Injecting hidden prompts to bias AI reviewers |
+| Using AI to check internal consistency | Rewriting to match LLM-preferred style | White-text attacks that inflate scores |
+| Using AI to search for missed related work | Optimizing structure purely for rubric anchoring | Fabricating citations using LLM generation |
+| Using AI to improve writing clarity | Using AI to draft responses to reviewer comments | Submitting LLM-generated papers without disclosure |
+
+The legitimate end of the spectrum makes papers genuinely better. The manipulation end exploits weaknesses in the review process for acceptance without merit. The gray zone is where most ethical questions live.
+
+### The Prompt Injection Arms Race
+
+Prompt injection attacks on AI reviewers are technically effective. Keuper showed that a simple hidden instruction pushed acceptance rates to 100% for frontier models ([Keuper, 2025](https://arxiv.org/abs/2509.10248)). White-text injections embedded in PDFs are parsed by most document tools, including ChatGPT, PyMuPDF, and Mistral OCR. More sophisticated iterative attacks can adapt to defenses in real time ([In-Paper Prompt Injection, 2025](https://arxiv.org/abs/2511.01287)).
+
+But the arms race is tilting toward detection. ICML 2026's watermark-based approach caught 795 violations despite being publicly known throughout the review period. The detection method was deliberately conservative (catching only the most blatant cases), and it still identified 506 unique violators. Conference organizers are iterating: each cycle brings new detection methods, more severe sanctions, and stronger deterrents. The 497 desk rejections at ICML 2026 sent a clear signal: the consequences of getting caught are not hypothetical.
+
+The deeper problem with prompt injection is that it undermines the trust infrastructure of peer review. As the ICML program chairs wrote: "the thing we must protect most actively is our trust in each other." If authors can manipulate AI reviewers, and conferences cannot reliably detect all manipulation, then the entire system of delegating review tasks to AI becomes suspect. The logical endpoint is that conferences abandon AI-assisted reviewing entirely, returning to the overburdened human-only model that drove the adoption of AI in the first place.
+
+### The Selection Pressure Problem
+
+Sharma et al.'s finding about rating compression raises a structural concern that extends beyond individual papers ([Sharma et al., 2026](https://arxiv.org/abs/2601.20920)). If LLM reviewers systematically reward clear structure and polished writing while overlooking novelty, what happens to the field over time?
+
+The concern is evolutionary selection pressure. Imagine two papers: Paper A proposes a genuinely novel method, is written by a non-native English speaker, and has rough but honest prose. Paper B is an incremental extension of prior work, polished to a sheen by AI writing assistants, with perfect structure and rubric alignment. Under AI review, Paper B scores higher on every measurable dimension. Paper A's novelty, which only a human domain expert can evaluate, goes unrecognized.
+
+If this dynamic plays out at scale, conferences would gradually select for well-packaged incremental work over rough-but-breakthrough ideas. The field would optimize for presentation over substance. This trend is not a hypothetical: LLM-REVal found that 40% LLM polishing raised review scores, and that papers discussing limitations and risks received lower AI scores.
+
+::: {.callout-note title="Think Hard: If pre-submission AI self-review becomes universal, does every paper converge to the same template?"}
+Possibly. If every author runs the same AI reviewer before submission, and every author follows the same feedback, the variance in paper structure and style will decrease. Papers will become more internally consistent, more explicitly structured, and more rubric-aligned. Whether this is good or bad depends on what you value. If you value efficient communication of results, convergence toward clear structure is a net positive. If you value intellectual diversity, stylistic distinctiveness, and the occasional breakthrough paper that breaks all the rules, convergence is a loss. The most likely outcome is a floor effect: AI self-review raises the minimum quality of all papers while flattening the top end. The papers that stand out will be those that meet the AI floor *and* exceed it with genuinely novel ideas that no rubric can fully capture.
+:::
+
+### The Integrity Crisis
+
+The fabricated citations at NeurIPS 2025 represent a different kind of threat. Ansari's analysis found 100 hallucinated citations in 53 accepted papers, with every single hallucination exhibiting compound failure modes that made detection difficult ([Ansari, "Compound Deception," 2026](https://arxiv.org/abs/2602.05930)). The problem extended beyond NeurIPS: over 50 hallucinations were found in ICLR 2026 submissions, some in papers rated 8/10 by reviewers.
+
+The integrity implication is severe. If citations in the published scientific record point to papers that do not exist, the entire citation graph becomes unreliable. Future researchers waste time searching for non-existent sources. Meta-analyses that rely on citation counts incorporate fabricated connections. The self-correcting mechanism of science depends on the ability to trace claims back to their sources, and fabricated citations break that chain.
+
+ICLR 2026's response was to classify hallucinated references as a Code of Ethics violation, with consequences including desk rejection of the paper and sanctions against the author ([ICLR 2026 Program Chairs, 2025](https://blog.iclr.cc/2025/11/19/iclr-2026-response-to-llm-generated-papers-and-reviews/)). ICML 2026's Policy B explicitly requires that "any hallucinated content in reviews is subject to disciplinary action." These policies are reactive, responding to documented failures. The open question is whether proactive measures (mandatory citation verification tools, for example) can prevent the problem before it enters the published record.
+
+### The Emerging Hybrid Model
+
+The constructive path forward is the hybrid model: AI assists, humans decide. The strongest evidence for this model comes from the ICLR 2025 RCT, where AI feedback improved human reviews without changing acceptance rates ([Thakkar et al., 2025](https://arxiv.org/abs/2504.09737)). The AI caught vague comments, identified overlooked paper sections, and suggested more actionable framing. The human reviewer decided what to incorporate. The result was better reviews, more engaged discussions, and unchanged acceptance outcomes.
+
+ICML 2026's two-policy framework embodies this philosophy at the institutional level: Policy B allows AI to help *understand* papers and *polish* reviews, but prohibits AI from *generating* the evaluative judgment. The distinction is between AI as a tool (like spell-check or citation management) and AI as a decision-maker. The evidence suggests this boundary works: AI as a tool improves quality; AI as a decision-maker introduces systematic bias.
+
+### Priya's Line
+
+Priya decides where she personally draws the ethical line. She will use all three tiers of AI self-review before every submission. She will use AI to check consistency, search for related work, and improve clarity. She will not inject hidden prompts, fabricate citations, or use AI to generate paper text without disclosure. She will not optimize for AI reviewer scores at the expense of intellectual honesty. When a Tier 3 reviewer flags a weakness that is a genuine limitation of her work, she will address it in a Limitations section rather than papering over it with better prose.
+
+The researchers who will thrive in the AI reviewing era are not those who game the system best. They are those who use AI to make their work genuinely stronger, and who maintain the trust that peer review depends on.
