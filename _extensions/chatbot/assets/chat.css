@@ -160,7 +160,7 @@ body.quarto-dark {
   font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
-  max-width: 180px;
+  max-width: 300px;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   outline: none;
   -webkit-appearance: none;
@@ -185,6 +185,7 @@ body.quarto-dark #chat-model-select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2398a2b3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
 }
 
+#clear-chat-btn,
 #close-chat-btn {
   background: none;
   border: none;
@@ -212,6 +213,17 @@ body.quarto-dark #chat-model-select {
   background-repeat: no-repeat;
 }
 
+#clear-chat-btn::after {
+  content: "";
+  display: block;
+  width: 15px;
+  height: 15px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='3 6 5 6 21 6'%3E%3C/polyline%3E%3Cpath d='M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'%3E%3C/path%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+#clear-chat-btn:hover,
 #close-chat-btn:hover {
   background: var(--chat-surface-hover);
   color: var(--chat-text);
@@ -219,6 +231,10 @@ body.quarto-dark #chat-model-select {
 
 body.quarto-dark #close-chat-btn::after {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2398a2b3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='18' y1='6' x2='6' y2='18'%3E%3C/line%3E%3Cline x1='6' y1='6' x2='18' y2='18'%3E%3C/line%3E%3C/svg%3E");
+}
+
+body.quarto-dark #clear-chat-btn::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2398a2b3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='3 6 5 6 21 6'%3E%3C/polyline%3E%3Cpath d='M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'%3E%3C/path%3E%3C/svg%3E");
 }
 
 /* ============================================================
@@ -305,6 +321,118 @@ body.quarto-dark #close-chat-btn::after {
   border-bottom-left-radius: 4px;
   border: 1px solid var(--chat-border);
   box-shadow: var(--chat-shadow-sm);
+}
+
+/* Message wrapper — contains message bubble + copy button */
+.message-wrapper {
+  display: flex;
+  flex-direction: column;
+  max-width: 88%;
+  gap: 0;
+}
+
+.message-wrapper .message {
+  max-width: 100%;
+}
+
+.message-wrapper:has(.message.user) {
+  align-self: flex-end;
+}
+
+.message-wrapper:has(.message.assistant) {
+  align-self: flex-start;
+}
+
+.message-btn-row {
+  display: flex;
+  gap: 2px;
+  margin-top: 2px;
+}
+
+.message-wrapper:has(.message.user) .message-btn-row {
+  align-self: flex-end;
+}
+
+.message-wrapper:has(.message.assistant) .message-btn-row {
+  align-self: flex-start;
+}
+
+.message-action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.message-wrapper:hover .message-action-btn {
+  opacity: 0.5;
+}
+
+.message-action-btn:hover {
+  opacity: 1 !important;
+  background: var(--chat-surface-hover);
+}
+
+.message-copy-btn::after {
+  content: "";
+  display: block;
+  width: 14px;
+  height: 14px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='13' height='13' rx='2' ry='2'%3E%3C/rect%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'%3E%3C/path%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+.message-copy-btn.copied::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2310B981' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+.message-edit-btn::after {
+  content: "";
+  display: block;
+  width: 14px;
+  height: 14px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7'%3E%3C/path%3E%3Cpath d='M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z'%3E%3C/path%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+.message-edit-btn.cancel-mode::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23E11D48' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='18' y1='6' x2='6' y2='18'%3E%3C/line%3E%3Cline x1='6' y1='6' x2='18' y2='18'%3E%3C/line%3E%3C/svg%3E");
+}
+
+.message-edit-btn.cancel-mode {
+  opacity: 0.7 !important;
+}
+
+body.quarto-dark .message-copy-btn::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2398a2b3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='13' height='13' rx='2' ry='2'%3E%3C/rect%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'%3E%3C/path%3E%3C/svg%3E");
+}
+
+body.quarto-dark .message-edit-btn::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2398a2b3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7'%3E%3C/path%3E%3Cpath d='M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z'%3E%3C/path%3E%3C/svg%3E");
+}
+
+/* Model name label — appears above assistant message bubble */
+.message-model-label {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--chat-text-secondary);
+  padding: 0 4px;
+  margin-bottom: 2px;
+  opacity: 0.7;
+}
+
+.message-model-label:empty {
+  display: none;
 }
 
 .message p {
@@ -682,4 +810,82 @@ body.chat-open #gemini-chat-fab {
 #gemini-chat-fab[data-tooltip]:hover::before {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* ============================================================
+   API KEY BAR
+   ============================================================ */
+.chat-api-key-section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--chat-border);
+  background: var(--chat-surface-alt);
+  flex-shrink: 0;
+}
+
+.api-key-status {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.api-key-status.connected {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
+.api-key-status.disconnected {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+body.quarto-dark .api-key-status.connected {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+body.quarto-dark .api-key-status.disconnected {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+#chat-api-key-input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  border: 1px solid var(--chat-border);
+  border-radius: var(--chat-radius-xs);
+  background: var(--chat-surface);
+  color: var(--chat-text);
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+#chat-api-key-input:focus {
+  border-color: var(--chat-primary);
+}
+
+#chat-api-key-save {
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--chat-radius-xs);
+  background: var(--chat-primary);
+  color: white;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+  flex-shrink: 0;
+}
+
+#chat-api-key-save:hover {
+  background: var(--chat-primary-hover);
 }

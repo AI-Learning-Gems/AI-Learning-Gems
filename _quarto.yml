@@ -3,8 +3,11 @@ project:
   output-dir: _book
   render:
     - "**/*.qmd"
+  pre-render:
+    - scripts/generate-listings.py
   post-render:
     - scripts/clean-render-artifacts.sh
+    - scripts/build-chat.sh
   preview:
     port: 4200
 
@@ -12,10 +15,13 @@ website:
   title: "AI Learning Gems"
   search: true
   page-navigation: true
-  sidebar: false
-    # style: "docked"
-    # search: true
-    # contents: auto
+  navbar:
+    background: primary
+    search: true
+    left:
+      - text: "Home"
+        icon: house
+        href: index.qmd
 
 jupyter: python3
 
@@ -36,6 +42,8 @@ format:
     code-summary: "Show code"
     html-math-method: mathjax
     lightbox: auto
+    include-in-header:
+      - _extensions/chatbot/assets/csp-header.html
     include-after-body:
       - _extensions/chatbot/include-after.html
       - _extensions/chatbot/assets/chat-script-loader.html

@@ -1,10 +1,10 @@
 title: Chatbot
 author: Antigravity
-version: 1.0.0
+version: 2.0.0
 contributes:
   format:
     html:
       css: assets/chat.css
-      include-after-body: 
+      include-after-body:
         - include-after.html
         - assets/chat-script-loader.html

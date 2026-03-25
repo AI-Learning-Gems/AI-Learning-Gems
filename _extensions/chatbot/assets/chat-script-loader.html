@@ -1,219 +1,24 @@
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<!-- CDN deps: pinned versions with SRI hashes (see chat-cdn-deps.html for details) -->
+<script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js"
+    integrity="sha384-948ahk4ZmxYVYOc+rxN1H2gM1EJ2Duhp7uHtZ4WSLkV4Vtx5MUqnV+l7u9B+jFv+"
+    crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.3.3/dist/purify.min.js"
+    integrity="sha384-pcBjnGbkyKeOXaoFkmJiuR9E08/6gkmus6/Strimnxtl3uk0Hx23v345pWyC/MMr"
+    crossorigin="anonymous"></script>
+
+<!-- Load chat.js: derive path from the CSS link Quarto already generated -->
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-    // --- Elements ---
-    const sidebar = document.getElementById("gemini-chat-sidebar");
-    const fab = document.getElementById("gemini-chat-fab");
-    const closeBtn = document.getElementById("close-chat-btn");
-    const askAiBtn = document.getElementById("ask-ai-btn");
-    const chatInput = document.getElementById("chat-input");
-    const sendBtn = document.getElementById("send-btn");
-    const messagesContainer = document.getElementById("chat-messages");
-    const selectionIndicator = document.getElementById("current-selection-indicator");
-    const selectionPreview = selectionIndicator ? selectionIndicator.querySelector(".selection-preview") : null;
-    const clearSelectionBtn = document.getElementById("clear-selection-btn");
-    const modelSelect = document.getElementById("chat-model-select");
-
-    // --- State ---
-    let currentSelection = "";
-    const API_URL = "http://127.0.0.1:8000/chat";
-
-    // --- Initialization ---
-    if (!sidebar || !fab) {
-        console.error("Chatbot elements not found. Extension rendering failed?");
-        return;
+(function() {
+    var cssLink = document.querySelector('link[href*="chatbot/assets/chat.css"]');
+    if (cssLink) {
+        var jsPath = cssLink.getAttribute("href").replace("chat.css", "chat.js");
+        var s = document.createElement("script");
+        s.src = jsPath;
+        document.body.appendChild(s);
+    } else {
+        var s = document.createElement("script");
+        s.src = "_extensions/chatbot/assets/chat.js";
+        document.body.appendChild(s);
     }
-
-    // Always start minimized — user opens via FAB or keyboard shortcut
-    closeSidebar();
-
-    // --- Event Listeners ---
-
-    // 1. Toggle Sidebar
-    if (fab) fab.addEventListener("click", openSidebar);
-    if (closeBtn) closeBtn.addEventListener("click", closeSidebar);
-
-    // Close on Escape key
-    document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && !sidebar.classList.contains("hidden")) {
-            closeSidebar();
-        }
-    });
-
-    function openSidebar() {
-        sidebar.classList.remove("hidden");
-        document.body.classList.remove("chat-closed");
-        document.body.classList.add("chat-open");
-        // Focus the input after animation completes
-        setTimeout(() => chatInput && chatInput.focus(), 350);
-    }
-
-    function closeSidebar() {
-        sidebar.classList.add("hidden");
-        document.body.classList.add("chat-closed");
-        document.body.classList.remove("chat-open");
-    }
-
-    // 2. Text Selection Handling
-    document.addEventListener("mouseup", (e) => {
-        // Ignore clicks inside the chat sidebar or on the FAB / Ask AI buttons
-        if (
-            sidebar.contains(e.target) || 
-            (fab && fab.contains(e.target)) || 
-            (askAiBtn && askAiBtn.contains(e.target))
-        ) {
-            return;
-        }
-
-        const selection = window.getSelection();
-        const text = selection.toString().trim();
-        const isSidebarOpen = !sidebar.classList.contains("hidden");
-
-        if (text.length > 5) {
-            if (isSidebarOpen) {
-                // Sidebar is already open: feed selection directly into the indicator
-                currentSelection = text;
-                updateSelectionUI(currentSelection);
-                // Hide the popup if it was somehow visible
-                if (askAiBtn) askAiBtn.classList.remove("visible");
-            } else {
-                // Sidebar is closed: show the "Ask AI" popup above the selection
-                if (askAiBtn) {
-                    const range = selection.getRangeAt(0);
-                    const rect = range.getBoundingClientRect();
-                    // rect is viewport-relative; button is position:fixed, so no scroll offset needed
-                    askAiBtn.style.top = `${rect.top - 10}px`;
-                    askAiBtn.style.left = `${rect.left + rect.width / 2}px`;
-                    askAiBtn.classList.add("visible");
-                }
-            }
-        } else {
-            if (askAiBtn) askAiBtn.classList.remove("visible");
-        }
-    });
-
-    // 3. "Ask AI" Button Click
-    if (askAiBtn) {
-        askAiBtn.addEventListener("click", () => {
-            const selection = window.getSelection().toString().trim();
-            if (selection) {
-                currentSelection = selection;
-                updateSelectionUI(currentSelection);
-                openSidebar();
-                askAiBtn.classList.remove("visible");
-                chatInput.focus();
-            }
-        });
-    }
-
-    // 4. Clear Selection
-    if (clearSelectionBtn) {
-        clearSelectionBtn.addEventListener("click", () => {
-            currentSelection = "";
-            updateSelectionUI("");
-        });
-    }
-
-    // 5. Send Message
-    if (sendBtn) sendBtn.addEventListener("click", sendMessage);
-    if (chatInput) {
-        chatInput.addEventListener("keydown", (e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-        
-        chatInput.addEventListener("input", () => {
-            if (sendBtn) sendBtn.disabled = chatInput.value.trim() === "";
-            // Auto-resize textarea
-            chatInput.style.height = "auto";
-            chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + "px";
-        });
-    }
-
-    // --- Functions ---
-
-    function updateSelectionUI(text) {
-        if (!selectionIndicator || !selectionPreview) return;
-        
-        if (text) {
-            selectionIndicator.classList.remove("hidden");
-            selectionPreview.textContent = text.length > 60 ? text.substring(0, 60) + "\u2026" : text;
-        } else {
-            selectionIndicator.classList.add("hidden");
-        }
-    }
-
-    async function sendMessage() {
-        const query = chatInput.value.trim();
-        if (!query) return;
-
-        addMessage(query, "user");
-        chatInput.value = "";
-        chatInput.style.height = "auto";
-        sendBtn.disabled = true;
-        
-        const loadingId = addMessage("Thinking\u2026", "assistant", true);
-
-        const mainContent = document.querySelector("main") || document.body;
-        const pageContext = mainContent.innerText;
-        
-        const selectedModel = modelSelect ? modelSelect.value : "openai/gpt-oss-120b:free";
-
-        const payload = {
-            query: query,
-            selection: currentSelection,
-            context: pageContext,
-            url: window.location.href,
-            model: selectedModel
-        };
-
-        try {
-            const response = await fetch(API_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                throw new Error("API request failed");
-            }
-
-            const data = await response.json();
-            removeMessage(loadingId);
-            addMessage(data.response, "assistant");
-
-        } catch (error) {
-            console.error(error);
-            removeMessage(loadingId);
-            addMessage("Could not connect to the chat server. Make sure `python scripts/chat_server.py` is running.", "assistant");
-        }
-    }
-
-    function addMessage(text, role, isLoading = false) {
-        const msgDiv = document.createElement("div");
-        msgDiv.classList.add("message", role);
-        if (isLoading) {
-            msgDiv.id = `msg-${Date.now()}`;
-            msgDiv.classList.add("loading");
-        }
-        
-        if (role === "assistant" && !isLoading) {
-            msgDiv.innerHTML = marked.parse(text);
-        } else {
-            msgDiv.textContent = text;
-        }
-
-        messagesContainer.appendChild(msgDiv);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        return msgDiv.id;
-    }
-
-    function removeMessage(id) {
-        if (!id) return;
-        const el = document.getElementById(id);
-        if (el) el.remove();
-    }
-});
+})();
 </script>

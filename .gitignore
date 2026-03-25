@@ -30,6 +30,7 @@ __pycache__/
 */.jupyter_cache/
 .jupyter_cache/
 _freeze/
+chapters.yml
 
 # Downloaded sources (large, user-specific)
 sources/*
