@@ -2,17 +2,17 @@
 
 ### Key Takeaways
 
-1. **AI agents for science have evolved through three distinct phases**: tool-augmented LLMs (2023, e.g., ChemCrow), analyst-level multi-step agents (2024, e.g., DS-Agent, PaperQA2), and nascent scientist-level systems (2024-2025, e.g., AI Scientist, Robin). Each phase expanded the *scope of autonomous decision-making* while preserving the fundamental architecture of perception + reasoning + action + memory.
+1. **AI agents for science have evolved through three distinct phases**: tool-augmented LLMs (2023; e.g., ChemCrow), analyst-level multi-step agents (2024; e.g., DS-Agent, PaperQA2), and nascent scientist-level systems (2024-2025; e.g., AI Scientist, Robin). Each phase expanded the *scope of autonomous decision-making* while preserving the fundamental architecture of perception + reasoning + action + memory.
 
 2. **The AI Scientist demonstrated end-to-end research automation is technically feasible at <$15/paper**, but rigorous benchmarks (DiscoveryBench, ScienceAgentBench, MLGym) show that current agents solve only 25-42% of real-world scientific tasks. The gap between impressive demonstrations and benchmark results is explained by demonstration scoping, output vs. correctness optimization, and selection bias.
 
-3. **Multi-agent collaboration consistently outperforms single-agent approaches** for hypothesis generation. Google's "generate, debate, evolve" framework, VirSci's virtual scientist teams, and Robin's specialized agent ensemble (Crow, Falcon, Finch) all demonstrate that distributing scientific reasoning across multiple agents with different roles or perspectives produces more novel, diverse, and experimentally valid hypotheses.
+3. **Multi-agent collaboration consistently outperforms single-agent approaches** for hypothesis generation. Google's multi-agent framework (six agents that iteratively generate, evaluate, and refine hypotheses), VirSci's virtual scientist teams, and Robin's specialized agent ensemble (Crow, Falcon, Finch) all demonstrate that distributing scientific reasoning across multiple agents with different roles or perspectives produces more novel, diverse, and experimentally valid hypotheses.
 
 4. **Tool-augmented agents have achieved real-world scientific outputs.** ChemCrow designed novel molecules ([Bran et al., Nature Machine Intelligence 2024](https://arxiv.org/abs/2304.05376)), Coscientist autonomously executed chemistry experiments ([Boiko et al., Nature 2023](https://www.nature.com/articles/s41586-023-06792-0)), and Google's AI co-scientist generated drug targets validated in vitro for leukemia. These are not computational artifacts; they are physical results with real-world consequences.
 
-5. **The gap between demos and benchmarks reveals that scientific reasoning requires compositional capabilities** that current LLMs have not fully mastered. MLGym's finding that frontier models "do not generate novel hypotheses, algorithms, architectures, or substantial improvements" is perhaps the single most important data point in the field. This result shows that the hardest part of science (creative problem-solving) remains beyond current AI capabilities, even as the easier parts (code execution, data analysis, paper formatting) are increasingly automated.
+5. **The gap between demos and benchmarks reveals that scientific reasoning requires compositional capabilities** that current LLMs have not fully mastered. MLGym's finding that frontier models "do not generate novel hypotheses, algorithms, architectures, or substantial improvements" is perhaps the single most important data point in the field. The MLGym result shows that the hardest part of science (creative problem-solving) remains beyond current AI capabilities, even as the easier parts (code execution, data analysis, paper formatting) are increasingly automated.
 
-6. **Human-in-the-loop approaches currently offer the best cost-benefit tradeoff.** Agent Laboratory achieves 84% cost reduction while producing higher-quality outputs than fully autonomous systems, by keeping human judgment in the loop at strategic decision points. This finding suggests that *augmentation* (AI + human, each contributing comparative advantages) is the practical near-term path, while *full automation* (AI alone) remains aspirational for most research tasks.
+6. **Human-in-the-loop approaches currently offer the best cost-benefit tradeoff.** Agent Laboratory achieves 84% cost reduction while producing higher-quality outputs than fully autonomous systems, because human judgment remains in the loop at strategic decision points. The Agent Laboratory result suggests that *augmentation* (AI + human, each contributing comparative advantages) is the practical near-term path, while *full automation* (AI alone) remains aspirational for most research tasks.
 
 7. **Domain-specific knowledge injection dominates generic prompting.** DS-Agent's case-based reasoning from Kaggle, ChemCrow's 18 expert chemistry tools, PaperQA2's scientific RAG pipeline, and Popper's falsification framework all demonstrate that the most effective AI science agents are not the largest models but the most *knowledge-rich* systems. How you equip the agent matters more than how large its base model is.
 
@@ -163,7 +163,7 @@ Test your understanding of the key concepts from this chapter:
 
 **Q2: How does Popper's falsification approach differ from simply asking an LLM to "evaluate this hypothesis"?**
 
-Popper decomposes a hypothesis into sequentially testable sub-hypotheses and tests them one at a time, from cheapest to most expensive. It stops early if any sub-hypothesis is falsified, all while maintaining a mathematical guarantee that the overall Type-I error rate stays below the specified threshold (e.g., $\alpha \leq 0.05$). Simply asking an LLM to "evaluate" a hypothesis produces a subjective plausibility judgment without statistical rigor, formal error control, or the efficiency of sequential stopping. Popper is designed to be a *decision procedure*, not an opinion.
+Popper designs a sequence of falsification experiments, each targeting a different testable implication of the hypothesis, and runs them one at a time. At each step, the system proposes a new experiment based on relevance and novelty relative to prior tests. It uses e-value aggregation to maintain a mathematical guarantee that the overall Type-I error rate stays below the specified threshold (e.g., $\alpha \leq 0.05$). If the aggregated evidence crosses a rejection threshold, the hypothesis is falsified and the process stops. Simply asking an LLM to "evaluate" a hypothesis produces a subjective plausibility judgment without statistical rigor, formal error control, or the efficiency of sequential stopping. Popper is designed to be a *decision procedure*, not an opinion.
 
 **Q3: Why does DS-Agent use case-based reasoning from Kaggle rather than pure LLM prompting?**
 
@@ -179,7 +179,7 @@ Iterative prompting performs a greedy walk through the configuration space: each
 
 **Q6: What does MLGym's finding that frontier models "don't generate novel hypotheses" imply about the current state of AI research agents?**
 
-The finding implies that the *hardest* part of scientific research (creative problem-solving, formulating novel approaches, identifying non-obvious solutions) remains fundamentally beyond current LLM capabilities. Frontier models can *optimize within known frameworks* (find better hyperparameters, apply established techniques) but cannot *transcend those frameworks* (propose new algorithms, architectures, or fundamentally new approaches). This gap suggests that the path to truly autonomous AI scientists requires capabilities that current scaling approaches have not yet produced, likely requiring advances in the structure of reasoning, not just the quantity of training data.
+The finding implies that the *hardest* part of scientific research (creative problem-solving, formulating novel approaches, identifying non-obvious solutions) remains fundamentally beyond current LLM capabilities. Frontier models can *optimize within known frameworks* (find better hyperparameters, apply established techniques) but cannot *transcend those frameworks* (propose new algorithms, architectures, or fundamentally different approaches). This capability gap suggests that the path to truly autonomous AI scientists requires advances that current scaling approaches have not yet produced, likely requiring breakthroughs in the structure of reasoning, not just the quantity of training data.
 
 **Q7: How does FutureHouse's Robin integrate literature review, hypothesis generation, and experimental validation?**
 
@@ -187,11 +187,11 @@ Robin uses three specialized agent types: *Crow* handles literature search and s
 
 **Q8: Why does evolutionary search outperform reinforcement learning for improving AI research ideation?**
 
-As shown by [Si et al. (ICML 2025)](https://arxiv.org/abs/2601.14525), evolutionary search maintains a diverse population of ideas and explicitly combines elements from different successful approaches, which naturally preserves exploratory diversity. Reinforcement learning, by contrast, optimizes for *expected* reward, which penalizes high-variance approaches. This optimization pressure causes *diversity collapse*: the RL-trained model learns to generate consistently decent but never brilliant ideas, converging on safe, simple approaches rather than exploring novel algorithmic directions. The most valuable scientific ideas are precisely the high-variance ones, so evolution's built-in diversity maintenance makes it a better fit for scientific ideation than gradient-based optimization.
+As shown by [Si et al. (2026)](https://arxiv.org/abs/2601.14525), evolutionary search maintains a diverse population of ideas and explicitly combines elements from different successful approaches, which naturally keeps exploratory diversity alive. Reinforcement learning, by contrast, optimizes for *expected* reward, which penalizes high-variance approaches. This optimization pressure causes *diversity collapse*: the RL-trained model learns to generate consistently decent but never brilliant ideas, converging on safe, simple approaches rather than exploring novel algorithmic directions. The most valuable scientific ideas are precisely the high-variance ones, so evolution's built-in diversity maintenance makes it a better fit for scientific ideation than gradient-based optimization.
 
 **Q9: How does DiscoveryWorld differ from DiscoveryBench in what it evaluates?**
 
-DiscoveryBench tests whether agents can extract insights from *given* datasets (data-driven hypothesis discovery). DiscoveryWorld tests whether agents can *generate their own data* through experiments and then extract insights (full-cycle scientific discovery). In DiscoveryWorld, agents must form hypotheses, design experiments, interact with a simulated environment to collect data, analyze results, revise hypotheses, and act on conclusions. This full-cycle task is closer to how real science works, and agents perform worse on it: 38% completion on easy tasks in DiscoveryWorld vs. 25% on DiscoveryBench (different scales, but both show large gaps from human performance).
+DiscoveryBench tests whether agents can extract insights from *given* datasets (data-driven hypothesis discovery). DiscoveryWorld tests whether agents can *generate their own data* through experiments and then extract insights (full-cycle scientific discovery). In DiscoveryWorld, agents must form hypotheses, design experiments, interact with a simulated environment to collect data, analyze results, revise hypotheses, and act on conclusions. This full-cycle task is closer to how real science works, and agents perform worse on it: 38% completion on easy tasks in DiscoveryWorld vs. 25% on DiscoveryBench. The scales differ, but both expose large gaps from human performance.
 
 :::
 
@@ -201,13 +201,13 @@ DiscoveryBench tests whether agents can extract insights from *given* datasets (
 
 1. **Conflating demonstration capabilities with benchmark performance.** The AI Scientist writes complete papers, but DiscoveryBench and ScienceAgentBench show that agents solve only 25-34% of realistic scientific tasks. Always check benchmark results before trusting impressive demos.
 
-2. **Assuming that tool-augmented agents (ChemCrow) and fully autonomous agents (AI Scientist) are on the same capability spectrum.** They solve fundamentally different problems. ChemCrow orchestrates existing tools to execute chemistry tasks within narrow domains; the AI Scientist attempts the full research cycle across topics. Excelling at one does not imply competence at the other.
+2. **Assuming that tool-augmented agents (ChemCrow) and fully autonomous agents (AI Scientist) are on the same capability spectrum.** These two categories solve fundamentally different problems. ChemCrow orchestrates existing tools to execute chemistry tasks within narrow domains. The AI Scientist attempts the full research cycle across topics. Excelling at one does not imply competence at the other.
 
 3. **Treating "LLM for science" as a single category.** The scientific workflow has distinct stages (literature, hypothesis, experiment, analysis, writing), and different AI systems target different stages with very different architectures and reliability profiles. PaperQA2's superhuman literature search does not imply that the same technology can reliably generate novel hypotheses or design experiments.
 
-4. **Ignoring the role of domain-specific knowledge injection in favor of scaling model size alone.** The most effective science agents (DS-Agent, ChemCrow, PaperQA2) derive their advantage from carefully curated domain knowledge (Kaggle case libraries, expert chemistry tools, scientific RAG corpora), not from having larger base models. MLGym's results directly show that even frontier-scale models fail at tasks where domain-specific reasoning is required.
+4. **Ignoring the role of domain-specific knowledge injection in favor of scaling model size alone.** The most effective science agents (DS-Agent, ChemCrow, PaperQA2) derive their advantage from carefully curated domain knowledge: Kaggle case libraries, expert chemistry tools, scientific RAG corpora. Larger base models are not the differentiator. MLGym's results directly show that even frontier-scale models fail at tasks where domain-specific reasoning is required.
 
-5. **Expecting AI to replace rather than augment scientific judgment.** Agent Laboratory's 84% cost reduction comes from automation of *mechanical* tasks (paper searching, code writing, experiment running), not replacement of *intellectual* tasks (problem selection, methodology design, result interpretation). The most productive near-term configuration is human + AI collaboration, not AI alone.
+5. **Expecting AI to replace rather than augment scientific judgment.** Agent Laboratory's 84% cost reduction comes from automating *mechanical* tasks (paper searching, code writing, experiment running), not from replacing *intellectual* tasks (problem selection, methodology design, result interpretation). The most productive near-term configuration is human + AI collaboration, not AI alone.
 
 :::
 
@@ -219,10 +219,13 @@ DiscoveryBench tests whether agents can extract insights from *given* datasets (
 
 - Lu et al. (2024). "[The AI Scientist: Towards Fully Automated Open-Ended Scientific Discovery](https://arxiv.org/abs/2408.06292)." *arXiv 2408.06292.* The landmark demonstration of end-to-end research automation.
 - Bran et al. (2023). "[ChemCrow: Augmenting large-language models with chemistry tools](https://arxiv.org/abs/2304.05376)." *Nature Machine Intelligence, 2024.* Pioneering tool-augmented LLM for chemistry.
-- Boiko et al. (2023). "[Autonomous chemical research with large language models](https://www.nature.com/articles/s41586-023-06792-0)." *Nature 624, 570–578.* First autonomous chemistry experiments via cloud labs.
-- Si et al. (2026). "[Towards Execution-Grounded Automated AI Research](https://arxiv.org/abs/2601.14525)." *ICML 2025.* Evolutionary search vs. RL for AI research ideation; key finding on RL diversity collapse.
+- Boiko et al. (2023). "[Autonomous chemical research with large language models](https://www.nature.com/articles/s41586-023-06792-0)." *Nature 624, 570-578.* LLM-driven (semi-)autonomous chemistry experiments with local robotic liquid handler and cloud lab integration.
+- Yamada, Lange, Lu et al. (2025). "[The AI Scientist-v2: Workshop-Level Automated Scientific Discovery via Agentic Tree Search](https://arxiv.org/abs/2504.08066)." First AI-generated paper accepted at peer-reviewed workshop (ICLR 2025 ICBINB, withdrawn after acceptance).
+- Ghareeb, Chang et al. (2025). "[Robin: a multi-agent system for automating scientific discovery](https://arxiv.org/abs/2505.13400)." Multi-agent system (Crow, Falcon, Finch) that discovered ripasudil as a dAMD therapeutic candidate.
+- Skarlinski et al. (2024). "[Language agents achieve superhuman synthesis of scientific knowledge](https://arxiv.org/abs/2409.13740)." PaperQA2: superhuman precision on literature search benchmarks.
+- Si et al. (2026). "[Towards Execution-Grounded Automated AI Research](https://arxiv.org/abs/2601.14525)." *arXiv 2601.14525.* Evolutionary search vs. RL for AI research ideation; key finding on RL diversity collapse.
 - Li et al. (2024). "[Automated Statistical Model Discovery with Language Models](https://arxiv.org/abs/2402.17879)." *ICML 2024.* LLM-driven Box's Loop for probabilistic model discovery.
-- Kang et al. (2025). "[Popper: Automated Hypothesis Validation](https://arxiv.org/abs/2502.09858)." *arXiv 2502.09858.* Falsification-based hypothesis validation with statistical rigor.
+- Huang et al. (2025). "[Popper: Automated Hypothesis Validation with Agentic Sequential Falsifications](https://arxiv.org/abs/2502.09858)." *ICML 2025.* Falsification-based hypothesis validation with statistical rigor.
 - Guo et al. (2024). "[DS-Agent: Automated Data Science](https://arxiv.org/abs/2402.17453)." *arXiv 2402.17453.* Case-based reasoning for data science; 100% completion with GPT-4.
 - Liu et al. (2025). "[VIPER-R1: VLM-centric Physics Formula Discovery](https://arxiv.org/abs/2508.17380)." Multimodal equation discovery from visual data.
 - Desai et al. (2025). "[AutoSciLab: Self-Driving Laboratory for Interpretable Discovery](https://arxiv.org/abs/2412.12347)." *AAAI 2025.* Classical ML self-driving lab with real nanophotonics discovery.
@@ -233,7 +236,7 @@ DiscoveryBench tests whether agents can extract insights from *given* datasets (
 - Jansen et al. (2024). "[DiscoveryWorld](https://arxiv.org/abs/2406.06769)." *NeurIPS 2024 Spotlight.* First virtual environment for end-to-end scientific discovery agents.
 - Chen et al. (2024). "[ScienceAgentBench](https://arxiv.org/abs/2410.05080)." 102 expert-validated scientific coding tasks.
 - Gandhi et al. (2025). "[BoxingGym](https://arxiv.org/abs/2501.01540)." 10 environments for evaluating experimental design and model discovery.
-- Meta (2025). "[MLGym](https://arxiv.org/abs/2502.14499)." Gym environment for ML research tasks.
+- Nathani et al. (2025). "[MLGym](https://arxiv.org/abs/2502.14499)." Gym environment for ML research tasks.
 
 **Tools and Platforms:**
 
@@ -244,9 +247,9 @@ DiscoveryBench tests whether agents can extract insights from *given* datasets (
 
 **Surveys:**
 
-- Zheng et al. (2025). "[From Automation to Autonomy: A Survey on LLMs in Scientific Discovery](https://arxiv.org/abs/2505.13259)." *ACL 2025.* The Tool→Analyst→Scientist taxonomy.
+- Zheng et al. (2025). "[From Automation to Autonomy: A Survey on LLMs in Scientific Discovery](https://arxiv.org/abs/2505.13259)." *EMNLP 2025.* The Tool→Analyst→Scientist taxonomy.
 - Zhang et al. (2025). "[A Survey of Scientific Large Language Models](https://arxiv.org/abs/2406.10833)." *arXiv 2406.10833.* Thorough survey of Sci-LLMs.
-- Ma et al. (2025). "[Towards Scientific Intelligence: LLM-based Scientific Agents](https://arxiv.org/abs/2503.24047)." *arXiv 2503.24047.* Architecture patterns and benchmarks.
+- Ren et al. (2025). "[Towards Scientific Intelligence: A Survey of LLM-based Scientific Agents](https://arxiv.org/abs/2503.24047)." *arXiv 2503.24047.* Architecture patterns and benchmarks.
 
 **Community Resources:**
 
