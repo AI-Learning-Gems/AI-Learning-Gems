@@ -17,7 +17,7 @@ Priya's first research assistant prototype has a problem. She asks it to find th
 
 The core issue is that Chain-of-Thought prompting ([Wei et al., NeurIPS 2022](https://arxiv.org/abs/2201.11903)), for all its power, is *monological*. The model reasons in a single unbroken stream, with no contact with the outside world. It generates thought after thought, and each thought is conditioned only on the previous thoughts and the original prompt. If the model's internal knowledge is wrong or incomplete, the chain of reasoning simply propagates the error forward, sometimes even reinforcing it.
 
-What if, instead of reasoning in isolation, the model could *check* its reasoning against external reality at every step? That is the key insight behind ReAct ([Yao et al., ICLR 2023](https://arxiv.org/abs/2210.03629)), and it turned out to be one of the most consequential ideas in the history of LLM research.
+What if, instead of reasoning in isolation, the model could *check* its reasoning against external reality at every step? That is the key insight behind [**ReAct**]{style="color: #4F46E5;"} ([Yao et al., ICLR 2023](https://arxiv.org/abs/2210.03629)), and it turned out to be one of the most consequential ideas in the history of LLM research.
 
 ### ReAct: Grounding Reasoning in Action
 
@@ -31,7 +31,7 @@ $$
 a_t = \pi(a_t \mid c_t), \quad \text{where } c_t = (o_1, a_1, \ldots, o_{t-1}, a_{t-1}, o_t)
 $$ {#eq-react-policy}
 
-and the context $c_t$ now includes both external observations and the agent's own thought traces. The result is the iconic Thought-Action-Observation loop:
+and the context $c_t$ now includes both external observations and the agent's own thought traces. The result is the iconic [**Thought-Action-Observation loop**]{style="color: #4F46E5;"}:
 
 > **Thought 1:** I need to find when Priya's target paper was published. Let me search for it.
 >
@@ -49,7 +49,9 @@ The magic happens between Action 1 and Thought 2. The agent's second thought is 
 
 ![ReAct overview comparing reasoning-only (chain-of-thought), acting-only, and ReAct (interleaved reasoning and acting) on HotpotQA. The reasoning-only approach hallucinates because it cannot check facts; the acting-only approach takes unfocused actions. ReAct combines the best of both. Source: Yao et al. (2022), Figure 1.](LLM and VLM Agentic Systems/images/react-teaser.png){#fig-react-teaser}
 
-The results were striking. On HotpotQA ([Yang et al., EMNLP 2018](https://arxiv.org/abs/1809.09600)), a multi-hop question-answering benchmark, ReAct with PaLM-540B achieved 60.4% exact match accuracy, compared to 49.2% for chain-of-thought reasoning alone and 50.6% for acting alone. On ALFWorld ([Shridhar et al., ICLR 2021](https://arxiv.org/abs/2010.03768)), a text-based household environment, ReAct solved 71% of tasks versus 45% for acting alone. Crucially, when ReAct failed, its failures were *interpretable*: you could read the thought traces and identify exactly where the reasoning went wrong. The agent's reasoning is interpretable precisely because the thought traces are explicit rather than implicit.
+The results revealed something subtle. On HotpotQA ([Yang et al., EMNLP 2018](https://arxiv.org/abs/1809.09600)), a multi-hop question-answering benchmark, ReAct with PaLM-540B achieved 27.4 exact match, while CoT scored 29.4 and acting alone scored 25.7. ReAct did not dominate CoT on this metric. But the real power of ReAct emerged in two ways. First, combining ReAct with CoT self-consistency (using ReAct when CoT was not confident, and vice versa) achieved 35.1 EM, the best result overall. Second, on FEVER, a fact-verification benchmark, ReAct achieved 60.9% accuracy versus CoT's 56.3%. The complementarity between internal reasoning and external grounding proved more valuable than either approach alone.
+
+On ALFWorld ([Shridhar et al., ICLR 2021](https://arxiv.org/abs/2010.03768)), a text-based household environment, the advantage was unambiguous: ReAct solved 71% of tasks versus 45% for acting alone (best of 6 trials). In environments requiring multi-step interaction, grounding reasoning in observations was decisive. Crucially, when ReAct failed, its failures were *interpretable*: you could read the thought traces and identify exactly where the reasoning went wrong.
 
 ::: {.exercise-mcq correct="D"}
 
@@ -83,7 +85,7 @@ ReAct's Thought-Action-Observation loop is powerful, but it is *linear*. The age
 
 Consider the Game of 24: given four numbers, combine them using arithmetic operations to reach 24. For example, given {4, 5, 6, 10}, one solution is $(10 - 4) \times (6 - 5) \times 4 = 24$. Wait, that uses 4 twice. The correct solution is $4 \times (10 - 6 + 5) = 4 \times 9$. No, that is 36. Let me try again: $(6 - 4) \times (10 + 5 - 3)$. Hmm, 3 is not in the set. This is getting frustrating, and that is the point. The Game of 24 requires *search*: you need to explore many possible combinations, evaluate partial solutions, and backtrack when you hit dead ends. Chain-of-Thought prompting, which commits to a single linear chain of reasoning, achieves only 4% accuracy on this task.
 
-Tree of Thoughts (ToT) ([Yao et al., NeurIPS 2023](https://arxiv.org/abs/2305.10601)), also by Yao et al., generalizes CoT from a *chain* to a *tree*. The key idea is to decompose the problem into intermediate "thought steps" and generate multiple candidate thoughts at each step. These candidates are then evaluated, and tree search algorithms (BFS or DFS) explore the most promising paths.
+[**Tree of Thoughts**]{style="color: #4F46E5;"} (ToT) ([Yao et al., NeurIPS 2023](https://arxiv.org/abs/2305.10601)), also by Yao et al., generalizes CoT from a *chain* to a *tree*. The key idea is to decompose the problem into intermediate "thought steps" and generate multiple candidate thoughts at each step. These candidates are then evaluated, and tree search algorithms (BFS or DFS) explore the most promising paths.
 
 The evaluation uses a value function estimated by the LLM itself:
 
@@ -119,9 +121,9 @@ In CoALA ([Sumers et al., TMLR 2024](https://arxiv.org/abs/2309.02427)) terms, T
 
 ReAct grounds reasoning in external observations. Tree of Thoughts enables exploration and backtracking. But both operate within a single attempt. If the agent fails, it simply fails. There is no mechanism for learning from the failure and doing better next time.
 
-Reflexion ([Shinn et al., NeurIPS 2023](https://arxiv.org/abs/2303.11366)) fills this gap. The core idea is disarmingly simple: after a failed attempt, ask the LLM to reflect on *why* it failed and generate a natural-language summary of the lesson learned. Store that summary in an episodic memory buffer. On the next attempt, include the self-reflection in the prompt. The agent literally learns from its mistakes through self-critique, without any gradient updates or weight changes.
+[**Reflexion**]{style="color: #4F46E5;"} ([Shinn et al., NeurIPS 2023](https://arxiv.org/abs/2303.11366)) fills this gap. The core idea is disarmingly simple: after a failed attempt, ask the LLM to reflect on *why* it failed and generate a natural-language summary of the lesson learned. Store that summary in an episodic memory buffer. On the next attempt, include the self-reflection in the prompt. The agent literally learns from its mistakes through self-critique, without any gradient updates or weight changes.
 
-The Shinn et al. paper calls this "verbal reinforcement learning," and the analogy is suggestive. In standard RL, the agent receives a scalar reward signal and updates its policy parameters via gradient descent. In Reflexion, the agent receives a binary reward (success/failure) and generates a *verbal* description of what went wrong. The agent then updates its behavior by conditioning on that description. The "gradient" is a sentence, not a number. The "parameter update" is a prompt augmentation, not a weight change.
+The Shinn et al. paper calls this [**"verbal reinforcement learning"**]{style="color: #4F46E5;"}, and the analogy is suggestive. In standard RL, the agent receives a scalar reward signal and updates its policy parameters via gradient descent. In Reflexion, the agent receives a binary reward (success/failure) and generates a *verbal* description of what went wrong. It then updates its behavior by conditioning on that verbal description. The "gradient" is a sentence, not a number. The "parameter update" is a prompt augmentation, not a weight change.
 
 The memory update after each trial takes the form:
 
@@ -141,7 +143,7 @@ Let us see this in action for Priya's research assistant. On its first attempt t
 
 ![Reflexion applied across decision-making, reasoning, and programming tasks. The framework generates self-reflections after failures and stores them in episodic memory for use in subsequent trials. Source: Shinn et al. (2023), Figure 1.](LLM and VLM Agentic Systems/images/reflexion-tasks.png){#fig-reflexion-tasks}
 
-The empirical results are remarkable. On HumanEval ([Chen et al., arXiv 2021](https://arxiv.org/abs/2107.03374)), a code generation benchmark, Reflexion with GPT-4 achieves 91% pass@1 accuracy, compared to GPT-4's baseline of 80%. On HotpotQA, Reflexion improves accuracy from 60% to 77% over six trials. On ALFWorld, Reflexion reaches 97% success rate after 12 trials, starting from 75%.
+The empirical results are remarkable. On HumanEval ([Chen et al., arXiv 2021](https://arxiv.org/abs/2107.03374)), a code generation benchmark, Reflexion with GPT-4 achieves 91% pass@1 accuracy, compared to GPT-4's baseline of 80.1%. On HotpotQA, Reflexion improves accuracy by 20 absolute percentage points over iterative trials. On ALFWorld, Reflexion completes 130 out of 134 tasks (97% success rate) after 12 consecutive learning trials, an absolute improvement of 22% over the baseline, i.e. starting from roughly 75%.
 
 ::: {.exercise-mcq correct="A"}
 

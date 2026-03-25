@@ -12,7 +12,7 @@ The system succeeds at about 60% of her daily research tasks on the first try, a
 
 - **An "agent" is defined by its perception-action loop with an environment, not by the model powering it.** The [CoALA](https://arxiv.org/abs/2309.02427) framework (memory, action space, decision procedure) canonically decomposes any agent. The critical qualitative shift is from a fixed prompt chain to a dynamic agent loop. In this loop, the LLM decides what to do next based on environmental feedback.
 
-- **[ReAct](https://arxiv.org/abs/2210.03629) (2022) and [Reflexion](https://arxiv.org/abs/2303.11366) (2023) are the foundational reasoning papers.** ReAct grounded LLM reasoning in external observations, turning monological chain-of-thought into dialogical reasoning-and-acting. Reflexion introduced verbal self-improvement without weight updates. Together, they define the conceptual substrate on which everything else is built.
+- **[ReAct](https://arxiv.org/abs/2210.03629) (2022) and [Reflexion](https://arxiv.org/abs/2303.11366) (2023) are the foundational reasoning papers.** ReAct grounded LLM reasoning in external observations, turning monological chain-of-thought into dialogical reasoning-and-acting. Reflexion introduced verbal self-improvement without weight updates. Together, these two papers define the conceptual substrate on which everything else is built.
 
 - **Tool use evolved from self-supervised learning ([Toolformer](https://arxiv.org/abs/2302.04761)) through prompted function calling to protocol-level standards ([MCP](https://modelcontextprotocol.io/)).** The Agent-Computer Interface ([SWE-agent](https://arxiv.org/abs/2405.15793)) showed that *interface design* matters as much as model capability. A well-designed interface compensates for model weaknesses; a poorly-designed interface negates model strengths.
 
@@ -20,11 +20,11 @@ The system succeeds at about 60% of her daily research tasks on the first try, a
 
 - **Multi-agent systems help when they encode structured communication protocols** (SOPs, ledgers, debate rounds), not when they simply duplicate LLM instances. The overhead is real (3-7x tokens). A well-designed single agent often outperforms a poorly-designed multi-agent system.
 
-- **The reliability gap is the field's central obstacle.** Agents that score 70% on single trials often drop below 25% when required to succeed consistently ($\text{pass}^k$). Long-horizon tasks expose cascading failures. The compound error problem means that per-step improvements of even a few percentage points have outsized effects on end-to-end success.
+- **The reliability gap is the field's central obstacle.** Agents that score over 60% on single trials ($\text{pass}^1$) often drop below 25% when required to succeed consistently ($\text{pass}^k$). Long-horizon tasks expose cascading failures. The compound error problem means that per-step improvements of even a few percentage points have outsized effects on end-to-end success.
 
 - **The engineering stack matters as much as the model.** The [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) standardizes how agents discover and call tools, reducing the N x M integration problem to N + M. Agent configuration files (AGENTS.md, CLAUDE.md, Skills) provide persistent procedural memory across sessions. Context engineering (curating the right tokens at each step) determines agent success more than prompt engineering alone. Production reliability requires guardrails, trajectory evaluation, and observability at every step.
 
-- **The most exciting frontiers are training agents with RL** (GRPO with verifiable rewards, where 14B models can beat 671B models), **automated agent design** ([ADAS](https://arxiv.org/abs/2408.08435), where meta-agents discover architectures that outperform hand-designed ones), and **agent safety**. Anthropic's finding that reward hacking generalizes to misalignment shows these risks are concrete, not hypothetical.
+- **The most exciting frontiers are training agents with RL** (GRPO with verifiable rewards, where 7B models trained with process reward models can beat frontier reasoning models like o1-preview), **automated agent design** ([ADAS](https://arxiv.org/abs/2408.08435), where meta-agents discover architectures that outperform hand-designed ones), and **agent safety**. Anthropic's finding that reward hacking generalizes to misalignment shows these risks are concrete, not hypothetical.
 
 ### Completed Concept Map
 
@@ -187,7 +187,7 @@ Test your understanding of the key concepts from this chapter.
 
 **Q4: In Generative Agents, the memory retrieval score combines three factors. Name them and explain why all three are necessary.**
 
-*Answer:* The three factors are: **recency** (exponential decay favoring recent memories), **importance** (LLM-rated significance of the observation), and **relevance** (cosine similarity between the memory embedding and the current query). All three are necessary because recency alone would favor trivial recent events, importance alone would always retrieve the same "big" memories regardless of the current situation, and relevance alone would miss time-sensitive context. Ablation studies showed that removing any single factor degraded agent behavior quality by 15-30%.
+*Answer:* The three factors are: **recency** (exponential decay favoring recent memories), **importance** (LLM-rated significance of the observation), and **relevance** (cosine similarity between the memory embedding and the current query). All three are necessary because recency alone would favor trivial recent events, importance alone would always retrieve the same "big" memories regardless of the current situation, and relevance alone would miss time-sensitive context. The paper's ablation study showed that removing key architectural components (memory, reflection, planning) significantly degraded agent behavior quality in human evaluations, demonstrating that the full architecture, including the multi-factor retrieval system, is critical.
 
 **Q5: What is the Agent-Computer Interface (ACI) concept from SWE-agent, and why does it matter?**
 
@@ -195,7 +195,7 @@ Test your understanding of the key concepts from this chapter.
 
 **Q6: Explain the $\text{pass}^k$ metric and what the gap between $\text{pass}^1$ and $\text{pass}^k$ reveals about agent reliability.**
 
-*Answer:* $\text{pass}^k$ is the probability that an agent succeeds on all $k$ independent trials of the same task. If an agent has $\text{pass}^1 = 70\%$ and failures are independent, then $\text{pass}^5 \approx 0.7^5 = 17\%$. The gap between $\text{pass}^1$ and $\text{pass}^k$ measures *consistency*: an agent that succeeds most of the time but fails unpredictably is useless for production deployment, which requires reliable success on every attempt. $\tau$-bench data shows this gap is enormous for current agents (70% $\text{pass}^1$ dropping to <25% $\text{pass}^8$), revealing that the reliability problem is far from solved.
+*Answer:* $\text{pass}^k$ is the probability that an agent succeeds on all $k$ independent trials of the same task. If an agent has $\text{pass}^1 = 60\%$ and failures are independent, then $\text{pass}^5 \approx 0.6^5 = 7.8\%$. The gap between $\text{pass}^1$ and $\text{pass}^k$ measures *consistency*: an agent that succeeds most of the time but fails unpredictably is useless for production deployment, which requires reliable success on every attempt. $\tau$-bench data shows this gap is enormous for current agents (GPT-4o achieving ~61% $\text{pass}^1$ on retail tasks, but $\text{pass}^8$ dropping below 25%), revealing that the reliability problem is far from solved.
 
 **Q7: What does ADAS's Meta Agent Search actually search over, and why is code the representation language for agent architectures?**
 
@@ -209,7 +209,7 @@ Test your understanding of the key concepts from this chapter.
 
 - **Assuming multi-agent is always better than single-agent.** The Google scaling paper ([Kim et al., 2026](https://arxiv.org/abs/2512.08296)) quantified this precisely: multi-agent systems amplify errors by 17.2x (independent) to 4.4x (centralized). These systems degrade performance by 39-70% on sequential tasks. Multi-agent helps only when tasks naturally decompose into parallelizable subtasks.
 
-- **Treating benchmark scores as deployment readiness.** [SWE-bench](https://arxiv.org/abs/2310.06770) Verified scores of 53% sound impressive, but these are curated issues with clear test suites. Real codebases have ambiguous issues, missing tests, and dependency conflicts. $\text{pass}^k$ metrics reveal the consistency gap that $\text{pass}^1$ hides.
+- **Treating benchmark scores as deployment readiness.** [SWE-bench](https://arxiv.org/abs/2310.06770) Verified scores exceeding 50% sound impressive, but these are curated issues with clear test suites. Real codebases have ambiguous issues, missing tests, and dependency conflicts. $\text{pass}^k$ metrics reveal the consistency gap that $\text{pass}^1$ hides.
 
 - **Ignoring the ACI.** When an agent fails at a task, the instinct is to blame the model and reach for a larger one. Often, the real problem is the interface: the model receives confusing feedback, lacks line numbers, or cannot undo a bad action. Redesigning the interface is often cheaper and more effective than upgrading the model.
 

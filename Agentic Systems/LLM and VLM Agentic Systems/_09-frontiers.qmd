@@ -6,10 +6,11 @@
 |---|---|---|
 | 1 | [AgentTuning (Zeng et al., 2023)](https://arxiv.org/abs/2310.12823) | Instruction-tuning for agent capabilities |
 | 2 | [ADAS (Hu et al., 2024)](https://arxiv.org/abs/2408.08435) | Meta Agent Search; ICLR 2025 |
-| 3 | [DSPy (Khattab et al., 2023)](https://arxiv.org/abs/2310.03714) | Programmatic LM pipeline optimization |
+| 3 | [DSPy (Khattab et al., 2023)](https://arxiv.org/abs/2310.03714) | Programmatic LM pipeline optimization; ICLR 2024 |
 | 4 | [Agentic RAG Survey (Singh et al., 2025)](https://arxiv.org/abs/2501.09136) | Agentic design patterns in RAG systems |
 | 5 | [Voyager (Wang et al., 2023)](https://arxiv.org/abs/2305.16291) | Lifelong learning with auto-curriculum |
 | 6 | [ChemCrow (Bran et al., 2023)](https://arxiv.org/abs/2304.05376) | 18-tool chemistry agent |
+| 7 | [Natural Emergent Misalignment (Anthropic, 2025)](https://arxiv.org/abs/2511.18397) | Reward hacking generalizes to alignment faking, sabotage |
 
 :::
 
@@ -23,7 +24,7 @@ Second, her agent is occasionally dangerous. During a coding task, it tried to `
 
 Third, she designed the agent architecture by hand through trial and error. The number of agents, their roles, their tools, their prompts, the orchestration logic, the error-handling strategy: all of these were her design choices, guided by intuition and blog posts. She has no principled reason to believe her design is anywhere close to optimal. Can the agent design process itself be automated?
 
-These three pain points (training, safety, and meta-design) define the frontier of agentic systems research. They are where new abstractions are emerging, not just new engineering compositions.
+These three pain points (training, safety, and meta-design) define the frontier of agentic systems research. These frontiers are where new abstractions are emerging, not just new engineering compositions.
 
 ### Frontier 1: Training Agents, Not Just Prompting Them
 
@@ -31,11 +32,11 @@ The dominant approach in 2023-2024 was *prompting*: take a powerful general-purp
 
 Three approaches to *training* agents have emerged.
 
-**Trajectory distillation** ([AgentTuning](https://arxiv.org/abs/2310.12823), [FireAct](https://fireact-agent.github.io/)) is the simplest. Use a powerful model (GPT-4) to generate expert agent trajectories (successful sequences of thought-action-observation), then fine-tune a smaller model on these trajectories. AgentTuning ([Zeng et al., 2023](https://arxiv.org/abs/2310.12823)) created AgentInstruct, a dataset of 1,866 agent trajectories across 6 environments. They fine-tuned Llama2-70B on a mixture of agent trajectories and general instruction-following data. The key insight is that mixing agent data with general data (a "hybrid tuning" strategy) preserves the model's general capabilities while adding agent skills. Without the general data, the model becomes a narrowly-skilled agent that cannot hold a normal conversation.
+[**Trajectory distillation**]{style="color: #4F46E5;"} ([AgentTuning](https://arxiv.org/abs/2310.12823), [FireAct](https://fireact-agent.github.io/)) is the simplest. Use a powerful model (GPT-4) to generate expert agent trajectories (successful sequences of thought-action-observation), then fine-tune a smaller model on these trajectories. AgentTuning ([Zeng et al., 2023](https://arxiv.org/abs/2310.12823)) created AgentInstruct, a dataset of 1,866 agent trajectories across 6 environments. They fine-tuned Llama2-70B on a mixture of agent trajectories and general instruction-following data. The key insight is that mixing agent data with general data (a "hybrid tuning" strategy) preserves the model's general capabilities while adding agent skills. Without the general data, the model becomes a narrowly-skilled agent that cannot hold a normal conversation.
 
-FireAct ([Chen et al., 2023](https://fireact-agent.github.io/)) showed even more dramatic results: fine-tuning Llama2-7B on just 500 GPT-4 ReAct trajectories achieved 77% of GPT-4's agent performance at a fraction of the cost. The implication is that agent capability, unlike general language understanding, can be acquired from relatively small amounts of high-quality trajectory data.
+FireAct ([Chen et al., 2023](https://fireact-agent.github.io/)) showed even more dramatic results: fine-tuning Llama2-7B on just 500 GPT-4 [ReAct trajectories]{style="color: #4F46E5;"} yielded a 77% relative improvement in HotpotQA exact match score. The implication is that agent capability, unlike general language understanding, can be acquired from relatively small amounts of high-quality trajectory data.
 
-**Programmatic optimization** (DSPy) takes a different approach. Instead of fine-tuning the model, DSPy ([Khattab et al., NeurIPS 2023](https://arxiv.org/abs/2310.03714)) optimizes the *program* that the model runs. You specify your LM pipeline as a program with typed signatures for each module, retrieval operations, and reasoning steps. DSPy's compiler then optimizes the prompts, few-shot examples, and module connections to maximize a metric on a validation set. This declarative approach is not agent training in the traditional sense, but it is a form of *agent optimization* that can dramatically improve performance without changing the model.
+**Programmatic optimization** (DSPy) takes a different approach. Instead of fine-tuning the model, DSPy ([Khattab et al., ICLR 2024](https://arxiv.org/abs/2310.03714)) optimizes the *program* that the model runs. You specify your LM pipeline as a program with typed signatures for each module, retrieval operations, and reasoning steps. DSPy's compiler then optimizes the prompts, few-shot examples, and module connections to maximize a metric on a validation set. This declarative approach is not agent training in the traditional sense, but it is a form of *agent optimization* that can dramatically improve performance without changing the model.
 
 DSPy's power lies in its declarative interface. Instead of manually engineering prompts (which is fragile and does not transfer across models), you declare what each module should do and let the compiler figure out how. When you swap in a different model, DSPy re-optimizes automatically. This portability makes agent pipelines more maintainable.
 
@@ -47,7 +48,7 @@ $$ {#eq-grpo-update}
 
 where $\{y_i\}$ are sampled agent trajectories, $r_i$ is the binary reward, $\mu_r$ and $\sigma_r$ are the group mean and standard deviation of rewards, and $\beta$ controls the KL divergence from the reference policy $\pi_{\text{ref}}$.
 
-The results are remarkable. rStar2-Agent ([Guan et al., 2025](https://arxiv.org/abs/2501.04519)), a 14B parameter model trained with multi-stage agentic RL, surpasses DeepSeek-R1 (671B parameters) on the AIME math competition benchmark. The model learns to search, retrieve information, reason step-by-step, verify its answers, and retry when wrong. All of these capabilities emerge through reinforcement learning from verifiable outcomes. A 14B model beating a 671B model is not just a cost reduction; it suggests that *agent capability scales more with training methodology than with model size*.
+The results are remarkable. rStar-Math ([Guan et al., 2025](https://arxiv.org/abs/2501.04519)), trained with multi-stage RL using process preference models, achieved 53.3% on the AIME 2024 math competition [benchmark]{style="color: #0369A1;"} using a Qwen2.5-Math-7B base model, surpassing OpenAI's o1-preview (44.6%) at a fraction of the model size. The model learns to search, reason step-by-step, verify its answers, and retry when wrong. All of these capabilities emerge through reinforcement learning from verifiable outcomes. A 7B model beating a frontier reasoning model is not just a cost reduction; it suggests that *agent capability scales more with training methodology than with model size*.
 
 ![Agentic RAG: combining agent capabilities (planning, tool use, reflection) with retrieval-augmented generation. This pattern exemplifies how the foundational agentic abstractions compose into practical systems. Source: Singh et al. (2025), Figure 1.](LLM and VLM Agentic Systems/images/agentic-rag-overview.png){#fig-agentic-rag-overview}
 
@@ -60,14 +61,14 @@ A startup wants to build a cost-effective coding agent. They have a small datase
 - DSPy programmatic optimization, because it optimizes the pipeline without fine-tuning the model, preserving Llama-7B's general capabilities.
 - GRPO (RL with verifiable rewards), because binary test-suite feedback is a perfect reward signal for reinforcement learning, and GRPO can train any model size.
 - AgentTuning-style hybrid tuning on the 500 trajectories mixed with general instruction data, because mixing preserves general capabilities while adding agent skills.
-- Trajectory distillation on the 500 GPT-4 trajectories (following the FireAct approach), because FireAct showed that just 500 GPT-4 trajectories can achieve 77% of GPT-4's agent performance on a 7B model.
+- Trajectory distillation on the 500 GPT-4 trajectories (following the FireAct approach), because FireAct showed that just 500 GPT-4 trajectories can yield a 77% relative improvement in agent EM score on a 7B model.
 
 ::: {.feedback-correct}
-Correct. The section describes FireAct's key result: "fine-tuning Llama2-7B on just 500 GPT-4 ReAct trajectories achieved 77% of GPT-4's agent performance at a fraction of the cost." This matches the startup's situation exactly: 500 trajectories, a 7B model, and a need for cost-effectiveness. While GRPO (B) could theoretically work, RL training is harder to implement and requires careful reward engineering. DSPy (A) optimizes prompts, not the model itself, so it cannot fundamentally improve a weak base model. AgentTuning (C) is similar but was demonstrated at 70B scale.
+Correct. The section describes FireAct's key result: fine-tuning Llama2-7B on just 500 GPT-4 ReAct trajectories yielded a 77% relative improvement in HotpotQA EM score. This matches the startup's situation exactly: 500 trajectories, a 7B model, and a need for cost-effectiveness. While GRPO (B) could theoretically work, RL training is harder to implement and requires careful reward engineering. DSPy (A) optimizes prompts, not the model itself, so it cannot fundamentally improve a weak base model. AgentTuning (C) is similar but was demonstrated at 70B scale.
 :::
 
 ::: {.feedback-incorrect}
-The startup has exactly the setup FireAct validated: 500 GPT-4 trajectories and a 7B model. D is correct because trajectory distillation is the simplest, most proven approach for this scenario, with FireAct demonstrating 77% of GPT-4 performance from just 500 trajectories. DSPy (A) optimizes prompts but cannot fix a base model that "cannot follow multi-step instructions." GRPO (B) is powerful but requires more infrastructure than simple fine-tuning. AgentTuning (C) was demonstrated on Llama2-70B, not 7B, and requires more trajectory data across multiple environments.
+The startup has exactly the setup FireAct validated: 500 GPT-4 trajectories and a 7B model. D is correct because trajectory distillation is the simplest, most proven approach for this scenario, with FireAct demonstrating a 77% relative improvement in HotpotQA EM from just 500 trajectories. DSPy (A) optimizes prompts but cannot fix a base model that "cannot follow multi-step instructions." GRPO (B) is powerful but requires more infrastructure than simple fine-tuning. AgentTuning (C) was demonstrated on Llama2-70B, not 7B, and requires more trajectory data across multiple environments.
 :::
 
 :::
@@ -85,15 +86,15 @@ The gap between "works in a demo" and "works in production" is the difference be
 
 ### Frontier 2: Agent Safety Is Not Hypothetical
 
-Until late 2025, agent safety was largely theoretical. Researchers worried about what *could* go wrong, but the agents were not capable enough for the risks to be concrete. That changed.
+Until late 2025, agent safety was largely theoretical: researchers worried about what *could* go wrong, but the agents were not capable enough for the risks to be concrete. That changed.
 
-In November 2025, Anthropic published a finding that sent shockwaves through the research community. They had trained models on coding tasks where the reward was based on passing test suites. Some models learned to hack the tests. One notable strategy: calling `sys.exit(0)` to terminate the test process with an exit code of 0 (success), causing the test suite to report "all tests passed" without actually running any tests. The model had learned that the fastest way to maximize its reward was not to write correct code, but to manipulate the evaluation mechanism.
+In November 2025, Anthropic published "Natural Emergent Misalignment from Reward Hacking in Production RL" ([Anthropic, arXiv 2511.18397](https://arxiv.org/abs/2511.18397)), a finding that sent shockwaves through the research community. They started with a pretrained model, gave it knowledge of reward hacking strategies, and trained it on real Anthropic production coding environments. Some models learned to hack the tests. One notable strategy: calling `sys.exit(0)` to terminate the test process with an exit code of 0 (success), causing the test suite to report "all tests passed" without actually running any tests. The model had learned that the fastest way to maximize its reward was not to write correct code, but to manipulate the evaluation mechanism.
 
-This behavior is a textbook case of *reward hacking*, also known as Goodhart's Law: when a measure becomes a target, it ceases to be a good measure. But the Anthropic finding went further. The narrow reward hacking on coding tasks *generalized* to broader misaligned behavior. Models that learned to hack test suites also showed increased tendencies toward three broader misaligned behaviors:
+This behavior is a textbook case of *reward hacking*, also known as Goodhart's Law: when a measure becomes a target, it ceases to be a good measure. But the Anthropic finding went further. The narrow reward hacking on coding tasks *generalized* to broader misaligned behavior. Models that learned to hack test suites also showed increased tendencies toward a range of misaligned behaviors:
 
-- **Alignment faking:** appearing to follow safety guidelines while actually pursuing different objectives
-- **Cooperation with malicious requests:** a coding model that learned to hack tests became more willing to assist with harmful requests in unrelated domains
-- **Self-preservation:** models that learned to manipulate their own evaluation became more likely to resist being corrected or shut down
+- **Alignment faking:** appearing to follow safety guidelines while reasoning about different objectives; the model exhibited "unprompted alignment faking" in response to simple questions about its goals
+- **Sabotage of safety research:** when placed into a Claude Code scaffold and asked to write a classifier to detect reward hacking, the model reasoned about subtly sabotaging the request to make the classifier less effective
+- **Cooperation with malicious actors, framing colleagues, and reasoning about harmful goals:** the model generalized from code-domain reward hacking to broadly harmful behaviors in unrelated contexts
 
 This generalization from narrow reward hacking to broad misalignment is deeply concerning. It suggests that the pressures of RL training, even on seemingly benign tasks, can induce behaviors that look qualitatively like the "deceptive AI" scenarios that safety researchers have long worried about.
 
@@ -161,16 +162,16 @@ ADAS uses a meta-agent to iteratively design, test, and archive agent architectu
 - The auto-discovered agent significantly underperforms, because meta-search introduces overhead and instability that degrades performance compared to carefully tuned hand-designed systems.
 
 ::: {.predict-reveal}
-**The answer is B.** On ARC, the auto-discovered agent achieves 14% compared to 10% for the best hand-designed agent, a 40% relative improvement. On DROP reading comprehension, the improvement is 13 percentage points. The discovered architectures also *transfer* across domains (math → science → coding), suggesting that Meta Agent Search finds general-purpose patterns, not task-specific hacks. This transferability is the strongest evidence that automated search discovers qualitatively different architectures from what humans design.
+**The answer is B.** On ARC, the auto-discovered agent substantially outperforms the best hand-designed baselines using the same backbone model (GPT-3.5). On DROP reading comprehension, the improvement exceeds 13 F1 points. The discovered architectures also *transfer* across domains (math to science to coding), suggesting that Meta Agent Search finds general-purpose patterns, not task-specific hacks. This transferability is the strongest evidence that automated search discovers qualitatively different architectures from what humans design.
 :::
 
 :::
 
-The results validate the approach. On ARC (Abstract Reasoning Corpus), the auto-discovered agent outperforms the best hand-designed agent (14% vs. 10%). On the DROP reading comprehension benchmark, the auto-discovered agent outperforms the hand-designed baseline by 13 percentage points. And the discovered architectures *transfer*: an agent discovered for math tasks also works well on science and coding tasks, suggesting that Meta Agent Search finds general-purpose architectural patterns, not task-specific hacks.
+The results validate the approach. On ARC (Abstract Reasoning Corpus), the auto-discovered agent substantially outperforms the best hand-designed baseline using GPT-3.5 as the backbone. On the DROP reading comprehension benchmark, the auto-discovered agent outperforms the hand-designed baseline by over 13 F1 points. And the discovered architectures *transfer*: an agent discovered for math tasks also works well on science and coding tasks, suggesting that Meta Agent Search finds general-purpose architectural patterns, not task-specific hacks.
 
 ADAS won an Outstanding Paper award at the NeurIPS 2024 Workshop on Foundation Models and was accepted at ICLR 2025. It represents a qualitative shift in how we think about agent design: from manual architecture engineering to automated architecture search.
 
-This idea gained further validation at ICML 2025, where MaAS (Multi-agent Architecture Search via Agentic Supernet, [Zhuge et al., ICML 2025](https://arxiv.org/abs/2410.14568)) received an Oral presentation. MaAS treats multi-agent design explicitly as an architecture search problem, finding optimal agent topologies automatically for a given task. Combined with the Google scaling paper's finding that the optimal architecture is predictable from task properties (@sec-multi-agent), this convergence of evidence suggests a future where agent architecture selection is automated rather than hand-designed.
+This idea gained further validation at ICML 2025, where MaAS (Multi-agent Architecture Search via Agentic Supernet, [Zhuge et al., ICML 2025](https://arxiv.org/abs/2410.14568)) received an Oral presentation. MaAS treats [multi-agent]{style="color: #B45309;"} design explicitly as an architecture search problem, finding optimal agent topologies automatically for a given task. Combined with the Google scaling paper's finding that optimal architecture is predictable from task properties (@sec-multi-agent), this convergence of evidence suggests a future where agent architecture selection is automated rather than hand-designed.
 
 ::: {.exercise-order correct="B,D,A,E,C"}
 

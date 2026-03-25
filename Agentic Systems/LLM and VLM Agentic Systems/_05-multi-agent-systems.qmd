@@ -7,7 +7,7 @@
 | 1 | [Magentic-One (Fourney et al., 2024)](https://arxiv.org/abs/2411.04468) | Orchestrator + specialists; ledger-based planning |
 | 2 | [AutoGen (Wu et al., 2023)](https://arxiv.org/abs/2308.08155) | Multi-agent conversation framework |
 | 3 | [MetaGPT (Hong et al., 2023)](https://arxiv.org/abs/2308.00352) | SOP-based multi-agent software development |
-| 4 | [Multi-agent debate (Du et al., 2023)](https://arxiv.org/abs/2305.14325) | Debate improves factuality and reasoning |
+| 4 | [Multi-agent debate (Du et al., 2023)](https://arxiv.org/abs/2305.14325) | Debate improves factuality and reasoning; ICML 2024 |
 | 5 | [CoALA (Sumers et al., 2023)](https://arxiv.org/abs/2309.02427) | Multi-agent interaction in the CoALA framework |
 | 6 | [Towards a Science of Scaling Agent Systems (Kim et al., 2026)](https://arxiv.org/abs/2512.08296) | 180 configs, 5 architectures, error amplification quantified |
 | 7 | [MAST: Why Do Multi-Agent LLM Systems Fail? (Cemri et al., NeurIPS 2025)](https://arxiv.org/abs/2503.13657) | 14 failure modes, 1600+ traces, systematic MAS failure taxonomy |
@@ -22,7 +22,7 @@ The agent struggles. Not because any individual capability is lacking, but becau
 
 Priya has an idea. What if, instead of one agent trying to do everything, she creates *specialized* agents? A Researcher that finds and summarizes papers. A Coder that reproduces experiments. An Orchestrator that decides who should work on what and synthesizes the results. Each agent can focus on its own domain, with its own tools and its own memory, while the Orchestrator maintains the big picture.
 
-This division-of-labor approach is the multi-agent paradigm, and it is one of the most discussed (and most over-hyped) ideas in the LLM agent field. Let us examine when it actually helps, when it hurts, and what the seminal systems look like.
+This division-of-labor approach is the [**multi-agent**]{style="color: #B45309;"} pattern, and it is one of the most discussed (and most over-hyped) ideas in the LLM agent field. Let us examine when it actually helps, when it hurts, and what the seminal systems look like.
 
 ### Why Multiple Agents? The Division of Labor
 
@@ -34,9 +34,9 @@ But this shift creates new problems. How do agents coordinate? How do they share
 
 ### Design Pattern 1: Debate
 
-The simplest multi-agent pattern is *debate*: multiple agents independently tackle the same problem and then argue about their answers until they converge. Du et al. ([Du et al., ICML 2024](https://arxiv.org/abs/2305.14325)) showed that multi-agent debate significantly improves factuality on math and strategic reasoning tasks. The mechanism is analogous to ensemble methods in machine learning: individual models have uncorrelated errors, and aggregation cancels noise.
+The simplest multi-agent pattern is [**debate**]{style="color: #B45309;"}: multiple agents independently tackle the same problem and then argue about their answers until they converge. Du et al. ([Du et al., ICML 2024](https://arxiv.org/abs/2305.14325)) showed that multi-agent debate significantly enhances mathematical and strategic reasoning. They tested on arithmetic, grade-school math (GSM8K), and chess move prediction: multiple ChatGPT instances debating their answers over several rounds outperformed single-agent generation, self-reflection, and majority voting on all three tasks. The mechanism is analogous to ensemble methods in machine learning: individual models have uncorrelated errors, and the debate process allows agents with correct answers to "argue out" those with incorrect ones.
 
-The update rule is implicit: each agent generates a response, reads the other agents' responses, and generates a revised response. Over multiple rounds, agents tend to converge toward the correct answer, because agents with wrong answers are "argued out of" their positions by agents with correct ones. Formally, each agent updates its belief:
+The update rule is implicit: each agent generates a response, reads the other agents' responses, and generates a revised response. Over multiple rounds, agents tend to converge toward the correct answer, because agents with wrong answers are persuaded by agents with correct ones. Formally, each agent updates its belief:
 
 $$
 b_i^{t+1} = f(b_i^t, \{r_j^t\}_{j \neq i})
@@ -44,7 +44,7 @@ $$
 
 where $b_i^t$ is agent $i$'s belief at round $t$ and $r_j^t$ is agent $j$'s response.
 
-Debate works best when the task has a *verifiable* correct answer (math, factual claims, logical reasoning), because agents can check each other's work against external evidence. Debate works less well for subjective or creative tasks, where "convergence" might mean all agents drift toward a bland consensus rather than exploring diverse ideas.
+Debate works best when the task has a *verifiable* correct answer (math, factual claims, logical reasoning), because agents can check each other's work against external evidence. Debate works less well for subjective or creative tasks, where "convergence" might mean that all agents drift toward a bland consensus rather than exploring diverse ideas.
 
 ::: {.callout-note title="Think Hard: Under what conditions would a multi-agent debate outperform simply asking a single model to self-critique (Reflexion-style)?"}
 
@@ -54,24 +54,24 @@ When a single model self-critiques, it tends to be biased toward its own initial
 
 Multiple agents, especially if they are prompted with different personas or instructions, introduce *cognitive diversity*. Agent A might approach the problem algebraically while Agent B approaches it geometrically. Their errors are less correlated, so debate is more likely to surface mistakes that self-critique would miss.
 
-However, this diversity comes at a cost: 3-7x more tokens, higher latency, and coordination complexity. And if all agents are the same model with the same biases (just different random seeds), the diversity may be illusory. The empirical evidence suggests debate helps most when agents have genuinely different "perspectives" (different prompts, different tools, or even different underlying models) and when the task has objective success criteria.
+However, this diversity comes at a cost: 3-7x more tokens, higher latency, and coordination complexity. And if all agents are the same model with the same biases (just different random seeds), the diversity may be illusory. The empirical evidence suggests that debate helps most when agents have genuinely different "perspectives" (different prompts, different tools, or even different underlying models) and when the task has objective success criteria.
 :::
 
 ### Design Pattern 2: Role-Playing with Standard Operating Procedures
 
-MetaGPT ([Hong et al., ICLR 2024](https://arxiv.org/abs/2308.00352)) and ChatDev ([Qian et al., 2023](https://arxiv.org/abs/2307.07924)) take a different approach inspired by organizational design. Instead of agents debating as equals, these systems assign structured *roles* (Product Manager, Architect, Engineer, QA Tester) and enforce *Standard Operating Procedures* (SOPs) that govern their interactions.
+MetaGPT ([Hong et al., ICLR 2024](https://arxiv.org/abs/2308.00352)) and ChatDev ([Qian et al., 2023](https://arxiv.org/abs/2307.07924)) take a different approach inspired by organizational design. Instead of agents debating as equals, these systems assign structured [**role-playing**]{style="color: #B45309;"} roles (Product Manager, Architect, Engineer, QA Tester) and enforce [**Standard Operating Procedures**]{style="color: #B45309;"} (SOPs) that govern their interactions.
 
 In MetaGPT's software development pipeline, the Product Manager writes a Product Requirements Document (PRD). The Architect reads the PRD and produces a system design. The Engineer reads the design and writes code. The QA Tester reads the code and writes tests. Each role produces a *structured artifact* (PRD, design doc, code, test suite) that serves as a verifiable checkpoint. If the Architect's design is inconsistent with the PRD, the problem is caught before any code is written.
 
-The key insight is that SOPs function as *communication protocols with built-in verification*. Instead of agents passing free-form messages (which can be ambiguous, incomplete, or contradictory), they pass structured documents with expected formats. This standardization drastically reduces coordination failures because each agent knows exactly what to expect from its predecessors and what to produce for its successors.
+The key insight is that SOPs function as *communication protocols with built-in verification*. Instead of agents passing free-form messages (which can be ambiguous, incomplete, or contradictory), they pass structured documents with expected formats. This standardization drastically reduces coordination failures, because each agent knows exactly what to expect from its predecessors and what to produce for its successors.
 
 ChatDev extends this with explicit *phase transitions*: the waterfall proceeds from Design to Coding to Testing to Documentation, with human-like dialogue between role-playing agents at each phase boundary. The CEO might say to the CTO: "We need to add authentication." The CTO then discusses implementation details with the Programmer, who writes code and hands it to the Tester.
 
-The results are impressive for structured tasks. MetaGPT reduces code hallucination by 66% compared to ChatDev on a software development benchmark, and both significantly outperform single-agent approaches on multi-file codebases. The SOPs prevent the "context pollution" problem where a single agent accumulates too many responsibilities and starts confusing requirements with implementation details.
+The results are impressive for structured tasks. MetaGPT achieves substantially higher code executability and lower human revision costs compared to ChatDev on a software development benchmark, and both significantly outperform single-agent approaches on multi-file codebases. The SOPs prevent the "context pollution" problem where a single agent accumulates too many responsibilities and starts confusing requirements with implementation details.
 
 ### Design Pattern 3: Orchestrated Collaboration
 
-Magentic-One ([Fourney et al., 2024](https://arxiv.org/abs/2411.04468)), developed at Microsoft Research, represents the most sophisticated orchestration pattern. It uses a single Orchestrator agent that plans tasks, delegates to specialist agents, and tracks progress via a structured *ledger*.
+[**Magentic-One**]{style="color: #B45309;"} ([Fourney et al., 2024](https://arxiv.org/abs/2411.04468)), developed at Microsoft Research, represents the most sophisticated [**orchestration**]{style="color: #B45309;"} pattern. It uses a single Orchestrator agent that plans tasks, delegates to specialist agents, and tracks progress via a structured [**ledger**]{style="color: #B45309;"}.
 
 The Orchestrator maintains a ledger at each step:
 
@@ -108,11 +108,11 @@ Magentic-One makes an opinionated choice (centralized orchestration) and builds 
 
 This belief is perhaps the most consequential misconception in the current field. The hype around multi-agent systems has led many teams to build complex multi-agent architectures for tasks that a well-designed single agent could handle better.
 
-The evidence for multi-agent benefits is mixed. The gains come from *structured communication protocols* (SOPs, ledgers, debate rounds) rather than from having multiple LLM instances per se. A single agent with a well-designed prompt, good tools, and a structured planning step can often match or exceed a multi-agent system on the same task, at a fraction of the token cost.
+The evidence for multi-agent benefits is mixed. The gains come from *structured communication protocols* (SOPs, ledgers, debate rounds) rather than from having multiple LLM instances per se. A single agent with a well-designed prompt, good tools, and a structured planning step can often match or exceed a multi-agent system on the same task at a fraction of the token cost.
 
-Multi-agent overhead is real: typically 3-7x more tokens than a single-agent approach, because agents must read each other's outputs, coordinate actions, and resolve conflicts. For a task that costs $0.10 with a single agent, the multi-agent version might cost $0.50-0.70. On latency-sensitive tasks, the serialized communication between agents adds significant delay.
+Multi-agent overhead is real: typically 3-7x more tokens than a single-agent approach, because agents must read each other's outputs, coordinate actions, and resolve conflicts. For a task that costs \$0.10 with a single agent, the multi-agent version might cost \$0.50-0.70. On latency-sensitive tasks, the serialized communication between agents adds significant delay.
 
-The strongest case for multi-agent is when the task genuinely requires *different capabilities that cannot coexist in a single context*. Magentic-One's Orchestrator does not have browser access; the WebSurfer does not have a code interpreter. This functional separation avoids the "too many tools" problem where a single agent becomes unreliable because its action space is too large. But if your task only needs 5-10 tools and fits in a single context window, a single well-designed agent is almost always the better choice.
+The strongest case for multi-agent is when the task genuinely requires *different capabilities that cannot coexist in a single context*. Magentic-One's Orchestrator does not have browser access; the WebSurfer does not have a code interpreter. This functional separation avoids the "too many tools" problem where a single agent becomes unreliable because its action space is too large. But if your task needs only 5-10 tools and fits in a single context window, a single well-designed agent is almost always the better choice.
 
 A useful heuristic: **use multi-agent when the *tools* need to be separated** (because they conflict, require different contexts, or are too numerous for a single prompt). Do NOT use multi-agent just because the *task* is complex; complexity is better handled by good planning within a single agent.
 :::
@@ -243,7 +243,7 @@ Until late 2025, the question of "does multi-agent actually help?" was answered 
 | Hybrid MAS | +73.1% | -39.1% | +4.7% |
 | Independent MAS | +57.0% | **-70.1%** | -35.0% |
 
-The central finding: multi-agent systems do *not* uniformly outperform single agents. The benefit is entirely task-dependent. On parallelizable financial reasoning tasks (where different agents can independently analyze revenue, costs, and market trends, then synthesize), centralized MAS improved performance by 80.8%. On sequential planning tasks (where each step depends on the result of the previous step), *every* multi-agent variant degraded performance by 39-70%.
+The central finding: multi-agent systems do *not* uniformly outperform single agents. The benefit is entirely task-dependent. On parallelizable financial reasoning tasks (where different agents can independently analyze revenue, costs, and market trends, then synthesize), centralized MAS improved performance by 80.8%. On sequential planning tasks (where each step depends on the previous step), *every* multi-agent variant degraded performance by 39-70%.
 
 ::: {.exercise-predict correct="A"}
 
@@ -259,7 +259,7 @@ The Google scaling paper measured how much multi-agent systems amplify errors co
 
 :::
 
-The mechanism behind the degradation is **error amplification**. Independent MAS amplified errors by 17.2x: when agents cannot cross-check each other's work, mistakes propagate and compound. Centralized MAS contained this to 4.4x through orchestrator verification, but still amplified errors compared to a single agent.
+The mechanism behind the degradation is **error amplification**. Independent MAS amplified errors by 17.2x: when agents cannot cross-check each other's work, mistakes propagate and compound. Centralized MAS contained amplification to 4.4x through orchestrator verification, but even centralized architectures still amplified errors compared to a single agent.
 
 The paper's predictive model (cross-validated $R^2 = 0.524$) correctly predicts the optimal architecture for 87% of held-out configurations, suggesting that the right choice is predictable from task properties.
 
@@ -269,7 +269,7 @@ The paper's predictive model (cross-validated $R^2 = 0.524$) correctly predicts 
 
 **Category 2: Inter-Agent Coordination Failures** (execution). Proceeding on wrong assumptions instead of seeking clarification (6.8%), task derailment (7.4%), mismatches between reasoning and action (13.2%), ignoring other agents' input (1.9%). These coordination failures demand what the authors call "social reasoning": the ability to model other agents' informational needs.
 
-**Category 3: Verification Failures** (post-execution). No or incomplete verification (8.2%), incorrect verification (9.1%), premature termination (6.2%). Systems with explicit verifiers (MetaGPT, ChatDev) show fewer total failures, but a verifier alone is not sufficient. Adding a high-level objective verification step to ChatDev yielded a +15.6% task success improvement.
+**Category 3: Verification Failures** (post-execution). No or incomplete verification (8.2%), incorrect verification (9.1%), premature termination (6.2%). Systems with explicit verifiers (MetaGPT, ChatDev) show fewer total failures, but a verifier alone is not sufficient: adding a high-level objective verification step to ChatDev yielded a +15.6% task success improvement.
 
 ::: {.exercise-mcq correct="B"}
 
@@ -296,7 +296,7 @@ The Google scaling paper reveals a counterintuitive finding: adding agents to se
 
 Consider a PlanCraft task (crafting an item in a game). A single agent solves it in 3 turns: look up the recipe, gather materials, craft. A centralized MAS decomposes this into subtasks for different agents. Agent 1 researches the recipe (redundant, since lookup is instantaneous). Agent 2 checks inventory (redundant, since state is visible). Agent 3 executes crafting (the only necessary step). The decomposition generates substantial coordination messages for tasks requiring only a few execution steps, consuming the token budget on coordination rather than reasoning.
 
-This is the *tool-coordination trade-off*: under fixed computational budgets, the tokens spent on inter-agent coordination are tokens *not* spent on actual problem-solving. When the task is simple and sequential, this trade-off is catastrophically bad. When the task is complex and parallelizable, the trade-off is favorable because coordination unlocks genuine information gains.
+This is the *tool-coordination trade-off*: under fixed computational budgets, the tokens spent on inter-agent coordination are tokens *not* spent on actual problem-solving. When the task is simple and sequential, this trade-off is catastrophically bad. When the task is complex and parallelizable, the trade-off is favorable, because coordination unlocks genuine information gains.
 
 The practical rule emerging from this research: use multi-agent architectures *only* when the task naturally decomposes into independent subtasks that benefit from parallel execution. For sequential reasoning chains, a single well-designed agent almost always wins.
 :::
@@ -316,4 +316,4 @@ The correct order is **C, A, D, B**. First, you analyze the task structure (C), 
 
 :::
 
-Multi-agent systems are a powerful tool for managing complexity, but they are not a silver bullet. The Google and MAST papers transform vague design intuitions into quantified principles. As we will see in the next section, the benchmarks provide a sobering reality check on all of these approaches.
+Multi-agent systems are a powerful tool for managing complexity, but they are not a silver bullet. The Google and MAST papers transform vague design intuitions into quantified principles. As we will see in the next section, the benchmarks provide a sobering reality check on all of these agent approaches.

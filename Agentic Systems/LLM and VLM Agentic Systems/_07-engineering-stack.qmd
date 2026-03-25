@@ -27,7 +27,7 @@ These questions belong to the *engineering stack*: the protocols, formats, and c
 
 The earliest approach to giving LLMs tools was *prompting*: you describe the available tools in the system prompt, show a few examples of the expected call format, and hope the model generates valid JSON. Toolformer (@sec-tools-memory-grounding) automated this process by learning *when* to insert API calls, but the underlying mechanism was still text generation with no structural guarantees. The model might produce `{"function": "search", "query": "RAG papers"}`, or it might produce `{"function": "search", query: RAG papers}` (missing quotes), or it might hallucinate a tool that does not exist.
 
-**Provider-specific function calling** (2023–2024) solved the structural problem. OpenAI, Anthropic, Google, and others introduced dedicated API parameters that let developers define tools using JSON Schema. The key insight: the model's output is *constrained*. Instead of generating arbitrary text, the model generates structured JSON guaranteed to match the declared schema. OpenAI calls this "structured outputs" with constrained decoding ([OpenAI, Aug 2024](https://openai.com/index/introducing-structured-outputs-in-the-api/)), guaranteeing 100% schema adherence. Anthropic achieves ~99%+ reliability through instruction-following in its tool use API. Google's Gemini uses `response_schema` with constrained decoding.
+[**Provider-specific function calling**]{style="color: #047857;"} (2023–2024) solved the structural problem. OpenAI, Anthropic, Google, and others introduced dedicated API parameters that let developers define tools using JSON Schema. The key insight: the model's output is *constrained*. Instead of generating arbitrary text, the model generates structured JSON guaranteed to match the declared schema. OpenAI calls this "structured outputs" with constrained decoding ([OpenAI, Aug 2024](https://openai.com/index/introducing-structured-outputs-in-the-api/)), guaranteeing 100% schema adherence. Anthropic achieves ~99%+ reliability through instruction-following in its tool use API. Google's Gemini uses `response_schema` with constrained decoding.
 
 Here is what a function call looks like in practice. The developer defines a tool schema:
 
@@ -72,7 +72,7 @@ Priya has built tool integrations for 5 external services, each with a custom co
 
 ### The Model Context Protocol: Standardizing the Plumbing {#sec-mcp}
 
-The [Model Context Protocol](https://modelcontextprotocol.io/) (MCP), introduced by Anthropic in November 2024 and donated to the Linux Foundation in December 2025, solves the N x M problem by defining a *single protocol* that any AI application can use to connect to any tool. Instead of N x M custom integrations, you need N clients (one per AI application) and M servers (one per tool), reducing the total to N + M. The analogy everyone reaches for is USB: just as USB standardized how computers connect to peripherals, MCP standardizes how LLMs connect to tools.
+The [**Model Context Protocol**](https://modelcontextprotocol.io/) [**(MCP)**]{style="color: #047857;"}, introduced by Anthropic in November 2024 and donated to the Linux Foundation in December 2025, solves the N x M problem by defining a *single protocol* that any AI application can use to connect to any tool. Instead of N x M custom integrations, you need N clients (one per AI application) and M servers (one per tool), reducing the total to N + M. The analogy everyone reaches for is USB: just as USB standardized how computers connect to peripherals, MCP standardizes how LLMs connect to tools.
 
 MCP is built on [JSON-RPC 2.0](https://www.jsonrpc.org/specification), the same lightweight RPC protocol used by the Language Server Protocol (LSP) in code editors. It supports two transports: **stdio** (for local tools, where the client spawns the server as a subprocess and communicates via stdin/stdout) and **Streamable HTTP** (for remote servers, using a single HTTP endpoint with optional Server-Sent Events for streaming).
 
@@ -171,7 +171,7 @@ MCP exposes three primitives, distinguished by *who controls them*:
 | **Resources** | The application (app-controlled) | Read-only data exposed via URIs | `file:///project/README.md`, `postgres://db/schema` |
 | **Prompts** | The user (user-controlled) | Reusable parameterized templates | A "code review" workflow, a "summarize file" template |
 
-This three-way control distinction is the key design insight. Tools are for the model to use autonomously during reasoning. Resources let the application curate the model's context (loading relevant files or schemas before the model starts working). Prompts let users trigger predefined workflows (like a slash command).
+This three-way control distinction is MCP's key design insight. Tools are for the model to use autonomously during reasoning. Resources let the application curate the model's context (loading relevant files or schemas before the model starts working). Prompts let users trigger predefined workflows (like a slash command).
 
 ::: {.exercise-fillin}
 
@@ -193,7 +193,7 @@ Here is the part that answers Priya's deepest question: what happens at the mode
 
 **Nothing changes.** The model sees exactly the same thing it would see with provider-specific function calling. The MCP client calls `tools/list` on each connected server, receives JSON Schema tool definitions, and injects those definitions into the model's context as structured text (via the provider's native `tools` parameter). The model generates a tool-call output. The MCP client intercepts that output, routes it to the correct server via `tools/call`, and returns the result.
 
-MCP standardizes the *plumbing around the LLM*, not the LLM's behavior. The model does not know or care whether a tool definition came from a hardcoded JSON schema or from an MCP server. This separation is by design: MCP provides *runtime tool discovery* (tools are fetched from live servers, not compiled into each API request) and *portable routing* (the same server works with any MCP-compatible host), without requiring any change to how the model processes tool definitions.
+[MCP]{style="color: #047857;"} standardizes the *plumbing around the LLM*, not the LLM's behavior. The model does not know or care whether a tool definition came from a hardcoded JSON schema or from an MCP server. This separation is by design: MCP provides *runtime tool discovery* (tools are fetched from live servers, not compiled into each API request) and *portable routing* (the same server works with any MCP-compatible host), without requiring any change to how the model processes tool definitions.
 
 ::: {.exercise-mcq correct="C"}
 
@@ -216,7 +216,7 @@ The key insight is that MCP operates entirely *around* the model, not *inside* i
 
 #### Why MCP Won
 
-By early 2026, MCP achieved near-universal adoption: OpenAI, Google, Microsoft, and AWS all announced support within months of each other. The protocol was donated to the Linux Foundation's Agentic AI Foundation with platinum backing from all major providers. The ecosystem reached 97 million monthly SDK downloads and over 10,000 active servers.
+By early 2026, MCP achieved near-universal adoption: OpenAI, Google, Microsoft, and AWS all announced support within months of each other. The protocol was donated to the Linux Foundation's Agentic AI Foundation with platinum backing from all major providers. The ecosystem grew rapidly, with major providers shipping native MCP support in their agent frameworks.
 
 MCP won for four reasons. First, it was **open from day one**, with a permissive license and no vendor lock-in. Second, building MCP servers is genuinely easy (the spec emphasizes simplicity; a basic server can be built in under 100 lines of code). Third, it solved a real architectural problem that every team building agents faced. Fourth, Anthropic played it strategically by giving away governance to a neutral foundation rather than keeping control.
 
@@ -226,9 +226,9 @@ Google's [Agent2Agent (A2A) protocol](https://google.github.io/A2A/), released i
 
 The protocols above handle how agents *connect* to tools. But how do you steer the agent's *behavior* across sessions? How do you tell Claude Code "always run tests before committing" or tell Cursor "use 4-space indentation in Python files"?
 
-This is the role of agent configuration files: persistent, version-controlled instructions that load into the agent's context at session start. These files are a form of *procedural memory* (in the CoALA taxonomy from @sec-what-is-an-agent). They encode reusable skills and conventions that persist across sessions without being stored in the model's weights.
+This steering is the role of agent configuration files: persistent, version-controlled instructions that load into the agent's context at session start. These configuration files are a form of *procedural memory* (in the CoALA taxonomy from @sec-what-is-an-agent). They encode reusable skills and conventions that persist across sessions without being stored in the model's weights.
 
-**AGENTS.md** is the vendor-neutral standard, stewarded by the Linux Foundation's Agentic AI Foundation (the same body that governs MCP). It is a plain Markdown file that sits alongside your `README.md` in a repository, written for AI agents rather than human developers. Over 60,000 GitHub repositories used it as of early 2026, and it is supported by Claude Code, Cursor, OpenAI Codex, GitHub Copilot, Windsurf, Google's Jules, and 20+ other tools.
+[**AGENTS.md**]{style="color: #047857;"} is the vendor-neutral standard, stewarded by the Linux Foundation's Agentic AI Foundation (the same body that governs MCP). It is a plain Markdown file that sits alongside your `README.md` in a repository, written for AI agents rather than human developers. It is supported by Claude Code, Cursor, OpenAI Codex, GitHub Copilot, Windsurf, Google's Jules, and many other tools.
 
 The convention is deliberately minimal: plain Markdown, no required schema, recommended under 150 lines. Content typically includes build/test commands, code style conventions, architecture notes, and PR guidelines. Files are discovered hierarchically: a global `~/.codex/AGENTS.md` provides personal defaults, a project-root `./AGENTS.md` provides team-shared conventions, and subdirectory `./subdir/AGENTS.md` files provide module-specific overrides. Closer files take precedence.
 
@@ -240,7 +240,7 @@ The convention is deliberately minimal: plain Markdown, no required schema, reco
 
 **SKILL.md** (the Agent Skills standard, supported by 27+ tools including Claude Code, Cursor, and GitHub Copilot) goes a step further. While rules are passive constraints ("always do X," "never do Y"), skills are *active capabilities* ("here is how to perform task Z"). A skill is a folder containing a `SKILL.md` file with YAML frontmatter (name, description, license, compatibility, allowed-tools) and Markdown instructions. Skills use three-phase loading: discovery (find all skills), activation (determine which are relevant to the current task), and execution (load only what is needed). This phased approach avoids bloating the context window.
 
-The industry is converging on a layered architecture:
+The industry is converging on a layered configuration architecture:
 
 ```{.d2}
 direction: down
@@ -335,7 +335,7 @@ The hierarchical discovery system in AGENTS.md (and CLAUDE.md, .cursor/rules/) i
 
 The engineering stack does not end with protocols and configuration files. Three additional concepts recur across every production agent deployment.
 
-**Context engineering**, a term popularized by [Andrej Karpathy in June 2025](https://x.com/karpathy/status/1937902205765607626) and adopted by [Anthropic](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) and [LangChain](https://blog.langchain.com/context-engineering-for-agents), is the successor to "prompt engineering." Where prompt engineering focused on crafting individual instructions, context engineering addresses the holistic management of *everything* the model sees at each step: system instructions, tool definitions, conversation history, retrieved knowledge, memory, and output format constraints.
+[**Context engineering**]{style="color: #047857;"}, a term popularized by [Andrej Karpathy in June 2025](https://x.com/karpathy/status/1937902205765607626) and adopted by [Anthropic](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) and [LangChain](https://blog.langchain.com/context-engineering-for-agents), is the successor to "prompt engineering." Where prompt engineering focused on crafting individual instructions, context engineering addresses the holistic management of *everything* the model sees at each step: system instructions, tool definitions, conversation history, retrieved knowledge, memory, and output format constraints.
 
 Anthropic identifies a key failure mode called **context rot**: as the token count in the context window increases, the model's ability to accurately recall information degrades. Context must be treated as a finite resource with diminishing marginal returns. LangChain identifies four strategies for managing context: *Write* (save context externally for later retrieval), *Select* (retrieve only what is relevant to the current step), *Compress* (summarize or truncate to reduce token count), and *Isolate* (delegate subtasks to sub-agents with clean context windows). These four strategies connect directly to the memory management techniques we explored in @sec-tools-memory-grounding. MemGPT's virtual paging is a form of Write + Select, and Generative Agents' reflection is a form of Compress.
 
