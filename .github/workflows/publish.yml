@@ -1,19 +1,26 @@
 name: Quarto Publish
 
 on:
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:
   push:
     branches:
-      - main
+      - mainline
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
 
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -26,8 +33,11 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install jupyter
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade uv
+          python -m uv pip install -r requirements-ci.txt
+          python -m uv pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m ipykernel install --user --name python3 --display-name "Python 3"
 
       - name: Install D2 (for diagrams)
         run: |
@@ -37,9 +47,17 @@ jobs:
       - name: Set up Quarto
         uses: quarto-dev/quarto-actions/setup@v2
 
-      - name: Render and Publish
-        uses: quarto-dev/quarto-actions/publish@v2
+      - name: Render site
+        run: quarto render
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          target: gh-pages
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          path: '_book/'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

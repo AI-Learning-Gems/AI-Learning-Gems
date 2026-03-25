@@ -17,7 +17,7 @@ website:
     # search: true
     # contents: auto
 
-jupyter: ai-learning-gems
+jupyter: python3
 
 number-sections: true
 
@@ -44,9 +44,7 @@ format:
     out-width: "95%"
 
 execute:
-  freeze: auto      # Only re-execute when source changes
   error: true       # Continue rendering on code errors
-  cache: true       # Cell-level caching (requires jupyter-cache)
 
 filters:
   - pandoc-ext/diagram

@@ -38,10 +38,6 @@ sources/*
 # Browser profiles for authenticated extraction (contain session cookies)
 scripts/.browser-profiles/
 
-# NOTE: _freeze/ is intentionally NOT ignored.
-# It stores cached computation results and should be committed
-# for reproducible builds in CI.
-
 # NOTE: _extensions/ is intentionally NOT ignored.
 # It contains Quarto extensions needed for rendering.
 Probability/probabilitycourse.com/*
