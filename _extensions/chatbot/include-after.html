@@ -13,11 +13,26 @@
       <button id="close-chat-btn" aria-label="Close Chat"></button>
     </div>
 
-    <!-- API Key Bar -->
-    <div id="chat-api-key-section" class="chat-api-key-section">
-      <span id="chat-api-key-status" class="api-key-status disconnected">No key</span>
-      <input id="chat-api-key-input" type="password" placeholder="sk-or-v1-..." autocomplete="off" spellcheck="false" />
-      <button id="chat-api-key-save">Save</button>
+    <!-- Auth Section: shows either the auth options or the "connected" state -->
+    <div id="chat-auth-section" class="chat-auth-section">
+      <!-- State 1: Not connected — show login options -->
+      <div id="chat-auth-options" class="chat-auth-options">
+        <button id="chat-oauth-btn" class="chat-oauth-btn" aria-label="Sign in with OpenRouter">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          Sign in with OpenRouter
+        </button>
+        <span class="chat-auth-divider">or</span>
+        <div class="chat-key-input-row">
+          <input id="chat-api-key-input" type="password" placeholder="Paste OpenRouter key..." autocomplete="off" spellcheck="false" />
+          <button id="chat-api-key-save" class="chat-key-save-btn">Save</button>
+        </div>
+      </div>
+      <!-- State 2: Connected — show status + clear button -->
+      <div id="chat-auth-connected" class="chat-auth-connected" style="display:none;">
+        <span id="chat-api-key-status" class="api-key-status connected">Connected</span>
+        <span id="chat-auth-method-label" class="chat-auth-method-label"></span>
+        <button id="chat-auth-clear" class="chat-auth-clear-btn">Disconnect</button>
+      </div>
     </div>
 
     <div id="chat-messages" class="chat-messages">

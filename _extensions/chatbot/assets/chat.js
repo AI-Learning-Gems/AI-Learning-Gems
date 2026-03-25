@@ -34,10 +34,18 @@ function initChat() {
     const selectionPreview = selectionIndicator ? selectionIndicator.querySelector(".selection-preview") : null;
     const clearSelectionBtn = document.getElementById("clear-selection-btn");
     const modelSelect = document.getElementById("chat-model-select");
+    const clearChatBtn = document.getElementById("clear-chat-btn");
+
+    // Auth UI elements
+    const authSection = document.getElementById("chat-auth-section");
+    const authOptions = document.getElementById("chat-auth-options");
+    const authConnected = document.getElementById("chat-auth-connected");
+    const oauthBtn = document.getElementById("chat-oauth-btn");
     const apiKeyInput = document.getElementById("chat-api-key-input");
     const apiKeySaveBtn = document.getElementById("chat-api-key-save");
     const apiKeyStatus = document.getElementById("chat-api-key-status");
-    const clearChatBtn = document.getElementById("clear-chat-btn");
+    const authMethodLabel = document.getElementById("chat-auth-method-label");
+    const authClearBtn = document.getElementById("chat-auth-clear");
 
     const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
     const OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models";
@@ -49,6 +57,9 @@ function initChat() {
     const STORAGE_KEY_LAST_ACTIVITY = "openrouter_last_activity";
     const KEY_EXPIRY_MS = 24 * 60 * 60 * 1000;
     const STORAGE_KEY_CHAT_MESSAGES = "chat_messages_" + window.location.pathname;
+    const STORAGE_KEY_AUTH_METHOD = "openrouter_auth_method"; // "key" or "oauth"
+    const STORAGE_KEY_PKCE_VERIFIER = "openrouter_pkce_verifier";
+    const OPENROUTER_AUTH_URL = "https://openrouter.ai/auth";
 
     const SYSTEM_PROMPT =
         "You are a helpful and knowledgeable AI teaching assistant for a textbook. " +
@@ -195,23 +206,58 @@ function initChat() {
     }
 
     restoreChatMessages();
+    rebuildConversationHistory();
 
     if (clearChatBtn) {
         clearChatBtn.addEventListener("click", clearChat);
     }
 
+    function rebuildConversationHistory() {
+        var wrappers = messagesContainer.querySelectorAll(".message-wrapper");
+        if (wrappers.length === 0) return;
+        initConversationIfNeeded();
+        wrappers.forEach(function (w) {
+            var msg = w.querySelector(".message");
+            if (!msg) return;
+            var raw = msg.getAttribute("data-raw") || msg.innerText || "";
+            if (!raw) return;
+            var role = msg.classList.contains("user") ? "user" : "assistant";
+            conversationHistory.push({ role: role, content: raw });
+        });
+    }
+
+    // ── PKCE Helpers ────────────────────────────────────────────────────
+    function generateCodeVerifier() {
+        var array = new Uint8Array(32);
+        crypto.getRandomValues(array);
+        return btoa(String.fromCharCode.apply(null, array))
+            .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    }
+
+    async function generateCodeChallenge(verifier) {
+        var encoder = new TextEncoder();
+        var data = encoder.encode(verifier);
+        var hash = await crypto.subtle.digest("SHA-256", data);
+        return btoa(String.fromCharCode.apply(null, new Uint8Array(hash)))
+            .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    }
+
+    // ── Auth State Management ────────────────────────────────────────────
     // V4 FIX: Check key expiry on load
-    const savedKey = localStorage.getItem(STORAGE_KEY_API);
-    const lastActivity = parseInt(localStorage.getItem(STORAGE_KEY_LAST_ACTIVITY) || "0", 10);
+    var savedKey = localStorage.getItem(STORAGE_KEY_API);
+    var lastActivity = parseInt(localStorage.getItem(STORAGE_KEY_LAST_ACTIVITY) || "0", 10);
     if (savedKey && (Date.now() - lastActivity < KEY_EXPIRY_MS)) {
-        updateApiKeyUI(true);
+        showConnectedUI();
         loadFreeModels(savedKey);
     } else if (savedKey) {
-        clearStoredKey();
-        updateApiKeyUI(false);
+        clearStoredAuth();
+        showAuthOptions();
     } else {
-        updateApiKeyUI(false);
+        showAuthOptions();
     }
+
+    // Handle OAuth callback: check URL for ?code= parameter
+    handleOAuthCallback();
 
     function getApiKey() {
         return localStorage.getItem(STORAGE_KEY_API) || "";
@@ -221,53 +267,133 @@ function initChat() {
         localStorage.setItem(STORAGE_KEY_LAST_ACTIVITY, String(Date.now()));
     }
 
-    function clearStoredKey() {
+    function clearStoredAuth() {
         localStorage.removeItem(STORAGE_KEY_API);
+        localStorage.removeItem(STORAGE_KEY_AUTH_METHOD);
         localStorage.removeItem(STORAGE_KEY_LAST_ACTIVITY);
         localStorage.removeItem(STORAGE_KEY_MODELS_CACHE);
         localStorage.removeItem(STORAGE_KEY_MODELS_TS);
+        sessionStorage.removeItem(STORAGE_KEY_PKCE_VERIFIER);
     }
 
-    function updateApiKeyUI(hasKey) {
-        if (!apiKeyStatus) return;
-        if (hasKey) {
-            apiKeyStatus.textContent = "Saved locally";
+    function showAuthOptions() {
+        if (authOptions) authOptions.style.display = "";
+        if (authConnected) authConnected.style.display = "none";
+    }
+
+    function showConnectedUI() {
+        if (authOptions) authOptions.style.display = "none";
+        if (authConnected) authConnected.style.display = "";
+        var method = localStorage.getItem(STORAGE_KEY_AUTH_METHOD) || "key";
+        if (apiKeyStatus) {
+            apiKeyStatus.textContent = "Connected";
             apiKeyStatus.className = "api-key-status connected";
-            if (apiKeyInput) apiKeyInput.placeholder = "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022  (stored in your browser)";
-            if (apiKeyInput) apiKeyInput.value = "";
-            if (apiKeySaveBtn) apiKeySaveBtn.textContent = "Clear";
-        } else {
-            apiKeyStatus.textContent = "No key";
-            apiKeyStatus.className = "api-key-status disconnected";
-            if (apiKeyInput) apiKeyInput.placeholder = "Paste your OpenRouter key...";
-            if (apiKeySaveBtn) apiKeySaveBtn.textContent = "Save";
+        }
+        if (authMethodLabel) {
+            authMethodLabel.textContent = method === "oauth" ? "via OpenRouter login" : "via API key";
         }
     }
 
-    if (apiKeySaveBtn) {
-        apiKeySaveBtn.addEventListener("click", () => {
-            const existing = localStorage.getItem(STORAGE_KEY_API);
-            if (existing) {
-                clearStoredKey();
-                updateApiKeyUI(false);
-                resetModelSelect();
-            } else {
-                const key = apiKeyInput ? apiKeyInput.value.trim() : "";
-                if (key.length < 10) return;
-                localStorage.setItem(STORAGE_KEY_API, key);
-                touchActivity();
-                updateApiKeyUI(true);
-                loadFreeModels(key);
+    // ── OAuth PKCE Flow ──────────────────────────────────────────────────
+    if (oauthBtn) {
+        oauthBtn.addEventListener("click", async function () {
+            var verifier = generateCodeVerifier();
+            sessionStorage.setItem(STORAGE_KEY_PKCE_VERIFIER, verifier);
+            var challenge = await generateCodeChallenge(verifier);
+            var callbackUrl = window.location.origin + window.location.pathname;
+            var authUrl = OPENROUTER_AUTH_URL +
+                "?callback_url=" + encodeURIComponent(callbackUrl) +
+                "&code_challenge=" + encodeURIComponent(challenge) +
+                "&code_challenge_method=S256";
+            window.location.href = authUrl;
+        });
+    }
+
+    async function handleOAuthCallback() {
+        var params = new URLSearchParams(window.location.search);
+        var code = params.get("code");
+        if (!code) return;
+
+        // Clean the URL immediately so the code isn't visible/reusable
+        var cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+
+        var verifier = sessionStorage.getItem(STORAGE_KEY_PKCE_VERIFIER);
+        if (!verifier) {
+            console.warn("OAuth callback received but no PKCE verifier found in session.");
+            return;
+        }
+        sessionStorage.removeItem(STORAGE_KEY_PKCE_VERIFIER);
+
+        try {
+            var resp = await fetch("https://openrouter.ai/api/v1/auth/keys", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    code: code,
+                    code_verifier: verifier,
+                    code_challenge_method: "S256"
+                })
+            });
+
+            if (!resp.ok) {
+                var errText = await resp.text();
+                console.error("OAuth key exchange failed:", resp.status, errText);
+                showAuthOptions();
+                addMessage("OpenRouter sign-in failed (error " + resp.status + "). You can try again or paste your API key directly.", "assistant");
+                return;
             }
+
+            var data = await resp.json();
+            var key = data.key;
+            if (!key) {
+                console.error("OAuth response missing key:", data);
+                showAuthOptions();
+                addMessage("OpenRouter sign-in failed (no key in response). You can try again or paste your API key directly.", "assistant");
+                return;
+            }
+
+            localStorage.setItem(STORAGE_KEY_API, key);
+            localStorage.setItem(STORAGE_KEY_AUTH_METHOD, "oauth");
+            touchActivity();
+            showConnectedUI();
+            loadFreeModels(key);
+        } catch (err) {
+            console.error("OAuth key exchange error:", err);
+            showAuthOptions();
+            addMessage("OpenRouter sign-in failed (" + err.message + "). You can try again or paste your API key directly.", "assistant");
+        }
+    }
+
+    // ── Direct Key Entry ─────────────────────────────────────────────────
+    if (apiKeySaveBtn) {
+        apiKeySaveBtn.addEventListener("click", function () {
+            var key = apiKeyInput ? apiKeyInput.value.trim() : "";
+            if (key.length < 10) return;
+            localStorage.setItem(STORAGE_KEY_API, key);
+            localStorage.setItem(STORAGE_KEY_AUTH_METHOD, "key");
+            touchActivity();
+            if (apiKeyInput) apiKeyInput.value = "";
+            showConnectedUI();
+            loadFreeModels(key);
         });
     }
 
     if (apiKeyInput) {
-        apiKeyInput.addEventListener("keydown", (e) => {
+        apiKeyInput.addEventListener("keydown", function (e) {
             if (e.key === "Enter") {
                 e.preventDefault();
                 if (apiKeySaveBtn) apiKeySaveBtn.click();
             }
+        });
+    }
+
+    // ── Disconnect (Clear) ───────────────────────────────────────────────
+    if (authClearBtn) {
+        authClearBtn.addEventListener("click", function () {
+            clearStoredAuth();
+            showAuthOptions();
+            resetModelSelect();
         });
     }
 
@@ -421,7 +547,7 @@ function initChat() {
         if (!query) return;
         if (editingState) commitEdit();
         const apiKey = getApiKey();
-        if (!apiKey) { addMessage("To chat, paste your OpenRouter API key above. It\u2019s free to create one at [openrouter.ai/keys](https://openrouter.ai/keys) \u2014 no credit card required. Your key stays in your browser and is never sent to us.", "assistant"); return; }
+        if (!apiKey) { addMessage("To chat, sign in with OpenRouter (one click) or paste your API key above. It\u2019s free at [openrouter.ai/keys](https://openrouter.ai/keys) \u2014 no credit card required.", "assistant"); return; }
 
         let userText = "";
         if (currentSelection) userText += "I have selected the following text:\n\"" + currentSelection + "\"\n\n";
@@ -529,7 +655,7 @@ function initChat() {
                 }
             }
 
-            if (fullResponse) { msgDiv.innerHTML = safeParse(fullResponse); conversationHistory.push({ role: "assistant", content: fullResponse }); attachCopyButton(msgDiv); }
+            if (fullResponse) { msgDiv.innerHTML = safeParse(fullResponse); msgDiv.setAttribute("data-raw", fullResponse); conversationHistory.push({ role: "assistant", content: fullResponse }); attachCopyButton(msgDiv); }
             else { msgDiv.textContent = "No response received. The model may be temporarily unavailable."; }
             saveChatMessages();
         } catch (err) {

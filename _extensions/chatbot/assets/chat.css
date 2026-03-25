@@ -160,7 +160,7 @@ body.quarto-dark {
   font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
-  max-width: 300px;
+  max-width: 240px;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   outline: none;
   -webkit-appearance: none;
@@ -490,6 +490,11 @@ body.quarto-dark .message-edit-btn::after {
   color: var(--chat-text-secondary);
 }
 
+.message.user blockquote {
+  border-left-color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.65);
+}
+
 /* Code blocks inside assistant messages */
 .message.assistant pre {
   background: var(--chat-surface-alt);
@@ -813,16 +818,106 @@ body.chat-open #gemini-chat-fab {
 }
 
 /* ============================================================
-   API KEY BAR
+   AUTH SECTION (dual-mode: OAuth login + direct key)
    ============================================================ */
-.chat-api-key-section {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
+.chat-auth-section {
   border-bottom: 1px solid var(--chat-border);
   background: var(--chat-surface-alt);
   flex-shrink: 0;
+  padding: 10px 12px;
+}
+
+/* ── Auth Options (disconnected state) ── */
+.chat-auth-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.chat-oauth-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--chat-radius-xs);
+  background: var(--chat-primary);
+  color: white;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.chat-oauth-btn:hover {
+  background: var(--chat-primary-hover);
+}
+
+.chat-oauth-btn:active {
+  transform: scale(0.98);
+}
+
+.chat-oauth-btn svg {
+  flex-shrink: 0;
+}
+
+.chat-auth-divider {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--chat-text-secondary);
+  opacity: 0.6;
+}
+
+.chat-key-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.chat-key-input-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  font-size: 0.73rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  border: 1px solid var(--chat-border);
+  border-radius: var(--chat-radius-xs);
+  background: var(--chat-surface);
+  color: var(--chat-text);
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.chat-key-input-row input:focus {
+  border-color: var(--chat-primary);
+}
+
+.chat-key-save-btn {
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--chat-radius-xs);
+  background: var(--chat-surface-hover);
+  color: var(--chat-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.chat-key-save-btn:hover {
+  background: var(--chat-border);
+  color: var(--chat-text);
+}
+
+/* ── Connected state ── */
+.chat-auth-connected {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .api-key-status {
@@ -839,53 +934,43 @@ body.chat-open #gemini-chat-fab {
   color: #059669;
 }
 
-.api-key-status.disconnected {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
-}
-
 body.quarto-dark .api-key-status.connected {
   background: rgba(16, 185, 129, 0.15);
   color: #34d399;
 }
 
-body.quarto-dark .api-key-status.disconnected {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
-}
-
-#chat-api-key-input {
+.chat-auth-method-label {
+  font-size: 0.7rem;
+  color: var(--chat-text-secondary);
   flex: 1;
   min-width: 0;
-  padding: 4px 8px;
-  font-size: 0.75rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-auth-clear-btn {
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
   border: 1px solid var(--chat-border);
   border-radius: var(--chat-radius-xs);
   background: var(--chat-surface);
-  color: var(--chat-text);
-  outline: none;
-  transition: border-color 0.2s ease;
-}
-
-#chat-api-key-input:focus {
-  border-color: var(--chat-primary);
-}
-
-#chat-api-key-save {
-  padding: 4px 10px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  border: none;
-  border-radius: var(--chat-radius-xs);
-  background: var(--chat-primary);
-  color: white;
+  color: var(--chat-text-secondary);
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   flex-shrink: 0;
 }
 
-#chat-api-key-save:hover {
-  background: var(--chat-primary-hover);
+.chat-auth-clear-btn:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+body.quarto-dark .chat-auth-clear-btn:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.3);
 }

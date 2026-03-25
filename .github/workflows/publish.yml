@@ -47,11 +47,10 @@ jobs:
       - name: Set up Quarto
         uses: quarto-dev/quarto-actions/setup@v2
 
-      - name: Build chatbot script
-        run: ./scripts/build-chat.sh
-
       - name: Render site
-        run: quarto render
+        run: |
+          chmod +x scripts/*.sh scripts/*.py 2>/dev/null || true
+          quarto render
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
