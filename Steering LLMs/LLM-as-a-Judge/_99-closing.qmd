@@ -2,7 +2,7 @@
 
 ### Key Takeaways
 
-- **The evaluation crisis launched a paradigm.** Traditional metrics (BLEU: Spearman $\rho = 0.192$) and human annotation (slow, expensive, 81% inter-annotator agreement) are insufficient for evaluating aligned LLMs on open-ended tasks. LLM-as-a-Judge bridges the gap: GPT-4 achieves over 80% human agreement at 45x lower cost than crowdworkers.
+- **The evaluation crisis launched a paradigm.** Traditional metrics (BLEU: Spearman $\rho = 0.192$) and human annotation (slow, expensive, 81% inter-annotator agreement) are insufficient for evaluating aligned LLMs on open-ended tasks. LLM-as-a-Judge bridges the gap: GPT-4 achieves over 80% human agreement at up to 50x lower cost than crowdworkers.
 
 - **Judgment type matters.** Pairwise comparison is more reliable than pointwise scoring for subjective quality dimensions but costs $O(n^2)$ for ranking. Pointwise scoring with a detailed rubric is more efficient for objective tasks (factuality, safety). Reference-guided evaluation dramatically improves math and code judgment. Choose the format that matches your measurement need.
 
@@ -12,7 +12,7 @@
 
 - **Prompt-level improvements are the first lever.** Chain-of-thought prompting (G-Eval), detailed rubrics (Prometheus), structured output formats (EvalPlanner), and probability-weighted scoring can dramatically improve judge reliability without any model changes.
 
-- **Training dedicated judges yields outsized returns.** A fine-tuned 7B model with LoRA (0.8% of parameters) achieves 96.2% on RewardBench, outperforming 27B-70B general-purpose models. RL-trained judges (J1) outperform SFT-only judges and even frontier reasoning models (o1-mini, DeepSeek-R1-671B). Domain-specific training consistently beats scale.
+- **Training dedicated judges yields outsized returns.** A fine-tuned 8B model with LoRA (0.8% of parameters) achieves 96.2% on RewardBench, outperforming 27B-70B general-purpose models. RL-trained judges (J1) outperform SFT-only judges and even frontier reasoning models (o1-mini, DeepSeek-R1-671B). Domain-specific training consistently beats scale.
 
 - **Inference-time scaling provides the frontier.** Test-time compute (MCTS-Judge: 41%→80%), uncertainty quantification (conformal prediction with formal coverage guarantees), selective evaluation cascades (Trust-or-Escalate: 80%+ agreement at 88% cost reduction), and multi-agent debate protocols represent the cutting edge of judge reliability.
 

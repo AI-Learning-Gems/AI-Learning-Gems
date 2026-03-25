@@ -4,13 +4,13 @@
 
 | # | Source | Summary |
 |---|---|---|
-| 1 | [Chen et al., "MCTS-Judge: Test-Time Scaling for Code Correctness" (2025)](https://arxiv.org/abs/2502.12468) | Monte Carlo Tree Search for code evaluation; accuracy 41%→80% |
+| 1 | [Wang et al., "MCTS-Judge: Test-Time Scaling for Code Correctness" (2025)](https://arxiv.org/abs/2502.12468) | Monte Carlo Tree Search for code evaluation; accuracy 41%→80% |
 | 2 | [Saha et al., "EvalPlanner: Thinking-LLM-as-a-Judge" (2025)](https://arxiv.org/abs/2501.18099) | Plan-then-execute; SOTA RewardBench 93.9 |
-| 3 | [Gao et al., "SCOPE: Selective Conformal Pairwise LLM Judging" (2026)](https://arxiv.org/abs/2602.13110) | Bidirectional Preference Entropy + conformal prediction |
-| 4 | [Bavaresco et al., "Trust or Escalate" (2024)](https://arxiv.org/abs/2407.18370) | Selective evaluation with provable guarantees; cascaded judges |
-| 5 | [Li et al., "D3: Debate, Deliberate, Decide" (2024)](https://arxiv.org/abs/2410.04663) | Cost-aware adversarial multi-agent evaluation |
-| 6 | [Xu et al., "CollabEval" (2026)](https://arxiv.org/abs/2603.00993) | Three-phase collaborative judging |
-| 7 | [Mao et al., "Statistical Framework for Ranking" (2024)](https://arxiv.org/abs/2412.18407) | Bradley-Terry with factored ties; "leaderbot" package |
+| 3 | [Badshah et al., "SCOPE: Selective Conformal Pairwise LLM Judging" (2026)](https://arxiv.org/abs/2602.13110) | Bidirectional Preference Entropy + conformal prediction |
+| 4 | [Jung et al., "Trust or Escalate" (2024)](https://arxiv.org/abs/2407.18370) | Selective evaluation with provable guarantees; cascaded judges |
+| 5 | [Harrasse et al., "D3: Debate, Deliberate, Decide" (2024)](https://arxiv.org/abs/2410.04663) | Cost-aware adversarial multi-agent evaluation |
+| 6 | [Qian et al., "CollabEval" (2026)](https://arxiv.org/abs/2603.00993) | Three-phase collaborative judging |
+| 7 | [Ameli et al., "Statistical Framework for Ranking" (2024)](https://arxiv.org/abs/2412.18407) | Bradley-Terry with factored ties; "leaderbot" package |
 | 8 | [LMSYS, "Chatbot Arena Elo System Update" (2023)](https://lmsys.org/blog/2023-12-07-leaderboard/) | Bradley-Terry transition from Elo; bootstrap confidence intervals |
 | 9 | [Cameron R. Wolfe, "Applying Statistics to LLM Evaluations"](https://cameronrwolfe.substack.com/p/stats-llm-evals) | Statistical rigor; significance testing; bootstrap CIs |
 
@@ -24,7 +24,22 @@ This section covers three frontiers of judge improvement that operate at inferen
 
 The emerging insight from reasoning research (o1, DeepSeek-R1) applies directly to judges: spending more compute at inference time improves judgment quality. Two approaches have been explored.
 
-**MCTS-Judge** ([Chen et al., 2025](https://arxiv.org/abs/2502.12468)) applies Monte Carlo Tree Search to code evaluation. Instead of generating a single evaluation in one pass, the judge explores a tree of evaluation strategies, backpropagating success signals to identify the most effective reasoning path. The result: accuracy improved from 41% to 80%, surpassing o1-series models while using 3x fewer tokens. The tree search effectively allows the judge to "try different evaluation angles" and converge on the one that produces the most reliable verdict.
+::: {.exercise-predict correct="C"}
+
+The next paragraph describes MCTS-Judge, which applies Monte Carlo Tree Search to code evaluation. The baseline LLM judge starts at 41% accuracy on code correctness evaluation. Before reading the result, predict: how much does tree search improve this accuracy?
+
+- To about 55%, a moderate improvement
+- To about 65%, roughly matching frontier reasoning models
+- To about 80%, surpassing o1-series models while using fewer tokens
+- To about 95%, near-perfect code evaluation
+
+::: {.predict-reveal}
+**The answer is C: accuracy jumps from 41% to 80%.** MCTS-Judge nearly doubles the baseline accuracy by exploring a tree of evaluation strategies and backpropagating success signals to find the most effective reasoning path. The result surpasses o1-series models while using 3x fewer tokens. The tree search allows the judge to "try different evaluation angles" and converge on the most reliable one, demonstrating that structured test-time compute can dramatically improve judgment quality.
+:::
+
+:::
+
+**MCTS-Judge** ([Wang et al., 2025](https://arxiv.org/abs/2502.12468)) applies Monte Carlo Tree Search to code evaluation. Instead of generating a single evaluation in one pass, the judge explores a tree of evaluation strategies, backpropagating success signals to identify the most effective reasoning path. The result: accuracy improved from 41% to 80%, surpassing o1-series models while using 3x fewer tokens. The tree search effectively allows the judge to "try different evaluation angles" and converge on the one that produces the most reliable verdict.
 
 **EvalPlanner** ([Saha et al., 2025](https://arxiv.org/abs/2501.18099)) separates planning from execution, forcing the judge to first generate an evaluation plan (what criteria to check, in what order) and then execute the plan. This two-stage approach achieved SOTA on RewardBench at 93.9. The planning stage acts as a form of structured test-time compute: the model spends tokens on meta-cognition (how to evaluate) before spending tokens on evaluation itself.
 
@@ -34,7 +49,7 @@ Both approaches share a principle: evaluation quality scales with inference comp
 
 A judge that always outputs a confident verdict is dangerous. The most valuable judges are those that can say "I'm not sure" and escalate to a more expensive evaluator or a human.
 
-**Trust or Escalate** ([Bavaresco et al., 2024](https://arxiv.org/abs/2407.18370)) provides the most rigorous framework for this. The key guarantee: given a user-defined risk level $\alpha$,
+**Trust or Escalate** ([Jung et al., 2024](https://arxiv.org/abs/2407.18370)) provides the most rigorous framework for this. The key guarantee: given a user-defined risk level $\alpha$,
 
 $$
 P(\text{LLM preference agrees with human} \mid \text{LLM evaluates instance } x) \geq 1 - \alpha
@@ -44,7 +59,7 @@ The system achieves this through **selective evaluation**: it evaluates an insta
 
 The practical result is impressive. Trust or Escalate achieves over 80% human agreement on ChatArena while covering 79.1% of all samples. Among the covered samples, 88.1% are evaluated by substantially cheaper models (Mistral-7B or GPT-3.5) instead of GPT-4. The system automatically decides which judge to use for each instance, maintaining the provable guarantee while dramatically reducing cost.
 
-**SCOPE** ([Gao et al., 2026](https://arxiv.org/abs/2602.13110)) applies conformal prediction specifically to pairwise judging. The method computes a *Bidirectional Preference Entropy* by aggregating preference probabilities from both response orders (A-first and B-first), providing a principled position-order invariant confidence measure. When the confidence is below a threshold, the system abstains rather than outputting an unreliable verdict. The conformal prediction framework provides a formal coverage guarantee:
+**SCOPE** ([Badshah et al., 2026](https://arxiv.org/abs/2602.13110)) applies conformal prediction specifically to pairwise judging. The method computes a *Bidirectional Preference Entropy* by aggregating preference probabilities from both response orders (A-first and B-first), providing a principled position-order invariant confidence measure. When the confidence is below a threshold, the system abstains rather than outputting an unreliable verdict. The conformal prediction framework provides a formal coverage guarantee:
 
 $$
 P(Y \in C(X)) \geq 1 - \alpha
@@ -56,18 +71,56 @@ where $C(X)$ is the prediction set (which may include "abstain"). Empirical risk
 This is where the cascade architecture becomes essential. Trust or Escalate defines a multi-stage pipeline: cheap judge → confidence check → expensive judge → human. Cases that the cheap judge handles confidently stay cheap. Cases where the cheap judge is uncertain escalate to a stronger model. Cases where even the strong model is uncertain escalate to a human reviewer. The key insight is that most instances are "easy" (the quality gap is obvious) and can be handled cheaply, while only a small fraction of "hard" instances require expensive evaluation. The selective framework automatically routes each instance to the appropriate level of evaluation, with provable guarantees on overall reliability.
 :::
 
+::: {.exercise-mcq correct="D"}
+
+Trust or Escalate achieves over 80% human agreement on ChatArena while covering 79.1% of all samples. Among those covered samples, 88.1% are evaluated by cheap models (Mistral-7B or GPT-3.5) instead of GPT-4. What makes this cascade economically effective?
+
+- The cheap models are just as accurate as GPT-4 on all instances
+- The system always uses the cheapest model and only escalates when the user complains
+- The system randomly assigns instances to cheap or expensive models to balance load
+- Most instances have obvious quality gaps that cheap models handle confidently, while only a small fraction of hard instances require expensive evaluation
+
+::: {.feedback-correct}
+Correct. The cascade works because the difficulty distribution of evaluation instances is heavily skewed: most comparisons have clear quality differences that even a 7B model can judge reliably. Only the "hard" instances (close quality, ambiguous criteria, adversarial formatting) require stronger models. By routing each instance to the appropriate level based on confidence estimation (via Simulated Annotators), the system maintains its provable reliability guarantee while using cheap models for the vast majority of evaluations.
+:::
+
+::: {.feedback-incorrect}
+Cheap models are not equally accurate on all instances. The cascade is not random, and it does not wait for complaints. The key insight is that evaluation difficulty follows a skewed distribution: most instances have obvious quality gaps that cheap models handle confidently. Trust or Escalate estimates confidence using Simulated Annotators, and only escalates the small fraction of genuinely hard instances to stronger models. This is why 88.1% of covered samples can be evaluated cheaply while maintaining over 80% human agreement overall.
+:::
+
+:::
+
 ### Multi-Agent Judge Panels
 
 Using multiple judges and combining their verdicts is an obvious strategy, but the implementation details matter enormously.
 
 **Simple ensembling** (majority vote, mean score) works when judges have *independent* errors. If one judge makes a mistake, the others correct it. But LLM judges often share biases: they were trained on similar data, they anchor on similar surface features, and they make correlated errors. In such cases, ensembling amplifies systematic errors rather than correcting them.
 
-**D3: Debate, Deliberate, Decide** ([Li et al., 2024](https://arxiv.org/abs/2410.04663)) introduces an adversarial multi-agent protocol. Multiple agents advocate for different positions (MORE protocol: one argues A is better, another argues B is better), then deliberate, and a meta-judge renders the final verdict (SAMRE protocol). The adversarial structure forces each agent to articulate its strongest case, exposing weaknesses in both positions.
+**D3: Debate, Deliberate, Decide** ([Harrasse et al., 2024](https://arxiv.org/abs/2410.04663)) introduces an adversarial multi-agent protocol. Multiple agents advocate for different positions (MORE protocol: one argues A is better, another argues B is better), then deliberate, and a meta-judge renders the final verdict (SAMRE protocol). The adversarial structure forces each agent to articulate its strongest case, exposing weaknesses in both positions.
 
-**CollabEval** ([Xu et al., 2026](https://arxiv.org/abs/2603.00993)) uses a collaborative three-phase approach where agents initially evaluate independently, then share their assessments, and finally engage in strategic consensus checking. CollabEval outperforms both single-LLM and competitive multi-agent approaches.
+**CollabEval** ([Qian et al., 2026](https://arxiv.org/abs/2603.00993)) uses a collaborative three-phase approach where agents initially evaluate independently, then share their assessments, and finally engage in strategic consensus checking. CollabEval outperforms both single-LLM and competitive multi-agent approaches.
 
 ::: {.callout-warning title="Common Misconception: More LLM judges in an ensemble always improves accuracy"}
 If judges share the same biases (from similar training data or model families), ensembling amplifies rather than corrects systematic errors. A panel of five GPT-4 variants will share GPT-4's position bias, verbosity bias, and stylistic preferences. Adding more copies of the same bias does not help. Effective ensembling requires *diverse* judges: different model families, different training methods, and ideally different known bias profiles. Alternatively, adversarial protocols (like D3's debate structure) can extract diverse perspectives from similar models by forcing them to argue opposing positions.
+:::
+
+::: {.exercise-mcq correct="B"}
+
+D3 uses an adversarial debate protocol (MORE) where agents argue opposing positions, followed by a meta-judge rendering the final verdict (SAMRE). Under what condition does adding more LLM judges to an ensemble *amplify* rather than *reduce* systematic errors?
+
+- When the judges use chain-of-thought reasoning, which introduces correlated reasoning errors
+- When the judges share the same biases from similar training data or model families, causing correlated errors that majority voting reinforces
+- When the judges evaluate in pairwise rather than pointwise mode, which doubles the bias exposure
+- When the ensemble uses weighted averaging instead of majority voting, which amplifies outlier judgments
+
+::: {.feedback-correct}
+Correct. Simple ensembling (majority vote, mean score) corrects errors only when judges make *independent* mistakes. LLM judges trained on similar data share systematic biases: position bias, verbosity bias, and stylistic preferences. A panel of five GPT-4 variants will share GPT-4's biases, so adding more copies reinforces rather than corrects the systematic error. This is why D3's adversarial protocol is valuable: by forcing agents to argue opposing positions, it extracts diverse perspectives from similar models, breaking the correlation between their errors.
+:::
+
+::: {.feedback-incorrect}
+The issue is not about reasoning format, evaluation mode, or averaging method. The fundamental problem is *correlated errors*. Ensembling corrects errors only when judges make independent mistakes. When judges share the same training data and model family, they share the same systematic biases (position bias, verbosity bias, stylistic preferences). Adding more copies of the same bias does not help. This is why adversarial protocols like D3's debate structure are valuable: they force similar models to argue opposing positions, extracting diverse perspectives that break the correlation.
+:::
+
 :::
 
 ### Statistical Aggregation from Pairwise Judgments
@@ -84,7 +137,22 @@ where $\sigma$ is the logistic sigmoid. Given a dataset of pairwise comparisons,
 
 The LMSYS Chatbot Arena ([2023](https://lmsys.org/blog/2023-12-07-leaderboard/)) transitioned from online Elo ratings to the Bradley-Terry model because BT provides "significantly more stable ratings and precise confidence intervals." The key advantage: BT is a statistical model with well-understood properties, enabling bootstrap confidence intervals and hypothesis testing ("Is model A significantly better than model B?").
 
-Mao et al. ([2024](https://arxiv.org/abs/2412.18407)) extended this framework with a factored tie model and covariance modeling, handling the common case where an LLM judge declares a tie. Their "leaderbot" package implements BT estimation with proper uncertainty quantification.
+Ameli et al. ([2024](https://arxiv.org/abs/2412.18407)) extended this framework with a factored tie model and covariance modeling, handling the common case where an LLM judge declares a tie. Their "leaderbot" package implements BT estimation with proper uncertainty quantification.
+
+::: {.exercise-fillin}
+
+You are setting up a Bradley-Terry model for a Chatbot Arena-style leaderboard. Complete the missing step in the pipeline:
+
+1. Collect pairwise comparisons from LLM judges or human annotators
+2. For each pair of models i and j, define the probability that i beats j as the logistic sigmoid of the difference in their latent strength parameters
+3. {B|A: Assign Elo ratings based on win streaks|B: Use maximum likelihood estimation to recover the latent strength parameters from the comparison data|C: Average the win rates to produce a ranking}
+4. Compute bootstrap confidence intervals and run hypothesis tests to determine whether ranking differences are statistically significant
+
+::: {.fillin-feedback}
+**Correct: B.** The Bradley-Terry model defines the probability of i beating j as the sigmoid of the difference in latent strengths. Given the observed comparisons, maximum likelihood estimation recovers the strength parameters that best explain the data. This is why LMSYS transitioned from online Elo ratings to the BT model: BT is a proper statistical model that enables bootstrap confidence intervals and hypothesis testing ("Is model A significantly better than model B?"), providing "significantly more stable ratings and precise confidence intervals" than Elo.
+:::
+
+:::
 
 ### Meta-Evaluation: Evaluating the Evaluator
 
@@ -100,6 +168,6 @@ The meta-evaluation paradox lurks at the bottom of this hierarchy. To validate a
 
 ### Running Example: The Chatbot's Final Architecture
 
-The chatbot team's evaluation system now has four layers. The safety judge (7B LoRA) handles binary safety checks in 10ms. The helpfulness judge (GPT-4 with rubric and CoT) scores responses on a 1-5 scale. A confidence estimator (inspired by Trust-or-Escalate) routes uncertain cases to a human review queue. And the whole system's performance is tracked on a custom RewardBench-style evaluation set, with weekly monitoring for drift in judge accuracy.
+The chatbot team's evaluation system now has four layers. The safety judge (8B LoRA) handles binary safety checks in 10ms. The helpfulness judge (GPT-4 with rubric and CoT) scores responses on a 1-5 scale. A confidence estimator (inspired by Trust-or-Escalate) routes uncertain cases to a human review queue. And the whole system's performance is tracked on a custom RewardBench-style evaluation set, with weekly monitoring for drift in judge accuracy.
 
 The system is not perfect, and the meta-evaluation problem remains open. But it is dramatically better than where they started: BLEU scores that correlated 0.19 with human judgment. The LLM-as-a-Judge paradigm has given them evaluation that is scalable, explainable, and reliable enough for production.

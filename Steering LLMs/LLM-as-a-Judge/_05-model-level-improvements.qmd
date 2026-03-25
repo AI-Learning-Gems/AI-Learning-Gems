@@ -6,8 +6,8 @@
 |---|---|---|
 | 1 | [Kim et al., "Prometheus 2" (EMNLP 2024)](https://arxiv.org/abs/2405.01535) | Fine-tuned open-source judge; dual-format training (direct + pairwise) |
 | 2 | [Whitehouse et al., "J1: Incentivizing Thinking via RL" (ICLR 2026)](https://arxiv.org/abs/2505.10320) | GRPO training for thinking-judges; J1-Qwen-32B outperforms o1-mini, o3 |
-| 3 | [Agnihotri et al., "Plug-and-Play LLM Judge with LoRA" (2025)](https://arxiv.org/abs/2506.05748) | Frozen 7B + rank-16 LoRA = 96.2% on RewardBench |
-| 4 | [Guo et al., "FairJudge" (2026)](https://arxiv.org/abs/2602.06625) | Curriculum SFT→DPO→GRPO for debiased judge training |
+| 3 | [Agnihotri et al., "Plug-and-Play LLM Judge with LoRA" (2025)](https://arxiv.org/abs/2506.05748) | Frozen 8B + rank-16 LoRA = 96.2% on RewardBench |
+| 4 | [Yang et al., "FairJudge" (2026)](https://arxiv.org/abs/2602.06625) | Curriculum SFT→DPO→GRPO for debiased judge training |
 | 5 | [Bai et al., "Constitutional AI" (2022)](https://arxiv.org/abs/2212.08073) | RLAIF: self-critique + RL from AI feedback |
 | 6 | [Lambert et al., "RewardBench" (2024)](https://arxiv.org/abs/2403.13787) | DPO models as implicit reward models; evaluation benchmark |
 | 7 | [Cameron R. Wolfe, "Finetuning LLM Judges"](https://cameronrwolfe.substack.com/p/finetuned-judge) | Prometheus, JudgeLM, PandaLM, AutoJ deep dive |
@@ -36,11 +36,11 @@ The most striking finding across the literature is that level 5 (minimal adaptat
 
 ### SFT on Evaluation Data: Prometheus
 
-Prometheus 2 ([Kim et al., EMNLP 2024](https://arxiv.org/abs/2405.01535)) is the most prominent open-source judge model, trained via supervised fine-tuning on curated evaluation data. The key innovations are dual-format training and rubric conditioning.
+Prometheus 2 ([Kim et al., EMNLP 2024](https://arxiv.org/abs/2405.01535)) is the most prominent open-source judge model, trained via supervised fine-tuning on curated evaluation data. The key innovations are weight-merged multi-format training and rubric-based evaluation.
 
-**Dual-format training** trains the same model to perform both direct assessment (pointwise scoring) and pairwise ranking. This is important because different evaluation tasks require different formats (as discussed in @sec-taxonomies-and-biases), and a single model that handles both is more practical than maintaining two separate judge models.
+**Weight-merged multi-format training** trains two separate models on direct assessment (pointwise scoring) and pairwise ranking, then merges their weights into a single unified model. This is important because different evaluation tasks require different formats (as discussed in @sec-taxonomies-and-biases), and a single model that handles both is more practical than maintaining two separate judge models.
 
-**Rubric-conditioned evaluation** teaches the model to follow a custom rubric provided in the prompt. During training, each evaluation example includes a specific rubric defining what each score level means. At inference time, the user provides a new rubric for their task, and the model generalizes to evaluate against it. This makes Prometheus flexible across domains: the same model can evaluate helpfulness with a helpfulness rubric or safety with a safety rubric.
+**Rubric-based evaluation** teaches the model to follow a custom score rubric provided in the prompt. During training, each evaluation example includes a specific rubric defining what each score level means. At inference time, the user provides a new rubric for their task, and the model generalizes to evaluate against it. This makes Prometheus flexible across domains: the same model can evaluate helpfulness with a helpfulness rubric or safety with a safety rubric.
 
 The Feedback Collection dataset, used to train Prometheus, contains evaluation examples where a strong LLM (GPT-4) provides both a judgment and a detailed rationale. Training on this data teaches the student model not just to score but to *explain* its scores, inheriting the CoT evaluation pattern from the teacher.
 
@@ -60,9 +60,43 @@ The results are remarkable. J1-Qwen-32B outperforms o1-mini, o3, and the 671B De
 SFT teaches the model to *imitate* good judgments. RL teaches the model to *optimize* judgment quality. The difference matters because evaluation is inherently a reasoning task: the judge must consider multiple dimensions, weigh evidence, and handle edge cases. SFT on a fixed dataset of good judgments teaches the model what good judgments look like, but it does not teach the model *how to generate good judgments in novel situations*. RL, by optimizing a reward signal, incentivizes the model to develop general reasoning strategies that transfer to new evaluation scenarios. J1's ablations confirm this: the RL-trained model significantly outperforms the SFT-only baseline and the DPO-tuned baseline, with the gap growing on harder evaluation tasks.
 :::
 
+::: {.exercise-mcq correct="C"}
+
+J1's RL-trained judge significantly outperforms both its SFT-only and DPO-tuned baselines, with the performance gap *growing* on harder evaluation tasks. What is the fundamental reason RL outperforms SFT for training LLM judges?
+
+- SFT uses less training data than RL, so the model underfits
+- RL uses a larger model architecture that has more capacity for evaluation reasoning
+- SFT teaches imitation of fixed judgments, while RL optimizes a reward signal that incentivizes general reasoning strategies for novel evaluation scenarios
+- RL trains on human-labeled data while SFT trains only on synthetic data
+
+::: {.feedback-correct}
+Correct. SFT trains the model to reproduce the surface patterns of good judgments from a fixed dataset. RL, by contrast, optimizes a reward signal (e.g., agreement with verifiable outcomes), which incentivizes the model to develop transferable reasoning strategies: dynamic criteria generation, self-correction, and systematic evaluation. These strategies generalize to novel situations that the SFT training set did not cover, explaining why the gap between RL and SFT grows on harder tasks.
+:::
+
+::: {.feedback-incorrect}
+The key distinction is not about data quantity, model size, or data source. J1 trains entirely on synthetic data for both SFT and RL. The difference is in the *learning objective*: SFT minimizes a cross-entropy loss that teaches imitation, while RL optimizes a reward signal that teaches the model to develop general reasoning strategies (dynamic criteria generation, self-correction, iterative assessment). These strategies transfer to novel evaluation scenarios, which is why J1's RL-trained model outperforms SFT-only and DPO-tuned baselines, especially on harder tasks.
+:::
+
+:::
+
+::: {.exercise-predict correct="A"}
+
+The next subsection describes a "plug-and-play" approach where a frozen instruction-tuned model is augmented with a LoRA adapter for judge tasks. The base model is Qwen 3-8B. Before reading further, predict: what fraction of the model's parameters does the LoRA adapter modify to achieve competitive performance on RewardBench?
+
+- Less than 1% of parameters
+- About 5-10% of parameters
+- About 25% of parameters
+- The full model is fine-tuned
+
+::: {.predict-reveal}
+**The answer is less than 1%.** The LoRA adapter is rank-16 and modifies only 0.8% of the model's parameters. Despite this tiny footprint, the adapted Qwen 3-8B achieves 96.2% accuracy on RewardBench, outperforming specialized reward networks ranging from 27B to 70B parameters. This result demonstrates that evaluation capability can be unlocked with minimal adaptation, rather than requiring full model training.
+:::
+
+:::
+
 ### Minimal Adaptation: LoRA Judges
 
-Perhaps the most surprising result in judge training is how little adaptation is needed. Agnihotri et al. ([2025](https://arxiv.org/abs/2506.05748)) showed that a frozen 7B instruction-tuned model augmented with a rank-16 LoRA adapter (affecting only 0.8% of the model's parameters) achieves 96.2% accuracy on RewardBench, outperforming specialized reward networks ranging from 27B to 70B parameters.
+Perhaps the most surprising result in judge training is how little adaptation is needed. Agnihotri et al. ([2025](https://arxiv.org/abs/2506.05748)) showed that a frozen 8B instruction-tuned model (Qwen 3-8B) augmented with a rank-16 LoRA adapter (affecting only 0.8% of the model's parameters) achieves 96.2% accuracy on RewardBench, outperforming specialized reward networks ranging from 27B to 70B parameters.
 
 The "plug-and-play" approach has three components: a JSON-formatted rubric (one line), six in-context demonstrations, and the LoRA adapter. The demonstrations provide the majority of the zero-to-few-shot improvement (+2 percentage points), while the LoRA closes the remaining gap, particularly on safety and adversarial tasks.
 
@@ -74,10 +108,10 @@ Constitutional AI ([Bai et al., 2022](https://arxiv.org/abs/2212.08073)) establi
 
 The Constitutional AI pipeline has two phases. In the **supervised learning phase**, the model generates responses, critiques its own responses against a set of constitutional principles, and revises the responses based on the critiques. The model is then fine-tuned on the revised responses. In the **RL phase**, the model generates pairs of responses, uses itself (rather than humans) to judge which response better satisfies the constitutional principles, and trains a preference model from these AI-generated judgments. The model is then trained with RL using this preference model as the reward signal, i.e., "RL from AI Feedback" (RLAIF).
 
-The key insight is that the constitutional principles serve as the rubric, and the model itself serves as both the evaluator and the student. The only human input is writing the principles. This approach produces models that are "harmless but non-evasive," without requiring any human labels identifying harmful outputs.
+The key insight is that the constitutional principles serve as the rubric, and the model itself serves as both the evaluator and the student. The only human input for harmlessness is writing the principles (though human preference labels are still used for the helpfulness dimension). This approach produces models that are "harmless but non-evasive," without requiring any human labels identifying harmful outputs.
 
 ::: {.callout-warning title="Common Misconception: A bigger model is always a better judge"}
-Training a smaller model specifically for evaluation can outperform prompting a much larger general-purpose model. The LoRA judge (7B + 0.8% adapter = 96.2% RewardBench) outperforms many 27B-70B models. Prometheus 2 (7B and 8x7B MoE) outperforms prompted GPT-3.5. J1-Qwen-32B outperforms the 671B DeepSeek-R1 on some benchmarks. Domain-specific training concentrates the model's capacity on the evaluation task, while a general-purpose model must allocate capacity across all tasks. The lesson: for production judge deployment, train a small specialized model rather than relying on expensive API calls to a frontier model.
+Training a smaller model specifically for evaluation can outperform prompting a much larger general-purpose model. The LoRA judge (Qwen 3-8B + 0.8% adapter = 96.2% RewardBench) outperforms many 27B-70B models. Prometheus 2 (7B and 8x7B MoE) outperforms prompted GPT-3.5. J1-Qwen-32B outperforms the 671B DeepSeek-R1 on some benchmarks. Domain-specific training concentrates the model's capacity on the evaluation task, while a general-purpose model must allocate capacity across all tasks. The lesson: for production judge deployment, train a small specialized model rather than relying on expensive API calls to a frontier model.
 :::
 
 ### The DPO Connection: Implicit Reward Models
@@ -92,16 +126,49 @@ where $\pi_\theta$ is the trained policy, $\pi_{\text{ref}}$ is the reference po
 
 RewardBench ([Lambert et al., 2024](https://arxiv.org/abs/2403.13787)) evaluated these implicit reward models and found a mixed picture: "DPO models, while more plentiful due to the method's simplicity, fail to generalize to popular preference data test sets and present a higher variance in performance" compared to models trained as explicit classifiers. DPO models tend to overfit to the distribution of their training data, making them poor generalist judges. For judge deployment, explicit reward model training (classification head on embeddings) or generative judge training (SFT/RL on evaluation data) is more reliable than relying on DPO's implicit reward.
 
+::: {.exercise-mcq correct="B"}
+
+A DPO-trained model implicitly defines a reward function via the log-probability ratio between the trained policy and the reference policy. RewardBench evaluated these implicit reward models and found a mixed picture. What is the primary limitation of using DPO-trained models as judges?
+
+- The log-probability ratio is computationally expensive to compute at inference time
+- DPO models overfit to their training distribution and fail to generalize to new preference test sets, showing higher variance than explicit reward models
+- DPO requires human preference labels while explicit reward models can be trained on synthetic data
+- The implicit reward function only works for pairwise comparisons and cannot produce pointwise scores
+
+::: {.feedback-correct}
+Correct. RewardBench found that "DPO models, while more plentiful due to the method's simplicity, fail to generalize to popular preference data test sets and present a higher variance in performance" compared to explicit classifiers. The implicit reward function overfits to the specific distribution of preference pairs used during DPO training, making it unreliable as a generalist judge across diverse evaluation tasks.
+:::
+
+::: {.feedback-incorrect}
+The log-probability ratio is cheap to compute (just two forward passes). DPO itself does use human preference labels, but that is not its limitation as a judge. The real issue is generalization: RewardBench found that DPO models "fail to generalize to popular preference data test sets and present a higher variance in performance." The implicit reward function overfits to the training distribution, making DPO-trained models poor generalist judges compared to explicit reward model training or generative judge training (SFT/RL on evaluation data).
+:::
+
+:::
+
 ### Curriculum Training: FairJudge
 
-FairJudge ([Guo et al., 2026](https://arxiv.org/abs/2602.06625)) combines SFT, DPO, and GRPO into a progressive curriculum specifically designed to debias the judge:
+FairJudge ([Yang et al., 2026](https://arxiv.org/abs/2602.06625)) combines SFT, DPO, and GRPO into a progressive curriculum specifically designed to debias the judge:
 
 1. **SFT phase:** Train the model on diverse evaluation data to establish basic judge capability
-2. **DPO phase:** Fine-tune on preference pairs where the preferred judgment is the correct one, teaching the model to distinguish good from bad evaluations
-3. **GRPO phase:** Apply RL with rewards that penalize position bias, length bias, and format inconsistency
+2. **DPO phase:** Fine-tune on preference pairs where inputs are perturbed along non-semantic dimensions (answer order, length, formatting), teaching the model to distinguish biased from unbiased evaluations
+3. **GRPO phase:** Apply RL with rewards that enforce cross-mode consistency, penalizing the model for producing contradictory verdicts across pointwise and pairwise evaluation formats
 
 This curriculum design reflects a principle: SFT provides the foundation, DPO sharpens preferences, and RL optimizes for the specific reliability properties that matter for deployment. Each phase builds on the previous one rather than starting from scratch.
 
+::: {.exercise-order correct="B,C,A"}
+
+FairJudge uses a progressive curriculum to debias an LLM judge. Arrange these three training phases in the correct order:
+
+- Apply RL (GRPO) with rewards that enforce cross-mode consistency across pointwise and pairwise formats
+- Train via supervised fine-tuning on diverse evaluation data to establish basic judge capability
+- Fine-tune with DPO on preference pairs perturbed along non-semantic dimensions (answer order, length, formatting) to distinguish biased from unbiased evaluations
+
+::: {.order-feedback}
+**Correct order: B, C, A.** The curriculum is SFT first, then DPO, then GRPO. SFT establishes the foundation by teaching the model to produce evaluation judgments. DPO sharpens the model's preferences by training it to distinguish biased evaluations (those influenced by position, length, or formatting) from unbiased ones. Finally, GRPO optimizes for cross-mode consistency, penalizing the model for contradictory verdicts across pointwise and pairwise evaluation formats. Each phase builds on the previous one: you cannot sharpen preferences (DPO) until the model can evaluate (SFT), and you cannot enforce consistency (GRPO) until the model has debiased preferences (DPO).
+:::
+
+:::
+
 ### Running Example: The Chatbot's Specialized Safety Judge
 
-The chatbot team fine-tunes a 7B model with a safety-focused LoRA adapter, trained on WildGuard's 92K labeled safety examples. The resulting judge achieves 98.5% accuracy on safety classification, exceeding their GPT-4-based prompted judge (95%) at a fraction of the cost. For helpfulness evaluation, they keep the prompted GPT-4 judge (which is adequate at 92%) but save significant budget by routing safety decisions to the specialized small model. The two judges operate in parallel: safety evaluation takes 10ms (local model), helpfulness evaluation takes 2s (API call), and the system combines both signals before serving a response.
+The chatbot team fine-tunes an 8B model with a safety-focused LoRA adapter, trained on WildGuard's 87K labeled safety training examples. The resulting judge achieves 98.5% accuracy on safety classification, exceeding their GPT-4-based prompted judge (95%) at a fraction of the cost. For helpfulness evaluation, they keep the prompted GPT-4 judge (which is adequate at 92%) but save significant budget by routing safety decisions to the specialized small model. The two judges operate in parallel: safety evaluation takes 10ms (local model), helpfulness evaluation takes 2s (API call), and the system combines both signals before serving a response.

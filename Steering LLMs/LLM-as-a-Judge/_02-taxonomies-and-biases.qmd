@@ -19,7 +19,7 @@ This section maps the full space of judgment types, connects them to measurement
 
 ### Judgment Formats: Four Ways to Judge
 
-The Gu et al. survey ([2024](https://arxiv.org/abs/2411.15594)) identifies four in-context learning approaches for LLM-as-a-Judge, which align with the three formats proposed by Zheng et al. ([NeurIPS 2023](https://arxiv.org/abs/2306.05685)) plus free-form critique.
+The Gu et al. survey ([2024](https://arxiv.org/abs/2411.15594)) describes four different prompt design methods for LLM-as-a-Judge, which align with the three formats proposed by Zheng et al. ([NeurIPS 2023](https://arxiv.org/abs/2306.05685)) plus free-form critique.
 
 **Pointwise scoring** (also called "single answer grading") asks the judge to assign a score to a single response. The prompt provides a question, a response, and optionally a rubric or scoring criteria, and the judge outputs a number on a predefined scale: 1-5, 1-10, or even 0-100. Pointwise scoring is the simplest and cheapest format. It scales linearly with the number of responses: to evaluate 100 responses, you make 100 judge calls. The chatbot team would use pointwise scoring for their helpfulness dimension: "Rate this response on a scale of 1 to 5 for helpfulness."
 
@@ -53,6 +53,21 @@ $$ {#eq-geval-score}
 
 where $P(i \mid \ldots)$ is the probability the judge assigns to score $i$. A response that the judge considers borderline between 3 and 4 might produce $P(3) = 0.4, P(4) = 0.5, P(5) = 0.1$, yielding $s = 3.7$. This continuous score carries more information than the integer 4 and enables finer-grained comparisons.
 
+::: {.exercise-fillin}
+
+A judge evaluates a response on a 1-to-5 scale. Instead of outputting a single integer, it outputs token probabilities for each score. The probabilities are: P(1) = 0.0, P(2) = 0.1, P(3) = 0.3, P(4) = 0.4, P(5) = 0.2.
+
+1. The G-Eval probability-weighted score formula is: s = sum of i times P(i) for i from 1 to 5
+2. Plugging in: s = 1(0.0) + 2(0.1) + 3(0.3) + 4(0.4) + 5(0.2) = 0 + 0.2 + 0.9 + 1.6 + 1.0
+3. The probability-weighted score s equals {B|A: 3.0|B: 3.7|C: 4.0}
+4. This technique upgrades the measurement level from ordinal to interval, enabling valid computation of means and Pearson correlations
+
+::: {.fillin-feedback}
+**Correct: B.** The sum is 0 + 0.2 + 0.9 + 1.6 + 1.0 = 3.7. A naive judge would output the mode (score 4, with probability 0.4), discarding the uncertainty. The probability-weighted score captures the judge's full belief distribution: it reflects that the judge considers 3 plausible (0.3) and 5 possible (0.2), yielding a more informative continuous value.
+:::
+
+:::
+
 ### Reliability and Validity Tradeoffs
 
 Each format trades reliability against cost and information richness. The following table summarizes when to use each approach, drawing on practical guidance from Eugene Yan's evaluation guide ([2024](https://eugeneyan.com/writing/llm-evaluators/)):
@@ -68,6 +83,25 @@ Each format trades reliability against cost and information richness. The follow
 Pairwise comparison is more reliable for *subjective* quality dimensions (helpfulness, coherence, tone) because relative judgments are more stable than absolute scores. But for *objective* tasks like factuality or safety, pointwise scoring with a clear rubric can be more efficient. A response either contains factual errors or it does not; comparing two responses to decide which is "less wrong" adds complexity without adding reliability. The chatbot team should use pointwise for safety (binary pass/fail) and pairwise for helpfulness (where subjective quality matters).
 :::
 
+::: {.exercise-mcq correct="C"}
+
+Your team needs to evaluate three different aspects of a customer-support chatbot: (1) whether responses contain factual errors, (2) which of two candidate model versions produces more helpful answers, and (3) ranking five candidate models from best to worst for a quarterly review. Which combination of judgment formats is most appropriate?
+
+- Pairwise comparison for all three, since it is always the most reliable format
+- Pointwise scoring for all three, since it scales linearly and keeps costs lowest
+- Pointwise scoring for factuality, pairwise comparison for helpfulness, and listwise ranking for the quarterly review
+- Critique format for all three, since it provides the richest signal
+
+::: {.feedback-correct}
+Each task maps to a different format. Factuality is objective (a fact is either correct or wrong), so pointwise scoring with a clear rubric is efficient and appropriate. Helpfulness is subjective, so relative judgments via pairwise comparison are more stable than absolute scores. Ranking five models end-to-end is the natural use case for listwise ranking, which generates a full ordering in a single call rather than requiring all 10 pairwise comparisons.
+:::
+
+::: {.feedback-incorrect}
+No single format is optimal for all tasks. Factuality is an objective dimension: a response either contains errors or it does not, so pointwise scoring with a rubric works well. Helpfulness is subjective, and pairwise comparison produces more stable verdicts for subjective quality because relative judgments ("which is better?") fluctuate less than absolute scores. For ranking five models, listwise ranking generates a full ordering efficiently. The key insight is to match the format to the measurement need: objective tasks get pointwise, subjective comparisons get pairwise, and full orderings get listwise.
+:::
+
+:::
+
 ### The Bias Zoo
 
 Every LLM judge, regardless of format, carries systematic biases. Zheng et al. ([NeurIPS 2023](https://arxiv.org/abs/2306.05685)) identified three major biases. Shi et al. ([ACL 2024](https://arxiv.org/abs/2406.07791)) subsequently conducted the largest empirical study of position bias, covering over 150,000 evaluation instances across 15 judges.
@@ -76,6 +110,20 @@ Every LLM judge, regardless of format, carries systematic biases. Zheng et al. (
 
 ![Position bias in pairwise comparison across different judge models on MT-Bench. The heatmap shows how judge preferences shift when the order of responses is swapped. Source: Zheng et al. (2023), Figure 4.](LLM-as-a-Judge/images/position-bias.png){#fig-position-bias}
 
+::: {.exercise-predict correct="C"}
+
+Zheng et al. tested verbosity bias with a "repetitive list" attack: they took model answers containing numbered lists, had GPT-4 rephrase each item without adding any new information, and prepended the paraphrased items to the original list, doubling the response length. When Claude-v1 and GPT-3.5 were asked to judge the artificially lengthened response against the original, what percentage of the time did they incorrectly prefer the longer response?
+
+- About 25% of the time (weak bias, judges mostly see through it)
+- About 50% of the time (coin flip, judges are confused)
+- More than 90% of the time (near-total failure to detect padding)
+
+::: {.predict-reveal}
+**The answer is C.** Claude-v1 and GPT-3.5 fell for the repetitive list attack 91.3% of the time, incorrectly preferring the artificially lengthened response even though it contained zero new information. GPT-4, by contrast, had only an 8.7% failure rate. The gap between 91.3% and 8.7% illustrates how dramatically verbosity bias varies across judge models, and why judge selection matters as much as prompt design.
+:::
+
+:::
+
 **Verbosity bias** is the tendency to assign higher scores to longer responses, even when the additional length adds no new information. Zheng et al. tested this with a "repetitive list" attack: they took model answers containing numbered lists, had GPT-4 rephrase each item without adding information, and prepended the paraphrased items to the original list (doubling the length). Claude-v1 and GPT-3.5 fell for this attack 91.3% of the time, incorrectly preferring the artificially lengthened response. GPT-4 was much more robust, with only an 8.7% failure rate.
 
 ![Verbosity bias demonstration: LLM judges prefer artificially lengthened responses even when no new information is added. Source: Zheng et al. (2023), Figure 5.](LLM-as-a-Judge/images/verbosity-bias.png){#fig-verbosity-bias}
@@ -83,6 +131,25 @@ Every LLM judge, regardless of format, carries systematic biases. Zheng et al. (
 **Self-enhancement bias** is the tendency for a judge model to favor responses generated by itself. Zheng et al. observed that GPT-4, when judging, gave itself a 10% higher win rate than humans did. Claude-v1 favored its own outputs by 25%. However, the authors noted that this effect was difficult to isolate: "Conducting a controlled study is challenging because we cannot easily rephrase a response to fit the style of another model without changing the quality." The bias may partly reflect genuine quality and partly reflect stylistic preference for responses that match the judge's own training distribution.
 
 **Surface anchoring** (sometimes called "context corruption") is a subtler failure mode. The judge's evaluation is contaminated by the content it is evaluating. If one of the responses contains a confident but incorrect answer, the judge may be misled by that incorrect content and produce a wrong verdict. Zheng et al. demonstrated this for math problems: GPT-4 could solve a problem correctly when asked independently, but when presented with an incorrect solution to judge, it was "misled by the provided answers, ultimately resulting in incorrect judgment." The judge adopted the reasoning of the response it was supposed to evaluate.
+
+::: {.exercise-mcq correct="B"}
+
+Your chatbot evaluation pipeline uses GPT-4 as a pairwise judge. You notice that when you swap the order of the two responses in the prompt, the judge changes its verdict 35% of the time. Based on the MT-Bench findings, which statement best explains this behavior?
+
+- The judge model is broken and should be replaced with a different model
+- Position bias is dominating because the two responses are close in quality; Shi et al. found that position bias is "strongly affected by the quality gap between solutions" and fades when responses differ clearly
+- The judge is exhibiting verbosity bias because one response is longer
+- This 35% inconsistency rate is normal and expected even for high-quality judges on easy comparisons
+
+::: {.feedback-correct}
+Shi et al.'s study of over 150,000 evaluation instances found that position bias is "strongly affected by the quality gap between solutions." When two responses are clearly different in quality, position bias fades; when they are close in quality, position effects dominate. A 35% inconsistency rate (the judge changes its verdict when order is swapped) suggests the two responses are similar enough that the judge relies on position as a tiebreaker rather than quality. For context, GPT-4 was the most consistent judge at 65.0% consistency on MT-Bench, while Claude-v1 managed only 23.8%.
+:::
+
+::: {.feedback-incorrect}
+A 35% inconsistency rate on order-swapping is a hallmark of position bias, not a broken model. Shi et al.'s large-scale study found that position bias varies with the quality gap: when two responses are clearly different, judges are consistent regardless of order; when responses are close in quality, position effects dominate. GPT-4 was the most position-consistent judge at 65.0% consistency on MT-Bench. The mitigation is position swapping (calling the judge twice with both orders) and only declaring a winner if the verdict is consistent, which eliminates position bias at the cost of doubling inference.
+:::
+
+:::
 
 ### The Evaluation Illusion
 

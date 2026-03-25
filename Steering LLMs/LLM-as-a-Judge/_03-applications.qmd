@@ -7,7 +7,7 @@
 | 1 | [Shinn et al., "Reflexion: Language Agents with Verbal Reinforcement" (NeurIPS 2023)](https://arxiv.org/abs/2303.11366) | Self-evaluation + verbal reflection; 91% pass@1 on HumanEval |
 | 2 | [Lightman et al., "Let's Verify Step by Step" (2023)](https://arxiv.org/abs/2305.20050) | Process reward models; PRM solves 78.2% of MATH; PRM800K dataset |
 | 3 | [McAleese et al., "LLM Critics Help Catch LLM Bugs (CriticGPT)" (2024)](https://arxiv.org/abs/2407.00215) | Trained critic; 63% preference over human critiques; human+AI teams |
-| 4 | [Yang et al., "TIR-Judge: Tool-Integrated RL for LLM Judges" (2025)](https://arxiv.org/abs/2510.23038) | Code executor integration via RL; 8B matches Claude-Opus-4 on listwise |
+| 4 | [Xu et al., "TIR-Judge: Tool-Integrated RL for LLM Judges" (2025)](https://arxiv.org/abs/2510.23038) | Code executor integration via RL; 8B comparable to Claude-Opus-4 on listwise |
 | 5 | [Han et al., "WildGuard: Open One-Stop Moderation Tools" (2024)](https://arxiv.org/abs/2406.18495) | Safety judge; 13 risk categories; jailbreak success 79.8%→2.4% |
 | 6 | [Min et al., "FActScore" (EMNLP 2023)](https://arxiv.org/abs/2305.14251) | Atomic factuality; automated evaluation <2% error rate |
 | 7 | [Lambert et al., "RewardBench" (2024)](https://arxiv.org/abs/2403.13787) | First benchmark for reward models; 80+ models evaluated |
@@ -37,11 +37,45 @@ The alignment argument is equally important. As the OpenAI PRM blog ([2023](http
 
 For the chatbot team, process supervision means evaluating not just the final customer answer but each intermediate step: "Did the API call use the correct endpoint?" "Did the code correctly compute the discount?" "Does the final response accurately reflect the computation results?"
 
+::: {.exercise-mcq correct="C"}
+
+A student solves a math problem by arriving at the correct final answer, but their second step contains a sign error that is canceled out by a compensating error in step four. How would a Process Reward Model (PRM) and an Outcome Reward Model (ORM) evaluate this solution?
+
+- Both PRM and ORM would flag the solution as incorrect because it contains errors
+- The PRM would mark it correct (right answer) while the ORM would flag the step-level errors
+- The ORM would mark it correct (right final answer) while the PRM would flag the incorrect steps
+- Neither model can detect the error because the final answer is correct
+
+::: {.feedback-correct}
+Exactly. An ORM only sees the final answer and would rate the solution positively. A PRM evaluates each step independently: it would assign positive labels to steps 1 and 3 but flag step 2 as incorrect. This is precisely the advantage Lightman et al. demonstrated: a PRM provides feedback on "both how many of the first steps were in fact correct, as well as the precise location of the incorrect step."
+:::
+
+::: {.feedback-incorrect}
+The key distinction: ORMs receive feedback *only on the final answer* (correct or incorrect), while PRMs receive feedback *for each intermediate step*. The ORM has no mechanism to detect mid-chain errors if the final answer happens to be right. The PRM, trained on step-level labels from PRM800K, evaluates each step independently. This is why PRMs solved 78.2% of MATH problems compared to 72.4% for ORMs: they avoid rewarding lucky error cancellation.
+:::
+
+:::
+
 **Self-evaluation and reflection loops.** The Reflexion framework ([Shinn et al., NeurIPS 2023](https://arxiv.org/abs/2303.11366)) embeds an LLM judge directly inside the agent's decision loop. Reflexion's architecture has three components: an Actor ($M_a$) that generates actions, an Evaluator ($M_e$) that judges the quality of the trajectory, and a Self-Reflection module ($M_{sr}$) that converts the scalar judgment into verbal feedback stored in episodic memory.
 
 The Evaluator operates as an LLM-as-a-Judge in multiple modes. For reasoning tasks, it uses exact-match grading. For decision-making tasks, it uses heuristic functions (e.g., detecting when the agent repeats the same action for more than three cycles) or direct LLM binary classification. For programming tasks, it uses self-generated unit tests as the evaluation signal: the agent writes tests for its own code and then runs them.
 
 The self-reflection step converts sparse reward signals into rich natural language feedback. As Shinn et al. describe: "Given a sparse reward signal, such as a binary success status (success/fail), the current trajectory, and its persistent memory, the self-reflection model generates nuanced and specific feedback." This verbal feedback, stored across episodes, enables the agent to avoid repeating mistakes. Reflexion achieved 91% pass@1 on HumanEval, demonstrating that LLM self-judgment combined with memory can match sophisticated training-based methods.
+
+::: {.exercise-order correct="B,D,A,C"}
+
+Arrange the steps of a single Reflexion episode in the correct order. Assume the agent has just failed its previous attempt at a coding task.
+
+- The Self-Reflection module converts the evaluation into verbal feedback describing what went wrong and stores it in episodic memory
+- The Actor generates a new action trajectory (code solution), drawing on stored memory from prior episodes
+- The Actor generates a revised trajectory, now informed by the stored verbal feedback from prior failures
+- The Evaluator judges the quality of the trajectory (e.g., by running self-generated unit tests)
+
+::: {.order-feedback}
+**Correct order: B, D, A, C.** The Reflexion loop begins with the Actor ($M_a$) generating an action trajectory. The Evaluator ($M_e$) then judges the trajectory (using unit tests, heuristics, or binary success/fail). If the evaluation signals failure, the Self-Reflection module ($M_{sr}$) converts the sparse reward into verbal feedback stored in episodic memory. On the next episode, the Actor generates a new trajectory informed by this stored feedback. The key insight is that the Evaluator's scalar judgment is converted into *natural language* before being stored, enabling richer learning than scalar rewards alone.
+:::
+
+:::
 
 **Critic-guided code review.** CriticGPT ([McAleese et al., 2024](https://arxiv.org/abs/2407.00215)) addresses a specific scalable oversight challenge: as AI models become more capable, their errors become more subtle, making it harder for human reviewers to catch mistakes. As the OpenAI blog ([2024](https://openai.com/index/finding-gpt4s-mistakes-with-gpt-4)) explains: "As we make advances in reasoning and model behavior, ChatGPT becomes more accurate and its mistakes become more subtle. This can make it hard for AI trainers to spot inaccuracies when they do occur, making the comparison task that powers RLHF much harder."
 
@@ -51,13 +85,28 @@ CriticGPT is a GPT-4-based model trained with RLHF specifically to write critiqu
 This is the scalable oversight problem in miniature. CriticGPT's advantage is that it catches more bugs than unassisted humans, but it also hallucinates bugs that do not exist. The human+AI team approach is one answer: the human validates the critic's claims, rejecting false positives while benefiting from true positives. But as models grow more capable, even the combined human+AI team may miss errors or accept false critiques. CriticGPT's own limitations include: (1) it was trained on short code snippets and may not generalize to complex multi-file projects, (2) it still hallucinates, (3) real-world mistakes may be dispersed across many parts of an answer, and (4) extremely complex tasks may defeat even expert+model teams. The meta-evaluation problem (who judges the judge?) remains fundamentally open.
 :::
 
-**Tool-integrated judges.** TIR-Judge ([Yang et al., 2025](https://arxiv.org/abs/2510.23038)) pushes the frontier by integrating code executors directly into the judge via reinforcement learning. The motivation: "While these approaches enhance judge quality by equipping LLMs with long chains of textual reasoning traces, they remain inherently limited in scenarios that require precise computation or symbolic reasoning." TIR-Judge's 8B parameter model achieves listwise ranking performance matching Claude-Opus-4, surpassing strong reasoning-based judges by up to 6.4% on pointwise and 7.7% on pairwise tasks.
+**Tool-integrated judges.** TIR-Judge ([Xu et al., 2025](https://arxiv.org/abs/2510.23038)) pushes the frontier by integrating code executors directly into the judge via reinforcement learning. The motivation: "While these approaches enhance judge quality by equipping LLMs with long chains of textual reasoning traces, they remain inherently limited in scenarios that require precise computation or symbolic reasoning." TIR-Judge's 8B parameter model achieves listwise ranking performance comparable to Claude-Opus-4 (reaching 96% of its performance), surpassing strong reasoning-based judges by up to 6.4% on pointwise and 7.7% on pairwise tasks.
 
 ![The LLM-as-a-Judge architecture in agentic systems, showing how judges interface with actors, tools, memory, and reasoning chains. Source: Gu et al. (2024), Figure from survey.](LLM-as-a-Judge/images/agent-judge.png){#fig-agent-judge}
 
 ### Safety and Content Moderation
 
-LLM judges serve as automated content moderators and red-teaming evaluators. WildGuard ([Han et al., 2024](https://arxiv.org/abs/2406.18495)) is an open-source safety judge that achieves three goals: "identifying malicious intent in user prompts, detecting safety risks of model responses, and determining model refusal rate." It covers 13 risk categories with 92,000 labeled training examples, constituting the largest multi-task safety dataset at time of publication.
+LLM judges serve as automated content moderators and red-teaming evaluators. WildGuard ([Han et al., 2024](https://arxiv.org/abs/2406.18495)) is an open-source safety judge that achieves three goals: "identifying malicious intent in user prompts, detecting safety risks of model responses, and determining model refusal rate." It covers 13 risk categories with 92,000 labeled examples (approximately 87K for training, 5K for evaluation), constituting the largest multi-task safety dataset at time of publication.
+
+::: {.exercise-predict correct="D"}
+
+Before WildGuard, open-source safety moderators like Llama Guard 2 were effective at catching direct harmful queries but struggled with jailbreak attacks. Without WildGuard, the jailbreak success rate against a target LLM was 79.8%. After deploying WildGuard as a safety moderator, what do you predict the jailbreak success rate dropped to?
+
+- Around 50% (modest improvement)
+- Around 30% (substantial improvement)
+- Around 15% (major improvement)
+- Below 5% (near-complete suppression)
+
+::: {.predict-reveal}
+**The answer is D.** WildGuard reduced the jailbreak success rate from 79.8% to just 2.4%, a near-complete suppression. This dramatic result comes from WildGuard's design: it was specifically trained on adversarial jailbreak prompts (not just vanilla harmful queries), addressing the core weakness of prior tools. The 92,000 labeled examples across 13 risk categories include adversarial variants that teach the model to recognize harm *despite* prompt obfuscation.
+:::
+
+:::
 
 WildGuard's practical impact is dramatic. When deployed as a safety moderator in an LLM interface, it reduced the success rate of jailbreak attacks from 79.8% to 2.4%. The system addresses a key limitation of prior tools: existing open-source moderators like Llama Guard 2 are "much less effective for discerning harm in adversarial prompts (i.e., jailbreaks) compared to vanilla (i.e., direct) queries." WildGuard also handles the over-refusal problem, distinguishing genuinely harmful requests from benign queries that superficially resemble harmful ones (like "How to kill a Python process?").
 
@@ -77,6 +126,25 @@ RewardBench has evaluated over 80 models across four categories: chat (AlpacaEva
 
 ::: {.callout-warning title="Common Misconception: Reward models and LLM judges are separate concepts"}
 They are not. A reward model is a specific *type* of judge that has been trained to produce a scalar reward signal for RLHF. An LLM judge is a broader category that includes prompted general-purpose models (GPT-4 as a zero-shot evaluator), fine-tuned evaluation specialists (Prometheus), and reward models. RewardBench evaluates all of these on the same benchmark, treating them as different implementations of the same function: mapping (prompt, response) to a quality signal. The distinction matters for @sec-model-improvements, where we discuss how training a model specifically for judgment (whether as a reward model, a DPO model, or a dedicated judge) improves over prompting a general-purpose model.
+:::
+
+::: {.exercise-mcq correct="B"}
+
+RewardBench evaluates reward models and LLM judges on the same benchmark. What is the shared function that both reward models and prompted LLM judges implement?
+
+- Both produce natural language critiques explaining quality differences between responses
+- Both map a (prompt, response) pair to a quality signal, whether scalar or preference-based
+- Both require RLHF training on human preference data to produce reliable judgments
+- Both operate by comparing two responses side-by-side and selecting a winner
+
+::: {.feedback-correct}
+Correct. Despite their different implementations (a trained reward head producing a scalar vs. a prompted LLM producing a score or preference), both perform the same core function: they take a prompt and a response and output a signal indicating quality. RewardBench makes this equivalence explicit by evaluating reward models, DPO models, and prompted LLM judges on the same prompt-chosen-rejected trios.
+:::
+
+::: {.feedback-incorrect}
+The key insight from RewardBench is that reward models and LLM judges are different *implementations* of the same *function*. A reward model outputs a scalar; a prompted judge outputs a score or preference. But both take a (prompt, response) pair as input and produce a quality signal as output. Not all of them produce critiques (reward models typically do not), not all require RLHF (prompted judges like GPT-4 zero-shot do not), and not all operate pairwise (pointwise scoring is common).
+:::
+
 :::
 
 ### Running Example: The Chatbot Evolves
