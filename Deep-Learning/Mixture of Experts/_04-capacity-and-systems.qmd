@@ -13,14 +13,14 @@
 
 The auxiliary loss from @sec-load-balancing-loss gives you a mechanism to *encourage* balanced routing, but encouragement is not the same as a guarantee. On any given forward pass, some experts will still receive more tokens than others. Maybe the batch happens to be code-heavy and the "syntax expert" is popular; maybe training has only just started and the router is still semi-random. Either way, you face a concrete engineering question: what do you do when an expert receives more tokens than it can physically handle?
 
-This overflow problem is where the theory of load balancing meets the reality of GPU memory and fixed-size tensor operations. The answer involves a quantity called the *capacity factor*, a painful compromise called *token dropping*, and a clever reformulation that eliminates the problem entirely.
+This overflow problem is where the theory of load balancing meets the reality of GPU memory and fixed-size tensor operations. The answer involves a quantity called the [*capacity factor*]{style="color: #E11D48;"}, a painful compromise called [*token dropping*]{style="color: #E11D48;"}, and a clever reformulation that eliminates the problem entirely.
 
 ### The Capacity Factor
 
 When $N$ experts share a batch of $T$ tokens, each expert's "fair share" under perfectly balanced routing is $T/N$ tokens. In practice, routing is never perfectly balanced, so you need some headroom. The capacity factor $C$ sets the maximum number of tokens any single expert is allowed to process:
 
 $$
-\text{expert buffer size} = \left\lceil C \cdot \frac{T}{N} \right\rceil
+\text{expert buffer size} = \left\lceil \textcolor{#E11D48}{C} \cdot \frac{T}{N} \right\rceil
 $$ {#eq-capacity}
 
 The ceiling ensures an integer count. Typical values for $C$ range from 1.0 (no headroom; only perfectly balanced routing avoids overflow) to 1.5 (50% extra room for imbalance). [Fedus et al. (JMLR 2022)](https://arxiv.org/abs/2101.03961) used $C = 1.0$ for Switch Transformers with top-1 routing, and $C = 1.25$ as a common setting for top-2 systems.
@@ -46,7 +46,9 @@ Remember: the buffer size formula is $\lceil C \cdot T/N \rceil$. The fair share
 
 :::
 
-Why not set $C$ very high, say $C = 4.0$, and avoid overflow entirely? Because the capacity factor determines the actual memory allocated for each expert's input buffer. On a GPU, these buffers are pre-allocated tensors with a fixed shape of $(\text{expert buffer size}, d_{\text{model}})$. Higher $C$ means larger tensors and more memory consumption. Extra slots that go unfilled are padded with zeros, wasting compute. In a model with 64 experts distributed across many devices, a capacity factor of 4.0 would quadruple the memory footprint of the expert buffers compared to $C = 1.0$. The capacity factor is a tradeoff between robustness to routing imbalance and memory efficiency.
+Why not set $C$ very high, say $C = 4.0$, and avoid overflow entirely? Because the capacity factor determines the actual memory allocated for each expert's input buffer. On a GPU, these buffers are pre-allocated tensors with a fixed shape of $(\text{expert buffer size}, d_{\text{model}})$. Higher $C$ means larger tensors and more memory consumption.
+
+Extra slots that go unfilled are padded with zeros, wasting compute. In a model with 64 experts distributed across many devices, a capacity factor of 4.0 would quadruple the memory footprint of the expert buffers compared to $C = 1.0$. The capacity factor trades off robustness to routing imbalance against memory efficiency.
 
 ### Token Dropping
 
@@ -94,7 +96,7 @@ Token dropping wastes tokens, and the capacity factor wastes memory on padding. 
 - Route every token to all experts with very small weights, so no expert overflows
 
 ::: {.predict-reveal}
-**The answer is A.** MegaBlocks reframes the problem entirely. Instead of pre-allocating fixed-size buffers for each expert, it represents the entire MoE layer as a single block-sparse matrix multiplication. Each expert's weight matrix is a block on the diagonal, and the blocks can be different sizes depending on how many tokens are routed to each expert. Custom GPU kernels (built on Triton) handle these variable-sized blocks efficiently.
+**The answer is A.** MegaBlocks reframes the problem entirely. Instead of pre-allocating fixed-size buffers for each expert, it represents the entire MoE layer as a single block-sparse matrix multiplication. Each expert's weight matrix is a block on the diagonal, and the blocks can be different sizes depending on how many tokens are routed to each expert. Custom GPU kernels (built by extending NVIDIA's CUTLASS template library) handle these variable-sized blocks efficiently.
 :::
 
 :::
@@ -103,9 +105,9 @@ Token dropping wastes tokens, and the capacity factor wastes memory on padding. 
 
 [Gale et al. (MLSys 2023)](https://arxiv.org/abs/2211.15841) asked a simple question: what if we didn't need fixed-size expert buffers at all?
 
-The standard MoE implementation pre-allocates a buffer of shape $(\text{expert buffer size}, d_{\text{model}})$ for each expert, then routes tokens into these fixed-capacity slots. MegaBlocks reframes the problem entirely. Instead of treating each expert as an independent function with its own buffer, MegaBlocks represents the entire MoE layer as a single **block-sparse matrix multiplication**. Each expert's weight matrix occupies a block along the diagonal, and the token-to-expert assignment determines which blocks of the input matrix are non-zero.
+The standard MoE implementation pre-allocates a buffer of shape $(\text{expert buffer size}, d_{\text{model}})$ for each expert, then routes tokens into these fixed-capacity slots. [MegaBlocks]{style="color: #4F46E5;"} reframes the problem entirely. Instead of treating each expert as an independent function with its own buffer, MegaBlocks represents the entire MoE layer as a single **block-sparse matrix multiplication**. Each expert's weight matrix occupies a block along the diagonal, and the token-to-expert assignment determines which blocks of the input matrix are non-zero.
 
-The key insight: block-sparse matrix multiplication does not require fixed-size blocks. If Expert 3 receives 5 tokens and Expert 1 receives 1 token, the corresponding blocks are simply different sizes. Custom GPU kernels (built on top of the Triton compiler) handle these variable-sized blocks efficiently by packing them into a single sparse matrix operation.
+The key insight: block-sparse matrix multiplication does not require fixed-size blocks. If Expert 3 receives 5 tokens and Expert 1 receives 1 token, the corresponding blocks are simply different sizes. Custom GPU kernels (built by extending NVIDIA's CUTLASS template library) handle these variable-sized blocks efficiently by packing them into a single sparse matrix operation.
 
 ![Block-sparse format used by MegaBlocks to represent variable-sized expert batches without token dropping. Source: Gale et al. (2023), Figure 3.](Mixture of Experts/images/megablocks-block-sparse.png){#fig-block-sparse}
 
@@ -117,7 +119,9 @@ The dropless design matters because it decouples two concerns that standard MoE 
 
 The auxiliary load-balancing loss from @sec-load-balancing-loss encourages uniform routing. The capacity factor punishes deviations from uniformity by dropping overflow tokens. Together, they exert strong pressure toward balanced routing. But balanced routing and good model quality are not the same thing.
 
-The "Demons in the Detail" paper ([Qiu et al., 2025](https://arxiv.org/abs/2501.11873)) demonstrated a striking consequence of this pressure. They showed that computing the load-balancing loss per *micro-batch* (the small subset of the global batch that sits on each GPU) forces routing to be uniform within each micro-batch. The per-micro-batch approach seems reasonable until you consider what happens when a micro-batch consists entirely of code. If the batch is all Python, you *want* the "code-syntax expert" to receive most of those tokens. Uniform routing across all experts means spreading code tokens to experts that have specialized in natural language punctuation or named entities. You are actively preventing the model from using its experts effectively.
+The "Demons in the Detail" paper ([Qiu et al., 2025](https://arxiv.org/abs/2501.11873)) demonstrated a striking consequence of this pressure. They showed that computing the load-balancing loss per *micro-batch* (the small subset of the global batch that sits on each GPU) forces routing to be uniform within each micro-batch.
+
+The per-micro-batch approach seems reasonable until you consider what happens when a micro-batch consists entirely of code. If the batch is all Python, you *want* the "code-syntax expert" to receive most of those tokens. Uniform routing across all experts means spreading code tokens to experts that have specialized in natural language punctuation or named entities. The auxiliary loss is actively preventing the model from using its experts effectively.
 
 Per-micro-batch balancing forces the model into a lose-lose situation: either the experts de-specialize (routing becomes uniform for all input types) or the auxiliary loss penalty grows large (the model tries to specialize but gets punished for it). Global-batch balancing is the better approach. By computing $f_i$ and $P_i$ over the full batch (aggregated across all GPUs), the loss allows local imbalance within individual micro-batches while enforcing balance at the corpus level. A code-heavy micro-batch can route heavily to code experts, as long as a prose-heavy micro-batch on another GPU compensates.
 
@@ -162,12 +166,12 @@ Expert Choice routing (covered in @sec-alternative-routing) achieves perfect bal
 
 Even with balanced routing and no token dropping, MoE layers impose real engineering costs that dense models avoid. Three stand out.
 
-**Communication overhead.** In a distributed training setup, tokens live on one device but their assigned experts may live on another. Routing tokens to their experts requires *all-to-all* communication: every device sends tokens to every other device. The all-to-all collective is one of the most expensive operations in distributed computing. Its cost grows with the number of devices and the number of experts.
+**Communication overhead.** In a distributed training setup, tokens live on one device but their assigned experts may live on another. Routing tokens to their experts requires *all-to-all* communication: every device sends tokens to every other device. The all-to-all collective is one of the most expensive operations in distributed computing, and its cost grows with the number of devices and the number of experts.
 
 **Memory footprint.** Only $k$ out of $N$ experts activate per token, but *all* $N$ experts must be stored in memory. A Mixtral 8x7B model has 47 billion parameters total but only 13 billion active per token. You still need enough VRAM to hold all 47 billion parameters (plus optimizer states during training). At inference time, MoE models require more memory than a dense model with equivalent active parameters. You get the compute cost of a 13B model but the memory cost closer to a 47B model.
 
 **Expert parallelism.** Distributing experts across devices (expert parallelism) introduces load-imbalance at the hardware level, even if token routing is balanced at the algorithmic level. One device may finish processing its experts' tokens before another device, leading to idle time. Combining expert parallelism with data parallelism and tensor parallelism creates a three-dimensional parallelism problem that requires careful tuning.
 
-To put the tradeoff plainly: MoE gives you the compute cost of a small model and the capacity of a large model, but the *memory* cost and *communication* cost of a large model. Only $k/N$ of the parameters are active per token, but 100% of the parameters must be stored, communicated, and synchronized. The compute-memory tradeoff is favorable for training (where compute dominates cost) and for autoregressive decoding (where per-token compute is the bottleneck). It is less favorable for the prefill phase of inference, where memory bandwidth is often the bottleneck.
+To put the tradeoff plainly: MoE gives you the compute cost of a small model and the capacity of a large model, but the *memory* cost and *communication* cost of a large model. Only $k/N$ of the parameters are active per token, but 100% of the parameters must be stored, communicated, and synchronized. This compute-memory tradeoff plays out differently in three settings: (a) training, where compute dominates cost and the tradeoff is favorable; (b) autoregressive decoding, where per-token compute is the bottleneck and MoE again wins; and (c) the prefill phase of inference, where memory bandwidth is often the bottleneck and MoE's advantage shrinks.
 
 The systems constraints above (communication, memory, parallelism) all stem from one source: the token-chooses-expert routing design and the fixed-capacity buffers it requires. The next section explores three alternative routing strategies that each solve the balance-specialization-dropping trifecta in a fundamentally different way: Expert Choice routing, auxiliary-loss-free balancing, and fully differentiable ReLU routing.

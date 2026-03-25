@@ -20,9 +20,9 @@ Imagine you run a busy hospital emergency department with eight specialist docto
 
 Worse still, the triage nurse was never trained in medicine. They learned entirely by watching which assignments produced good outcomes over thousands of patients. Nobody gave them a rulebook. They built their intuition from scratch, one patient at a time, by getting feedback: "that assignment worked well" or "that one didn't."
 
-This triage scenario is exactly the situation inside a Mixture of Experts transformer layer: (1) Each token (our "patient") enters the layer; (2) A small router network (our "triage nurse") computes a quick score for each expert (our "specialists"); (3) The top-k scoring experts process the token. 
+This triage scenario maps directly onto a Mixture of Experts transformer layer. Each token (our "patient") enters the layer. A small router network (our "triage nurse") computes a quick score for each expert (our "specialists"). The top-$k$ scoring experts process the token.
 
-In an MoE model, the router is trained entirely through backpropagation; there is no hand-coded rulebook. 
+In an MoE model, the router is trained entirely through backpropagation; there is no hand-coded rulebook.
 
 But here is the paradox that trips up nearly everyone who studies MoE. The triage nurse picks *which* specialists to call. That binary decision is discrete: you either send the patient to the cardiologist or you don't. There is no "half-visit." (Once the specialists are chosen, the nurse *does* assign fractional weights to their opinions, but the *selection itself* is all-or-nothing.)
 
@@ -34,7 +34,7 @@ The answer involves a clever trick: the model tracks two separate quantities (th
 
 ### Chapter Overview
 
-To understand MoE, you need a mental model with three layers: (1) the [**architecture**]{style="color: #6366F1;"}, i.e. what an MoE layer looks like, where it sits inside a transformer, and why it exists; (2) the [**routing mechanism**]{style="color: #10B981;"}, i.e. how the model decides which expert handles which token, and why that decision creates a differentiability paradox; and (3) the [**training machinery**]{style="color: #F43F5E;"}, i.e. the auxiliary losses, capacity factors, and balancing tricks that make MoE training stable.
+To understand MoE, you need a mental model with three layers: (1) the [**architecture**]{style="color: #4F46E5;"}, i.e. what an MoE layer looks like, where it sits inside a transformer, and why it exists; (2) the [**routing mechanism**]{style="color: #047857;"}, i.e. how the model decides which expert handles which token, and why that decision creates a differentiability paradox; and (3) the [**training machinery**]{style="color: #E11D48;"}, i.e. the auxiliary losses, capacity factors, and balancing tricks that make MoE training stable.
 
 Let's start by describing why MoE exists at all.
 
@@ -42,23 +42,27 @@ The fundamental tension in deep learning is between model capacity and computati
 
 The idea of activating only the parts of a network that are relevant to a given input is called *conditional computation*. MoE is the most successful form of conditional computation. A model where all parameters activate for every input is called *dense*; a model where only a subset activates is called *sparse*. MoE models are sparse: for any given token, the router activates only a handful of the available experts. The rest sit idle.
 
-MoE breaks the capacity-compute relationship. An MoE model has many parameters, but only activates a small fraction of them for any given input. Consider Mixtral 8x7B ([Jiang et al., 2024](https://arxiv.org/abs/2401.04088)): it contains 47 billion total parameters, but only 13 billion are active for any single token. The remaining 34 billion sit idle, waiting for inputs that need *their* particular expertise. The model has the capacity of a 47B model but the compute cost of a 13B model. That is the core value proposition of MoE: **decouple model capacity from per-token compute**.
+MoE breaks the capacity-compute relationship. An MoE model has many parameters, but only activates a small fraction of them for any given input. Consider Mixtral 8x7B ([Jiang et al., 2024](https://arxiv.org/abs/2401.04088)): it contains 47 billion total parameters, but only 13 billion are active for any single token. The remaining 34 billion sit idle, waiting for inputs that need *their* particular expertise. The model has the capacity of a 47B model but the compute cost of a 13B model. That asymmetry is the core value proposition of MoE: **decouple model capacity from per-token compute**.
 
 The idea traces back to 1991, when Jacobs, Jordan, Nowlan, and Hinton ([Neural Computation, 1991](https://doi.org/10.1162/neco.1991.3.1.79)) introduced the Mixture of Experts framework. Their insight was simple: different parts of the input space may require different computations, so train multiple small "expert" networks and a "gating" network that decides which expert handles which input. In 1991, experts were small neural networks solving classification tasks. Three decades later, the same architecture powers the largest language models in the world, with each expert being a feed-forward network (FFN) inside a transformer layer.
 
-The modern MoE layer works by replacing the FFN in a transformer block with $N$ expert FFNs plus a lightweight router. When a token arrives, the router computes a score for each expert, selects the top $k$ (usually 1 or 2), and sends the token to those experts only. The expert outputs are combined using the router's scores as weights. The operation is summarized by the equation $y = \sum_{i=1}^{N} G(x)_i \cdot E_i(x)$, where $G(x)_i$ is the gate weight for expert $i$ and $E_i(x)$ is expert $i$'s output. Because $G(x)$ is sparse (most entries are zero), we only compute the few experts with nonzero weights.
+The modern [MoE layer]{style="color: #4F46E5;"} works by replacing the FFN in a transformer block with $N$ [expert FFNs]{style="color: #4F46E5;"} plus a lightweight [router]{style="color: #047857;"}. When a token arrives, the router computes a score for each expert, selects the top $k$ (usually 1 or 2), and sends the token to those experts only. The expert outputs are combined using the router's scores as weights. The operation is summarized by the equation $y = \sum_{i=1}^{N} \textcolor{#047857}{G(x)_i} \cdot \textcolor{#4F46E5}{E_i(x)}$, where $\textcolor{#047857}{G(x)_i}$ is the [gate weight]{style="color: #047857;"} for expert $i$ and $\textcolor{#4F46E5}{E_i(x)}$ is [expert $i$'s output]{style="color: #4F46E5;"}. Because $G(x)$ is sparse (most entries are zero), we only compute the few experts with nonzero weights.
 
 ![A dense transformer decoder block (left) uses a single FFNN. An MoE decoder block (right) replaces it with multiple expert FFNNs, only a subset of which activate per token. Source: Maarten Grootendorst, "A Visual Guide to Mixture of Experts" (2024).](Mixture of Experts/images/grootendorst-dense-vs-moe-decoder.png){#fig-dense-vs-moe}
 
 ![The Switch Transformer architecture: two tokens ($x_1$ and $x_2$) enter the same MoE layer. The router assigns each token to a different expert (FFN 2 with $p = 0.5$ and FFN 1 with $p = 0.7$), while the rest of the transformer (self-attention, add-and-normalize, feed-forward output) operates identically for both. Source: Fedus et al. (2022), Figure 1.](Mixture of Experts/images/switch-transformer-architecture.png){#fig-switch-architecture}
 
-This sparsity is both the strength and the challenge. The strength: you get a massive model that runs cheaply. The challenge: the top-k selection step that creates the sparsity has zero gradient for non-selected experts. The router can learn to adjust weights among the experts it *already* selects, but it receives no signal about experts it *doesn't* select. That gradient dead zone is the differentiability paradox at the center of MoE training.
+This sparsity is both the strength and the challenge of MoE. The strength: you get a massive model that runs cheaply. The challenge: that same top-k selection step has zero gradient for non-selected experts.
 
-To solve this paradox, [Shazeer et al. (ICLR 2017)](https://arxiv.org/abs/1701.06538) and [Fedus et al. (JMLR 2022)](https://arxiv.org/abs/2101.03961) developed auxiliary losses that encourage balanced routing. The key insight, which we will derive carefully in @sec-load-balancing-loss, is that you can multiply a non-differentiable quantity (the actual count of tokens per expert) by a differentiable quantity (the average softmax probability per expert) to create a loss with useful gradients. The non-differentiable count scales the gradient magnitude; the differentiable probability provides the gradient direction. Together, these two quantities steer the router toward balanced assignments without requiring gradients through the discrete selection step.
+The router can learn to adjust weights among the experts it *already* selects, but it receives no signal about experts it *doesn't* select. That gradient dead zone is the differentiability paradox at the center of MoE training.
 
-But balanced routing creates its own tension. If you push too hard for balance, every expert handles the same mix of tokens, and specialization dies. If you don't push hard enough, one expert hogs all the tokens while the others starve, a failure mode called *expert collapse*. Modern research explores several paths out of this dilemma. Expert Choice routing lets experts pick their tokens instead of tokens picking experts. Auxiliary-loss-free balancing replaces the auxiliary loss entirely with dynamic bias terms. ReLU routing eliminates the discrete top-k step altogether.
+To solve this paradox, [Shazeer et al. (ICLR 2017)](https://arxiv.org/abs/1701.06538) and [Fedus et al. (JMLR 2022)](https://arxiv.org/abs/2101.03961) developed [auxiliary losses]{style="color: #E11D48;"} that encourage balanced routing. The key insight, which we will derive carefully in @sec-load-balancing-loss, is that you can multiply a non-differentiable quantity (the actual count of tokens per expert) by a differentiable quantity (the average softmax probability per expert) to create a loss with useful gradients. The non-differentiable count scales the gradient magnitude; the differentiable probability provides the gradient direction. Together, these two quantities steer the router toward balanced assignments without requiring gradients through the discrete selection step.
 
-We will trace this evolution from the 2017 Shazeer paper through Switch Transformers (2021), Expert Choice (2022), MegaBlocks (2023), Mixtral (2024), and DeepSeek-V3's auxiliary-loss-free approach (2024). By the end, you will understand not just the "what" of MoE but the "why" behind every design decision.
+But balanced routing creates its own tension. If you push too hard for balance, every expert handles the same mix of tokens, and specialization dies. If you don't push hard enough, one expert hogs all the tokens while the others starve, a failure mode called *expert collapse*.
+
+Modern research explores several paths out of this dilemma. Expert Choice routing lets experts pick their tokens instead of tokens picking experts. Auxiliary-loss-free balancing replaces the auxiliary loss entirely with dynamic bias terms. ReLU routing eliminates the discrete top-k step altogether.
+
+We will trace this evolution from the 2017 Shazeer paper through Switch Transformers ([Fedus et al., JMLR 2022](https://arxiv.org/abs/2101.03961)), Expert Choice ([Zhou et al., NeurIPS 2022](https://arxiv.org/abs/2202.09368)), MegaBlocks ([Gale et al., 2023](https://arxiv.org/abs/2211.15841)), Mixtral ([Jiang et al., 2024](https://arxiv.org/abs/2401.04088)), and DeepSeek-V3's auxiliary-loss-free approach ([DeepSeek-AI, 2024](https://arxiv.org/abs/2412.19437)). By the end, you will understand not just the "what" of MoE but the "why" behind every design decision.
 
 ### Running Example
 
@@ -304,12 +308,12 @@ training_group.tradeoff -> evolution.standard: "motivates alternatives" {
 | $N$ | Number of experts in the MoE layer | Positive integer, typically 4-256 | 8 (Mixtral), 4 (our examples) |
 | $k$ | Number of experts selected per token (top-k) | $1 \leq k \leq N$ | 2 (Mixtral), 1 (Switch Transformer) |
 | $x$ | Input token representation | $x \in \mathbb{R}^{d_{\text{model}}}$ | Hidden state for the token "bank" |
-| $W_g$ | Router weight matrix | $W_g \in \mathbb{R}^{d_{\text{model}} \times N}$ | Maps 4096-dim hidden state to 8 expert scores |
-| $E_i(x)$ | Output of expert $i$ on input $x$ | $E_i(x) \in \mathbb{R}^{d_{\text{model}}}$ | Expert 3's FFN output for "bank" |
-| $G(x)_i$ | Gate value (weight) for expert $i$ on input $x$ | $[0, 1]$, with $\sum_{\text{top-k}} G(x)_i = 1$ | $G(\text{"bank"})_3 = 0.65$ |
+| $W_g$ | Router weight matrix | $W_g \in \mathbb{R}^{N \times d_{\text{model}}}$ | Maps 4096-dim hidden state to 8 expert scores |
+| $\textcolor{#4F46E5}{E_i(x)}$ | Output of expert $i$ on input $x$ | $E_i(x) \in \mathbb{R}^{d_{\text{model}}}$ | Expert 3's FFN output for "bank" |
+| $\textcolor{#047857}{G(x)_i}$ | Gate value (weight) for expert $i$ on input $x$ | $[0, 1]$, with $\sum_{\text{top-k}} G(x)_i = 1$ | $G(\text{"bank"})_3 = 0.65$ |
 | $H(x)_i$ | Noisy routing logit for expert $i$ | $\mathbb{R}$ (unbounded) | Raw score before top-k |
-| $f_i$ | Fraction of tokens dispatched to expert $i$ (the "Count") | $[0, 1]$, with $\sum f_i = 1$ | $f_3 = 0.5$ (expert 3 gets half the tokens) |
-| $P_i$ | Average router probability for expert $i$ (the "Probability") | $[0, 1]$, with $\sum P_i = 1$ | $P_3 = 0.4$ |
+| $\textcolor{#E11D48}{f_i}$ | Fraction of tokens dispatched to expert $i$ (the "Count") | $[0, 1]$, with $\sum f_i = 1$ | $f_3 = 0.5$ (expert 3 gets half the tokens) |
+| $\textcolor{#E11D48}{P_i}$ | Average router probability for expert $i$ (the "Probability") | $[0, 1]$, with $\sum P_i = 1$ | $P_3 = 0.4$ |
 | $\alpha$ | Auxiliary loss coefficient | $\mathbb{R}^+$, typically $10^{-2}$ | $\alpha = 0.01$ |
 | $C$ | Capacity factor | $\mathbb{R}^+$, typically $1.0$-$1.5$ | $C = 1.25$ |
 | $T$ | Number of tokens in a batch | Positive integer | $T = 2048$ |

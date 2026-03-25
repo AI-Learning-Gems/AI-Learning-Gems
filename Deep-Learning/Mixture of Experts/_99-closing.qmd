@@ -14,7 +14,7 @@
 
 6. **Three modern alternatives address the limitations of standard routing.** Expert Choice routing flips the assignment direction (experts pick tokens, guaranteeing perfect balance). Loss-free balancing replaces the auxiliary loss with dynamic bias terms (eliminating interference gradients). ReLU routing replaces top-k with a continuous activation (eliminating the discrete boundary entirely).
 
-7. **The frontier is moving toward MoE as the default architecture.** Mixtral, DeepSeek-V3, Grok-1, and Qwen3-MoE all use sparse expert architectures. MoE models have inference economics roughly equivalent to a dense model at 50-60% of their total parameter count, but they require all parameters in memory.
+7. **The industry trend is moving toward MoE as the default architecture.** Mixtral, DeepSeek-V3, Grok-1, and Qwen3-MoE all use sparse expert architectures. MoE models have inference economics roughly equivalent to a dense model at 50-60% of their total parameter count, but they require all parameters in memory.
 
 ### Completed Concept Map
 
@@ -266,7 +266,7 @@ An MoE layer consists of (1) $N$ expert networks (typically FFNs with the same a
 :::
 
 ::: {.callout-tip collapse="true" title="Question 2: Why can't gradients flow through the top-k selection?"}
-The top-k operation is a hard discrete step. It keeps the top $k$ logits and sets all others to $-\infty$. The derivative of this operation is zero for non-selected experts (their logits are replaced by a constant $-\infty$ regardless of the input) and undefined at the selection boundary, where a tiny change in a logit can flip whether it survives top-k. Gradients flow through the softmax applied to the $k$ surviving logits, but there is no gradient signal for the $N-k$ non-selected experts.
+The top-k operation is a hard discrete step. It keeps the top $k$ logits and sets all others to $-\infty$. The derivative of this operation is zero for non-selected experts, because their logits are replaced by a constant $-\infty$ regardless of the input. The derivative is also undefined at the selection boundary, where a tiny change in a logit can flip whether it survives top-k. Gradients flow through the softmax applied to the $k$ surviving logits, but there is no gradient signal for the $N-k$ non-selected experts.
 :::
 
 ::: {.callout-tip collapse="true" title="Question 3: What are the two vectors f_i and P_i, and which is differentiable?"}
@@ -274,11 +274,11 @@ The vector $f_i$ is the fraction of tokens in the batch dispatched to expert $i$
 :::
 
 ::: {.callout-tip collapse="true" title="Question 4: Why does multiplying f_i by P_i solve the load-balancing problem?"}
-The product $f_i \cdot P_i$ creates a quantity where the gradient flows through $P_i$ (differentiable), but $f_i$ (non-differentiable) scales the magnitude of that gradient. If expert $i$ receives many tokens ($f_i$ is large), the gradient pushing down $P_i$ is large. If expert $i$ receives few tokens ($f_i$ is small), the gradient is small. The $f_i$-scaled gradient connects discrete assignment information to the continuous optimization signal through $P_i$, allowing the optimizer to reduce routing imbalance by adjusting the differentiable probability distribution.
+The product $f_i \cdot P_i$ creates a quantity where the gradient flows through $P_i$ (differentiable), but $f_i$ (non-differentiable) scales the magnitude of that gradient. If expert $i$ receives many tokens ($f_i$ is large), the gradient pushing down $P_i$ is large. If expert $i$ receives few tokens ($f_i$ is small), the gradient is small. The $f_i$-scaled gradient connects discrete assignment information to the continuous optimization signal through $P_i$. The optimizer can then reduce routing imbalance by adjusting the differentiable probability distribution.
 :::
 
 ::: {.callout-tip collapse="true" title="Question 5: What is the 'cheating' failure if you only penalize P_i without f_i?"}
-Without the $f_i$ multiplication, the router can assign near-100% softmax probability to one expert on a small number of tokens (inflating that expert's $P_i$) while actually routing most tokens elsewhere. The inflated $P_i$ satisfies the loss, but the actual token distribution remains imbalanced. Multiplying by $f_i$ catches this because $f_i$ reflects what actually happened (the real dispatch count), not what the router "intended" (the probability). High probability paired with low actual usage produces a small $f_i \cdot P_i$ product, so the loss does not reward the cheating behavior.
+Without the $f_i$ multiplication, the router can assign near-100% softmax probability to one expert on a small number of tokens (inflating that expert's $P_i$) while actually routing most tokens elsewhere. The inflated $P_i$ satisfies the loss, but the actual token distribution remains imbalanced. Multiplying by $f_i$ catches this cheating because $f_i$ reflects what actually happened (the real dispatch count), not what the router "intended" (the probability). High probability paired with low actual usage produces a small $f_i \cdot P_i$ product, so the loss does not reward the cheating behavior.
 :::
 
 ::: {.callout-tip collapse="true" title="Question 6: How does Expert Choice routing achieve perfect load balance?"}
@@ -316,4 +316,4 @@ The most accessible and informative resources on MoE, organized from overviews t
 | 9 | [Fedus et al., "Switch Transformers" (2022)](https://arxiv.org/abs/2101.03961) | The paper that simplified MoE for modern transformers. The auxiliary loss derivation is in Section 2.2. |
 | 10 | [DeepSeek-V3 Technical Report (2024)](https://arxiv.org/abs/2412.19437) | State-of-the-art MoE at scale. Read the architecture section for loss-free balancing. |
 | 11 | [Raschka, LLMs-from-scratch MoE Chapter](https://github.com/rasbt/LLMs-from-scratch/tree/main/ch04/07_moe) | From-scratch PyTorch MoE implementation with KV-cache support. |
-| 12 | [MoE Survey (Cai et al., 2025)](https://arxiv.org/abs/2407.06204) | Taxonomy of MoE in LLMs: gating, experts, training schemes, system design. |
+| 12 | [MoE Survey (Cai et al., IEEE TKDE 2025)](https://arxiv.org/abs/2407.06204) | Taxonomy of MoE in LLMs: gating, experts, training schemes, system design. |
