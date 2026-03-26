@@ -226,7 +226,7 @@ bt -> Alternatives.voting: "pairwise majorities"
 | 1 | [Hunter (2004): MM Algorithms for BT](https://projecteuclid.org/journals/annals-of-statistics/volume-32/issue-1/MM-algorithms-for-generalized-Bradley-Terry-models/10.1214/aos/1079120141.full) | The "Observed Wins = Expected Wins" interpretation. Clear mathematical writing. |
 | 2 | [Brenndoerfer: BT tutorial](https://mbrenndoerfer.com/writing/bradley-terry-model-pairwise-preferences-rankings) | Interactive visual BT tutorial with worked examples. |
 | 3 | [Brenndoerfer: Human Preference Data Collection](https://mbrenndoerfer.com/writing/human-preference-data-collection-rlhf-alignment) | Practical guide to annotation UI, data collection, quality control. |
-| 4 | [LMSYS Chatbot Arena blog (Dec 2023)](https://lmsys.org/blog/2023-12-07-leaderboard/) | Why LMSYS switched from Elo to BT for ranking 90+ LLMs. |
+| 4 | [LMSYS Chatbot Arena blog (Dec 2023)](https://lmsys.org/blog/2023-12-07-leaderboard/) | Why LMSYS switched from Elo to BT for ranking 45+ LLMs from 130K+ votes. |
 | 5 | [Microsoft TrueSkill project page](https://www.microsoft.com/en-us/research/project/trueskill-ranking-system/) | Official TrueSkill documentation and papers. |
 | 6 | [Rafailov et al. (2023): DPO paper](https://arxiv.org/abs/2305.18290) | The complete DPO derivation; Sections 3-4 are essential reading. |
 | 7 | [Ouyang et al. (2022): InstructGPT](https://arxiv.org/abs/2203.02155) | The canonical RLHF pipeline paper. Section 3 and Figure 2. |

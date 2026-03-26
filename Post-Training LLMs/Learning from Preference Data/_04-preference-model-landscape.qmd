@@ -9,8 +9,10 @@
 | 3 | [Luce (1959)](http://www.scholarpedia.org/article/Luce%27s_choice_axiom) | Choice Axiom, IIA |
 | 4 | [McFadden (1974)](https://eml.berkeley.edu/books/choice2nd/Ch03_p34-75.pdf) | Random utility model, conditional logit, Nobel 2000 |
 | 5 | [Plackett-Luce explainer](https://statisticaloddsandends.wordpress.com/2024/04/24/what-is-the-plackett-luce-model/) | PL as sequential choice |
-| 6 | [LMSYS Chatbot Arena (2023)](https://lmsys.org/blog/2023-12-07-leaderboard/) | BT for ranking 90+ LLMs |
+| 6 | [LMSYS Chatbot Arena (2023)](https://lmsys.org/blog/2023-12-07-leaderboard/) | BT for ranking 40+ LLMs from 130K+ votes |
 | 7 | [Ryan (2024)](https://nickcdryan.com) | Copeland and Ranked Pairs outperform Elo for imperfect voters |
+| 8 | [Lanctot et al. (2024), "Soft Condorcet Optimization"](https://arxiv.org/abs/2411.00119) | Differentiable Condorcet criterion; SCO maximal for Condorcet winners |
+| 9 | [Siththaranjan et al. (2023), "Distributional Preference Learning"](https://arxiv.org/abs/2312.08358) | Standard RLHF implicitly uses Borda count aggregation with hidden context |
 
 :::
 
@@ -174,7 +176,7 @@ Two recent studies challenge BT's dominance for crowdsourced evaluation with het
 
 [Ryan (2024)](https://nickcdryan.com) simulated leaderboard rankings with imperfect, heterogeneous voters (different annotators have different skill levels and biases) and found that Copeland and Ranked Pairs **outperform Elo** in recovering the true ranking. The key insight: when voters are noisy and disagree, Condorcet methods' focus on "who beats whom" (ignoring margins) is more robust than BT's attempt to find globally consistent scores.
 
-DeepMind's **Soft Condorcet Optimization** ([Munos et al., arXiv 2411.00119](https://arxiv.org/abs/2411.00119)) goes further, showing that SCO rankings outperform Elo-based rankings for LLM evaluation. Their method optimizes a differentiable relaxation of the Condorcet criterion.
+**Soft Condorcet Optimization** ([Lanctot et al., arXiv 2411.00119](https://arxiv.org/abs/2411.00119)) goes further, optimizing a differentiable relaxation of the Condorcet criterion. In experiments on PrefLib preference profiles and multi-agent game evaluations (including Diplomacy), SCO ratings are maximal for Condorcet winners when they exist, which the authors show is not necessarily true for Elo. While their experiments focus on general agent evaluation rather than LLMs specifically, the result suggests that Condorcet-based methods may be better suited than Elo for settings where preferences are noisy and heterogeneous.
 
 A third, surprising finding from [Siththaranjan et al. (arXiv 2312.08358)](https://arxiv.org/abs/2312.08358): standard RLHF **implicitly uses Borda count aggregation** when the prompt context is hidden from the aggregation step. This hidden Borda aggregation can produce counterintuitive results because Borda is manipulable and ignores preference strength.
 

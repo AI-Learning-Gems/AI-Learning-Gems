@@ -9,7 +9,7 @@
 | 3 | [Christiano et al. (2017)](https://arxiv.org/abs/1706.03741) | Foundational RLHF from trajectory preferences |
 | 4 | [DPO (Rafailov et al. 2023)](https://arxiv.org/abs/2305.18290) | BT-based reward reparameterization; DPO loss |
 | 5 | [Thurstone (1927)](https://en.wikipedia.org/wiki/Law_of_comparative_judgment) | Gaussian noise model; probit formulation |
-| 6 | [LMSYS Chatbot Arena (2023)](https://lmsys.org/blog/2023-12-07-leaderboard/) | BT for ranking 90+ LLMs |
+| 6 | [LMSYS Chatbot Arena (2023)](https://lmsys.org/blog/2023-12-07-leaderboard/) | BT for ranking 45+ LLMs from 130K+ votes |
 
 :::
 
@@ -59,7 +59,7 @@ The story begins in 1927 with **Louis Thurstone**, a psychophysicist studying ho
 
 Two years later, in 1929, the mathematician **Ernst Zermelo** (better known for his contributions to set theory) independently proposed essentially the same model to rank chess players. His formulation used a ratio of "strengths" rather than Gaussian draws, arriving at $P(i \succ j) = \theta_i / (\theta_i + \theta_j)$. This is the formula we now call the Bradley-Terry model, though Zermelo published it 23 years before Bradley and Terry.
 
-In 1952, **Ralph Bradley and Dorothy Terry** formalized Zermelo's model with a rigorous statistical treatment: maximum likelihood estimation, convergence conditions, confidence intervals. Their paper gave the model its name, its practical estimation framework, and its connection to mainstream statistics.
+In 1952, **Ralph Bradley and Dorothy Terry** formalized this model with a rigorous statistical treatment: maximum likelihood estimation, convergence conditions, confidence intervals. Their paper gave the model its name, its practical estimation framework, and its connection to mainstream statistics.
 
 Then in 1959, the mathematical psychologist **R. Duncan Luce** proposed his **Choice Axiom**: the probability of choosing item $a$ from a set $S$ is $u(a) / \sum_{s \in S} u(s)$. For pairwise choices (sets of size 2), this is exactly the BT model. But Luce's formulation was more general. It extends naturally to choices from sets of any size, leading directly to the **Plackett-Luce** model for full rankings.
 

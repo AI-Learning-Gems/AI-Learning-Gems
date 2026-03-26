@@ -59,7 +59,7 @@ $$
 A = \frac{1}{N}\sum_{n=1}^{N} \mathbb{1}\left(R_\theta(x_n, y_w^{(n)}) > R_\theta(x_n, y_l^{(n)})\right)
 $$
 
-A random model achieves 50%. A well-trained reward model for LLM alignment typically achieves 70-80%. Above 80% is excellent. Average test loss is a secondary metric; avoid tracking absolute average reward, which is meaningless due to BT's scale indeterminacy.
+A random model achieves 50%. Average test loss is a secondary metric; avoid tracking absolute average reward, which is meaningless due to BT's scale indeterminacy.
 
 ::: {.callout-warning title="Common Misconception: Higher absolute reward means a better response"}
 Only reward **differences** are meaningful. The BT model has scale indeterminacy: adding a constant to all rewards changes nothing. If $R_\theta(x, y_1) = 5.0$ and $R_\theta(x, y_2) = 3.0$, the model says $y_1$ is preferred. If we add 100 to both ($105.0$ and $103.0$), the preference is identical. Reporting "this response got a reward of 5.0" is meaningless without a reference point. The standard practice is to normalize rewards relative to the SFT model's average: $R'_\theta(y) = R_\theta(y) - \mathbb{E}_{\hat{y} \sim \pi_{SFT}}[R_\theta(\hat{y})]$.
@@ -71,7 +71,7 @@ The full RLHF pipeline, as implemented in InstructGPT ([Ouyang et al., 2022](htt
 
 **Stage 1: Supervised Fine-Tuning (SFT).** Take a pretrained language model and fine-tune it on a curated dataset of high-quality demonstrations (prompt-response pairs). This stage teaches the model the *format* of desired outputs: instruction-following, conversational tone, structured answers. The result is $\pi_{SFT}$.
 
-**Stage 2: Reward Model Training.** Collect human preference data: for each prompt $x$, generate two responses from $\pi_{SFT}$, ask an annotator which they prefer, record $(x, y_w, y_l)$. Train a reward model $R_\theta$ using the BT loss from @eq-rm-loss. InstructGPT used 33K preference comparisons on prompts from their API.
+**Stage 2: Reward Model Training.** Collect human preference data: for each prompt $x$, generate two responses from $\pi_{SFT}$, ask an annotator which they prefer, record $(x, y_w, y_l)$. Train a reward model $R_\theta$ using the BT loss from @eq-rm-loss. InstructGPT collected human-labeled comparisons between model outputs on prompts from the OpenAI API, using a team of 40 contractors ([Ouyang et al., 2022](https://arxiv.org/abs/2203.02155)).
 
 **Stage 3: RL Fine-Tuning via PPO.** Optimize the language model's policy $\pi_\theta$ to maximize the learned reward, subject to a KL divergence penalty that prevents the policy from diverging too far from the SFT model $\pi_{ref} = \pi_{SFT}$ (see @sec-math-background for a review of KL divergence):
 
@@ -79,7 +79,7 @@ $$
 \max_{\pi_\theta} \; \mathbb{E}_{x \sim \mathcal{D}, \; y \sim \pi_\theta(\cdot|x)} \left[R_\phi(x, y)\right] - \beta \cdot D_{KL}\left(\pi_\theta(\cdot|x) \;\|\; \pi_{ref}(\cdot|x)\right)
 $$ {#eq-rlhf-objective}
 
-The KL penalty serves two purposes. First, it prevents **reward hacking**: without the penalty, the policy would find adversarial inputs that exploit flaws in the reward model. As [Lilian Weng](https://lilianweng.github.io/posts/2024-11-28-reward-hacking/) catalogs, reward hacking comes in many forms. The policy might generate excessively long outputs, because longer text tends to receive higher reward. It might mimic the annotator's known biases, such as flattery or agreeing with the user's stated opinion. It might produce text that "games" surface-level patterns in the reward model without being genuinely helpful. In code generation, reward-hacked policies have been observed to modify unit tests rather than fix bugs, because the RM scores "passing tests" highly regardless of *how* they pass.
+The KL penalty serves two purposes. First, it prevents **reward hacking**: without the penalty, the policy would find adversarial inputs that exploit flaws in the reward model. As [Lilian Weng](https://lilianweng.github.io/posts/2024-11-28-reward-hacking/) catalogs, reward hacking comes in many forms. The policy might mimic the annotator's known biases, such as flattery or confirming the user's stated opinions (a phenomenon Weng calls *sycophancy*). It might produce text that "games" surface-level patterns in the reward model without being genuinely helpful. In code generation, reward-hacked policies have been observed to modify unit tests rather than fix bugs, because the RM scores "passing tests" highly regardless of *how* they pass.
 
 Second, the KL penalty maintains generation quality: the SFT model already produces grammatical, coherent text, and we do not want to destroy that by chasing reward too aggressively.
 
@@ -244,7 +244,7 @@ DPO sparked a family of follow-up methods, each modifying different aspects of t
 
 The key point is that **all of these methods are variations on the same BT-derived loss function**. They differ in how they handle regularization (KL penalty vs. explicit margin vs. none), data format (paired vs. unpaired vs. ranked), and architectural simplifications (reference model vs. no reference model). Understanding BT is the foundation for understanding all of them.
 
-[Nathan Lambert's analysis](https://www.interconnects.ai/p/the-dpo-debate) of the "DPO vs. PPO" debate in the open-source community offers a useful practical lesson. Lambert argues that the performance gap between DPO and PPO-based RLHF is driven primarily by **data quality** (e.g., the choice of preference dataset like UltraFeedback) and hyperparameter exploration, not by the optimizer itself. The bottleneck for the open-source community is data and evaluation infrastructure, not algorithms. This finding is a useful reminder: the mathematical elegance of DPO (or any method) matters less than the quality of the preference data you feed it.
+[Nathan Lambert's analysis](https://www.interconnects.ai/p/the-dpo-debate) ("Do we need RL for RLHF?") of the "DPO vs. PPO" debate in the open-source community offers a useful practical lesson. Lambert argues that the performance gap between DPO and PPO-based RLHF is driven primarily by **data quality** (e.g., the choice of preference dataset like UltraFeedback) and hyperparameter exploration, not by the optimizer itself. The bottleneck for the open-source community is data and evaluation infrastructure, not algorithms. This finding is a useful reminder: the mathematical elegance of DPO (or any method) matters less than the quality of the preference data you feed it.
 
 Even in the DPO era, explicit reward models retain value. As [Lambert argues separately](https://www.interconnects.ai/p/why-reward-models-matter), RMs serve as **auditing tools** for understanding LLM representations. We still lack basic understanding of RM properties. For example, how does the reward change as the model generates each successive token? Explicit RMs give you something to inspect; DPO's implicit reward is harder to analyze. For teams that need to understand *why* their model prefers certain outputs, training an explicit RM alongside DPO can be valuable for interpretability, even if that RM is not used for PPO training.
 

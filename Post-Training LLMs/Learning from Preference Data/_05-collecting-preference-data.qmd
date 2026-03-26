@@ -8,7 +8,7 @@
 | 2 | [Lilian Weng, "Thinking about High-Quality Human Data" (2024)](https://lilianweng.github.io/posts/2024-02-05-human-data-quality/) | Annotator management, task design, wisdom of crowds, quality assurance |
 | 3 | Existing: `Bradley-Terry Model Explained - Derivations.md` | Circulant tournament, adaptive sampling |
 | 4 | Existing: `TrueSkill.md` | Batch selection, diverse batch algorithm |
-| 5 | [arXiv 2305.20042](https://dl.acm.org/doi/10.1145/3610183) | Pairwise comparisons reduce bias, $O(N \log N)$ scaling |
+| 5 | [Narimanzadeh et al. (2023)](https://dl.acm.org/doi/10.1145/3610183) | Pairwise comparisons reduce bias, $O(N \log N)$ scaling |
 | 6 | [arXiv 2404.13895](https://arxiv.org/abs/2404.13895) | Optimal design for preference elicitation |
 
 :::
@@ -21,7 +21,7 @@ Before getting into experiment design, we need to understand *why* pairwise comp
 
 **Cognitive load.** Absolute judgments are cognitively expensive. The annotator must hold a mental reference point ("what does a '4' sound like?") while evaluating each sample. Relative judgments are easier: "A or B? B." Done.
 
-**Statistical efficiency.** A 2023 study on crowdsourcing ([Shah & Wainwright, arXiv 2305.20042](https://dl.acm.org/doi/10.1145/3610183)) showed that pairwise comparisons reduce bias compared to majority-vote absolute ratings and achieve the same ranking accuracy with $O(N \log N)$ pairwise labels versus $O(N)$ absolute labels per item. The constant factor favors pairwise comparisons because each pairwise label is more informative.
+**Statistical efficiency.** [Narimanzadeh et al. (2023)](https://dl.acm.org/doi/10.1145/3610183) showed that pairwise comparisons reduce bias compared to majority-vote absolute ratings and achieve the same classification accuracy with $O(N \log N)$ pairwise labels versus $O(N)$ absolute labels per item. The constant factor favors pairwise comparisons because each pairwise label is more informative.
 
 The downside is cost: $\binom{C}{2}$ possible pairs grows quadratically. For $C = 20$ TTS engines, there are 190 unique pairs. If we test 5 input texts per pair and want 3 annotators per comparison, that is $190 \times 5 \times 3 = 2{,}850$ annotations. This quadratic scaling is where experimental design becomes critical.
 
