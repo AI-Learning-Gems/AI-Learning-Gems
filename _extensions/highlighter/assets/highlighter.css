@@ -130,10 +130,23 @@ body.quarto-dark {
   transform: translateY(0);
 }
 
-/* When highlighter is active, tint the FAB */
+/* When highlighter is active, tint the FAB and show active color ring */
 #highlighter-fab.active {
   background: var(--hl-fab-hover);
   box-shadow: var(--hl-shadow-lg), 0 0 0 4px var(--hl-fab-glow);
+}
+
+#highlighter-fab.active::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--hl-fab-active-color, #fef08a);
+  border: 2px solid var(--hl-surface);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
 /* Hide FAB when chat sidebar is open (keep it out of the way) */
@@ -205,6 +218,21 @@ body.chat-open #highlighter-fab {
 .hl-icon-btn:hover {
   background: var(--hl-surface-hover);
   color: var(--hl-text);
+}
+
+.hl-off-btn {
+  color: var(--hl-text-secondary);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.hl-off-btn:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+}
+
+body.quarto-dark .hl-off-btn:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
 }
 
 /* ---------- Color Swatches Row ---------- */
@@ -436,12 +464,29 @@ body.highlighter-active #quarto-document-content,
 body.highlighter-active main.content,
 body.highlighter-active main {
   cursor: crosshair;
+  touch-action: manipulation;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Apple Pencil hover: subtle preview of highlight color on paragraph hover */
+@media (hover: hover) and (pointer: fine) {
+  body.highlighter-active p:hover,
+  body.highlighter-active li:hover,
+  body.highlighter-active td:hover,
+  body.highlighter-active dt:hover,
+  body.highlighter-active dd:hover {
+    background: rgba(254, 240, 138, 0.15);
+    border-radius: 3px;
+    transition: background 0.15s ease;
+  }
 }
 
 body.highlighter-eraser #quarto-document-content,
 body.highlighter-eraser main.content,
 body.highlighter-eraser main {
   cursor: not-allowed;
+  touch-action: manipulation;
 }
 
 /* ============================================================
@@ -482,6 +527,26 @@ body.highlighter-eraser main {
   transition: border-color 0.15s ease;
 }
 
+/* iPad: position to the right with left-pointing arrow */
+.hl-popup.popup-side {
+  transform: translateY(-50%) translateX(8px);
+}
+
+.hl-popup.popup-side.visible {
+  transform: translateY(-50%) translateX(12px);
+}
+
+.hl-popup.popup-side::after {
+  bottom: auto;
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+  border-right: none;
+  border-bottom: none;
+  border-left: 1px solid var(--hl-border);
+  border-top: 1px solid var(--hl-border);
+}
+
 /* Colored border + glow when hovering Ask AI */
 .hl-popup:has(.hl-popup-ask:hover) {
   border-color: #2780e3;
@@ -491,6 +556,8 @@ body.highlighter-eraser main {
 .hl-popup:has(.hl-popup-ask:hover)::after {
   border-right-color: #2780e3;
   border-bottom-color: #2780e3;
+  border-left-color: #2780e3;
+  border-top-color: #2780e3;
 }
 
 /* Colored border + glow when hovering Erase */
@@ -502,6 +569,8 @@ body.highlighter-eraser main {
 .hl-popup:has(.hl-popup-erase:hover)::after {
   border-right-color: #ef4444;
   border-bottom-color: #ef4444;
+  border-left-color: #ef4444;
+  border-top-color: #ef4444;
 }
 
 body.quarto-dark .hl-popup:has(.hl-popup-ask:hover) {
@@ -512,6 +581,8 @@ body.quarto-dark .hl-popup:has(.hl-popup-ask:hover) {
 body.quarto-dark .hl-popup:has(.hl-popup-ask:hover)::after {
   border-right-color: #4da3ff;
   border-bottom-color: #4da3ff;
+  border-left-color: #4da3ff;
+  border-top-color: #4da3ff;
 }
 
 body.quarto-dark .hl-popup:has(.hl-popup-erase:hover) {
@@ -522,6 +593,8 @@ body.quarto-dark .hl-popup:has(.hl-popup-erase:hover) {
 body.quarto-dark .hl-popup:has(.hl-popup-erase:hover)::after {
   border-right-color: #f87171;
   border-bottom-color: #f87171;
+  border-left-color: #f87171;
+  border-top-color: #f87171;
 }
 
 .hl-popup-btn {
@@ -586,6 +659,20 @@ body.highlighter-eraser #ask-ai-btn {
 /* ============================================================
    MOBILE: hide the toolbar on very small screens
    ============================================================ */
+/* ============================================================
+   MOBILE: adjust for touch screens
+   ============================================================ */
+@media (pointer: coarse) {
+  .hl-popup-btn {
+    padding: 12px 20px;
+    font-size: 0.85rem;
+  }
+
+  .hl-popup-divider {
+    height: 24px;
+  }
+}
+
 @media (max-width: 480px) {
   .highlighter-toolbar {
     right: 12px;

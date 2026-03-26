@@ -27,7 +27,7 @@ function initHighlighter() {
 
     var fab = document.getElementById("highlighter-fab");
     var toolbar = document.getElementById("highlighter-toolbar");
-    var closeBtn = document.getElementById("hl-close-btn");
+    var offBtn = document.getElementById("hl-off-btn");
     var eraserBtn = document.getElementById("hl-eraser-btn");
     var clearAllBtn = document.getElementById("hl-clear-all-btn");
     var clearConfirmRow = document.getElementById("hl-clear-confirm-row");
@@ -142,12 +142,17 @@ function initHighlighter() {
 
         popupHighlightId = id;
         var rect = wrapNode.getBoundingClientRect();
-        var centerX = rect.left + rect.width / 2;
-        var topY = rect.top;
 
         if (hlPopup) {
-            hlPopup.style.left = centerX + "px";
-            hlPopup.style.top = topY + "px";
+            if (isTouchDevice) {
+                hlPopup.classList.add("popup-side");
+                hlPopup.style.left = rect.right + "px";
+                hlPopup.style.top = (rect.top + rect.height / 2) + "px";
+            } else {
+                hlPopup.classList.remove("popup-side");
+                hlPopup.style.left = (rect.left + rect.width / 2) + "px";
+                hlPopup.style.top = rect.top + "px";
+            }
             hlPopup.classList.add("visible");
         }
     });
@@ -220,18 +225,25 @@ function initHighlighter() {
 
     restoreHighlights();
 
-    // ── FAB click: toggle toolbar ───────────────────────────────────
+    // ── FAB click: toggle toolbar visibility ────────────────────────
 
     fab.addEventListener("click", function () {
         if (toolbar.classList.contains("hidden")) {
-            openToolbar();
+            if (isActive) {
+                toolbar.classList.remove("hidden");
+                updateCount();
+            } else {
+                openToolbar();
+            }
         } else {
-            closeToolbar();
+            hideToolbar();
         }
     });
 
-    if (closeBtn) {
-        closeBtn.addEventListener("click", closeToolbar);
+    // ── Off button: deactivate highlighter entirely ──────────────
+
+    if (offBtn) {
+        offBtn.addEventListener("click", deactivateHighlighter);
     }
 
     // ── Color swatches ──────────────────────────────────────────────
@@ -244,6 +256,10 @@ function initHighlighter() {
             swatch.classList.add("active");
             setEraserMode(false);
             updateHighlightButtonColor();
+            updateFabColorDot();
+            if (isTouchDevice) {
+                hideToolbar();
+            }
         });
     });
 
@@ -286,19 +302,98 @@ function initHighlighter() {
         clearCancelBtn.addEventListener("click", hideClearConfirm);
     }
 
-    // ── Keyboard shortcut: Escape closes toolbar ────────────────────
+    // ── Keyboard shortcut: Escape hides toolbar ────────────────────
 
     document.addEventListener("keydown", function (e) {
         if (e.key === "Escape") {
             hidePopup();
-            if (isActive) closeToolbar();
+            if (!toolbar.classList.contains("hidden")) {
+                hideToolbar();
+            }
         }
+    });
+
+    // ── Click outside toolbar: hide it on desktop (iPad uses FAB toggle) ──
+
+    document.addEventListener("mousedown", function (e) {
+        if (toolbar.classList.contains("hidden")) return;
+        if (toolbar.contains(e.target)) return;
+        if (fab.contains(e.target)) return;
+        hideToolbar();
     });
 
     // ── Helper functions ────────────────────────────────────────────
 
     var isTouchDevice = ('ontouchend' in document) || (navigator.maxTouchPoints > 0);
     var hlSelectionTimer = null;
+
+    // ── iPad fix: disable double-tap zoom (preserves pinch-to-zoom) ──
+    if (isTouchDevice) {
+        document.addEventListener("dblclick", function (e) {
+            if (!e.target.closest("#highlighter-container") && !e.target.closest("#gemini-chat-container")) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+    }
+
+    // ── Apple Pencil support ────────────────────────────────────────
+    // Philosophy: Apple Pencil = reading/highlighting tool, Finger = navigation.
+    // Pen input NEVER scrolls the page. Finger input always scrolls normally.
+    var lastPointerWasPen = false;
+    var penIsDown = false;
+
+    if (isTouchDevice) {
+        contentRoot.addEventListener("pointerdown", function (e) {
+            lastPointerWasPen = (e.pointerType === "pen");
+            if (e.pointerType === "pen") penIsDown = true;
+        }, { capture: true });
+
+        contentRoot.addEventListener("pointerup", function (e) {
+            if (e.pointerType === "pen") {
+                penIsDown = false;
+                if (isActive && !isEraser) {
+                    onPenSelectionEnd();
+                }
+            }
+        }, { capture: true });
+
+        contentRoot.addEventListener("pointercancel", function (e) {
+            if (e.pointerType === "pen") penIsDown = false;
+        }, { capture: true });
+
+        // Always prevent pen from scrolling (regardless of toolbar state)
+        contentRoot.addEventListener("touchstart", function (e) {
+            if (lastPointerWasPen) {
+                e.preventDefault();
+            }
+        }, { passive: false, capture: false });
+
+        contentRoot.addEventListener("touchmove", function (e) {
+            if (lastPointerWasPen) {
+                e.preventDefault();
+            }
+        }, { passive: false, capture: false });
+
+        // Fix Scribble stealing pointer events during active highlighting
+        contentRoot.addEventListener("pointermove", function (e) {
+            if (e.pointerType === "pen" && isActive && !isEraser) {
+                e.stopPropagation();
+            }
+        }, { capture: true });
+    }
+
+    // Instant highlight on Apple Pencil lift (skip the 600ms debounce)
+    function onPenSelectionEnd() {
+        var sel = window.getSelection();
+        if (!sel || sel.isCollapsed) return;
+        var text = sel.toString().trim();
+        if (text.length < 2) return;
+        try {
+            highlighter.fromRange(sel.getRangeAt(0));
+        } catch (err) {
+            console.warn("Pen highlight failed:", err);
+        }
+    }
 
     function openToolbar() {
         toolbar.classList.remove("hidden");
@@ -307,10 +402,17 @@ function initHighlighter() {
         document.body.classList.add("highlighter-active");
         highlighter.run();
         startTouchSelectionListener();
+        if (isTouchDevice) contentRoot.setAttribute("data-gramm", "false");
         updateCount();
+        updateFabColorDot();
     }
 
-    function closeToolbar() {
+    function hideToolbar() {
+        toolbar.classList.add("hidden");
+        hideClearConfirm();
+    }
+
+    function deactivateHighlighter() {
         toolbar.classList.add("hidden");
         fab.classList.remove("active");
         isActive = false;
@@ -321,6 +423,19 @@ function initHighlighter() {
         hideClearConfirm();
         highlighter.stop();
         stopTouchSelectionListener();
+        if (isTouchDevice) contentRoot.removeAttribute("data-gramm");
+        fab.style.removeProperty("--hl-fab-active-color");
+    }
+
+    function updateFabColorDot() {
+        var swatchColors = {
+            "hl-yellow": "#fef08a", "hl-green": "#bbf7d0", "hl-coral": "#fca5a5",
+            "hl-blue": "#bfdbfe", "hl-peach": "#fde2c8", "hl-gold": "#fcd34d",
+            "hl-emerald": "#86efac", "hl-crimson": "#f87171", "hl-sky": "#93c5fd",
+            "hl-amber": "#fdba74", "hl-lavender": "#e0d4f5", "hl-lime": "#d9f99d",
+            "hl-silver": "#e2e8f0", "hl-teal": "#b2f0ea", "hl-fuchsia": "#f0abfc"
+        };
+        fab.style.setProperty("--hl-fab-active-color", swatchColors[activeColor] || "#fef08a");
     }
 
     function onTouchSelectionChange() {
@@ -450,14 +565,28 @@ function initHighlighter() {
             var askAiPopup = document.getElementById("ask-ai-btn");
             if (askAiPopup) askAiPopup.classList.remove("visible");
 
-            var sel = window.getSelection();
-            if (!sel || sel.isCollapsed) return;
+            var range = window.__savedSelectionRange || null;
+            if (!range) {
+                var sel = window.getSelection();
+                if (sel && !sel.isCollapsed) {
+                    try { range = sel.getRangeAt(0); } catch (err) { }
+                }
+            }
+            if (!range) return;
 
             highlighter.run();
-            highlighter.fromRange(sel.getRangeAt(0));
+            try {
+                highlighter.fromRange(range);
+            } catch (err) {
+                console.warn("Highlight from range failed:", err);
+            }
             if (!isActive) {
                 highlighter.stop();
             }
+
+            var sel2 = window.getSelection();
+            if (sel2) sel2.removeAllRanges();
+            window.__savedSelectionRange = null;
         });
     }
 }

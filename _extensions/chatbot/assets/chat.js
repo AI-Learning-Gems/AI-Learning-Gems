@@ -602,6 +602,27 @@ function initChat() {
     var isTouchDevice = ('ontouchend' in document) || (navigator.maxTouchPoints > 0);
     var selectionEndTimer = null;
 
+    // On touch devices, add popup-side class for right-side positioning
+    if (isTouchDevice && askAiBtn) {
+        askAiBtn.classList.add("popup-side");
+    }
+
+    function positionAskAiPopup(rect) {
+        if (!askAiBtn) return;
+        var sel = window.getSelection();
+        if (sel && !sel.isCollapsed) {
+            try { window.__savedSelectionRange = sel.getRangeAt(0).cloneRange(); } catch (e) { }
+        }
+        if (isTouchDevice) {
+            askAiBtn.style.left = rect.right + "px";
+            askAiBtn.style.top = (rect.top + rect.height / 2) + "px";
+        } else {
+            askAiBtn.style.top = rect.top - 10 + "px";
+            askAiBtn.style.left = (rect.left + rect.width / 2) + "px";
+        }
+        askAiBtn.classList.add("visible");
+    }
+
     document.addEventListener("mouseup", (e) => {
         if (sidebar.contains(e.target) || (fab && fab.contains(e.target)) || (askAiBtn && askAiBtn.contains(e.target))) return;
         const sel = window.getSelection();
@@ -609,7 +630,7 @@ function initChat() {
         const isSidebarOpen = !sidebar.classList.contains("hidden");
         if (text.length > 5) {
             if (isSidebarOpen) { currentSelection = text; updateSelectionUI(currentSelection); if (askAiBtn) askAiBtn.classList.remove("visible"); }
-            else if (askAiBtn) { const range = sel.getRangeAt(0); const rect = range.getBoundingClientRect(); askAiBtn.style.top = rect.top - 10 + "px"; askAiBtn.style.left = (rect.left + rect.width / 2) + "px"; askAiBtn.classList.add("visible"); }
+            else if (askAiBtn) { const range = sel.getRangeAt(0); const rect = range.getBoundingClientRect(); positionAskAiPopup(rect); }
         } else { if (askAiBtn) askAiBtn.classList.remove("visible"); }
     });
 
@@ -635,9 +656,7 @@ function initChat() {
                         var range = sel.getRangeAt(0);
                         var rect = range.getBoundingClientRect();
                         if (rect.width === 0 && rect.height === 0) return;
-                        askAiBtn.style.top = rect.top - 10 + "px";
-                        askAiBtn.style.left = (rect.left + rect.width / 2) + "px";
-                        askAiBtn.classList.add("visible");
+                        positionAskAiPopup(rect);
                     } catch (e) { }
                 }
             }, 600);

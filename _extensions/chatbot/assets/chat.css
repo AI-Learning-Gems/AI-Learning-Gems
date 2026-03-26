@@ -838,6 +838,26 @@ body.chat-open #gemini-chat-fab {
   transform: translate(-50%, calc(-100% - 4px));
 }
 
+/* iPad: position to the right with left-pointing arrow */
+#ask-ai-btn.popup-side {
+  transform: translateY(-50%) translateX(8px);
+}
+
+#ask-ai-btn.popup-side.visible {
+  transform: translateY(-50%) translateX(12px);
+}
+
+#ask-ai-btn.popup-side::after {
+  bottom: auto;
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+  border-right: none;
+  border-bottom: none;
+  border-left: 1px solid var(--chat-border);
+  border-top: 1px solid var(--chat-border);
+}
+
 .ask-ai-popup-btn {
   background: none;
   border: none;
@@ -886,6 +906,8 @@ body.chat-open #gemini-chat-fab {
 #ask-ai-btn:has(.ask-ai-popup-ask:hover)::after {
   border-right-color: #2780e3;
   border-bottom-color: #2780e3;
+  border-left-color: #2780e3;
+  border-top-color: #2780e3;
 }
 
 /* Colored border when hovering Highlight (color set dynamically by JS) */
@@ -897,6 +919,8 @@ body.chat-open #gemini-chat-fab {
 #ask-ai-btn:has(.ask-ai-popup-highlight:hover)::after {
   border-right-color: var(--hl-popup-accent, #eab308);
   border-bottom-color: var(--hl-popup-accent, #eab308);
+  border-left-color: var(--hl-popup-accent, #eab308);
+  border-top-color: var(--hl-popup-accent, #eab308);
 }
 
 body.quarto-dark .ask-ai-popup-ask:hover {
@@ -912,6 +936,22 @@ body.quarto-dark #ask-ai-btn:has(.ask-ai-popup-ask:hover) {
 body.quarto-dark #ask-ai-btn:has(.ask-ai-popup-ask:hover)::after {
   border-right-color: #4da3ff;
   border-bottom-color: #4da3ff;
+  border-left-color: #4da3ff;
+  border-top-color: #4da3ff;
+}
+
+/* ============================================================
+   TOUCH DEVICES: larger tap targets for Ask AI popup
+   ============================================================ */
+@media (pointer: coarse) {
+  .ask-ai-popup-btn {
+    padding: 12px 20px;
+    font-size: 0.85rem;
+  }
+
+  .ask-ai-popup-divider {
+    height: 24px;
+  }
 }
 
 /* ============================================================
