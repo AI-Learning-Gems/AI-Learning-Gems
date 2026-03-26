@@ -1,0 +1,10 @@
+title: Highlighter
+author: AI Learning Gems
+version: 1.0.0
+contributes:
+  format:
+    html:
+      css: assets/highlighter.css
+      include-after-body:
+        - include-after.html
+        - assets/highlighter-loader.html

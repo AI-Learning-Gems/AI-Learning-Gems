@@ -1,0 +1,20 @@
+<!-- web-highlighter library: UMD build exposes global `Highlighter` -->
+<script src="https://unpkg.com/web-highlighter@0.7.4/dist/web-highlighter.min.js"
+    crossorigin="anonymous"></script>
+
+<!-- Load highlighter.js: derive path from the CSS link Quarto already generated -->
+<script>
+(function() {
+    var cssLink = document.querySelector('link[href*="highlighter/assets/highlighter.css"]');
+    if (cssLink) {
+        var jsPath = cssLink.getAttribute("href").replace("highlighter.css", "highlighter.js");
+        var s = document.createElement("script");
+        s.src = jsPath;
+        document.body.appendChild(s);
+    } else {
+        var s = document.createElement("script");
+        s.src = "_extensions/highlighter/assets/highlighter.js";
+        document.body.appendChild(s);
+    }
+})();
+</script>

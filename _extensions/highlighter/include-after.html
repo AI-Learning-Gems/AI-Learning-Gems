@@ -1,0 +1,44 @@
+<!-- Highlighter Toolbar Container -->
+<div id="highlighter-container">
+  <!-- Floating Action Button (above the chatbot FAB) -->
+  <button id="highlighter-fab" aria-label="Open Highlighter" data-tooltip="Highlight text">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 20h9"></path>
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path>
+    </svg>
+  </button>
+
+  <!-- Toolbar panel (hidden by default) -->
+  <div id="highlighter-toolbar" class="highlighter-toolbar hidden">
+    <div class="hl-toolbar-header">
+      <span class="hl-toolbar-title">Highlighter</span>
+      <button id="hl-close-btn" class="hl-icon-btn" aria-label="Close highlighter">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="hl-color-row">
+      <button class="hl-color-swatch active" data-color="hl-yellow" aria-label="Yellow" style="--swatch-color: #fef08a; --swatch-border: #eab308;"></button>
+      <button class="hl-color-swatch" data-color="hl-green" aria-label="Green" style="--swatch-color: #bbf7d0; --swatch-border: #22c55e;"></button>
+      <button class="hl-color-swatch" data-color="hl-blue" aria-label="Blue" style="--swatch-color: #bfdbfe; --swatch-border: #3b82f6;"></button>
+      <button class="hl-color-swatch" data-color="hl-pink" aria-label="Pink" style="--swatch-color: #fbcfe8; --swatch-border: #ec4899;"></button>
+      <button class="hl-color-swatch" data-color="hl-orange" aria-label="Orange" style="--swatch-color: #fed7aa; --swatch-border: #f97316;"></button>
+
+      <span class="hl-separator"></span>
+
+      <button id="hl-eraser-btn" class="hl-tool-btn" aria-label="Eraser mode" title="Click a highlight to remove it">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 20H7L3 16l9.5-9.5a2.83 2.83 0 0 1 4 0l3 3a2.83 2.83 0 0 1 0 4L11 22"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="hl-actions-row">
+      <button id="hl-clear-all-btn" class="hl-action-btn">Clear all</button>
+      <span class="hl-count" id="hl-count">0 highlights</span>
+    </div>
+  </div>
+</div>

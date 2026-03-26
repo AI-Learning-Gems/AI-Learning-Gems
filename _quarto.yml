@@ -8,6 +8,7 @@ project:
   post-render:
     - scripts/clean-render-artifacts.sh
     - scripts/build-chat.sh
+    - scripts/build-highlighter.sh
   preview:
     port: 4200
 
@@ -45,10 +46,14 @@ format:
     include-in-header:
       - _extensions/chatbot/assets/csp-header.html
     include-after-body:
+      - _extensions/highlighter/include-after.html
+      - _extensions/highlighter/assets/highlighter-loader.html
       - _extensions/chatbot/include-after.html
       - _extensions/chatbot/assets/chat-script-loader.html
       - _extensions/lightbox-fix.html
-    css: _extensions/chatbot/assets/chat.css
+    css:
+      - _extensions/highlighter/assets/highlighter.css
+      - _extensions/chatbot/assets/chat.css
     out-width: "95%"
 
 execute:
@@ -58,3 +63,4 @@ filters:
   - pandoc-ext/diagram
   - exercises
   - chatbot
+  - highlighter

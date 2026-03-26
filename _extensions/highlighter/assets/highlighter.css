@@ -1,0 +1,378 @@
+/* ============================================================
+   Text Highlighter Extension — Styles
+   ============================================================
+   Design: matches the chatbot extension's visual language
+   (cosmo theme palette, rounded corners, shadows, dark mode).
+   ============================================================ */
+
+/* ---------- CSS Custom Properties ---------- */
+:root {
+  --hl-surface: #ffffff;
+  --hl-surface-alt: #f8f9fb;
+  --hl-surface-hover: #f0f2f5;
+  --hl-text: #1d2939;
+  --hl-text-secondary: #667085;
+  --hl-border: #e4e7ec;
+  --hl-shadow-md: 0 4px 8px -2px rgba(16, 24, 40, 0.08), 0 2px 4px -2px rgba(16, 24, 40, 0.04);
+  --hl-shadow-lg: 0 12px 24px -4px rgba(16, 24, 40, 0.1), 0 8px 16px -6px rgba(16, 24, 40, 0.06);
+  --hl-radius: 12px;
+  --hl-radius-sm: 8px;
+  --hl-radius-xs: 6px;
+
+  --hl-fab-color: #8b5cf6;
+  --hl-fab-hover: #7c3aed;
+  --hl-fab-glow: rgba(139, 92, 246, 0.35);
+}
+
+body.quarto-dark {
+  --hl-surface: #1c1e26;
+  --hl-surface-alt: #252830;
+  --hl-surface-hover: #2d3039;
+  --hl-text: #eaecf0;
+  --hl-text-secondary: #98a2b3;
+  --hl-border: #333741;
+  --hl-shadow-md: 0 4px 8px rgba(0, 0, 0, 0.24);
+  --hl-shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.32);
+  --hl-fab-color: #a78bfa;
+  --hl-fab-hover: #8b5cf6;
+  --hl-fab-glow: rgba(167, 139, 250, 0.3);
+}
+
+/* ============================================================
+   CONTAINER
+   ============================================================ */
+#highlighter-container {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  z-index: 9998;
+}
+
+/* ============================================================
+   FAB (Floating Action Button) — above the chatbot FAB
+   ============================================================ */
+#highlighter-fab {
+  position: fixed;
+  bottom: 88px;
+  right: 24px;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: var(--hl-fab-color);
+  color: white;
+  border: none;
+  box-shadow:
+    var(--hl-shadow-lg),
+    0 0 0 0 var(--hl-fab-glow);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9989;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.25s ease,
+    border-radius 0.3s ease;
+  animation: hlFabPulse 2s ease-in-out 1.5s 3;
+}
+
+@keyframes hlFabPulse {
+  0%, 100% {
+    box-shadow:
+      var(--hl-shadow-lg),
+      0 0 0 0 var(--hl-fab-glow);
+  }
+  50% {
+    box-shadow:
+      var(--hl-shadow-lg),
+      0 0 0 10px rgba(139, 92, 246, 0);
+  }
+}
+
+#highlighter-fab:hover {
+  transform: scale(1.08);
+  box-shadow: var(--hl-shadow-lg), 0 0 0 6px var(--hl-fab-glow);
+  border-radius: 18px;
+}
+
+#highlighter-fab:active {
+  transform: scale(0.95);
+}
+
+#highlighter-fab svg {
+  width: 22px;
+  height: 22px;
+  transition: transform 0.2s ease;
+}
+
+#highlighter-fab:hover svg {
+  transform: scale(1.05);
+}
+
+#highlighter-fab[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  background: var(--hl-text);
+  color: var(--hl-surface);
+  padding: 4px 10px;
+  border-radius: var(--hl-radius-xs);
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#highlighter-fab[data-tooltip]:hover::before {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* When highlighter is active, tint the FAB */
+#highlighter-fab.active {
+  background: var(--hl-fab-hover);
+  box-shadow: var(--hl-shadow-lg), 0 0 0 4px var(--hl-fab-glow);
+}
+
+/* Hide FAB when chat sidebar is open (keep it out of the way) */
+body.chat-open #highlighter-fab {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.8);
+  transition: opacity 0.2s ease, transform 0.25s ease;
+}
+
+/* ============================================================
+   TOOLBAR PANEL
+   ============================================================ */
+.highlighter-toolbar {
+  position: fixed;
+  bottom: 88px;
+  right: 80px;
+  background: var(--hl-surface);
+  border: 1px solid var(--hl-border);
+  border-radius: var(--hl-radius);
+  box-shadow: var(--hl-shadow-lg);
+  padding: 10px 12px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 220px;
+
+  transform: scale(1);
+  opacity: 1;
+  transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.15s ease;
+  transform-origin: bottom right;
+}
+
+.highlighter-toolbar.hidden {
+  transform: scale(0.9);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---------- Toolbar Header ---------- */
+.hl-toolbar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hl-toolbar-title {
+  font-weight: 650;
+  font-size: 0.82rem;
+  color: var(--hl-text);
+  letter-spacing: -0.01em;
+}
+
+.hl-icon-btn {
+  background: none;
+  border: none;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--hl-radius-xs);
+  cursor: pointer;
+  color: var(--hl-text-secondary);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.hl-icon-btn:hover {
+  background: var(--hl-surface-hover);
+  color: var(--hl-text);
+}
+
+/* ---------- Color Swatches Row ---------- */
+.hl-color-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hl-color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--swatch-color);
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.hl-color-swatch:hover {
+  transform: scale(1.15);
+}
+
+.hl-color-swatch.active {
+  border-color: var(--swatch-border);
+  box-shadow: 0 0 0 2px var(--swatch-color);
+}
+
+.hl-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--hl-border);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+.hl-tool-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--hl-radius-xs);
+  border: 1px solid var(--hl-border);
+  background: var(--hl-surface);
+  color: var(--hl-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.hl-tool-btn:hover {
+  background: var(--hl-surface-hover);
+  color: var(--hl-text);
+}
+
+.hl-tool-btn.active {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #dc2626;
+}
+
+body.quarto-dark .hl-tool-btn.active {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+/* ---------- Actions Row ---------- */
+.hl-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+  border-top: 1px solid var(--hl-border);
+}
+
+.hl-action-btn {
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: 1px solid var(--hl-border);
+  border-radius: var(--hl-radius-xs);
+  background: var(--hl-surface);
+  color: var(--hl-text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.hl-action-btn:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+body.quarto-dark .hl-action-btn:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+}
+
+.hl-count {
+  font-size: 0.7rem;
+  color: var(--hl-text-secondary);
+  opacity: 0.7;
+}
+
+/* ============================================================
+   HIGHLIGHT COLORS — applied to web-highlighter <span> wrappers
+   ============================================================ */
+.highlight-mengshou-wrap {
+  background: rgba(254, 240, 138, 0.6) !important;
+  border-radius: 2px;
+  transition: background 0.15s ease;
+}
+
+.highlight-mengshou-wrap.hl-yellow { background: rgba(254, 240, 138, 0.6) !important; }
+.highlight-mengshou-wrap.hl-green  { background: rgba(187, 247, 208, 0.6) !important; }
+.highlight-mengshou-wrap.hl-blue   { background: rgba(191, 219, 254, 0.6) !important; }
+.highlight-mengshou-wrap.hl-pink   { background: rgba(251, 207, 232, 0.6) !important; }
+.highlight-mengshou-wrap.hl-orange { background: rgba(254, 215, 170, 0.6) !important; }
+
+/* Dark mode: slightly brighter / more opaque */
+body.quarto-dark .highlight-mengshou-wrap.hl-yellow { background: rgba(250, 204, 21, 0.3) !important; }
+body.quarto-dark .highlight-mengshou-wrap.hl-green  { background: rgba(34, 197, 94, 0.25) !important; }
+body.quarto-dark .highlight-mengshou-wrap.hl-blue   { background: rgba(59, 130, 246, 0.25) !important; }
+body.quarto-dark .highlight-mengshou-wrap.hl-pink   { background: rgba(236, 72, 153, 0.25) !important; }
+body.quarto-dark .highlight-mengshou-wrap.hl-orange { background: rgba(249, 115, 22, 0.25) !important; }
+body.quarto-dark .highlight-mengshou-wrap            { background: rgba(250, 204, 21, 0.3) !important; }
+
+/* Hover effect on highlights in eraser mode */
+body.highlighter-eraser .highlight-mengshou-wrap:hover {
+  opacity: 0.4;
+  cursor: pointer;
+}
+
+/* ============================================================
+   CURSOR — when highlighter mode is active
+   ============================================================ */
+body.highlighter-active #quarto-document-content,
+body.highlighter-active main.content,
+body.highlighter-active main {
+  cursor: crosshair;
+}
+
+body.highlighter-eraser #quarto-document-content,
+body.highlighter-eraser main.content,
+body.highlighter-eraser main {
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   SUPPRESS "Ask AI" button when highlighter is active
+   ============================================================ */
+body.highlighter-active #ask-ai-btn,
+body.highlighter-eraser #ask-ai-btn {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+/* ============================================================
+   MOBILE: hide the toolbar on very small screens
+   ============================================================ */
+@media (max-width: 480px) {
+  .highlighter-toolbar {
+    right: 12px;
+    bottom: 80px;
+    min-width: 200px;
+  }
+}
