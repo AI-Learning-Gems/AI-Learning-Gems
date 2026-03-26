@@ -62,7 +62,7 @@ The most practical approach is a **circulant tournament design**. Arrange the $C
 - The comparison graph is connected with short paths (robust)
 - If each pair is annotated with 5 texts and 3 raters: $40 \times 5 \times 3 = 600$ annotations
 
-**The minimum requirement** is that the comparison graph be connected ($C - 1 = 19$ edges for a spanning tree). But a spanning tree is fragile: a single noisy comparison can corrupt the entire ranking. The circulant design with $k \geq 2$ provides redundancy.
+**The minimum requirement** is that the comparison graph be connected ($C - 1 = 19$ edges for a spanning tree). But a spanning tree is fragile: a single noisy comparison can corrupt the entire ranking. The circulant design with $k \geq 2$ provides redundancy. The theoretical optimality of balanced, diverse designs has been formalized by [Mukherjee et al. (2024)](https://arxiv.org/abs/2404.13895), who show that the most informative distribution over comparisons minimizes the worst-case prediction error, a result grounded in optimal experimental design theory (the Kiefer-Wolfowitz theorem).
 
 ::: {.exercise-mcq correct="C"}
 
@@ -133,17 +133,42 @@ Adaptive pair selection focuses on uncertain pairs, which are typically pairs th
 
 ### Building the Annotation Interface
 
-The annotation UI has a large effect on data quality. Small design choices compound over thousands of annotations.
+The annotation UI has a large effect on data quality. Think of it as a measuring instrument: a thermometer that reads one degree too high does not become more accurate with repeated measurements. Similarly, an interface that systematically biases annotators toward longer responses produces biased data no matter how many annotations you collect. The following design principles, drawn from [Brenndoerfer's practical guide](https://mbrenndoerfer.com/writing/human-preference-data-collection-rlhf-alignment), address the most common failure modes.
 
-**Anonymization.** Label the two options as "Sample A" and "Sample B," not by engine name. If annotators learn that "Clarity" is usually better, they may develop a bias toward it.
+**Anonymization.** Label the two options as "Sample A" and "Sample B," not by engine name. If annotators learn that "Clarity" is usually better, they may develop a bias toward it. Some annotation platforms go further, rephrasing responses slightly to remove identifying stylistic signatures when comparing outputs from different model families.
 
-**Randomized presentation order.** For each comparison, randomly assign which engine appears as "Sample A." In audio evaluation, this also means randomizing which clip plays first, since listeners tend to favor the first clip heard (primacy bias).
+**Randomized presentation order.** For each comparison, randomly assign which engine appears as "Sample A." Without randomization, position bias can corrupt the data: research on human choice behavior consistently finds that people show preferences for the first or left option presented. In audio evaluation, this also means randomizing which clip plays first, since listeners tend to favor the first clip heard (primacy bias).
+
+**Consistent formatting.** Both responses should use identical font sizes, paragraph spacing, and code formatting. Visual differences can bias judgments toward the more polished-looking response, even if content quality is equal. A response that happens to render with better code highlighting or cleaner bullet points may receive unwarranted preference because it simply looks more professional.
 
 **Clear question framing.** The question should be specific and unambiguous. "Which sample sounds more natural?" is better than "Which do you prefer?" (preference is vague). Even better: "Which sample sounds like it was spoken by a real person?" (concrete criterion).
 
-**Forced choice with optional tie.** The standard approach is forced choice: the annotator must pick a winner. Ties reduce data quality by giving annotators an easy "I don't know" escape hatch. However, if you expect many genuinely indistinguishable pairs (common in TTS where top engines are very close), offering a tie option produces more honest data. The trade-off: ties are harder to handle in the model (see @sec-practical-extensions).
+**Forced choice with optional tie.** The standard approach is forced choice: the annotator must pick a winner. Ties reduce data quality by giving annotators an easy "I don't know" escape hatch. However, if you expect many genuinely indistinguishable pairs (common in TTS where top engines are very close), offering a tie option produces more honest data. The trade-off: ties are harder to handle in the model (see @sec-practical-extensions). Some annotation schemes offer a more granular response set ("A is much better," "A is slightly better," "Tie," "B is slightly better," "B is much better"), capturing strength of preference at the cost of added cognitive complexity.
 
-**Logging.** Every annotation should record: `(annotator_id, winner_engine_id, loser_engine_id, text_id, timestamp, presentation_order)`. Log the presentation order separately from the outcome; this lets you later check for position bias.
+**Logging.** Every annotation should record: `(annotator_id, winner_engine_id, loser_engine_id, text_id, timestamp, presentation_order)`. Log the presentation order separately from the outcome; this lets you later check for position bias. Recording annotation time per comparison is equally important: suspiciously fast annotations (under 10 seconds for long responses) may indicate satisficing, while very slow annotations flag genuinely hard cases that may need clearer guidelines or additional annotators.
+
+::: {.callout-warning title="Common Misconception: Longer responses are better responses"}
+Response length is one of the strongest confounders in preference data. [Brenndoerfer](https://mbrenndoerfer.com/writing/human-preference-data-collection-rlhf-alignment) reports that in several public preference datasets, **the longer response was preferred in over 65% of comparisons**, far higher than would be expected if length and quality were uncorrelated. Annotators use length as a proxy for thoroughness, which is a reasonable heuristic that breaks down when models learn to pad responses with redundant content. This length bias compounds through the pipeline: the reward model learns that verbosity correlates with preference, and the aligned model becomes verbose even when conciseness would serve users better. Mitigations include explicit annotator training ("longer is not automatically better"), generating response pairs of similar length, and post-hoc analysis to detect and correct length bias.
+:::
+
+### Writing Annotator Guidelines
+
+Clear guidelines are the most high-leverage investment in data quality. Without explicit criteria, different annotators apply different standards, introducing systematic noise that cannot be averaged away. As [Brenndoerfer](https://mbrenndoerfer.com/writing/human-preference-data-collection-rlhf-alignment) puts it, guidelines are the "shared vocabulary of quality": they ensure that when two annotators say "this response is better," they mean something similar by "better."
+
+**Quality criteria.** Guidelines should specify what annotators should consider when comparing responses. Common criteria in RLHF annotation include:
+
+- **Helpfulness:** Does the response actually help accomplish the goal? Does it answer the question asked, or dodge with tangentially related information?
+- **Accuracy:** Is the information correct? For code, does it actually work as described?
+- **Clarity:** Is the response easy to understand? Is it well-organized for the apparent audience?
+- **Harmlessness:** Does the response avoid providing dangerous information? Does it refuse inappropriate requests without being unnecessarily restrictive?
+- **Honesty:** Does the response acknowledge uncertainty when appropriate, rather than fabricating confident-sounding answers?
+- **Conciseness:** Is the response as long as necessary but no longer? This criterion explicitly counteracts length bias.
+
+Guidelines should specify **how to weigh these criteria when they conflict**. For example: "If one response is more helpful but slightly less accurate, prefer the accurate response. Accuracy takes priority over helpfulness." Without explicit priority rules, different annotators resolve the same conflict differently, introducing systematic variation.
+
+**Calibration examples.** Including worked examples in the guidelines is one of the most effective investments in annotation quality. Each example should show the full context: the prompt, both responses, the correct choice, and a detailed explanation referencing the quality criteria. Effective examples include clear cases (establishing the quality baseline), close calls (illustrating subtle distinctions), and "traps" (cases where surface features like length or confidence might mislead the annotator away from the genuinely better response).
+
+**Edge case documentation.** As annotation proceeds, new ambiguous situations emerge. Maintaining a living FAQ ("What if one response is correct but uses informal language while the other is wrong but sounds professional? Prefer correctness.") helps ensure consistent handling and should be updated continuously throughout the annotation campaign.
 
 ### Quality Control: Catching Bad Annotations
 
@@ -158,11 +183,15 @@ Not all annotators are equally reliable. Some click randomly to finish faster. S
 - **Pairwise agreement:** The fraction of shared comparisons where two annotators agree. For TTS, pairwise agreement above 70% is typical for clearly different engines; 55-65% for closely matched engines.
 - **Krippendorff's $\alpha$:** A chance-corrected agreement metric. $\alpha > 0.8$ is strong, $0.67 < \alpha < 0.8$ is acceptable, $\alpha < 0.67$ suggests the task may be too subjective for reliable ranking.
 
-**Filtering.** Remove annotations from consistently poor annotators (those failing gold questions). For borderline annotators, consider down-weighting their contributions rather than discarding them entirely. The random-effects model in @sec-practical-extensions provides a principled framework for this.
+**Filtering.** Remove annotations from consistently poor annotators (those failing gold questions). For borderline annotators, consider down-weighting their contributions rather than discarding them entirely. The random-effects model in @sec-practical-extensions provides a principled framework for this. A more sophisticated approach is **MACE** (Multi-Annotator Competence Estimation; [Hovy et al., NAACL-HLT 2013](https://aclanthology.org/N13-1132)), described by [Lilian Weng](https://lilianweng.github.io/posts/2024-02-05-human-data-quality/) as a probabilistic model that estimates each annotator's probability of "spamming" (providing random labels). MACE models each annotation as a two-step process: the annotator either provides their honest judgment (with probability $\theta_j$, their "trustworthiness") or spams by drawing from a random distribution. The model learns $\theta_j$ for each annotator via expectation-maximization, and final labels are produced by majority vote weighted by each annotator's estimated trustworthiness. This is more principled than a hard 70% threshold because it accounts for the difficulty of each comparison.
 
-**Annotator management.** Quality control extends beyond filtering bad data after the fact. As [Lilian Weng](https://lilianweng.github.io/posts/2024-02-05-human-data-quality/) emphasizes, the best preference datasets are produced by annotators who are selected, trained, and continuously calibrated. Three practical steps help: (a) select annotators whose skills match the evaluation task (audio perception for TTS, writing quality for LLMs); (b) run short training sessions with feedback before the main annotation campaign; and (c) hold regular calibration rounds where annotators re-label a shared set and discuss disagreements.
+**Annotator management.** Quality control extends beyond filtering bad data after the fact. As [Weng (2024)](https://lilianweng.github.io/posts/2024-02-05-human-data-quality/) emphasizes, the best preference datasets are produced by annotators who are selected, trained, and continuously calibrated. Three practical steps help: (a) select annotators whose skills match the evaluation task (audio perception for TTS, writing quality for LLMs); (b) run short training sessions with feedback before the main annotation campaign; and (c) hold regular calibration rounds where annotators re-label a shared set and discuss disagreements.
 
-The "wisdom of the crowd" insight is encouraging: non-expert annotators can produce reliable labels when proper quality assurance is in place. Agreement-based weighting automatically down-weights annotators who disagree with the majority on gold questions. You do not need domain experts for every evaluation. You need thoughtful task design and continuous quality monitoring.
+The "wisdom of the crowd" insight is encouraging: non-expert annotators can produce reliable labels when proper quality assurance is in place. The earliest documentation of this principle dates to a 1907 Nature paper where crowd estimates of an ox's weight converged on the true value. In modern annotation, agreement-based weighting automatically down-weights annotators who diverge from the consensus. You do not need domain experts for every evaluation. You need thoughtful task design and continuous quality monitoring.
+
+::: {.callout-note title="Think Hard: Should annotator disagreement be treated as noise or as signal?"}
+[Weng (2024)](https://lilianweng.github.io/posts/2024-02-05-human-data-quality/) describes two contrasting paradigms from [Rottger et al. (NAACL 2022)](https://arxiv.org/abs/2112.07475): the **prescriptive** paradigm (enforce one ground truth; measure disagreement as quality failure) and the **descriptive** paradigm (embrace diverse opinions; disagreement reveals genuine subjectivity). Most RLHF annotation uses the prescriptive paradigm, because reward model training assumes a single preference ordering. But some disagreement is genuinely informative. [Wang et al. (2023)](https://research.google/pubs/all-that-agrees-is-not-gold-evaluating-ground-truth-labels-and-dialogue-content-for-safety/) found that inter-annotator agreement varies dramatically by topic: 0.96 on violence-related content but only 0.25 on personal topics. Annotator identity (e.g., demographic background) is a statistically significant factor in how identity-related content is labeled. For your TTS evaluation, this matters less (audio naturalness is relatively objective). For LLM safety evaluation, it matters enormously. The random-effects model in @sec-practical-extensions provides one way to preserve this disagreement information rather than collapsing it into a single label.
+:::
 
 
 ### Scaling with Parallel Annotators: The Batch Workflow

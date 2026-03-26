@@ -36,6 +36,10 @@ For TTS, the architecture might be an audio encoder (extracting features from th
 
 The TTS reward model and the LLM reward model use the same loss function. The same math. Different modalities.
 
+::: {.callout-note title="Think Hard: Are all reward models trained with BT?"}
+The classifier-based reward model described above (LLM backbone + linear scalar head, trained with BT loss) is the standard approach for preference-based alignment. But the RM landscape is broader. **LLM-as-a-Judge** uses a language model's own generations to evaluate responses, bypassing the scalar head entirely. **Outcome Reward Models (ORMs)** assign reward based on the final answer's correctness (common in math/code tasks). **Process Reward Models (PRMs)** assign per-step rewards, evaluating the reasoning process rather than just the final output; these are central to reasoning model training. As [Cameron Wolfe](https://cameronrwolfe.substack.com/p/reward-models) discusses, the BT-trained classifier RM remains the workhorse for open-ended preference alignment, but these alternatives show that "reward" can come from many sources beyond pairwise human comparisons.
+:::
+
 ### Training the Reward Model
 
 The reward model (RM) is trained on a dataset of human preference pairs: $\{(x, y_w, y_l)\}$, where $y_w$ is the preferred response and $y_l$ is the dispreferred response. The loss is the negative log-likelihood of the BT model:
@@ -243,6 +247,8 @@ DPO sparked a family of follow-up methods, each modifying different aspects of t
 **ORPO.** Merges SFT and preference tuning into a single training stage.
 
 The key point is that **all of these methods are variations on the same BT-derived loss function**. They differ in how they handle regularization (KL penalty vs. explicit margin vs. none), data format (paired vs. unpaired vs. ranked), and architectural simplifications (reference model vs. no reference model). Understanding BT is the foundation for understanding all of them.
+
+A separate development, gaining traction since 2025, sidesteps preference data entirely for tasks with objectively verifiable answers. **Reinforcement Learning with Verifiable Rewards (RLVR)** replaces the learned BT-based reward model with a deterministic reward function: for math problems, check whether the final answer matches the known solution; for code, check whether it passes test cases. The reward is binary (correct/incorrect) and requires no human annotation. Methods like GRPO ([Shao et al., 2024](https://arxiv.org/abs/2402.03300)), used to train DeepSeek-R1, generate multiple candidate responses per prompt, score them with the verifiable reward, and use the group-relative performance as a policy gradient signal, eliminating both the reward model and the reference model. This is powerful but limited: it only works when you have a ground-truth verifier, which excludes open-ended tasks like creative writing, advice, or summarization, where preference data remains essential. The BT-based preference learning this chapter teaches is the foundation for those open-ended domains.
 
 [Nathan Lambert's analysis](https://www.interconnects.ai/p/the-dpo-debate) ("Do we need RL for RLHF?") of the "DPO vs. PPO" debate in the open-source community offers a useful practical lesson. Lambert argues that the performance gap between DPO and PPO-based RLHF is driven primarily by **data quality** (e.g., the choice of preference dataset like UltraFeedback) and hyperparameter exploration, not by the optimizer itself. The bottleneck for the open-source community is data and evaluation infrastructure, not algorithms. This finding is a useful reminder: the mathematical elegance of DPO (or any method) matters less than the quality of the preference data you feed it.
 

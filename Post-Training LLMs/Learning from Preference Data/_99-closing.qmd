@@ -238,3 +238,4 @@ bt -> Alternatives.voting: "pairwise majorities"
 | 13 | [Cameron Wolfe: "Reward Models" (2024)](https://cameronrwolfe.substack.com/p/reward-models) | Accessible deep-dive on BT as RM foundation, architecture details, practical training. |
 | 14 | [Nathan Lambert: "The DPO Debate" (2024)](https://www.interconnects.ai/p/the-dpo-debate) | DPO vs. PPO driven by data quality, not optimizer choice. |
 | 15 | [Gregory Gundersen: "The Fisher Information" (2019)](https://gregorygundersen.com/blog/2019/11/21/fisher-information/) | Rigorous Fisher Information derivation; justifies CI computation for BT. |
+| 16 | [HuggingFace: Preference Tuning with DPO, IPO, and KTO (2024)](https://huggingface.co/blog/pref-tuning) | Empirical comparison of DPO/IPO/KTO with hyperparameter sweeps on 7B models. |
