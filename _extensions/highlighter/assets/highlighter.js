@@ -358,65 +358,94 @@ function initHighlighter() {
         }, { passive: false });
     }
 
-    // ── Apple Pencil support ────────────────────────────────────────
-    // Philosophy: Apple Pencil = reading/highlighting tool, Finger = navigation.
-    // Pen input NEVER scrolls the page. Finger input always scrolls normally.
+    // ── Touch & Apple Pencil support ───────────────────────────────
+    // Highlights are created when the user lifts their finger/pen. Two
+    // challenges on iOS:
+    //
+    // 1. For finger text selection, iOS fires touchcancel (not touchend).
+    //    After touchcancel, no "lift" event fires, so we fall back to a
+    //    1500ms selectionchange debounce.
+    //
+    // 2. For Apple Pencil, the event sequence differs. The selection may
+    //    not be readable at touchend time. So we continuously save the
+    //    latest selection from selectionchange, and use that snapshot on
+    //    touch lift.
     var lastPointerWasPen = false;
-    var penIsDown = false;
+    var isTouchDown = false;
+    var touchGestureCancelled = false;
+    var savedSelectionRange = null;
 
     if (isTouchDevice) {
         contentRoot.addEventListener("pointerdown", function (e) {
             lastPointerWasPen = (e.pointerType === "pen");
-            if (e.pointerType === "pen") penIsDown = true;
         }, { capture: true });
 
+        // Pen-lift detection via pointerup. On iOS, after touchcancel
+        // (when the system takes over for text selection), touchend never
+        // fires. But pointerup may still fire when the pen physically
+        // lifts. This gives us instant highlight creation for pen.
         contentRoot.addEventListener("pointerup", function (e) {
-            if (e.pointerType === "pen") {
-                penIsDown = false;
+            if (e.pointerType === "pen" && isActive && !isEraser) {
+                onTouchLiftHighlight();
+            }
+        }, { capture: true });
+
+        contentRoot.addEventListener("touchstart", function (e) {
+            isTouchDown = true;
+            touchGestureCancelled = false;
+            savedSelectionRange = null;
+        }, { capture: true });
+
+        contentRoot.addEventListener("touchend", function (e) {
+            if (e.touches.length === 0) {
+                isTouchDown = false;
                 if (isActive && !isEraser) {
-                    onPenSelectionEnd();
+                    onTouchLiftHighlight();
                 }
             }
         }, { capture: true });
 
-        contentRoot.addEventListener("pointercancel", function (e) {
-            if (e.pointerType === "pen") penIsDown = false;
+        contentRoot.addEventListener("touchcancel", function (e) {
+            isTouchDown = false;
+            touchGestureCancelled = true;
         }, { capture: true });
 
-        // Always prevent pen from scrolling (regardless of toolbar state)
-        contentRoot.addEventListener("touchstart", function (e) {
-            if (lastPointerWasPen) {
-                e.preventDefault();
+        // Continuously save the latest selection while touch is active.
+        // This ensures we have a valid range to highlight on touch lift,
+        // even if the selection is cleared by the time touchend fires.
+        document.addEventListener("selectionchange", function () {
+            if (!isActive || isEraser) return;
+            var sel = window.getSelection();
+            if (sel && !sel.isCollapsed) {
+                try {
+                    savedSelectionRange = sel.getRangeAt(0).cloneRange();
+                } catch (e) {
+                    savedSelectionRange = null;
+                }
             }
-        }, { passive: false, capture: false });
-
-        contentRoot.addEventListener("touchmove", function (e) {
-            if (lastPointerWasPen) {
-                e.preventDefault();
-            }
-        }, { passive: false, capture: false });
-
-        // Fix Scribble stealing pointer events during active highlighting
-        contentRoot.addEventListener("pointermove", function (e) {
-            if (e.pointerType === "pen" && isActive && !isEraser) {
-                e.stopPropagation();
-            }
-        }, { capture: true });
+        });
     }
 
-    // Instant highlight on Apple Pencil lift (skip the 600ms debounce)
-    function onPenSelectionEnd() {
-        if (Date.now() - lastHighlightCreatedAt < 1000) return;
+    function onTouchLiftHighlight() {
+        // Try live selection first, fall back to saved snapshot.
         var sel = window.getSelection();
-        if (!sel || sel.isCollapsed) return;
-        var text = sel.toString().trim();
+        var range = null;
+        if (sel && !sel.isCollapsed) {
+            try { range = sel.getRangeAt(0); } catch (e) { }
+        }
+        if (!range && savedSelectionRange) {
+            range = savedSelectionRange;
+        }
+        savedSelectionRange = null;
+        if (!range) return;
+        var text = range.toString().trim();
         if (text.length < 2) return;
         try {
-            highlighter.fromRange(sel.getRangeAt(0));
+            highlighter.fromRange(range);
         } catch (err) {
-            console.warn("Pen highlight failed:", err);
+            console.warn("Touch highlight failed:", err);
         }
-        sel.removeAllRanges();
+        if (sel) sel.removeAllRanges();
     }
 
     function openToolbar() {
@@ -464,28 +493,38 @@ function initHighlighter() {
 
     function onTouchSelectionChange() {
         if (!isActive || isEraser) return;
+        if (isTouchDown) return;
+
+        // Only use the debounce as a fallback after touchcancel.
+        // Normal touches create highlights via touchend (instant).
+        if (!touchGestureCancelled) return;
+
         if (hlSelectionTimer) clearTimeout(hlSelectionTimer);
         hlSelectionTimer = setTimeout(function () {
             if (!isActive || isEraser) return;
+            if (isTouchDown) return;
 
-            // Cooldown: skip if a highlight was just created within the last
-            // 1000ms. On iOS, removeAllRanges() doesn't clear the native
-            // selection handles, so iOS restores the selection and fires
-            // selectionchange again. Without this guard, the same text gets
-            // highlighted twice.
             if (Date.now() - lastHighlightCreatedAt < 1000) return;
 
             var sel = window.getSelection();
-            if (!sel || sel.isCollapsed) return;
-            var text = sel.toString().trim();
+            var range = null;
+            if (sel && !sel.isCollapsed) {
+                try { range = sel.getRangeAt(0); } catch (e) { }
+            }
+            if (!range && savedSelectionRange) {
+                range = savedSelectionRange;
+            }
+            savedSelectionRange = null;
+            if (!range) return;
+            var text = range.toString().trim();
             if (text.length < 2) return;
             try {
-                highlighter.fromRange(sel.getRangeAt(0));
+                highlighter.fromRange(range);
             } catch (err) {
                 console.warn("Touch highlight failed:", err);
             }
-            sel.removeAllRanges();
-        }, 600);
+            if (sel) sel.removeAllRanges();
+        }, 1500);
     }
 
     function startTouchSelectionListener() {
