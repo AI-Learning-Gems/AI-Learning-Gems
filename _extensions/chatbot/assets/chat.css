@@ -768,7 +768,7 @@ body.quarto-dark .message-edit-btn::after {
 
 #gemini-chat-fab:hover {
   transform: scale(1.08);
-  box-shadow: var(--chat-shadow-xl);
+  box-shadow: var(--chat-shadow-xl), 0 0 0 6px var(--chat-primary-glow);
   border-radius: 18px;
 }
 
@@ -801,34 +801,35 @@ body.chat-open #gemini-chat-fab {
    ============================================================ */
 #ask-ai-btn {
   position: fixed;
-  background: var(--chat-primary);
-  color: white;
-  border: none;
-  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  background: var(--chat-surface);
+  border: 1px solid var(--chat-border);
   border-radius: 8px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: var(--chat-shadow-md);
+  box-shadow: var(--chat-shadow-lg);
   z-index: 10001;
   transform: translate(-50%, -100%);
   opacity: 0;
   pointer-events: none;
   transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
-  /* slight arrow at bottom */
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 #ask-ai-btn::after {
   content: "";
   position: absolute;
-  bottom: -5px;
+  bottom: -6px;
   left: 50%;
   transform: translateX(-50%) rotate(45deg);
   width: 10px;
   height: 10px;
-  background: var(--chat-primary);
+  background: var(--chat-surface);
+  border-right: 1px solid var(--chat-border);
+  border-bottom: 1px solid var(--chat-border);
+  transition: border-color 0.15s ease;
 }
 
 #ask-ai-btn.visible {
@@ -837,8 +838,78 @@ body.chat-open #gemini-chat-fab {
   transform: translate(-50%, calc(-100% - 4px));
 }
 
-#ask-ai-btn:hover {
-  background: var(--chat-primary-hover);
+.ask-ai-popup-btn {
+  background: none;
+  border: none;
+  padding: 7px 14px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.ask-ai-popup-ask {
+  color: var(--chat-text);
+  border-radius: 7px 0 0 7px;
+}
+
+.ask-ai-popup-ask:hover {
+  color: #2780e3;
+  background: rgba(39, 128, 227, 0.08);
+}
+
+.ask-ai-popup-highlight {
+  color: var(--hl-popup-accent, #eab308);
+  border-radius: 0 7px 7px 0;
+}
+
+.ask-ai-popup-highlight:hover {
+  background: color-mix(in srgb, var(--hl-popup-accent, #eab308) 10%, transparent);
+}
+
+.ask-ai-popup-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--chat-border);
+  flex-shrink: 0;
+}
+
+/* Colored border + glow when hovering Ask AI */
+#ask-ai-btn:has(.ask-ai-popup-ask:hover) {
+  border-color: #2780e3;
+  box-shadow: var(--chat-shadow-lg), 0 0 0 2px rgba(39, 128, 227, 0.15);
+}
+
+#ask-ai-btn:has(.ask-ai-popup-ask:hover)::after {
+  border-right-color: #2780e3;
+  border-bottom-color: #2780e3;
+}
+
+/* Colored border when hovering Highlight (color set dynamically by JS) */
+#ask-ai-btn:has(.ask-ai-popup-highlight:hover) {
+  border-color: var(--hl-popup-accent, #eab308);
+  box-shadow: var(--chat-shadow-lg), 0 0 0 2px var(--hl-popup-accent-glow, rgba(234, 179, 8, 0.2));
+}
+
+#ask-ai-btn:has(.ask-ai-popup-highlight:hover)::after {
+  border-right-color: var(--hl-popup-accent, #eab308);
+  border-bottom-color: var(--hl-popup-accent, #eab308);
+}
+
+body.quarto-dark .ask-ai-popup-ask:hover {
+  color: #4da3ff;
+  background: rgba(77, 163, 255, 0.1);
+}
+
+body.quarto-dark #ask-ai-btn:has(.ask-ai-popup-ask:hover) {
+  border-color: #4da3ff;
+  box-shadow: var(--chat-shadow-lg), 0 0 0 2px rgba(77, 163, 255, 0.2);
+}
+
+body.quarto-dark #ask-ai-btn:has(.ask-ai-popup-ask:hover)::after {
+  border-right-color: #4da3ff;
+  border-bottom-color: #4da3ff;
 }
 
 /* ============================================================

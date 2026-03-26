@@ -609,7 +609,8 @@ function initChat() {
         } else { if (askAiBtn) askAiBtn.classList.remove("visible"); }
     });
 
-    if (askAiBtn) { askAiBtn.addEventListener("click", () => { captureSelection(); openSidebar(); askAiBtn.classList.remove("visible"); if (chatInput) chatInput.focus(); }); }
+    var askAiAction = document.getElementById("ask-ai-action");
+    if (askAiAction) { askAiAction.addEventListener("click", (e) => { e.stopPropagation(); captureSelection(); openSidebar(); if (askAiBtn) askAiBtn.classList.remove("visible"); if (chatInput) chatInput.focus(); }); }
     if (clearSelectionBtn) { clearSelectionBtn.addEventListener("click", () => { currentSelection = ""; updateSelectionUI(""); }); }
     if (chatInput) { const h = () => captureSelection(); chatInput.addEventListener("mousedown", h); chatInput.addEventListener("touchstart", h); chatInput.addEventListener("focus", h); }
 
