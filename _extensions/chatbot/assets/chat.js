@@ -598,6 +598,10 @@ function initChat() {
         if (text.length > 5) lastContentSelection = text;
     });
 
+    // Detect touch device (iPad reports as Macintosh since iPadOS 13)
+    var isTouchDevice = ('ontouchend' in document) || (navigator.maxTouchPoints > 0);
+    var selectionEndTimer = null;
+
     document.addEventListener("mouseup", (e) => {
         if (sidebar.contains(e.target) || (fab && fab.contains(e.target)) || (askAiBtn && askAiBtn.contains(e.target))) return;
         const sel = window.getSelection();
@@ -608,6 +612,37 @@ function initChat() {
             else if (askAiBtn) { const range = sel.getRangeAt(0); const rect = range.getBoundingClientRect(); askAiBtn.style.top = rect.top - 10 + "px"; askAiBtn.style.left = (rect.left + rect.width / 2) + "px"; askAiBtn.classList.add("visible"); }
         } else { if (askAiBtn) askAiBtn.classList.remove("visible"); }
     });
+
+    // Touch device: show Ask AI popup via debounced selectionchange (mouseup doesn't fire)
+    if (isTouchDevice) {
+        document.addEventListener("selectionchange", function () {
+            if (selectionEndTimer) clearTimeout(selectionEndTimer);
+            selectionEndTimer = setTimeout(function () {
+                var sel = window.getSelection();
+                if (!sel || sel.isCollapsed) return;
+                if (sidebar.contains(sel.anchorNode)) return;
+                var text = sel.toString().trim();
+                if (text.length <= 5) return;
+                var isSidebarOpen = !sidebar.classList.contains("hidden");
+                if (isSidebarOpen) {
+                    currentSelection = text;
+                    updateSelectionUI(currentSelection);
+                    return;
+                }
+                if (document.body.classList.contains("highlighter-active") || document.body.classList.contains("highlighter-eraser")) return;
+                if (askAiBtn) {
+                    try {
+                        var range = sel.getRangeAt(0);
+                        var rect = range.getBoundingClientRect();
+                        if (rect.width === 0 && rect.height === 0) return;
+                        askAiBtn.style.top = rect.top - 10 + "px";
+                        askAiBtn.style.left = (rect.left + rect.width / 2) + "px";
+                        askAiBtn.classList.add("visible");
+                    } catch (e) { }
+                }
+            }, 600);
+        });
+    }
 
     var askAiAction = document.getElementById("ask-ai-action");
     if (askAiAction) { askAiAction.addEventListener("click", (e) => { e.stopPropagation(); captureSelection(); openSidebar(); if (askAiBtn) askAiBtn.classList.remove("visible"); if (chatInput) chatInput.focus(); }); }

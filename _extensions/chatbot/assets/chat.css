@@ -841,12 +841,14 @@ body.chat-open #gemini-chat-fab {
 .ask-ai-popup-btn {
   background: none;
   border: none;
-  padding: 7px 14px;
+  padding: 8px 16px;
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
   transition: color 0.15s ease, background 0.15s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .ask-ai-popup-ask {

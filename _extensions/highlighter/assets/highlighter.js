@@ -297,12 +297,16 @@ function initHighlighter() {
 
     // ── Helper functions ────────────────────────────────────────────
 
+    var isTouchDevice = ('ontouchend' in document) || (navigator.maxTouchPoints > 0);
+    var hlSelectionTimer = null;
+
     function openToolbar() {
         toolbar.classList.remove("hidden");
         fab.classList.add("active");
         isActive = true;
         document.body.classList.add("highlighter-active");
         highlighter.run();
+        startTouchSelectionListener();
         updateCount();
     }
 
@@ -316,6 +320,37 @@ function initHighlighter() {
         if (eraserBtn) eraserBtn.classList.remove("active");
         hideClearConfirm();
         highlighter.stop();
+        stopTouchSelectionListener();
+    }
+
+    function onTouchSelectionChange() {
+        if (!isActive || isEraser) return;
+        if (hlSelectionTimer) clearTimeout(hlSelectionTimer);
+        hlSelectionTimer = setTimeout(function () {
+            if (!isActive || isEraser) return;
+            var sel = window.getSelection();
+            if (!sel || sel.isCollapsed) return;
+            var text = sel.toString().trim();
+            if (text.length < 2) return;
+            try {
+                highlighter.fromRange(sel.getRangeAt(0));
+            } catch (err) {
+                console.warn("Touch highlight failed:", err);
+            }
+        }, 600);
+    }
+
+    function startTouchSelectionListener() {
+        if (isTouchDevice) {
+            document.addEventListener("selectionchange", onTouchSelectionChange);
+        }
+    }
+
+    function stopTouchSelectionListener() {
+        if (isTouchDevice) {
+            document.removeEventListener("selectionchange", onTouchSelectionChange);
+            if (hlSelectionTimer) { clearTimeout(hlSelectionTimer); hlSelectionTimer = null; }
+        }
     }
 
     function setEraserMode(on) {
