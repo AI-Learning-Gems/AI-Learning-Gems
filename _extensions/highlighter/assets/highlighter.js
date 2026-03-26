@@ -51,6 +51,7 @@ function initHighlighter() {
     var isEraser = false;
     var highlighter = null;
     var popupHighlightId = null;
+    var lastHighlightCreatedAt = 0;
 
     var COLOR_ACCENTS = {
         "hl-yellow": "#eab308", "hl-green": "#22c55e", "hl-coral": "#ef4444",
@@ -91,10 +92,31 @@ function initHighlighter() {
 
     highlighter.on(Highlighter.event.CREATE, function (data) {
         if (!data || !data.sources) return;
+
+        // fromStore() also fires CREATE; skip persistence for those to avoid
+        // duplicating every highlight in localStorage on each page load.
+        if (data.type === "bindSourceFromStore") return;
+
+        // Record creation time. On iPad, iOS restores the native selection
+        // AFTER removeAllRanges(), firing selectionchange asynchronously.
+        // onTouchSelectionChange uses this timestamp to skip the duplicate.
+        lastHighlightCreatedAt = Date.now();
+
+        // Also cancel any pending timer (helps when the timer hasn't fired yet).
+        if (hlSelectionTimer) {
+            clearTimeout(hlSelectionTimer);
+            hlSelectionTimer = null;
+        }
+
         var stored = getAllStoredSources();
         var sources = data.sources;
+        var existingIds = {};
+        for (var j = 0; j < stored.length; j++) {
+            existingIds[stored[j].id] = true;
+        }
         for (var i = 0; i < sources.length; i++) {
             var src = sources[i];
+            if (existingIds[src.id]) continue;
             highlighter.addClass(activeColor, src.id);
             stored.push({
                 id: src.id,
@@ -384,6 +406,7 @@ function initHighlighter() {
 
     // Instant highlight on Apple Pencil lift (skip the 600ms debounce)
     function onPenSelectionEnd() {
+        if (Date.now() - lastHighlightCreatedAt < 1000) return;
         var sel = window.getSelection();
         if (!sel || sel.isCollapsed) return;
         var text = sel.toString().trim();
@@ -393,6 +416,7 @@ function initHighlighter() {
         } catch (err) {
             console.warn("Pen highlight failed:", err);
         }
+        sel.removeAllRanges();
     }
 
     function openToolbar() {
@@ -443,6 +467,14 @@ function initHighlighter() {
         if (hlSelectionTimer) clearTimeout(hlSelectionTimer);
         hlSelectionTimer = setTimeout(function () {
             if (!isActive || isEraser) return;
+
+            // Cooldown: skip if a highlight was just created within the last
+            // 1000ms. On iOS, removeAllRanges() doesn't clear the native
+            // selection handles, so iOS restores the selection and fires
+            // selectionchange again. Without this guard, the same text gets
+            // highlighted twice.
+            if (Date.now() - lastHighlightCreatedAt < 1000) return;
+
             var sel = window.getSelection();
             if (!sel || sel.isCollapsed) return;
             var text = sel.toString().trim();
@@ -452,6 +484,7 @@ function initHighlighter() {
             } catch (err) {
                 console.warn("Touch highlight failed:", err);
             }
+            sel.removeAllRanges();
         }, 600);
     }
 
@@ -495,8 +528,23 @@ function initHighlighter() {
 
     function restoreHighlights() {
         var sources = getAllStoredSources();
-        for (var i = 0; i < sources.length; i++) {
-            var s = sources[i];
+
+        // Deduplicate: previous versions appended duplicates on every page load.
+        // Keep only the first entry per ID to clean up any existing bloat.
+        var seen = {};
+        var deduped = [];
+        for (var d = 0; d < sources.length; d++) {
+            if (!seen[sources[d].id]) {
+                seen[sources[d].id] = true;
+                deduped.push(sources[d]);
+            }
+        }
+        if (deduped.length < sources.length) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(deduped));
+        }
+
+        for (var i = 0; i < deduped.length; i++) {
+            var s = deduped[i];
             try {
                 highlighter.fromStore(s.startMeta, s.endMeta, s.text, s.id);
                 if (s.color) {
