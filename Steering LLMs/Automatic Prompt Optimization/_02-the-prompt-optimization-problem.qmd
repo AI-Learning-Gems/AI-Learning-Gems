@@ -190,7 +190,7 @@ The convergence is not about prompts, Bayesian optimization, or evolutionary alg
 | 2023 | [EvoPrompt](https://arxiv.org/abs/2309.08532) | ICLR 2024 | Evolutionary | +25% on BBH |
 | 2023 | [PromptAgent](https://arxiv.org/abs/2310.16427) | ICLR 2024 | MCTS Search | +9% over baselines on 12 tasks |
 | 2023 | [InstructZero](https://arxiv.org/abs/2306.03082) | ICML 2024 | Bayesian | Best on all 32 BIG-Bench Instruction Induction tasks |
-| 2024 | [TextGrad](https://arxiv.org/abs/2406.07496) | NeurIPS 2024 | Textual Gradient | GPQA 51%$\to$55%, LeetCode 26%$\to$36% |
+| 2024 | [TextGrad](https://arxiv.org/abs/2406.07496) | NeurIPS 2024 | Textual Gradient | GPQA 51%→55%, LeetCode 26%→36% |
 | 2024 | [GPO](https://arxiv.org/abs/2402.17564) | AAAI 2025 | Gradient-Inspired | Up to 56.8% relative improvement on BBH, 62.6% on MMLU |
 | 2024 | [EMO-Prompts](https://arxiv.org/abs/2401.09862) | -- | Multi-Objective | HVI up to 0.45 |
 | 2024 | [MORL-Prompt](https://arxiv.org/abs/2402.11711) | EMNLP 2024 | Multi-Objective RL | Identifies objective collapse |
@@ -198,7 +198,7 @@ The convergence is not about prompts, Bayesian optimization, or evolutionary alg
 | 2024 | [MIPRO/MIPROv2](https://arxiv.org/abs/2406.11695) | -- | Bayesian Pipeline | +13% on multi-stage pipelines |
 | 2024 | [TRACE](https://arxiv.org/abs/2406.16218) | NeurIPS 2024 | Execution Trace | Generalizes backprop to workflows |
 | 2025 | [ParetoPrompt](https://openreview.net/forum?id=HGCk5aaSvE) | ICLR 2025 | Multi-Objective RL | RL on Pareto front, no scalarization |
-| 2025 | [GEPA](https://arxiv.org/abs/2507.19457) | ICLR 2026 | Pareto Evolution | +9.6% on Qwen3-8B, 6$\times$ fewer rollouts than GRPO |
+| 2025 | [GEPA](https://arxiv.org/abs/2507.19457) | ICLR 2026 | Pareto Evolution | +9.6% on Qwen3-8B, 6x fewer rollouts than GRPO |
 | 2025 | [HiveMind](https://arxiv.org/abs/2512.06432) | AAAI 2026 | Multi-Agent | Shapley credit, 80%+ fewer LLM calls |
 
 ::: {.callout-note title="Think Hard: Is there a fundamental limit to prompt optimization?"}
