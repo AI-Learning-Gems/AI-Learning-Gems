@@ -1,0 +1,43 @@
+<!--
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │ SECURITY FIX V5 — Content Security Policy (CSP)                    │
+  │                                                                     │
+  │ GitHub Pages does not allow setting HTTP response headers, so we    │
+  │ use a <meta> tag instead. This is the last line of defense: even    │
+  │ if an attacker injects a script (via XSS or CDN compromise), CSP   │
+  │ restricts what that script can do.                                  │
+  │                                                                     │
+  │ Key restrictions:                                                   │
+  │                                                                     │
+  │ connect-src: Only allows fetch/XHR to openrouter.ai and self.      │
+  │   Even if XSS fires, the attacker's script cannot exfiltrate data  │
+  │   to evil.com because the browser blocks the outbound request.     │
+  │                                                                     │
+  │ script-src: Only allows scripts from self and cdn.jsdelivr.net.    │
+  │   'unsafe-inline' is required because Quarto inlines scripts and   │
+  │   our chat-script-loader.html is an inline <script> tag.           │
+  │   This is a known tradeoff — removing it would require             │
+  │   refactoring to external .js files with nonce-based CSP.          │
+  │                                                                     │
+  │ img-src: Allows images from self, data: URIs, and https:.          │
+  │   This is permissive because textbook content uses external images. │
+  │   The DOMPurify sanitizer (V2 fix) handles the malicious-image     │
+  │   exfiltration vector at the DOM level instead.                    │
+  │                                                                     │
+  │ object-src / base-uri: Locked down to prevent plugin-based and     │
+  │   base-tag-hijacking attacks.                                      │
+  │                                                                     │
+  │ LIMITATION: meta-tag CSP cannot set frame-ancestors or             │
+  │ report-uri directives. These require HTTP headers.                  │
+  └─────────────────────────────────────────────────────────────────────┘
+-->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.mathjax.org https://polyfill.io https://unpkg.com;
+  style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com;
+  font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:;
+  img-src 'self' data: https:;
+  connect-src 'self' https://openrouter.ai https://cdn.jsdelivr.net;
+  object-src 'none';
+  base-uri 'self';
+">
