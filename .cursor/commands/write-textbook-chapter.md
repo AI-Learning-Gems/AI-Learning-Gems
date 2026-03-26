@@ -867,6 +867,13 @@ Every example must pass the **"15-year-old to 35-year-old test":**
      - **Verify** the extraction produced a `.md` or `.txt` file with >500 characters of actual content
    - **The rule is absolute:** every source folder must contain at least one LLM-readable text file (`.md`, `.tex`, `.txt`). If only binary formats exist after extraction attempts, note this in the chat as a source that may have missing content.
 
+   **CRITICAL — Completeness verification for web sources (not just readability).** A web extraction can produce a readable, substantial `.md` file that is *missing entire sections* due to a soft paywall. This is especially common with Substack and Medium. After confirming readability, perform a **structural completeness check**:
+   - List section headings: `grep '^##\|^###\|^####' content.md` — verify the article has a logical structure (intro, body, conclusion).
+   - Check for paywall markers: `grep -i 'upgrade to paid\|subscribe to continue\|for paid subscribers' content.md` — if found, re-extract with `--profile` for the site.
+   - Read the last 20 lines — does the article end with a conclusion, or cut off at a subscription prompt?
+   - If you expect the article to cover topics X, Y, Z (from the TEXTBOOK-PLAN), verify those topics appear in the section headings. Missing topics may indicate truncation.
+   - **Do NOT use term-grep with low result limits to assess completeness.** A grep for "ORM" returning zero results does not mean the content is missing — always check section headings first, then read relevant sections directly.
+
 6. Chat: "✓ Source download + readability gate: [N] sources verified locally with readable content, [M] newly downloaded, [P] newly extracted from PDF/HTML, [K] unavailable (with alternatives noted)"
 
 ### 0C. Source Pre-Reading: Per-Section Sub-Agent Scouring Protocol (MANDATORY)

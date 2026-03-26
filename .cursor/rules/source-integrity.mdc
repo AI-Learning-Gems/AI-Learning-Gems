@@ -114,6 +114,8 @@ These failures occurred in real chapter-writing sessions:
 
 5. **The Plan Trust:** The agent copied specific statistics from the TEXTBOOK-PLAN into the chapter without reading the source papers. Every number was wrong.
 
+6. **The Grep Trap:** The agent searched a 62KB source file for specific terms (e.g., "ORM", "PRM") using grep with a low result limit. Early matches from boilerplate text (subscription notices, navigation elements) consumed all returned results, hiding the actual content at line 159. The agent concluded the source was truncated by a paywall and re-extracted unnecessarily. The content was there all along. **The fix:** when checking whether a source contains specific content, first list the section headings (`grep '^##'` or `grep '^###'`), then read the relevant sections directly. Do not rely on term-grep with result limits to determine whether content exists in a file. A false negative from grep is not evidence of missing content.
+
 ---
 
 ## Proof-of-Work Protocol

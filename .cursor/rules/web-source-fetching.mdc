@@ -30,6 +30,22 @@ This document contains rules and strategies for fetching authoritative content f
 | Regenerate content from memory | Quote/cite downloaded sources |
 | Use browser for static pages | Use `curl` or `read_url_content` |
 | Link to external URLs for images | Download images locally |
+| Conclude a source is incomplete because grep found no matches | List section headings first (`grep '^##'`), then read relevant sections. A grep false negative is not evidence of missing content. |
+
+---
+
+## Extraction Completeness Verification (MANDATORY for Web Sources)
+
+**Readability is necessary but not sufficient.** A web extraction can produce a readable, substantial `.md` file that is *missing entire sections* due to a soft paywall, JavaScript rendering failure, or extraction timeout. This is especially common with Substack (free preview + paywalled body) and Medium.
+
+**After extracting any web article, verify structural completeness:**
+
+1. **List section headings:** `grep '^##\|^###\|^####' content.md` — the output should show a logical article structure (introduction, body sections, conclusion).
+2. **Check for paywall markers:** `grep -i 'upgrade to paid\|subscribe to continue\|for paid subscribers\|unlock this post' content.md` — if any of these strings appear, the extraction hit a paywall boundary. Re-extract with `--profile` for the relevant site (e.g., `--profile substack`).
+3. **Check the ending:** Read the last 20 lines of the file. Does the article end with a conclusion/summary, or does it cut off abruptly with a subscription prompt? An abrupt ending signals truncation.
+4. **Compare against expected content:** If you know the article discusses topics X, Y, and Z (from web search summaries or the TEXTBOOK-PLAN), verify that the section headings include all three topics. If topic Z is missing from the headings, the extraction may be incomplete.
+
+**Do NOT use term-grep with low result limits to assess completeness.** Searching for a specific term (e.g., "ORM") and getting zero results does not mean the content is missing. The term might appear under a different section heading, use different phrasing, or be buried in a section your grep missed due to result limits. Always check section headings first, then read the relevant sections directly.
 
 ---
 
