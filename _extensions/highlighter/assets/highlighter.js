@@ -165,6 +165,14 @@ function initHighlighter() {
         popupHighlightId = id;
         var rect = wrapNode.getBoundingClientRect();
 
+        // Detect the highlight's current color for the popup swatch grid
+        var currentColor = "";
+        var stored = getAllStoredSources();
+        for (var si = 0; si < stored.length; si++) {
+            if (stored[si].id === id) { currentColor = stored[si].color || ""; break; }
+        }
+        markActivePopupSwatch(currentColor);
+
         if (hlPopup) {
             if (isTouchDevice) {
                 hlPopup.classList.add("popup-side");
@@ -224,6 +232,54 @@ function initHighlighter() {
             hidePopup();
             if (idToRemove) {
                 highlighter.remove(idToRemove);
+            }
+        });
+    }
+
+    // ── Popup: Color change ──────────────────────────────────────
+
+    var ALL_COLOR_CLASSES = [
+        "hl-yellow", "hl-green", "hl-coral", "hl-blue", "hl-peach",
+        "hl-gold", "hl-emerald", "hl-crimson", "hl-sky", "hl-amber",
+        "hl-lavender", "hl-lime", "hl-silver", "hl-teal", "hl-fuchsia"
+    ];
+
+    var popupSwatches = document.querySelectorAll(".hl-popup-swatch");
+    popupSwatches.forEach(function (swatch) {
+        swatch.addEventListener("click", function (e) {
+            e.stopPropagation();
+            var newColor = swatch.getAttribute("data-color");
+            var id = popupHighlightId;
+            if (!id || !newColor) return;
+
+            for (var c = 0; c < ALL_COLOR_CLASSES.length; c++) {
+                highlighter.removeClass(ALL_COLOR_CLASSES[c], id);
+            }
+            highlighter.addClass(newColor, id);
+
+            var stored = getAllStoredSources();
+            for (var s = 0; s < stored.length; s++) {
+                if (stored[s].id === id) {
+                    stored[s].color = newColor;
+                }
+            }
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+
+            activeColor = newColor;
+            localStorage.setItem(STORAGE_KEY_COLOR, activeColor);
+            updateHighlightButtonColor();
+            updateFabColorDot();
+            setActiveSwatchInToolbar();
+            markActivePopupSwatch(newColor);
+        });
+    });
+
+    function markActivePopupSwatch(color) {
+        popupSwatches.forEach(function (s) {
+            if (s.getAttribute("data-color") === color) {
+                s.classList.add("active");
+            } else {
+                s.classList.remove("active");
             }
         });
     }
@@ -453,6 +509,7 @@ function initHighlighter() {
         fab.classList.add("active");
         isActive = true;
         document.body.classList.add("highlighter-active");
+        document.body.classList.add("highlighter-toolbar-open");
         highlighter.run();
         startTouchSelectionListener();
         if (isTouchDevice) contentRoot.setAttribute("data-gramm", "false");
@@ -462,6 +519,7 @@ function initHighlighter() {
 
     function hideToolbar() {
         toolbar.classList.add("hidden");
+        document.body.classList.remove("highlighter-toolbar-open");
         hideClearConfirm();
     }
 
@@ -472,6 +530,7 @@ function initHighlighter() {
         isEraser = false;
         document.body.classList.remove("highlighter-active");
         document.body.classList.remove("highlighter-eraser");
+        document.body.classList.remove("highlighter-toolbar-open");
         if (eraserBtn) eraserBtn.classList.remove("active");
         hideClearConfirm();
         highlighter.stop();
@@ -633,6 +692,16 @@ function initHighlighter() {
         if (!saved) return;
         colorSwatches.forEach(function (s) {
             if (s.getAttribute("data-color") === saved) {
+                s.classList.add("active");
+            } else {
+                s.classList.remove("active");
+            }
+        });
+    }
+
+    function setActiveSwatchInToolbar() {
+        colorSwatches.forEach(function (s) {
+            if (s.getAttribute("data-color") === activeColor) {
                 s.classList.add("active");
             } else {
                 s.classList.remove("active");

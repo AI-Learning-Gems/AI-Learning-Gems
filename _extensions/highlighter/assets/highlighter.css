@@ -495,7 +495,8 @@ body.highlighter-eraser main {
 .hl-popup {
   position: fixed;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   background: var(--hl-surface);
   border: 1px solid var(--hl-border);
   border-radius: 8px;
@@ -505,6 +506,7 @@ body.highlighter-eraser main {
   pointer-events: none;
   transform: translate(-50%, -100%) translateY(-8px);
   transition: opacity 0.15s ease, transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  width: 175px;
 }
 
 .hl-popup.visible {
@@ -539,7 +541,7 @@ body.highlighter-eraser main {
 .hl-popup.popup-side::after {
   bottom: auto;
   left: -6px;
-  top: 50%;
+  top: 24px;
   transform: translateY(-50%) rotate(45deg);
   border-right: none;
   border-bottom: none;
@@ -601,18 +603,20 @@ body.quarto-dark .hl-popup:has(.hl-popup-erase:hover)::after {
   background: none;
   border: none;
   padding: 8px 16px;
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  transition: color 0.15s ease;
+  transition: color 0.15s ease, background 0.15s ease;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  flex: 1;
+  text-align: center;
 }
 
 .hl-popup-ask {
   color: var(--hl-text);
-  border-radius: 7px 0 0 7px;
+  border-radius: 7px 0 0 0;
 }
 
 .hl-popup-ask:hover {
@@ -622,7 +626,7 @@ body.quarto-dark .hl-popup:has(.hl-popup-erase:hover)::after {
 
 .hl-popup-erase {
   color: var(--hl-text-secondary);
-  border-radius: 0 7px 7px 0;
+  border-radius: 0 7px 0 0;
 }
 
 .hl-popup-erase:hover {
@@ -642,16 +646,62 @@ body.quarto-dark .hl-popup-erase:hover {
 
 .hl-popup-divider {
   width: 1px;
-  height: 20px;
+  align-self: stretch;
+  margin: 6px 0;
   background: var(--hl-border);
   flex-shrink: 0;
 }
 
+/* Actions row: Ask AI | Erase */
+.hl-popup-actions {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+/* Color grid below the actions */
+.hl-popup-colors {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 10px 14px 10px;
+  border-top: 1px solid var(--hl-border);
+}
+
+.hl-popup-color-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.hl-popup-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--swatch-color);
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  padding: 0;
+  flex-shrink: 0;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hl-popup-swatch:hover {
+  transform: scale(1.2);
+}
+
+.hl-popup-swatch.active {
+  border-color: var(--swatch-border);
+  box-shadow: 0 0 0 2px var(--swatch-color);
+}
+
 /* ============================================================
-   SUPPRESS "Ask AI" button when highlighter is active
+   SUPPRESS "Ask AI" button when highlighter toolbar is open
    ============================================================ */
-body.highlighter-active #ask-ai-btn,
-body.highlighter-eraser #ask-ai-btn {
+body.highlighter-toolbar-open #ask-ai-btn {
   display: none !important;
   pointer-events: none !important;
 }
@@ -665,11 +715,29 @@ body.highlighter-eraser #ask-ai-btn {
 @media (pointer: coarse) {
   .hl-popup-btn {
     padding: 12px 20px;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
   }
 
   .hl-popup-divider {
     height: 24px;
+  }
+
+  .hl-popup-swatch {
+    width: 24px;
+    height: 24px;
+  }
+
+  .hl-popup-color-row {
+    gap: 10px;
+  }
+
+  .hl-popup-colors {
+    gap: 14px;
+    padding: 18px 12px 18px 12px;
+  }
+
+  .hl-popup {
+    width: 200px;
   }
 }
 
