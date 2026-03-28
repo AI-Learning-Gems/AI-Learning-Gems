@@ -52,6 +52,12 @@ function initChat() {
     const customModelCancel = document.getElementById("custom-model-cancel");
     const CUSTOM_SENTINEL = "__custom__";
 
+    const MATH_MODELS = [
+        { id: "deepseek/deepseek-v3.2-speciale", name: "DeepSeek V3.2 Speciale" },
+        { id: "anthropic/claude-sonnet-4.6", name: "Claude Sonnet 4.6" },
+        { id: "google/gemini-3.1-pro-preview", name: "Gemini 3.1 Pro Preview" }
+    ];
+
     const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
     const OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models";
     const STORAGE_KEY_API = "openrouter_api_key";
@@ -579,6 +585,7 @@ function initChat() {
         opt.value = "openrouter/free";
         opt.textContent = "Auto (Best Free Model)";
         modelSelect.appendChild(opt);
+        appendMathModels();
         appendCustomSentinel();
     }
 
@@ -628,11 +635,28 @@ function initChat() {
         // Restore saved custom model if present
         var savedCustom = localStorage.getItem(STORAGE_KEY_CUSTOM_MODEL);
         if (savedCustom) insertCustomModelOption(savedCustom);
+        appendMathModels();
         appendCustomSentinel();
         // Restore saved model choice if it's still in the list
         var saved = localStorage.getItem(STORAGE_KEY_SELECTED_MODEL);
         if (saved && modelSelect.querySelector('option[value="' + CSS.escape(saved) + '"]')) {
             modelSelect.value = saved;
+        }
+    }
+
+    function appendMathModels() {
+        if (!modelSelect) return;
+        var sep = document.createElement("option");
+        sep.disabled = true;
+        sep.textContent = "\u2500\u2500\u2500 Math models \u2500\u2500\u2500";
+        modelSelect.appendChild(sep);
+        for (var i = 0; i < MATH_MODELS.length; i++) {
+            var m = MATH_MODELS[i];
+            var opt = document.createElement("option");
+            opt.value = m.id;
+            opt.setAttribute("data-math", "true");
+            opt.textContent = "" + m.name;
+            modelSelect.appendChild(opt);
         }
     }
 
@@ -652,17 +676,15 @@ function initChat() {
 
     function insertCustomModelOption(modelId) {
         if (!modelSelect) return;
-        // Remove any previous custom option
         var prev = modelSelect.querySelector('option[data-custom="true"]');
         if (prev) prev.remove();
         var opt = document.createElement("option");
         opt.value = modelId;
         opt.setAttribute("data-custom", "true");
         opt.textContent = "\u2605 " + formatModelName(modelId);
-        // Insert before the separator (second-to-last) or at end
         var sentinel = modelSelect.querySelector('option[value="' + CUSTOM_SENTINEL + '"]');
-        if (sentinel && sentinel.previousElementSibling) {
-            modelSelect.insertBefore(opt, sentinel.previousElementSibling);
+        if (sentinel) {
+            modelSelect.insertBefore(opt, sentinel);
         } else {
             modelSelect.appendChild(opt);
         }
@@ -894,7 +916,7 @@ function initChat() {
 
         const msgDiv = document.createElement("div");
         msgDiv.classList.add("message", "assistant");
-        msgDiv.textContent = "Thinking\u2026";
+        msgDiv.innerHTML = "<em>Planning next move\u2026</em>";
         msgWrapper.appendChild(msgDiv);
 
         messagesContainer.appendChild(msgWrapper);
@@ -912,7 +934,7 @@ function initChat() {
                 try {
                     response = await fetch(OPENROUTER_API_URL, {
                         method: "POST",
-                        headers: { "Authorization": "Bearer " + apiKey, "Content-Type": "application/json", "HTTP-Referer": window.location.origin, "X-OpenRouter-Title": "AI Learning Gems — Learning Coach" },
+                        headers: { "Authorization": "Bearer " + apiKey, "Content-Type": "application/json", "HTTP-Referer": window.location.origin, "X-OpenRouter-Title": "AI Learning Gems - Learning Coach" },
                         body: JSON.stringify({ model: selectedModel, messages: conversationHistory, stream: true }),
                         signal: currentStreamController.signal
                     });
