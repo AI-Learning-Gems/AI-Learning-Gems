@@ -3,7 +3,7 @@
   <!-- Chat Sidebar (starts hidden; JS calls closeSidebar() on init) -->
   <div id="gemini-chat-sidebar" class="hidden">
     <div class="chat-header">
-      <span class="chat-title">AI Assistant</span>
+      <span class="chat-title">Learning Coach</span>
       <div class="model-selector">
         <select id="chat-model-select" aria-label="Select AI Model">
           <option value="openrouter/free">Auto (Best Free Model)</option>
@@ -52,14 +52,14 @@
         <button id="clear-selection-btn" aria-label="Clear selection">&times;</button>
       </div>
       <div class="chat-input-wrapper">
-        <textarea id="chat-input" placeholder="Ask about this page..." rows="2"></textarea>
+        <textarea id="chat-input" placeholder="What section are you studying?" rows="2"></textarea>
         <button id="send-btn" disabled aria-label="Send message"></button>
       </div>
     </div>
   </div>
 
   <!-- Floating Action Button -->
-  <button id="gemini-chat-fab" aria-label="Open AI Chat" data-tooltip="Chat with AI">
+  <button id="gemini-chat-fab" aria-label="Open Learning Coach" data-tooltip="Learning Coach">
     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
     </svg>
