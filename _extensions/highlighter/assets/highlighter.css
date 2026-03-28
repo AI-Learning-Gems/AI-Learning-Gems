@@ -469,18 +469,10 @@ body.highlighter-active main {
   user-select: text;
 }
 
-/* Apple Pencil hover: subtle preview of highlight color on paragraph hover */
-@media (hover: hover) and (pointer: fine) {
-  body.highlighter-active p:hover,
-  body.highlighter-active li:hover,
-  body.highlighter-active td:hover,
-  body.highlighter-active dt:hover,
-  body.highlighter-active dd:hover {
-    background: rgba(254, 240, 138, 0.15);
-    border-radius: 3px;
-    transition: background 0.15s ease;
-  }
-}
+/* Note: Apple Pencil hover preview was removed because the media query
+   @media (hover: hover) and (pointer: fine) also matches desktop mice,
+   causing distracting yellow tints on every paragraph hover. The crosshair
+   cursor already signals highlight mode on both desktop and iPad. */
 
 body.highlighter-eraser #quarto-document-content,
 body.highlighter-eraser main.content,
