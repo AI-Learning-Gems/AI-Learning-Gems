@@ -55,6 +55,7 @@ function initChat() {
     const MATH_MODELS = [
         { id: "deepseek/deepseek-v3.2-speciale", name: "DeepSeek V3.2 Speciale" },
         { id: "anthropic/claude-sonnet-4.6", name: "Claude Sonnet 4.6" },
+        { id: "anthropic/claude-opus-4.6", name: "Claude Opus 4.6" },
         { id: "google/gemini-3.1-pro-preview", name: "Gemini 3.1 Pro Preview" }
     ];
 
@@ -71,6 +72,7 @@ function initChat() {
     const STORAGE_KEY_CHAT_MESSAGES = "chat_messages_" + window.location.pathname;
     const STORAGE_KEY_AUTH_METHOD = "openrouter_auth_method"; // "key" or "oauth"
     const STORAGE_KEY_PKCE_VERIFIER = "openrouter_pkce_verifier";
+    const STORAGE_KEY_CONTENT_HASH = "chat_content_hash_" + window.location.pathname;
     const OPENROUTER_AUTH_URL = "https://openrouter.ai/auth";
 
     const SYSTEM_PROMPT = [
@@ -286,6 +288,15 @@ function initChat() {
         name = name.replace(/-/g, " ");
         name = name.replace(/\b\w/g, c => c.toUpperCase());
         return name;
+    }
+
+    function quickHash(str) {
+        var hash = 0;
+        for (var i = 0; i < str.length; i++) {
+            hash = ((hash << 5) - hash) + str.charCodeAt(i);
+            hash |= 0;
+        }
+        return hash.toString(36);
     }
 
     if (!sidebar || !fab) {
@@ -875,9 +886,22 @@ function initChat() {
         var clone = contentEl.cloneNode(true);
         var chatInClone = clone.querySelector("#gemini-chat-container");
         if (chatInClone) chatInClone.remove();
-        var pageText = clone.innerText;
+        var pageText = clone.textContent.replace(/\s+/g, " ").trim();
+
+        localStorage.setItem(STORAGE_KEY_CONTENT_HASH, quickHash(pageText));
+
         conversationHistory = [
-            { role: "system", content: SYSTEM_PROMPT + "\n\n---\n\nCHAPTER CONTENT (for reference when answering the user's questions):\n\n" + pageText }
+            {
+                role: "system",
+                content: [
+                    { type: "text", text: SYSTEM_PROMPT },
+                    {
+                        type: "text",
+                        text: "---\n\nCHAPTER CONTENT (use this as your knowledge base for all questions):\n\n" + pageText,
+                        cache_control: { type: "ephemeral", ttl: "1h" }
+                    }
+                ]
+            }
         ];
         contextInitialized = true;
     }
@@ -935,7 +959,12 @@ function initChat() {
                     response = await fetch(OPENROUTER_API_URL, {
                         method: "POST",
                         headers: { "Authorization": "Bearer " + apiKey, "Content-Type": "application/json", "HTTP-Referer": window.location.origin, "X-OpenRouter-Title": "AI Learning Gems - Learning Coach" },
-                        body: JSON.stringify({ model: selectedModel, messages: conversationHistory, stream: true }),
+                        body: JSON.stringify({
+                            model: selectedModel,
+                            messages: conversationHistory,
+                            stream: true,
+                            cache_control: { type: "ephemeral", ttl: "1h" }
+                        }),
                         signal: currentStreamController.signal
                     });
                     if (response.status === 429) {
