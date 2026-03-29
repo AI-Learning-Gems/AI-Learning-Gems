@@ -7,6 +7,8 @@
 | 1 | [ProTeGi (EMNLP 2023)](https://arxiv.org/abs/2305.03495) | First textual gradient method, beam search |
 | 2 | [TextGrad (NeurIPS 2024)](https://arxiv.org/abs/2406.07496) | PyTorch-like textual backpropagation |
 | 3 | [TRACE (NeurIPS 2024)](https://arxiv.org/abs/2406.16218) | OPTO framework, execution trace optimization |
+| 4 | [Feedback Descent (Lee & Finn, ICLR 2026 sub)](https://arxiv.org/abs/2511.07919) | Pairwise textual feedback with accumulated rationale history |
+| 5 | [Directional Feedback (Nie et al., 2024)](https://arxiv.org/abs/2405.16434) | Formal taxonomy: directional vs non-directional feedback |
 
 :::
 
@@ -56,7 +58,7 @@ ProTeGi improved the initial prompt by up to 31% (on the Jailbreak detection tas
 
 ::: {.exercise-mcq correct="C"}
 
-ProTeGi uses a UCB-based bandit (see @eq-protegi-ucb) to allocate evaluation budget across candidate prompts. The UCB formula includes a term $c \sqrt{\frac{\log t}{N_t(p)}}$. What happens to the optimizer's behavior if this exploration term is removed (i.e., candidates are selected purely by estimated quality $Q_t(p)$)?
+ProTeGi uses a UCB-based bandit (see @eq-protegi-ucb) to allocate evaluation budget across candidate prompts. The UCB formula includes an exploration term $c \cdot \sqrt{\ln t\, /\, N_t(p)}$. What happens to the optimizer's behavior if this exploration term is removed (i.e., candidates are selected purely by estimated quality $Q_t(p)$)?
 
 - The optimizer converges faster because it wastes no budget on unpromising candidates
 - The optimizer produces identical results because beam search already provides sufficient diversity
@@ -68,7 +70,7 @@ Correct! Without the exploration term, selection is purely exploitative: the can
 :::
 
 ::: {.feedback-incorrect}
-Removing exploration does not speed up convergence or leave results unchanged. Without the $\sqrt{\log t / N_t(p)}$ term, the optimizer greedily picks whichever candidate has the highest estimated quality. Since early estimates are based on few evaluations and therefore noisy, the optimizer can permanently lock onto a lucky-but-mediocre candidate while starving a genuinely superior one of evaluation budget. The exploration term prevents this by giving under-evaluated candidates a selection bonus.
+Removing exploration does not speed up convergence or leave results unchanged. Without the exploration bonus $\sqrt{\ln t\, /\, N_t(p)}$, the optimizer greedily picks whichever candidate has the highest estimated quality. Since early estimates are based on few evaluations and therefore noisy, the optimizer can permanently lock onto a lucky-but-mediocre candidate while starving a genuinely superior one of evaluation budget. The exploration term prevents this by giving under-evaluated candidates a selection bonus.
 :::
 
 :::
@@ -90,7 +92,7 @@ TextGrad ([Yuksekgonul et al., NeurIPS 2024](https://arxiv.org/abs/2406.07496)) 
 | **Functions**: differentiable ops (matmul, ReLU) | **Functions**: LLM calls, code execution |
 | **Loss**: scalar $\mathcal{L} \in \mathbb{R}$ | **Loss**: LLM-generated evaluation (TextLoss) |
 | **Gradients**: $\nabla_\theta \mathcal{L} \in \mathbb{R}^n$ | **Gradients**: natural language critiques |
-| **Chain rule**: $\frac{\partial \mathcal{L}}{\partial \theta} = \frac{\partial \mathcal{L}}{\partial z} \cdot \frac{\partial z}{\partial \theta}$ | **Chain rule**: recursive LLM feedback propagation |
+| **Chain rule**: $\partial \mathcal{L}/\partial \theta = (\partial \mathcal{L}/\partial z) \cdot (\partial z/\partial \theta)$ | **Chain rule**: recursive LLM feedback propagation |
 | **Update**: $\theta \leftarrow \theta - \alpha \nabla \mathcal{L}$ | **Update**: LLM rewrites variable using critique |
 
 The chain rule is where the analogy becomes both most powerful and most strained. For a computation graph with variable $v$ and its successors, TextGrad computes:
@@ -116,7 +118,7 @@ For our triage system in a compound pipeline (symptom extractor $\to$ urgency cl
 
 ::: {.exercise-predict correct="B"}
 
-TextGrad's analogy table maps numerical gradient descent onto textual gradient descent component by component. One mapping: the numerical chain rule ($\frac{\partial \mathcal{L}}{\partial \theta} = \frac{\partial \mathcal{L}}{\partial z} \cdot \frac{\partial z}{\partial \theta}$) becomes recursive LLM feedback propagation. Before reading the results below, predict: when GPO later tested whether LLM self-reflection (a form of backward critique propagation) helps optimization, what did they find?
+TextGrad's analogy table maps numerical gradient descent onto textual gradient descent component by component. One mapping: the numerical chain rule ($\partial \mathcal{L}/\partial \theta = (\partial \mathcal{L}/\partial z) \cdot (\partial z/\partial \theta)$) becomes recursive LLM feedback propagation. Before reading the results below, predict: when GPO later tested whether LLM self-reflection (a form of backward critique propagation) helps optimization, what did they find?
 
 - Reflection helps significantly because the LLM can identify the root cause of failures and provide targeted fixes
 - Reflection actually hurts performance because the LLM's causal reasoning introduces inaccurate assumptions that mislead the optimizer
@@ -214,4 +216,27 @@ Arrange the four gradient-like methods in order from **most precise optimization
 :::
 
 
-The transition from scalar feedback (OPRO: "this prompt scored 78%") to directional feedback (TextGrad: "this prompt fails on neurological symptoms; it should mention stroke indicators and time-sensitivity") was the first major qualitative leap in prompt optimization. The next section explores a parallel branch, one that gains power not from richer feedback but from maintaining diverse *populations* of candidates and combining their strengths.
+The transition from scalar feedback (OPRO: "this prompt scored 78%") to directional feedback (TextGrad: "this prompt fails on neurological symptoms; it should mention stroke indicators and time-sensitivity") was the first major qualitative leap in prompt optimization. Feedback Descent ([Lee & Finn, ICLR 2026 submission](https://arxiv.org/abs/2511.07919)) pushes this further by accumulating pairwise comparative feedback across iterations, maintaining a buffer of explanations from all previous comparisons rather than conditioning only on the latest critique. Where TextGrad propagates feedback edge-by-edge through the computation graph (requiring $O(n)$ LLM calls for $n$ edges), Feedback Descent uses a single evaluator-editor loop that compares the current best artifact against a new candidate, explaining *why* one is better. The accumulated rationale history $\mathcal{R}$ grows across iterations, so the editor sees not just the current failure but the full trajectory of what has been tried. The theoretical result is striking: under standard assumptions, Feedback Descent achieves dimension-independent convergence, while zeroth-order methods that use only scalar feedback require evaluations exponential in the problem's dimensionality. On prompt optimization benchmarks, Feedback Descent achieves competitive performance with GEPA (the current state of the art) while outperforming GRPO by substantial margins. On molecular design, it identifies molecules surpassing the 99.9th percentile of a 260,000-compound database with 3.8x fewer evaluation calls than RL. We cover Feedback Descent in greater depth in @sec-pipeline, where its pipeline-level feedback accumulation becomes particularly valuable.
+
+Nie et al.'s [formal analysis of directional feedback](https://arxiv.org/abs/2405.16434) provides the theoretical backbone for this entire section. They classify natural language feedback into *directional* (analogous to first-order gradient information, telling the optimizer *which direction* to change) and *non-directional* (identifying relevant attributes but not the direction of change). Their experiments confirm what the progression from OPRO to TextGrad suggests: LLMs are especially capable of optimization when given directional feedback. The taxonomy maps precisely onto the chapter's feedback richness spectrum: scalar scores (no feedback), non-directional text ("the temperature is not quite right"), and directional text ("the prompt needs more neurological symptom keywords").
+
+::: {.exercise-mcq correct="B"}
+
+Nie et al. classify natural language feedback into directional and non-directional. A prompt optimizer receives the feedback: "The prompt is not handling billing cases well." According to this taxonomy, how should this feedback be classified, and what would a directional version look like?
+
+- This is directional feedback because it identifies billing cases as the failure mode; no improvement is needed
+- This is non-directional feedback because it identifies the relevant attribute (billing cases) but not the direction of change; a directional version would be "Add explicit instructions about checking for repeated charges and escalation history when billing keywords appear"
+- This is scalar feedback because it can be converted to a binary score (handles billing well = 1, does not = 0)
+- This is directional feedback because it implies the prompt should be changed; non-directional feedback would say nothing about billing cases
+
+::: {.feedback-correct}
+Correct! "The prompt is not handling billing cases well" identifies *what* is failing (billing cases) but not *how* to fix it. This is non-directional: it tells the optimizer which attribute matters, but not which direction to move. A directional version would specify the concrete change: "Add instructions about repeated charges, escalation history, and financial impact assessment for billing-related tickets." Nie et al.'s experiments show that LLMs optimize dramatically better with directional feedback, which is why ProTeGi and TextGrad generate specific critiques ("add neurological symptom keywords") rather than vague assessments ("the prompt is not good enough").
+:::
+
+::: {.feedback-incorrect}
+The key distinction is whether the feedback specifies *which direction* to change. "Not handling billing cases well" identifies the failing attribute but not the fix. Compare: "Add explicit instructions about checking for repeated charges" tells the optimizer exactly what to add. The first is non-directional (what, but not how); the second is directional (what and how). Scalar feedback would be just a number (78%) with no text at all.
+:::
+
+:::
+
+The next section explores a parallel branch, one that gains power not from richer feedback but from maintaining diverse *populations* of candidates and combining their strengths.

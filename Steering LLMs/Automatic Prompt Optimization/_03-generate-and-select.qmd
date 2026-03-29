@@ -10,6 +10,7 @@
 | 4 | [Self-Refine (NeurIPS 2023)](https://arxiv.org/abs/2303.17651) | Iterative output refinement via LLM critique |
 | 5 | [SPO (Xiang et al., EMNLP 2025 Findings)](https://arxiv.org/abs/2502.06855) | Reference-free pairwise LLM comparison |
 | 6 | [BPO (Cheng et al., ACL 2024)](https://arxiv.org/abs/2311.04155) | Amortized prompt rewriting via preference data |
+| 7 | [APOHF (Lin et al., 2024)](https://arxiv.org/abs/2405.17346) | Dueling bandit optimization with human preference feedback |
 
 :::
 
@@ -141,6 +142,8 @@ The mechanism has two components. First, an *optimizer LLM* generates a new cand
 
 The efficiency is striking. SPO uses just 3 sample questions (without answers) per iteration, and 8 LLM calls total per iteration. Across five benchmarks (GPQA-Diamond, AGIEval-MATH Level 5, LIAR, WSC, BBH-Navigate), SPO achieved 66.9% average accuracy at $0.15 per dataset, compared to OPRO's 66.6% at $4.51 and TextGrad's 63.9% at $13.14. SPO achieves comparable or better performance at 1.1% to 5.6% of existing methods' costs. The practical implication: prompt optimization no longer requires a labeled evaluation set, which opens the door to optimizing prompts for any task where an LLM can judge output quality.
 
+**APOHF** ([Lin et al., 2024](https://arxiv.org/abs/2405.17346)) takes the reference-free idea further by replacing LLM judges with *human* preference feedback. Where SPO has an LLM compare two outputs, APOHF asks a human: "Which of these two responses is better?" The algorithm formalizes this as a dueling bandit problem with a Bradley-Terry preference model: $P(x_1 \succ x_2) = \sigma(u(x_1) - u(x_2))$ where $u$ is a latent score function. A neural network (MLP) predicts latent scores from prompt embeddings, and an Upper Confidence Bound (UCB) strategy selects which prompt pairs to compare, balancing exploitation (high predicted score) with exploration (uncertainty about the score). APOHF works for tasks where no ground truth exists *and* no LLM judge is reliable enough, such as optimizing text-to-image prompts for DALL-E 3, where aesthetic quality is inherently subjective. The dueling bandit framing is theoretically principled and requires significantly fewer comparisons than naive search.
+
 ### BPO: Learning a Prompt-Rewriting Function
 
 Every method discussed so far searches for prompts at the *task level*: one prompt per task, optimized through iteration. BPO ([Cheng et al., ACL 2024](https://arxiv.org/abs/2311.04155)) takes a categorically different approach. Instead of searching for a single task-level prompt, BPO trains a dedicated seq2seq model that rewrites individual user prompts to elicit better responses from any target LLM.
@@ -269,6 +272,7 @@ APE -> SPO: "drops ground\ntruth requirement" {
 | Self-Refine | LLM critique + revision | No | Yes (outputs) | LLM self-feedback loop |
 | OPRO | Meta-prompt with trajectory | Yes | Yes (prompts) | Ascending sort, trajectory memory |
 | SPO | Pairwise LLM output comparison | No | Yes (hill-climbing) | Reference-free OvO evaluation, 3 samples |
+| APOHF | Dueling bandit with human prefs | Preference data | Yes (UCB-guided) | Human feedback only, works for text-to-image |
 | BPO | Seq2seq rewriter (LLaMA-2-7B) | Preference data | No (amortized) | Per-prompt rewriting, model-agnostic |
 | InstructZero | Bayesian optimization | Yes | Yes | Continuous proxy space |
 

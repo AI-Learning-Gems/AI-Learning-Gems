@@ -16,9 +16,11 @@ filters:
 
 {{< include "Automatic Prompt Optimization/_06-multi-objective-prompt-optimization.qmd" >}}
 
-{{< include "Automatic Prompt Optimization/_07-applications.qmd" >}}
+{{< include "Automatic Prompt Optimization/_07-multi-step-pipeline-optimization.qmd" >}}
 
-{{< include "Automatic Prompt Optimization/_08-frameworks-and-state-of-art.qmd" >}}
+{{< include "Automatic Prompt Optimization/_08-applications.qmd" >}}
+
+{{< include "Automatic Prompt Optimization/_09-frameworks-and-state-of-art.qmd" >}}
 
 {{< include "Automatic Prompt Optimization/_98-math-background.qmd" >}}
 

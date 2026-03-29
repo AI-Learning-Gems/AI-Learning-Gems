@@ -11,6 +11,7 @@
 | 5 | [GEPA (ICLR 2026)](https://arxiv.org/abs/2507.19457) | optimize_anything API |
 | 6 | [SAMMO (EMNLP 2024 Findings)](https://arxiv.org/abs/2404.02319) | Symbolic prompt programs |
 | 7 | [DSPy Optimizers Docs](https://dspy.ai/learn/optimization/optimizers/) | Full optimizer ecosystem |
+| 8 | [Feedback Descent (Lee & Finn, ICLR 2026 sub)](https://arxiv.org/abs/2511.07919) | Domain-agnostic evaluator-editor loop |
 
 :::
 
@@ -47,7 +48,7 @@ DSPy's optimizer ecosystem has grown considerably:
 | BetterTogether | Meta-optimizer combining prompt + weight | When fine-tuning is available |
 | GEPA | Pareto-based evolution with reflection | Any size, rich feedback available |
 
-For our triage pipeline, DSPy would define signatures for each module (extraction, classification, safety checking, explanation), compose them with `ChainOfThought`, and compile with MIPROv2. The optimizer would jointly search over instructions and few-shot examples for all modules, using TPE to search the combinatorial space efficiently.
+For our triage pipeline, DSPy would define signatures for each module (extraction, classification, safety checking, explanation), compose them with `ChainOfThought`, and compile with MIPROv2. The optimizer would jointly search over instructions and few-shot examples for all modules, using TPE to search the combinatorial space efficiently. For a detailed treatment of MIPROv2's role in multi-step pipeline optimization alongside TextGrad, TRACE, HiveMind, and Feedback Descent, see @sec-pipeline.
 
 ::: {.exercise-order correct="B,D,A,C"}
 
@@ -156,16 +157,16 @@ Several newer frameworks push the boundaries:
 
 ### Framework Comparison
 
-| Dimension | DSPy/MIPROv2 | TextGrad | TRACE | GEPA | SAMMO |
-|---|---|---|---|---|---|
-| **Core abstraction** | Programming (signatures, modules) | Autodiff (variables, loss, gradients) | Execution traces (nodes, bundles) | Universal text optimization | Symbolic programs (DAGs) |
-| **Optimization target** | Instructions + demonstrations | Any text variable | Any parameter (text, code, config) | Any text artifact | Prompt structure + content |
-| **Search strategy** | Bayesian (TPE) | Textual gradient descent | Trace-guided LLM reasoning | Reflection + Pareto evolution | Beam search with structural mutations |
-| **Multi-objective?** | No (single metric) | No (single loss) | No (single feedback) | Yes (Pareto-efficient) | Yes (cost vs. accuracy) |
-| **Pipeline support?** | Native (multi-module) | Computation graphs | Arbitrary DAGs | Agent architecture evolution | DAG prompt programs |
-| **Multimodal?** | Partial | No | No | Via diagnostic feedback | No |
-| **Open-source?** | Yes | Yes | Yes | Yes (via DSPy) | Yes |
-| **Best for** | Multi-stage pipelines with training data | Test-time refinement of individual cases | Heterogeneous workflows with non-LLM components | End-to-end optimization, rich feedback domains | Prompt compression and structural tuning |
+| Dimension | DSPy/MIPROv2 | TextGrad | TRACE | GEPA | SAMMO | Feedback Descent |
+|---|---|---|---|---|---|---|
+| **Core abstraction** | Programming (signatures, modules) | Autodiff (variables, loss, gradients) | Execution traces (nodes, bundles) | Universal text optimization | Symbolic programs (DAGs) | Evaluator-editor loop with accumulated feedback |
+| **Optimization target** | Instructions + demonstrations | Any text variable | Any parameter (text, code, config) | Any text artifact | Prompt structure + content | Any text artifact (prompts, code, molecules) |
+| **Search strategy** | Bayesian (TPE) | Textual gradient descent | Trace-guided LLM reasoning | Reflection + Pareto evolution | Beam search with structural mutations | Pairwise comparison + feedback accumulation |
+| **Multi-objective?** | No (single metric) | No (single loss) | No (single feedback) | Yes (Pareto-efficient) | Yes (cost vs. accuracy) | No (pairwise preference) |
+| **Pipeline support?** | Native (multi-module) | Computation graphs | Arbitrary DAGs | Agent architecture evolution | DAG prompt programs | Treats pipeline as single artifact |
+| **Multimodal?** | Partial | No | No | Via diagnostic feedback | No | Via text representation (SMILES, SVG) |
+| **Open-source?** | Yes | Yes | Yes | Yes (via DSPy) | Yes | Yes |
+| **Best for** | Multi-stage pipelines with training data | Test-time refinement of individual cases | Heterogeneous workflows with non-LLM components | End-to-end optimization, rich feedback domains | Prompt compression and structural tuning | Expensive-evaluation domains with rich diagnostic feedback |
 
 ::: {.exercise-fillin}
 

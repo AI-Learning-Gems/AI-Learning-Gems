@@ -7,6 +7,9 @@
 | 1 | [APO Survey (2025)](https://arxiv.org/abs/2502.16923) | Formal APO definition, 5-part taxonomy |
 | 2 | [OPRO (ICLR 2024)](https://arxiv.org/abs/2309.03409) | Mathematical formulation, sensitivity examples |
 | 3 | [GPO (AAAI 2025)](https://arxiv.org/abs/2402.17564) | Formal optimization objective with expectation |
+| 4 | [Optimization Perspective Survey (Li et al., 2025)](https://arxiv.org/abs/2502.11560) | Unified optimization-theoretic formalization; DPO/CPO/HPO framework |
+| 5 | [Heuristic Search Survey (Cui et al., 2025)](https://arxiv.org/abs/2502.18746) | Five-dimensional taxonomy: where, what, criteria, operators, algorithms |
+| 6 | [Directional Feedback (Nie et al., 2024)](https://arxiv.org/abs/2405.16434) | Formal taxonomy of directional vs non-directional feedback |
 
 :::
 
@@ -62,7 +65,7 @@ The five challenges above describe *properties of the search space* that make pr
 
 :::
 
-There is a sixth challenge, more subtle than the others: **the blindfolded optimizer problem.** Without directional feedback, a prompt optimizer must explore at random. It can try a prompt and learn that it scored 78%, but not learn *which parts* of the prompt contributed to success and *which parts* caused failures. This is the limitation that the textual gradient methods of @sec-textual-gradients address.
+There is a sixth challenge, more subtle than the others: **the blindfolded optimizer problem.** Without directional feedback, a prompt optimizer must explore at random. It can try a prompt and learn that it scored 78%, but not learn *which parts* of the prompt contributed to success and *which parts* caused failures. [Nie et al. (2024)](https://arxiv.org/abs/2405.16434) formalize this distinction rigorously: they classify feedback into *directional* (analogous to first-order gradient information, e.g. "add neurological symptom keywords"), *non-directional* (identifies relevant attributes but not the direction, e.g. "the temperature is not quite right"), and *reward-only* (a scalar score with no explanation). Their experiments confirm that LLMs are dramatically more capable of optimization when they receive directional feedback: the performance gap between directional and reward-only feedback mirrors the gap between gradient descent and random search in classical optimization. This limitation is what the textual gradient methods of @sec-textual-gradients address.
 
 ::: {.callout-warning title="Common Misconception: Prompt optimization is just asking an LLM to write a better prompt"}
 This is the most common simplification. While the final step of many algorithms does involve an LLM generating a new prompt, the algorithms surrounding that step are what matter. OPRO ([Yang et al., ICLR 2024](https://arxiv.org/abs/2309.03409)) maintains a sorted trajectory history and uses ascending-order placement to exploit recency bias. GPO ([Tang et al., AAAI 2025](https://arxiv.org/abs/2402.17564)) retrieves semantically similar past prompts as demonstrations using embedding models. GEPA ([Agrawal et al., ICLR 2026](https://arxiv.org/abs/2507.19457)) runs per-instance Pareto selection to maintain diversity. The LLM is a powerful subroutine, but the optimization logic wrapping it is what turns "write a better prompt" into a principled search algorithm. GPO's ablation study makes this concrete: removing trajectory retrieval degrades performance by 15%, and removing the edit distance schedule costs another 10%.
@@ -118,7 +121,7 @@ This chapter focuses primarily on discrete prompt optimization, with continuous 
 
 ### The APO Taxonomy: A Roadmap
 
-The EMNLP 2025 survey by [Ramnath et al.](https://arxiv.org/abs/2502.16923) organizes the entire field into a five-part anatomy. Every algorithm we will study fits into this framework:
+The EMNLP 2025 survey by [Ramnath et al.](https://arxiv.org/abs/2502.16923) organizes the entire field into a five-part anatomy. Two complementary surveys published in early 2025 provide alternative lenses: [Li et al.](https://arxiv.org/abs/2502.11560) frames the field through an optimization-theoretic perspective (classifying methods as foundation-model-based, evolutionary, gradient-based, or RL), while [Cui et al.](https://arxiv.org/abs/2502.18746) categorizes along five heuristic-search dimensions (where, what, criteria, operators, algorithms). We follow Ramnath et al.'s taxonomy as the primary organizational framework because it maps most naturally onto the algorithm-level detail in this chapter, but the alternative perspectives are valuable for seeing the same landscape from different angles. Every algorithm we will study fits into this framework:
 
 1. **Seed initialization.** How do you get your first candidate prompts? Options range from manual crafting to LLM-generated proposals (APE) to empty strings.
 
@@ -155,9 +158,10 @@ The methods in this chapter form a natural progression from less to more sophist
 | Paradigm | Feedback Type | Key Methods | Section |
 |---|---|---|---|
 | Generate-and-Select | Scalar (accuracy) | APE, OPRO, InstructZero | @sec-first-wave |
-| Textual Gradients | Natural language critiques | ProTeGi, TextGrad, TRACE | @sec-textual-gradients |
+| Textual Gradients | Natural language critiques | ProTeGi, TextGrad, TRACE, Feedback Descent | @sec-textual-gradients |
 | Evolutionary / Search | Scalar + population diversity | EvoPrompt, GPO, PromptAgent | @sec-evolutionary |
 | Multi-Objective | Multiple competing scores + Pareto | MOPO, MORL-Prompt, ParetoPrompt, GEPA | @sec-multi-objective |
+| Multi-Step Pipelines | End-to-end + credit assignment | MIPROv2, TextGrad, TRACE, HiveMind, GEPA | @sec-pipeline |
 
 The progression from APE to GEPA is a progression from "no feedback" (propose and score) to "scalar feedback" (OPRO's trajectory) to "directional feedback" (TextGrad's critiques) to "population-based exploration with rich diagnostics" (GEPA's execution traces and Pareto selection). Each paradigm addresses a limitation of the previous one.
 
@@ -200,6 +204,10 @@ The convergence is not about prompts, Bayesian optimization, or evolutionary alg
 | 2025 | [ParetoPrompt](https://openreview.net/forum?id=HGCk5aaSvE) | ICLR 2025 | Multi-Objective RL | RL on Pareto front, no scalarization |
 | 2025 | [GEPA](https://arxiv.org/abs/2507.19457) | ICLR 2026 | Pareto Evolution | +9.6% on Qwen3-8B, 6x fewer rollouts than GRPO |
 | 2025 | [HiveMind](https://arxiv.org/abs/2512.06432) | AAAI 2026 | Multi-Agent | Shapley credit, 80%+ fewer LLM calls |
+| 2025 | [Feedback Descent](https://arxiv.org/abs/2511.07919) | ICLR 2026 sub | Textual Feedback | Outperforms GRPO, competitive with GEPA; 3.8x fewer evaluations |
+| 2024 | [StraGo](https://arxiv.org/abs/2410.08601) | -- | Strategic Search | Mitigates prompt drifting via experience-guided strategies |
+| 2024 | [APOHF](https://arxiv.org/abs/2405.17346) | -- | Preference-Only | Dueling bandit optimization with human preferences, no numeric scores |
+| 2024 | [Directional Feedback](https://arxiv.org/abs/2405.16434) | -- | Theory | Formalizes directional vs non-directional feedback |
 
 ::: {.callout-note title="Think Hard: Is there a fundamental limit to prompt optimization?"}
 Is there a "Bayes-optimal" prompt for a given task and model? In principle, yes: for a fixed model $M_T$, dataset $\mathcal{D}$, and metric $F$, the prompt $p^*$ that maximizes @eq-apo-objective exists (assuming $\mathcal{P}$ is finite, which it is for bounded-length prompts). But finding it is computationally intractable (the space is combinatorial), and the optimal prompt changes with the model, the data distribution, and the evaluation metric. Moreover, as models become more capable, the "headroom" for prompt optimization may shrink. SAMMO ([Schnabel & Neville, EMNLP 2024 Findings](https://arxiv.org/abs/2404.02319)) found weak correlation between optimal prompts across different LLMs, suggesting that $p^*$ is highly model-specific. The practical implication: prompt optimization is not a one-time cost but an ongoing engineering investment that must be re-run when any component changes.

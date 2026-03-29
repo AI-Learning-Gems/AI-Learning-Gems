@@ -1,0 +1,178 @@
+## Multi-Step Pipeline Optimization {#sec-pipeline}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [MIPRO/MIPROv2 (2024)](https://arxiv.org/abs/2406.11695) | Bayesian pipeline optimization via TPE |
+| 2 | [DSPy (2023)](https://arxiv.org/abs/2310.03714) | Programming framework for LM pipelines |
+| 3 | [Feedback Descent (Lee & Finn, ICLR 2026 sub)](https://arxiv.org/abs/2511.07919) | Pairwise textual feedback, domain-agnostic loop |
+| 4 | [TextGrad (NeurIPS 2024)](https://arxiv.org/abs/2406.07496) | Textual backpropagation through compound AI systems |
+| 5 | [TRACE (NeurIPS 2024)](https://arxiv.org/abs/2406.16218) | Execution-trace-guided optimization |
+| 6 | [HiveMind (AAAI 2026)](https://arxiv.org/abs/2512.06432) | Shapley-based credit assignment for multi-agent DAGs |
+| 7 | [GEPA (ICLR 2026)](https://arxiv.org/abs/2507.19457) | Agent architecture evolution via optimize_anything |
+| 8 | [Directional Feedback (Nie et al., 2024)](https://arxiv.org/abs/2405.16434) | Directional vs non-directional feedback theory |
+| 9 | [Stanford SAIL Blog — Following the Text Gradient at Scale](https://ai.stanford.edu/blog/feedback-descent/) | Accessible overview of Feedback Descent |
+
+:::
+
+### From Single Prompts to Compound Systems
+
+Everything up to this point optimized a single prompt $p^*$ for a single model $M_T$. Real-world AI systems are rarely so simple. Our support ticket triage system has grown into a pipeline with four modules: a symptom extractor, a triage classifier, a safety checker, and a physician-facing explanation generator. Each has its own prompt $\pi_i$. The compound optimization problem becomes:
+
+$$
+\langle \pi_1^*, \ldots, \pi_k^* \rangle = \arg\max_{\pi_1, \ldots, \pi_k} \; \mathbb{E}_{(x,m) \sim \mathcal{T}} \left[ \mu(\Phi(x; \pi_1, \ldots, \pi_k), m) \right]
+$$ {#eq-multi-prompt}
+
+where $\Phi$ is the compound system with modules $M_1, \ldots, M_k$ each parameterized by prompt $\pi_i$, and $\mu$ is the end-to-end evaluation metric. This compound problem is fundamentally harder than single-prompt optimization for three reasons: (a) the search space is the product of per-module prompt spaces (exponentially larger), (b) prompts interact non-linearly (a good extraction prompt may require a specific classifier prompt to work well), and (c) credit assignment is ambiguous (when the system misclassifies a ticket, is the extractor, classifier, or safety checker at fault?).
+
+This section traces how the single-prompt methods from Sections @sec-first-wave through @sec-multi-objective have been extended to handle pipelines. The challenge is not merely "optimize multiple prompts" but rather "optimize a system where the components depend on each other and the end-to-end objective provides sparse, aggregate feedback."
+
+### The Credit Assignment Problem
+
+When a multi-module pipeline fails, the end-to-end metric drops, but which module is responsible? If the triage system misclassifies a stroke presentation, the failure could originate in any of the three modules: the symptom extractor (it missed neurological keywords), the classifier (it received correct symptoms but weighted them incorrectly), or the safety checker (it did not flag the case despite risk indicators). Single-prompt optimizers simply do not face this question, because there is only one prompt to blame.
+
+Credit assignment is the central challenge that distinguishes pipeline optimization from running single-prompt optimization $k$ times. Optimizing each module's prompt independently ignores the interactions: a retriever prompt that produces verbose context may need a different reader prompt than one producing concise context. An extraction prompt that formats symptoms as a numbered list may require a different classifier prompt than one that produces narrative descriptions. Independent optimization misses these interaction effects entirely.
+
+The methods in this section differ primarily in *how* they handle credit assignment, falling into three broad strategies: some avoid it (by treating the pipeline as a flat text artifact), some approximate it (by propagating feedback backward through the computation graph), and some compute it explicitly (by measuring each module's marginal contribution via Shapley values).
+
+### DSPy and MIPROv2: Bayesian Pipeline Compilation
+
+DSPy ([Khattab et al., 2023](https://arxiv.org/abs/2310.03714)) treats LLM programs like traditional software: you write typed interfaces (signatures like `"customer_message -> urgency_level, explanation"`), compose them with modules (`Predict`, `ChainOfThought`, `ReAct`), and hand the pipeline to an optimizer (teleprompter). The optimizer compiles the pipeline by jointly optimizing prompts and demonstrations for every module.
+
+MIPROv2 ([Opsahl-Ong et al., 2024](https://arxiv.org/abs/2406.11695)) is DSPy's most powerful pipeline optimizer, using a three-stage Bayesian approach:
+
+1. **Bootstrap demonstrations**: Run the pipeline on training examples, collect successful execution traces as few-shot demonstrations via rejection sampling. This step populates a pool of demonstrated input-output pairs for each module.
+2. **Grounded instruction proposals**: An LLM analyzes the program code, training data, and execution traces to propose candidate instructions for each module. The instructions are "grounded" in the actual program behavior, not generated in a vacuum.
+3. **Bayesian surrogate search**: A Tree-structured Parzen Estimator (TPE) searches the joint space of instructions and demonstrations. TPE models $p(\text{config} \mid \text{score} > \text{threshold})$ and $p(\text{config} \mid \text{score} \leq \text{threshold})$, selecting configurations that maximize the Expected Improvement ratio.
+
+The key insight of MIPROv2 is that it searches over the *joint* space of per-module instructions and demonstrations, not over each module independently. A configuration specifies which instruction and which demonstrations to use for *every* module in the pipeline simultaneously. TPE's surrogate model captures the correlations between modules: it can learn that instruction A for the retriever works well with instruction C for the reader, even if A and C were generated by different proposal steps.
+
+For our triage system, MIPROv2 would define signatures for each module, compose them into a pipeline, and search over 10+ candidate instructions per module combined with bootstrapped demonstrations. On multi-stage pipelines, MIPROv2 achieves up to 13% accuracy improvement over single-module optimization, with the joint search over instructions and demonstrations contributing roughly equally.
+
+The limitation: MIPROv2 treats each module's prompt as an *independent variable* in the TPE search space. This search scales polynomially with the number of modules and the number of candidates per module, but it does not model three aspects of the *execution dynamics*: how data flows between modules, how errors propagate, or why a particular module failed. For pipelines with strong inter-module dependencies, this abstraction may be too coarse.
+
+::: {.exercise-mcq correct="C"}
+
+A team optimizes a 3-module triage pipeline (extractor, classifier, safety checker) using MIPROv2. They find that Instruction A for the extractor works well with Instruction C for the classifier, but Instruction A paired with Instruction B for the classifier performs poorly. What property of MIPROv2's search strategy allows it to discover this interaction?
+
+- MIPROv2 propagates textual gradients backward through the pipeline, so the classifier's failure is attributed to the extractor's instruction choice
+- MIPROv2 computes Shapley values for each module, identifying which instruction combination contributes most to overall performance
+- MIPROv2's TPE surrogate models the joint configuration space, learning correlations between per-module choices by observing which combinations score well together
+- MIPROv2 runs each module independently and selects the best instruction per module, then combines them
+
+::: {.feedback-correct}
+Correct! MIPROv2 searches the *joint* space of per-module instructions and demonstrations using a Tree-structured Parzen Estimator. The TPE builds a probabilistic model over configurations (which instruction for module 1, which instruction for module 2, etc.) conditioned on performance. Over many trials, it learns that certain combinations work well together and others do not, without needing to decompose *why* the interaction exists. Option A describes TextGrad's approach, option B describes HiveMind's approach, and option D describes independent optimization (which MIPROv2 specifically avoids).
+:::
+
+::: {.feedback-incorrect}
+MIPROv2 does not use textual gradients (that is TextGrad), Shapley values (that is HiveMind), or independent per-module optimization. Its key mechanism is a Tree-structured Parzen Estimator that searches the *joint* configuration space of all modules simultaneously. The TPE observes which combinations of per-module instructions and demonstrations produce high scores, building a probabilistic model that captures inter-module correlations. This is how it discovers that Instruction A + Instruction C works better than Instruction A + Instruction B, without needing to understand *why*.
+:::
+
+:::
+
+### TextGrad for Compound Systems
+
+TextGrad (@sec-textual-gradients) extends naturally to pipelines because its computation graph formalism already handles multi-step chains. For a pipeline $x \xrightarrow{M_1} z_1 \xrightarrow{M_2} z_2 \xrightarrow{M_3} y$, TextGrad's backward pass propagates critiques from the final output $y$ back through each intermediate variable:
+
+$$
+\frac{\partial \mathcal{L}}{\partial \pi_1} = \nabla_f\left(\pi_1, z_1, \frac{\partial \mathcal{L}}{\partial z_1}\right), \quad \text{where} \quad \frac{\partial \mathcal{L}}{\partial z_1} = \nabla_f\left(z_1, z_2, \frac{\partial \mathcal{L}}{\partial z_2}\right)
+$$
+
+Each step is an LLM call asking: "Given the downstream criticism and the current module's input/output, how should this module's prompt be improved?" The result is a per-module critique that serves as a textual gradient for updating each prompt.
+
+The trade-off is cost and accuracy. TextGrad's backward pass requires one LLM call per edge in the computation graph. For a 4-module pipeline, that is 4 backward calls per optimization step, each propagating feedback through a different module. More importantly, the textual chain rule accumulates approximation errors: the LLM at each backward step must reason about causal relationships ("how did criticisms of module 3's output translate into criticisms of module 2's output?"), and this reasoning can introduce misattributions. GPO's finding that reflection hurts single-prompt optimization (@sec-evolutionary) is even more concerning for pipelines, where the causal chain is longer and the reasoning more complex.
+
+### TRACE: Full Execution Traces
+
+TRACE (@sec-textual-gradients) takes a fundamentally different approach from TextGrad: instead of propagating critiques edge-by-edge through the computation graph, TRACE captures the full execution trace (which steps ran, what each produced, how data flowed) and presents the *entire minimal subgraph* to the optimizer LLM in a single call. For a pipeline, this means the optimizer reads the complete execution history, including the extractor's output, the classifier's input and output, the safety checker's decision, as pseudo-code, and reasons about the whole system at once.
+
+This holistic view has a concrete advantage for credit assignment: the optimizer can see that the extractor produced "chest pain, shortness of breath" but the classifier ignored the "shortness of breath" token because its prompt says "focus on the primary complaint." A per-edge backward pass (TextGrad) might attribute the failure to the classifier without noticing that the extractor's formatting caused the ambiguity. The trade-off is context window pressure: for complex pipelines, the full execution trace can be large.
+
+### Feedback Descent: Rich Feedback for Iterative Improvement
+
+Feedback Descent ([Lee & Finn, ICLR 2026 submission](https://arxiv.org/abs/2511.07919)) introduces a domain-agnostic optimization loop that addresses a fundamental limitation of both scalar-feedback methods (OPRO) and standard textual gradient methods (TextGrad). The core argument, described vividly in the [Stanford SAIL blog](https://ai.stanford.edu/blog/feedback-descent/) as "sucking supervision through a straw," is that existing RL algorithms compress rich evaluator feedback into scalar rewards, discarding the causal signal of where and why things failed.
+
+The algorithm is built from two components:
+
+1. **Evaluators**: Given the current best artifact $x_t^*$ and a new candidate $x$, the evaluator returns both a preference signal $p \in \{0, 1\}$ (which is better?) and textual feedback $r \in \mathcal{S}$ explaining *why*. This structured feedback can take many forms: property tables, error traces, reasoning analyses, or any domain-specific diagnostic information.
+
+2. **Editors**: An LLM reads the current best artifact and *accumulated* feedback from all previous comparisons, then proposes an improved candidate: $x_t = \mathcal{M}(x_t^*, \mathcal{R}_{t-1})$.
+
+The key distinction from TextGrad is trajectory-level feedback accumulation. TextGrad optimizes "pointwise," conditioning only on the latest artifact and its critique. Feedback Descent takes the opposite approach. It maintains a buffer of comparative feedback $\mathcal{R}$ that grows across iterations, so the editor sees not just the current failure but the full history of what has been tried, what worked, and what did not.
+
+The theoretical argument for this approach is striking. Under standard assumptions, Feedback Descent achieves **dimension-independent** convergence: $T = O\left(\frac{L(\alpha^2 + \sigma^2)}{\mu \alpha^2} \log \frac{1}{\epsilon}\right)$, while zeroth-order methods (which use only scalar feedback) require evaluations that grow exponentially with dimension $d$. Rich textual feedback breaks the curse of dimensionality that plagues reward-only optimization.
+
+::: {.exercise-predict correct="B"}
+
+Feedback Descent accumulates pairwise comparative feedback across iterations (rather than conditioning only on the latest critique like TextGrad). Before reading the results below, predict: how does Feedback Descent compare to GEPA (the current state of the art) and GRPO (reinforcement learning) on prompt optimization benchmarks?
+
+- Feedback Descent significantly outperforms both GEPA and GRPO, because accumulated feedback provides strictly more information
+- Feedback Descent achieves competitive performance with GEPA while substantially outperforming GRPO, suggesting that rich feedback closes the gap with population-based methods but does not always surpass them
+- Feedback Descent outperforms GRPO but substantially underperforms GEPA, because it lacks Pareto-based candidate selection
+
+::: {.predict-reveal}
+**The answer is B.** On prompt optimization across four diverse tasks (multi-hop reasoning, instruction following, privacy, and retrieval verification), Feedback Descent is competitive with GEPA on some benchmarks while GEPA leads on others. Both substantially outperform GRPO. The pattern suggests that accumulated rich feedback achieves sample efficiency comparable to population-based Pareto methods, but each method has complementary strengths: GEPA excels at maintaining diverse candidate populations, while Feedback Descent excels at extracting maximum information per comparison.
+:::
+
+:::
+
+On prompt optimization specifically (across four diverse tasks: multi-hop reasoning, instruction following, privacy, and retrieval verification), Feedback Descent achieves competitive performance with GEPA (the current state of the art) while outperforming GRPO by substantial margins. On molecular design, Feedback Descent identifies drug-like molecules surpassing the 99.9th percentile of a 260,000-compound database, with a 3.8x reduction in evaluation calls relative to RL methods.
+
+For our triage pipeline, Feedback Descent would evaluate candidate pipeline configurations through pairwise comparison ("Pipeline A classified these 10 tickets as follows; Pipeline B classified them as follows; which is better and why?"), accumulate the structured feedback, and use it to guide the next revision. The accumulated feedback naturally captures patterns like "pipelines that mention neurological keywords in the extractor prompt consistently outperform those that don't."
+
+::: {.callout-note title="Think Hard: Feedback Descent vs. TextGrad — what is the real difference?"}
+Both methods use LLM-generated textual feedback to guide optimization. The difference is structural. TextGrad decomposes feedback into per-edge critiques and propagates them backward through the computation graph, analogous to backpropagation. Feedback Descent treats the entire system as a single artifact and accumulates pairwise comparative feedback across iterations, analogous to evolutionary selection with rich explanations. TextGrad's per-edge decomposition provides more targeted feedback for each component, but requires more LLM calls and risks error accumulation through the chain rule. Feedback Descent's holistic approach is simpler (one evaluator + one editor) and avoids chain-rule errors, but it cannot tell you *which specific module* caused a failure. The choice depends on pipeline depth: for shallow pipelines (2-3 steps), Feedback Descent's simplicity wins; for deep pipelines (5+ steps) with clear modular boundaries, TextGrad's per-component feedback may be more targeted.
+:::
+
+### Credit Assignment via Shapley Values
+
+When the pipeline has a clear modular structure (distinct agents or tools connected in a DAG), we can go beyond approximate feedback propagation and compute each module's contribution explicitly. HiveMind ([Xia et al., AAAI 2026](https://arxiv.org/abs/2512.06432)) uses Shapley values (see @sec-math-shapley) to quantify each agent's marginal contribution:
+
+$$
+\phi_i(v) = \sum_{S \subseteq N \setminus \{i\}} \frac{|S|!(|N|-|S|-1)!}{|N|!} \cdot \left[v(S \cup \{i\}) - v(S)\right]
+$$
+
+where $v(S)$ is the system performance when only agents in $S$ are active. The Shapley value $\phi_i$ measures how much agent $i$ contributes on average across all possible subsets. Low Shapley values identify bottlenecks. Those modules receive targeted prompt refinement.
+
+Computing exact Shapley values requires evaluating $2^{|N|}$ coalitions, which is exponential. HiveMind's **DAG-Shapley** exploits the pipeline's DAG structure to prune non-viable coalitions (an agent whose predecessor is excluded cannot contribute), reducing LLM calls by 80%+. The CG-OPO (Contribution-Guided Online Prompt Optimization) algorithm then allocates optimization budget proportionally to each agent's contribution gap: the module contributing least gets the most optimization effort.
+
+For our triage pipeline, Shapley analysis might reveal that the safety checker has a Shapley value of 8% while the symptom extractor contributes 42%. This gap tells the optimizer to spend four-fifths of its budget improving the extractor, not the safety checker. Without credit assignment, a naive optimizer would allocate budget equally across all modules, wasting most of it on components that are already performing well.
+
+### GEPA for Agent Architecture Evolution
+
+GEPA's `optimize_anything` API (@sec-multi-objective) takes the most radical approach to pipeline optimization: treat the entire agent system (code, prompts, and control flow) as a single text artifact to be evolved. Rather than optimizing individual prompts within a fixed architecture, GEPA can discover the architecture itself.
+
+In preliminary experiments on the ARC-AGI challenge, GEPA evolved a 10-line stub into a 300+ line agent. This capability is architecture search, not just prompt optimization: the algorithm discovers not just what the prompts should say, but how the agent should be structured. The trade-off is that GEPA's flat-text representation loses the modular structure that enables targeted credit assignment.
+
+### Comparative Analysis: Pipeline Optimization Methods
+
+| Method | Credit Assignment | Pipeline Awareness | LLM Calls per Step | Handles Non-LLM Components? | Scales to $k$ Modules |
+|---|---|---|---|---|---|
+| MIPROv2 | None (joint Bayesian search) | Explicit (module-wise) | $O(1)$ per TPE trial | No | Polynomially |
+| TextGrad | Per-edge backward propagation | Computation graph | $O(k)$ | No | Linearly in depth |
+| TRACE | Holistic (full trace) | Execution DAG | $O(1)$ | Yes | Context-window limited |
+| Feedback Descent | Holistic (pairwise comparison) | Treats system as artifact | $O(1)$ | Yes (via text) | Context-window limited |
+| HiveMind/Shapley | Exact marginal contributions | DAG structure | $O(2^k)$ pruned | Via ablation | Exponentially (but DAG-pruned) |
+| GEPA | None (flat text evolution) | None (architecture search) | $O(1)$ | Yes (evolves code) | Arbitrarily |
+
+The choice between these methods depends on your pipeline's structure and your budget. For small, well-defined pipelines (2-4 LLM modules) with ample training data, MIPROv2's Bayesian joint search is the most principled. For deep pipelines where you need per-component feedback, TextGrad's backward pass provides targeted updates. For heterogeneous workflows mixing LLM calls with rule-based logic, TRACE captures the full execution context. For expensive-evaluation settings where you want maximum information per comparison, Feedback Descent's pairwise approach with accumulated feedback is the most sample-efficient. For agent systems where the architecture itself should be discovered, GEPA's `optimize_anything` operates at the highest level of abstraction.
+
+::: {.exercise-fillin}
+
+Match each pipeline optimization scenario to the most appropriate method:
+
+1. A 3-module RAG pipeline (retriever, reranker, generator) with 500 training examples and a single accuracy metric: {A|A: MIPROv2 (Bayesian joint search over instructions and demonstrations)|B: TextGrad (backward propagation of textual critiques)|C: HiveMind (Shapley-based credit assignment)}
+2. A 5-module pipeline where the end-to-end metric dropped and you need to identify which specific module caused the regression: {C|A: Feedback Descent (pairwise comparison of whole-pipeline outputs)|B: GEPA (evolve entire system as flat text)|C: HiveMind and Shapley (measure each module marginal contribution via ablation)}
+3. A pipeline mixing LLM calls with hard-coded regex safety checks and database lookups: {B|A: MIPROv2 (Bayesian search over LLM module instructions)|B: TRACE (captures full execution trace including non-LLM components)|C: TextGrad (backward pass through computation graph)}
+
+::: {.fillin-feedback}
+**Correct: A, C, B.** MIPROv2's Bayesian search excels at small, well-defined pipelines with ample training data because TPE efficiently searches the joint instruction-demonstration space. HiveMind's Shapley values are the right tool when you need to identify *which module* is the bottleneck, because marginal contributions measured via ablation capture interaction effects that per-edge feedback cannot. TRACE handles heterogeneous workflows because its `@bundle` decorator captures both LLM calls and regular Python functions in the execution DAG, while TextGrad's computation graph is purely LLM-based and MIPROv2's signatures are designed for LLM calls only.
+:::
+
+:::
+
+::: {.callout-warning title="Common Misconception: Optimizing each module's prompt independently is equivalent to joint optimization"}
+Independent optimization misses interaction effects between modules. A retriever prompt that produces verbose context may need a different reader prompt than one producing concise context. MIPROv2 addresses this by searching the *joint* configuration space. TextGrad addresses it by propagating feedback between modules. HiveMind addresses it by measuring marginal contributions across coalitions. Only GEPA sidesteps the problem entirely by treating the whole pipeline as a single evolvable artifact. The key evidence: MIPROv2 achieves up to 13% improvement over independent per-module optimization, precisely because the joint search captures these inter-module correlations.
+:::
+

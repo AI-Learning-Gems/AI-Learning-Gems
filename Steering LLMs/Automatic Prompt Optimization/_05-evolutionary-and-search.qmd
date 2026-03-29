@@ -9,6 +9,8 @@
 | 3 | [PE2 (Ye et al., ACL 2024 Findings)](https://arxiv.org/abs/2311.05661) | Hybrid: trajectory + reflection + fixed edit distance |
 | 4 | [PromptAgent (ICLR 2024)](https://arxiv.org/abs/2310.16427) | MCTS for prompt optimization |
 | 5 | [PromptBreeder (ICML 2024)](https://arxiv.org/abs/2309.16797) | Self-referential prompt evolution |
+| 6 | [StraGo (Wu et al., 2024)](https://arxiv.org/abs/2410.08601) | Strategic guidance from successes and failures; mitigates prompt drifting |
+| 7 | [CoTErrorSet (Tong et al., 2024)](https://arxiv.org/abs/2403.20046) | Self-rethinking: learning from past mistakes to improve reasoning |
 
 :::
 
@@ -96,6 +98,35 @@ The surprising finding: RL-discovered prompts are often ungrammatical gibberish.
 These gibberish prompts transfer between model families (RoBERTa and GPT-2 variants of different sizes), suggesting they activate general-purpose computational patterns rather than model-specific quirks. This deepens an important trade-off: the most effective prompts may not be human-readable. Soft prompt tuning (continuous embedding vectors) and RLPrompt (discrete but uninterpretable tokens) occupy the high-performance, low-interpretability end of the spectrum. All the other methods in this chapter sacrifice some performance for interpretability.
 
 **Simulated Annealing (Plum)** offers yet another perspective. Plum ([Pan et al., 2023](https://arxiv.org/abs/2311.08364)) applies classical SA to prompt optimization with Metropolis-Hastings acceptance: $P(\text{accept}) = \exp(-\Delta E / T)$ where $T$ decreases over iterations, allowing early exploration of worse solutions. SA is a single-trajectory method with stochastic acceptance, often simpler to implement than evolutionary or tree-search methods. It represents the "minimum viable metaheuristic" for prompt optimization.
+
+### StraGo: Strategic Guidance Against Prompt Drifting
+
+A subtle failure mode plagues all iterative prompt optimization methods: **prompt drifting**. When an optimizer rewrites a prompt to fix failed cases, the rewrite often *breaks* previously successful cases. The optimizer fixes the stroke misclassification by adding neurological keywords, but now the prompt over-triggers on headache complaints that previously worked fine. StraGo ([Wu et al., 2024](https://arxiv.org/abs/2410.08601)) addresses this directly by analyzing *both* successes and failures.
+
+StraGo's three-module pipeline generates *experiences* from both correct and incorrect cases, converts each experience into an actionable *strategy* (a concrete, step-by-step plan), and then applies strategies from both positive and negative experiences to produce a revised prompt. The key innovation is using positive experiences ("the prompt succeeded on financial urgency because it mentioned escalation history") alongside negative ones ("the prompt failed on medical cases because it lacked symptom keywords") to produce strategies that fix failures without breaking successes. An evolutionary crossover operation merges one positive-experience prompt with one negative-experience prompt.
+
+StraGo introduces two metrics for measuring prompt drifting: **Adverse Correction Rate (ACR)**, measuring previously-correct cases that become incorrect after optimization, and **Beneficial Correction Rate (BCR)**, measuring previously-incorrect cases that become correct. On BBH tasks, StraGo achieves 79.77% (vs. prior state-of-the-art ~77.4%), and on domain-specific medical tasks (MedQA, MedMCQA) where all baselines improve less than 1%, StraGo achieves +1.22% and +1.33% respectively. Convergence analysis shows StraGo needs only 10 prompts to exceed 80% on TREC, where APO needs 90+.
+
+Research on learning from mistakes supports this approach from a different angle. [Tong et al. (2024)](https://arxiv.org/abs/2403.20046) introduced CoTErrorSet, a 609,000-question benchmark where each question has both correct and incorrect rationales with LLM-generated explanations of *why* the error occurred. Their "self-rethinking" method (showing the LLM examples of past error types and asking whether its current output contains similar mistakes) improved GSM8K accuracy from 58.4% to 65.1% with PaLM 2. The insight is complementary to StraGo: mistakes contain structured information about failure modes that can guide both test-time correction (self-rethinking) and compile-time prompt refinement (StraGo's strategies).
+
+::: {.exercise-mcq correct="C"}
+
+A team uses OPRO to optimize a triage prompt. After 15 iterations, accuracy improved from 72% to 84%, but they notice that 8 tickets that were correctly classified in iteration 5 are now misclassified in iteration 15. StraGo calls this "prompt drifting." Which of StraGo's innovations would most directly address this problem?
+
+- Using cosine-decay edit distance to limit how much the prompt changes per iteration, gradually tightening to prevent large disruptive edits
+- Maintaining a population of prompts via evolutionary crossover, so that the iteration-5 prompt survives as a candidate even as others evolve
+- Analyzing *both* successful and failed cases to generate strategies that fix failures without breaking previously working cases, guided by the Adverse Correction Rate metric
+- Applying Monte Carlo Tree Search to look ahead and detect that the current refinement path will cause regressions three steps later
+
+::: {.feedback-correct}
+Correct! StraGo's core innovation is that it generates *experiences* from both correct and incorrect cases, then converts these into actionable *strategies*. Positive experiences ("the prompt succeeded on financial urgency because it mentioned escalation history") produce strategies that preserve what works, while negative experiences produce strategies that fix what is broken. The Adverse Correction Rate (ACR) metric explicitly measures previously-correct cases that become incorrect, giving the optimizer a direct signal about prompt drifting. Option A describes GPO's cosine decay (which controls edit magnitude, not drift). Option B describes EvoPrompt's population approach (diversity, not drift-awareness). Option D describes PromptAgent's MCTS (look-ahead, not experience-based correction).
+:::
+
+::: {.feedback-incorrect}
+The key is that prompt drifting occurs when fixing failures *breaks* previously working cases. Cosine decay (A) limits edit size but does not know which edits are safe. Population-based methods (B) maintain diversity but do not specifically protect successful cases. MCTS (D) looks ahead but does not analyze past successes. StraGo (C) directly addresses drifting by generating strategies from *both* successful and failed cases, using the Adverse Correction Rate (ACR) to detect when previously-correct cases are being broken. The crossover of positive-experience and negative-experience prompts is designed to preserve what works while fixing what does not.
+:::
+
+:::
 
 ### GPO: The Systematic Gradient-Optimizer Analogy
 
@@ -222,6 +253,7 @@ The evolutionary and search methods split along three axes:
 | EvoPrompt | GA / DE | Yes ($N$ prompts) | LLM as crossover/mutation | +25% on BBH |
 | PromptBreeder | Self-referential EA | Yes (prompts + mutation-prompts) | Co-evolves optimization strategy | Beats CoT on reasoning |
 | RLPrompt | Reinforcement learning | No (single policy) | Discovers uninterpretable prompts | High-performance gibberish |
+| StraGo | Strategic search | No (experience-guided) | Mitigates prompt drifting via positive+negative strategies | 79.77% BBH, +1.3% MedQA |
 | PE2 | Hybrid (trajectory + reflection) | No (beam search) | Combines OPRO's memory + ProTeGi's critique | 92.3% MultiArith, 64.0% GSM8K |
 | GPO | Gradient-inspired | No (trajectory memory) | Retrieval + cosine decay | +56.8% BBH, +62.6% MMLU (relative) |
 | PromptAgent | MCTS | Tree structure | Look-ahead via simulation | +9% on 12 tasks |

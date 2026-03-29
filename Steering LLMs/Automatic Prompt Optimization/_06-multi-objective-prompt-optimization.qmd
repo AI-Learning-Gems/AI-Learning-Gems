@@ -131,7 +131,7 @@ The product method proved most effective in practice: 34.58% content (vs. 19.56%
 
 ::: {.exercise-mcq correct="B"}
 
-MORL-Prompt proposes using a product of rewards ($R_\text{prod} = \mathbb{E}[\prod_{i=1}^{m} r_i]$) instead of an average. Why does the product formulation prevent objective collapse more effectively than averaging?
+MORL-Prompt proposes using a product of rewards ($R_{\text{prod}} = \mathbb{E}[\,\prod_i r_i\,]$) instead of an average. Why does the product formulation prevent objective collapse more effectively than averaging?
 
 - The product assigns higher total reward to candidates that maximize any single objective, so all objectives get optimized
 - If any single objective reward approaches zero, it drags the entire product toward zero, creating a strong penalty for neglecting any objective
@@ -139,7 +139,7 @@ MORL-Prompt proposes using a product of rewards ($R_\text{prod} = \mathbb{E}[\pr
 - The product is equivalent to geometric mean, which is known to be a better aggregation function than arithmetic mean for all optimization problems
 
 ::: {.feedback-correct}
-Correct! The product $\prod_i r_i$ is multiplicative: if content preservation drops to 0.05 while style hits 0.95, the product is $0.05 \times 0.95 = 0.0475$, far worse than a balanced solution of $0.5 \times 0.5 = 0.25$. Averaging would give $\frac{0.05 + 0.95}{2} = 0.5$ for the collapsed case vs. $\frac{0.5 + 0.5}{2} = 0.5$ for the balanced case, making them indistinguishable. The product creates a steep penalty for neglecting any objective because the near-zero factor dominates the product. The optimizer is forced to maintain all objectives at reasonable levels.
+Correct! The product $\prod_i r_i$ is multiplicative: if content preservation drops to 0.05 while style hits 0.95, the product is $0.05 \times 0.95 = 0.0475$, far worse than a balanced solution of $0.5 \times 0.5 = 0.25$. Averaging would give $(0.05 + 0.95)/2 = 0.5$ for the collapsed case vs. $(0.5 + 0.5)/2 = 0.5$ for the balanced case, making them indistinguishable. The product creates a steep penalty for neglecting any objective because the near-zero factor dominates the product. The optimizer is forced to maintain all objectives at reasonable levels.
 :::
 
 ::: {.feedback-incorrect}

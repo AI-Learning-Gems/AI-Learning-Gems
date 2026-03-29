@@ -1,4 +1,4 @@
-## Applications: Agents, Judges, and Multimodal Prompt Tuning {#sec-applications}
+## Applications: Judges, Multimodal Prompt Tuning, and Beyond {#sec-applications}
 
 ::: {.callout-note collapse="true" title="Sources for this section"}
 
@@ -14,63 +14,9 @@
 
 :::
 
-### From Single Prompts to Compound Systems
+### Beyond Single Prompts
 
-Everything up to this point optimized a single prompt $p^*$ for a single model $M_T$. Real-world AI systems are rarely so simple. Our support ticket triage system has grown into a pipeline with four modules: a symptom extractor, a triage classifier, a safety checker, and a physician-facing explanation generator. Each has its own prompt $\pi_i$. The compound optimization problem becomes:
-
-$$
-\langle \pi_1^*, \ldots, \pi_k^* \rangle = \arg\max_{\pi_1, \ldots, \pi_k} \; \mathbb{E}_{(x,m) \sim \mathcal{T}} \left[ \mu(\Phi(x; \pi_1, \ldots, \pi_k), m) \right]
-$$ {#eq-multi-prompt}
-
-where $\Phi$ is the compound system with modules $M_1, \ldots, M_k$ each parameterized by prompt $\pi_i$, and $\mu$ is the end-to-end evaluation metric. This compound problem is fundamentally harder than single-prompt optimization for three reasons: (a) the search space is the product of per-module prompt spaces (exponentially larger), (b) prompts interact non-linearly (a good extraction prompt may require a specific classifier prompt to work well), and (c) credit assignment is ambiguous (when the system misclassifies a ticket, is the extractor, classifier, or safety checker at fault?).
-
-This section explores three frontier applications that each pose distinct challenges extending the standard formulation: multi-agent systems with credit assignment, LLM-as-a-Judge evaluation, and vision-language prompt tuning.
-
-### Multi-Agent Systems: Credit Assignment
-
-When agents interact in non-sequential DAG structures (a retriever feeds a reasoner which feeds a checker), optimizing all prompts jointly is intractable. The key question: when the system fails, which module's prompt should be blamed and improved?
-
-**The MIPRO/DSPy approach** treats each module's prompt as an independent variable and uses Bayesian optimization (Tree-structured Parzen Estimator) to search the joint space. This works for small pipelines (2--5 modules) but scales poorly with the number of modules because it ignores inter-module dependencies.
-
-**The TRACE approach** provides per-module feedback through execution traces. When the system fails, TRACE's minimal subgraph propagator identifies which module's output caused the failure by tracing backward through the DAG. The optimizer reads the trace as pseudo-code and proposes targeted updates.
-
-![HiveMind: multi-agent prompt optimization with DAG-Shapley credit assignment. Instead of optimizing all agents' prompts equally, HiveMind quantifies each agent's marginal contribution using Shapley values, then targets optimization budget at underperforming modules. Source: Xia et al. (2025).](Automatic Prompt Optimization/images/hivemind-architecture.png){#fig-hivemind}
-
-**The HiveMind approach ([Xia et al., AAAI 2026](https://arxiv.org/abs/2512.06432))** uses Shapley values to quantify each agent's marginal contribution (see @sec-math-shapley for a review of Shapley values in cooperative game theory):
-
-$$
-\phi_i(v) = \sum_{S \subseteq N \setminus \{i\}} \frac{|S|!(|N|-|S|-1)!}{|N|!} \cdot \left[v(S \cup \{i\}) - v(S)\right]
-$$ {#eq-shapley}
-
-where $v(S)$ is the coalition value (system performance when only agents in $S$ are active). The Shapley value $\phi_i$ measures how much agent $i$ contributes on average across all possible subsets. Agents with low Shapley values are identified as bottlenecks and receive targeted prompt refinement.
-
-Computing exact Shapley values requires evaluating $2^{|N|}$ coalitions, which is exponential. HiveMind's **DAG-Shapley** exploits the DAG structure to prune non-viable coalitions (an agent whose predecessor is excluded cannot contribute), reducing LLM calls by 80%+. The CG-OPO (Contribution-Guided Online Prompt Optimization) algorithm then allocates optimization budget proportionally to each agent's contribution gap.
-
-**GEPA's optimize_anything** takes the most radical approach: treat the entire agent system (code + prompts + control flow) as a single text artifact to be evolved. In preliminary experiments on the ARC-AGI challenge, GEPA evolved a 10-line stub into a 300+ line agent, though these results were not included in the published evaluation. This strategy is architecture search, not just prompt optimization: the algorithm discovers not just what the prompt should say, but how the agent should be structured.
-
-::: {.exercise-mcq correct="B"}
-
-HiveMind uses Shapley values to identify which agent's prompt to improve in a multi-agent DAG. Suppose Agent B has the *lowest* Shapley value $\phi_B$ in a 4-agent pipeline. What does this tell the CG-OPO optimizer?
-
-- Agent B should be removed from the pipeline, since its marginal contribution is negligible.
-- Agent B is the bottleneck: it contributes least on average across coalitions, so it should receive the largest share of the optimization budget.
-- Agent B's prompt is already optimal, since low Shapley value means the agent rarely changes the output.
-- Agent B's Shapley value is unreliable because DAG-Shapley only approximates the true value.
-
-::: {.feedback-correct}
-Correct! A low Shapley value means Agent B adds little value on average when included in coalitions. HiveMind's CG-OPO interprets this as a *contribution gap*: the agent is underperforming relative to its potential. The optimizer allocates more optimization budget to B's prompt precisely because it has the most room for improvement. This is the opposite of removal; the agent occupies a structural role in the DAG and needs a better prompt, not elimination.
-:::
-
-::: {.feedback-incorrect}
-Not quite. A low Shapley value does not mean the agent should be removed (it may occupy a critical structural position in the DAG) or that its prompt is already optimal. HiveMind interprets low Shapley values as a signal of underperformance: Agent B contributes least, so its prompt has the most room for improvement. CG-OPO allocates optimization budget proportionally to each agent's contribution gap, targeting the weakest links first.
-:::
-
-:::
-
-::: {.callout-note title="Think Hard: Credit assignment in agents vs. neural networks"}
-The credit assignment problem in multi-agent systems (which module's prompt to blame) is structurally analogous to the credit assignment problem in multi-layer neural networks (which layer's weights to blame). Backpropagation solves the latter by computing exact gradients through the computation graph. Textual backpropagation (TextGrad, TRACE) attempts the same for agent DAGs. But the analogy breaks down: neural network layers compose through differentiable operations, while agent modules compose through discrete text generation. The textual chain rule (@eq-textgrad-chain) accumulates approximation errors at each step, and the "gradient" at module 1 in a 4-module pipeline has been filtered through three rounds of LLM interpretation. HiveMind's Shapley approach sidesteps this by measuring marginal contributions directly (ablation-based), at the cost of exponentially many evaluations. The ideal solution may combine both: use Shapley values to identify *which* module to optimize, then use textual gradients to determine *how* to optimize it.
-:::
-
+The previous sections (@sec-first-wave through @sec-multi-objective) all optimized a single prompt for a single model. @sec-pipeline extended the formulation to multi-step pipelines, where multiple modules, each with its own prompt, must be optimized jointly. This section explores three additional frontier applications that each pose distinct challenges beyond the standard single-prompt and pipeline formulations: LLM-as-a-Judge evaluation, vision-language prompt tuning, and cross-domain applications.
 
 ### LLM-as-a-Judge: Optimizing the Evaluator
 

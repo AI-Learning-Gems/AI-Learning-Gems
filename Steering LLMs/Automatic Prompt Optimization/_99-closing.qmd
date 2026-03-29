@@ -14,7 +14,9 @@
 
 - **GEPA represents the current state of the art.** Reflection on execution traces combined with Pareto-efficient candidate selection achieves +9.6% on Qwen3-8B with 6x fewer rollouts than GRPO. Per-instance Pareto selection roughly doubles optimization effectiveness compared to greedy selection.
 
-- **Credit assignment is the bottleneck for multi-agent systems.** HiveMind's DAG-Shapley identifies which module's prompt to optimize, reducing wasted optimization budget by 80%+. GEPA's `optimize_anything` bypasses the problem by treating the entire system as a single evolvable text artifact.
+- **Credit assignment is the bottleneck for multi-agent systems.** HiveMind's DAG-Shapley identifies which module's prompt to optimize, reducing wasted optimization budget by 80%+. GEPA's `optimize_anything` bypasses the problem by treating the entire system as a single evolvable text artifact. Feedback Descent accumulates pairwise comparative feedback that naturally captures what works and what fails across the pipeline.
+
+- **Pipeline optimization is a distinct challenge, not just "multiple single-prompt optimizations."** Modules interact non-linearly: a verbose extractor prompt needs a different classifier prompt than a concise one. MIPROv2 searches the joint configuration space, TextGrad propagates feedback backward through modules, TRACE captures full execution traces, and HiveMind uses Shapley values for credit assignment. Independent per-module optimization misses these interaction effects.
 
 - **The field is converging toward general-purpose text optimization.** GEPA's `optimize_anything` subsumes prompts, code, agent architectures, and configurations under one API. The question is shifting from "which algorithm?" to "what feedback does the optimizer receive?"
 
@@ -215,5 +217,9 @@ Per-module evaluation (testing each module independently) misses interaction eff
 - **State of the art**: [GEPA paper](https://arxiv.org/abs/2507.19457) and [optimize_anything blog](https://gepa-ai.github.io/gepa/blog/2026/02/18/introducing-optimize-anything/)
 - **Best ablation study**: [GPO paper](https://arxiv.org/abs/2402.17564) (systematic analysis of what actually works)
 - **Multi-agent prompt optimization**: [HiveMind (AAAI 2026)](https://arxiv.org/abs/2512.06432) (Shapley credit assignment for agent pipelines)
+- **Pipeline optimization**: [Feedback Descent (Lee & Finn, ICLR 2026 sub)](https://arxiv.org/abs/2511.07919) and [SAIL blog post](https://ai.stanford.edu/blog/feedback-descent/) (rich pairwise feedback for iterative improvement)
+- **Directional feedback theory**: [Nie et al. (2024)](https://arxiv.org/abs/2405.16434) (why directional feedback matters for LLM-based optimization)
+- **Alternative surveys**: [Li et al. (2025)](https://arxiv.org/abs/2502.11560) (optimization perspective) and [Cui et al. (2025)](https://arxiv.org/abs/2502.18746) (heuristic search perspective)
+- **Prompt drifting**: [StraGo (2024)](https://arxiv.org/abs/2410.08601) (strategic guidance from both successes and failures)
 - **Vision-language prompting**: [CoOp/CoCoOp](https://arxiv.org/abs/2109.01134) (foundational soft prompt tuning for VLMs)
 - **Structure-aware optimization**: [SAMMO (Microsoft)](https://arxiv.org/abs/2404.02319) (symbolic prompt programs with structural mutations)
