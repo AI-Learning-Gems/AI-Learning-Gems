@@ -1,0 +1,21 @@
+---
+title: "The Science of Learning Technical Material"
+filters:
+  - ../_extensions/pandoc-ext/diagram/diagram.lua
+---
+
+{{< include "The Science of Learning Technical Material/_01-how-brain-learns.qmd" >}}
+
+{{< include "The Science of Learning Technical Material/_02-time-intensity.qmd" >}}
+
+{{< include "The Science of Learning Technical Material/_03-study-methods-ranked.qmd" >}}
+
+{{< include "The Science of Learning Technical Material/_04-long-term-retention.qmd" >}}
+
+{{< include "The Science of Learning Technical Material/_05-motivation.qmd" >}}
+
+{{< include "The Science of Learning Technical Material/_06-ai-tools.qmd" >}}
+
+{{< include "The Science of Learning Technical Material/_07-knowledge-and-novelty.qmd" >}}
+
+{{< include "The Science of Learning Technical Material/_99-closing.qmd" >}}

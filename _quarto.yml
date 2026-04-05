@@ -9,6 +9,7 @@ project:
     - scripts/clean-render-artifacts.sh
     - scripts/build-chat.sh
     - scripts/build-highlighter.sh
+    - scripts/fix-panel-esm.sh
   preview:
     port: 4200
 

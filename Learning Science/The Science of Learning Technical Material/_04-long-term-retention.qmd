@@ -1,0 +1,254 @@
+## Long-Term Retention: Remembering What You Learned Months Later {#sec-long-term-retention}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Piotr Wozniak — SuperMemo SM-2 Algorithm](https://super-memory.com/english/ol/sm2.htm) | Original SM-2 algorithm; EF formula; interval scheduling |
+| 2 | [Michael Nielsen — "Augmenting Long-term Memory"](https://augmentingcognition.com/ltm.html) | Personal essay on using Anki for research; patterns and anti-patterns |
+| 3 | [Michael Nielsen — "Using spaced repetition to see through mathematics"](https://cognitivemedium.com/srs-mathematics) | How SRS deepens mathematical understanding |
+| 4 | [Andy Matuschak — "How to write good prompts"](https://andymatuschak.org/prompts) | Factual, conceptual, and procedural prompts; common mistakes |
+| 5 | [Andy Matuschak — Mnemonic Medium notes](https://notes.andymatuschak.org/Mnemonic_medium) | Quantum Country experiment; embedding SRS in narrative text |
+| 6 | [Very Big Brain — "How Spaced Repetition Strengthens Long-Term Memory"](https://verybigbrain.com/psychology-thinking/how-spaced-repetition-strengthens-long-term-memory/) | LTP, reconsolidation, synaptic strengthening |
+| 7 | [Dunlosky et al., "Improving Students' Learning" (*PSPI*, 2013, full 55-page paper)](https://doi.org/10.1177/1529100612453266) | Cepeda et al. 2008 optimal lag rule (10-20% of retention interval); testing effects durable for 1-5 years |
+
+:::
+
+Three months after her design review, Priya gets pulled into a new project. The team needs someone who understands MoE routing. She volunteered because she spent two weeks studying it intensively. But when she sits down to review the architecture, something unsettling happens: she cannot remember the SM-2 interval formula. She cannot reconstruct the load-balancing loss derivation. The details she worked so hard to learn have faded. She remembers *that* she understood these things, but the understanding itself is gone.
+
+This experience is the forgetting curve in action. Priya's brain did not fail her; forgetting is the default behavior of every human memory system. The question is not whether you will forget. You will. The question is what you can do about it.
+
+### The Forgetting Curve, Quantified
+
+[Hermann Ebbinghaus](https://doi.org/10.1037/10011-000), in the 1880s, mapped the rate at which memories decay over time. His self-experiments (memorizing nonsense syllables and testing himself at various intervals) produced a remarkably consistent pattern: retention drops sharply in the first day, then declines more gradually over weeks. A [2015 replication by Murre and Dros](https://doi.org/10.1371/journal.pone.0120644) confirmed these original findings across intervals from 20 minutes to 31 days.
+
+The forgetting curve is well-approximated by an exponential decay function:
+
+$$
+\textcolor{#B45309}{R(t)} = R_0 \cdot e^{-t/\tau}
+$$ {#eq-forgetting-curve}
+
+where $\textcolor{#B45309}{R(t)}$ is [retention]{style="color: #B45309;"} at time $t$ (measured in days), $R_0$ is initial retention (typically 1.0 right after studying), and $\tau$ is the *memory time constant*, which controls how fast you forget. A larger $\tau$ means slower decay.
+
+To make this concrete: suppose Priya studies MoE routing and has perfect recall immediately ($R_0 = 1.0$). If her memory time constant is $\tau = 7$ days (a reasonable estimate for material studied once without review), then after one day she retains $R(1) = e^{-1/7} \approx 0.87$ (87%). After one week, retention drops to $R(7) = e^{-1} \approx 0.37$ (37%). After one month, $R(30) = e^{-30/7} \approx 0.014$ (1.4%). Nearly everything is gone.
+
+But here is the critical finding, also discovered by Ebbinghaus: **when you review material before it fades completely, the new memory time constant is longer**. Each successful review stretches $\tau$, so the decay slows down. After several well-timed reviews, material that once faded in a week can persist for months or years.
+
+How long should Priya wait between reviews? The full [Dunlosky et al. (2013)](https://doi.org/10.1177/1529100612453266) review synthesizes an impressive finding from the [Cepeda, Vul, Rohrer, Wixted, and Pashler (2008)](https://doi.org/10.1111/j.1467-9280.2008.02209.x) internet study, which tested 26 conditions combining different inter-session intervals (from no lag to 105 days) with different retention intervals (up to 350 days). The result: "criterion performance was best when the lag between sessions was approximately 10-20% of the desired retention interval." To remember something for one week, space sessions 12-24 hours apart. For one month of retention, space sessions 3-6 days apart. For five years, space sessions 6-12 months apart. This 10-20% rule connects the abstract forgetting curve to a scheduling heuristic.
+
+The full Dunlosky paper also documents how durable the effects of well-spaced practice testing can be. Testing effects have been observed not just over days and weeks, but across retention intervals of "2 to 4 months," "5 to 8 months," "9-11 months," and even "1 to 5 years" (citing [Bahrick et al., 1993](https://doi.org/10.1111/j.1467-9280.1993.tb00571.x); [Carpenter, Pashler, and Cepeda, 2009](https://doi.org/10.1002/acp.1537)). This durability is remarkable: a study strategy that costs minutes per session can produce benefits measurable years later. These findings are the empirical foundation on which spaced repetition software like Anki and SuperMemo was built.
+
+```{python}
+#| output: false
+#| error: true
+#| warning: false
+import warnings
+warnings.filterwarnings("ignore")
+import numpy as np
+import pandas as pd
+import hvplot.pandas
+import holoviews as hv
+hv.extension('bokeh')
+
+hvplot_opts = dict(width=700, height=400, grid=True)
+hv_opts = dict(
+    show_grid=True,
+    default_tools=['hover', 'save', 'pan', 'box_zoom', 'reset', 'wheel_zoom'],
+    active_tools=['pan'],
+)
+
+days = np.arange(0, 91, 0.5)
+no_review = np.exp(-days / 7)
+
+review_days = [1, 7, 21, 60]
+tau_values = [7, 14, 30, 60]
+with_review = []
+current_R = 1.0
+last_review = 0
+tau_idx = 0
+for d in days:
+    if tau_idx < len(review_days) and d >= review_days[tau_idx]:
+        current_R = 0.85 + 0.15 * current_R
+        last_review = d
+        tau_idx += 1
+    tau = tau_values[min(tau_idx, len(tau_values)-1)]
+    elapsed = d - last_review
+    with_review.append(current_R * np.exp(-elapsed / tau))
+
+df = pd.DataFrame({
+    'Day': days,
+    'No review': no_review,
+    'With spaced review': with_review,
+})
+df_melted = df.melt(id_vars=['Day'], var_name='Condition', value_name='Retention')
+
+final_plot = df_melted.hvplot.line(
+    x='Day', y='Retention', by='Condition',
+    xlabel='Days after initial study',
+    ylabel='Retention (fraction recalled)',
+    title='Forgetting With and Without Spaced Review',
+    **hvplot_opts,
+    line_width=2.5,
+    color=['#F43F5E', '#3B82F6'],
+).opts(**hv_opts)
+```
+
+```{python}
+#| label: fig-forgetting-curves
+#| fig-cap: "Retention over 90 days with and without spaced review. The red curve shows natural decay without review. The blue curve shows how reviews at days 1, 7, 21, and 60 reset the curve, with each successive interval growing longer."
+#| echo: false
+#| warning: false
+from bokeh.io import output_notebook, show
+import holoviews as hv
+output_notebook(hide_banner=True)
+show(hv.render(final_plot, backend='bokeh'))
+```
+
+### The SM-2 Algorithm: A Worked Example
+
+The SM-2 algorithm, developed by [Piotr Wozniak in 1987](https://super-memory.com/english/ol/sm2.htm) and the basis for modern [**spaced repetition**]{style="color: #B45309;"} software (including Anki), provides a precise mechanism for scheduling reviews. Wozniak observed that successive review intervals grow by an approximately constant factor, and he formalized this observation into an algorithm.
+
+The core idea has three components. First, each item you are learning has an *Easiness Factor* ($EF$), starting at 2.5 and decreasing if you struggle. Second, review intervals follow a formula:
+
+$$
+I(1) = 1, \quad I(2) = 6, \quad I(n) = I(n-1) \times EF \text{ for } n > 2
+$$ {#eq-sm2-intervals}
+
+where $I(n)$ is the interval in days after the $n$-th successful review.
+
+Third, after each review, you rate your response on a 0-5 scale (5 = perfect, 4 = correct with hesitation, 3 = correct with difficulty, 2 = incorrect but seemed easy, 1 = incorrect but remembered, 0 = complete blackout). The Easiness Factor then updates according to:
+
+$$
+EF' = EF + \bigl(0.1 - (5 - q) \times (0.08 + (5 - q) \times 0.02)\bigr)
+$$ {#eq-sm2-ef-update}
+
+where $q$ is the response quality. If $EF$ falls below 1.3, it is clamped at 1.3. If $q < 3$, the item resets to $I(1) = 1$ day.
+
+Here is Priya's flashcard for "Why does top-k gating produce zero gradients for non-selected experts?" tracked over 5 reviews. Before looking at the table, make a prediction:
+
+::: {.exercise-predict correct="C"}
+
+Priya starts with EF = 2.5 and her first review interval is 1 day. After 5 reviews (with some struggle early on), how long is the interval after the 5th review compared to the 1st?
+
+- About 10 times longer (roughly 10 days)
+- About 30 times longer (roughly 30 days)
+- More than 200 times longer (roughly 215 days)
+- About the same length, since EF decreases when you struggle
+
+::: {.predict-reveal}
+**The answer is C.** Even though Priya struggled on some reviews (which temporarily lowered her EF), the compounding nature of the SM-2 interval formula produces explosive growth. Her intervals went 1 → 6 → 14 → 34 → 84 → 215 days. By the fifth review, the interval is over 200 times the initial 1-day interval. This explosive scaling is the power of geometric growth: even a modest EF of 2.46 produces enormous intervals after several multiplications. Three minutes of total review time across five sessions bought seven months of durable memory.
+:::
+
+:::
+
+| Review | Day | $q$ | $EF$ before | $EF$ after | Next interval |
+|---|---|---|---|---|---|
+| 1 | 1 | 3 (struggled) | 2.50 | 2.36 | 6 days |
+| 2 | 7 | 4 (hesitated) | 2.36 | 2.36 | 14 days |
+| 3 | 21 | 5 (perfect) | 2.36 | 2.46 | 34 days |
+| 4 | 55 | 4 (hesitated) | 2.46 | 2.46 | 84 days |
+| 5 | 139 | 5 (perfect) | 2.46 | 2.56 | 215 days |
+
+Notice what happened: after struggling initially, Priya's intervals grew from 1 day to 6 to 14 to 34 to 84 to 215 days. By the fifth review, she only needs to revisit this card once every seven months. The total review time across all five sessions was perhaps 3 minutes. That small investment made the knowledge durable.
+
+Wozniak reported that using SM-2 for English vocabulary, he maintained 92% retention (excluding recently learned items) while spending 41 minutes per day reviewing 10,255 items in the first year.
+
+::: {.callout-warning title="Common Misconception: \"I don't have time for spaced repetition\""}
+Spaced repetition requires only 10-20 minutes per day to maintain hundreds of active cards. The time investment is tiny relative to the retention benefit. The real cost is not reviewing time but card creation time. The solution: create cards as you study, not as a separate step. Every time you learn something worth remembering, write a card immediately. Matuschak's essay on writing prompts provides detailed guidance on making this workflow efficient.
+:::
+
+::: {.exercise-mcq correct="B"}
+
+In the SM-2 algorithm, the Easiness Factor (EF) updates after each review using the formula that depends on the response quality $q$. If a learner responds with $q = 4$ (correct with some hesitation), what happens to the EF?
+
+- It increases by 0.10
+- It stays exactly the same
+- It decreases by 0.02
+- It resets to the default value of 2.5
+
+::: {.feedback-correct}
+Correct. When you plug $q = 4$ into the EF update formula, you get: EF' = EF + (0.1 - (5 - 4) × (0.08 + (5 - 4) × 0.02)) = EF + (0.1 - 1 × (0.08 + 0.02)) = EF + (0.1 - 0.10) = EF + 0.0. The EF does not change. This means $q = 4$ is the "neutral" response quality: you got it right with some hesitation, and the algorithm interprets that as the item being appropriately calibrated. Only $q = 5$ (perfect recall) increases the EF, and $q \leq 3$ decreases it.
+:::
+
+::: {.feedback-incorrect}
+Try plugging $q = 4$ into the EF update formula: EF' = EF + (0.1 - (5 - q) × (0.08 + (5 - q) × 0.02)). With $q = 4$, the term (5 - 4) = 1, so the adjustment is 0.1 - 1 × (0.08 + 1 × 0.02) = 0.1 - 0.10 = 0.0. The EF stays exactly the same. This makes $q = 4$ the "break-even" quality rating in SM-2.
+:::
+
+:::
+
+### Writing Effective Prompts
+
+The quality of your flashcards determines whether spaced repetition deepens understanding or merely drills trivia. [Andy Matuschak's guide on writing prompts](https://andymatuschak.org/prompts) identifies three types of knowledge, each requiring a different prompt strategy.
+
+*Factual prompts* test simple recall. "What is the default Easiness Factor in SM-2?" (Answer: 2.5). These are the easiest to write and the most common. They work well for definitions, formulas, and specific numbers.
+
+*Conceptual prompts* test understanding of relationships. "Why does the SM-2 algorithm clamp $EF$ at 1.3 rather than allowing it to decrease indefinitely?" (Answer: items with very low EF are repeated annoyingly often, and the problem is usually in the item's formulation, not its inherent difficulty.) These prompts are harder to write but produce deeper learning.
+
+*Procedural prompts* test ability to execute steps. "Given $EF = 2.3$ and $q = 3$, what is the new $EF$?" (Answer: $EF' = 2.3 + (0.1 - 2 \times (0.08 + 2 \times 0.02)) = 2.3 + (0.1 - 0.24) = 2.16$.)
+
+The most common mistake is writing prompts that are too vague ("Explain MoE routing") or too complex (requiring a paragraph to answer). Effective prompts test one atomic piece of knowledge and can be answered in one or two sentences.
+
+::: {.exercise-fillin}
+
+Walk through the SM-2 EF update for a card where the current EF is 2.5 and the learner responds with quality q = 3 (correct with difficulty):
+
+1. Start with EF = 2.5 and q = 3
+2. Compute (5 - q), which equals 2
+3. Compute the inner term: 0.08 + (5 - q) times 0.02 = 0.08 + 0.04 = 0.12
+4. Compute the full adjustment: 0.1 - (5 - q) times 0.12 = 0.1 - 0.24 = -0.14
+5. The new EF equals 2.5 + (-0.14) = {B|A: 2.50|B: 2.36|C: 2.22}
+
+::: {.fillin-feedback}
+**Correct: B.** The new EF is 2.5 + (-0.14) = 2.36. A response quality of 3 means the learner struggled, so the EF decreases, producing shorter review intervals going forward. This decrease is exactly what happened in Priya's first review in the worked example above: she started at EF = 2.50, scored q = 3, and her EF dropped to 2.36.
+:::
+
+:::
+
+### The Mnemonic Medium: Embedding Review in Reading
+
+[Andy Matuschak and Michael Nielsen](https://notes.andymatuschak.org/Mnemonic_medium) developed an experimental approach called the *mnemonic medium*, first demonstrated in [Quantum Country](https://quantum.country/), a textbook on quantum computing. The core idea: embed spaced repetition prompts directly within the narrative text, so readers encounter review questions as they read rather than creating cards separately.
+
+The mnemonic medium addresses a fundamental friction in traditional SRS: the gap between reading and reviewing. Most people read a paper, intend to make flashcards later, and never do. By interleaving prompts with prose, the mnemonic medium eliminates this gap entirely. Readers review as they go, and the system schedules future reviews automatically.
+
+Nielsen has written extensively about using SRS for mathematical understanding. In [Using Spaced Repetition to See Through Mathematics](https://cognitivemedium.com/srs-mathematics), he describes mathematical understanding as an open-ended process where deeper comprehension is nearly always possible, even with seemingly simple concepts. SRS does not merely help you *remember* mathematics, in his experience. The practice helps you *see through* mathematical structures, by keeping foundational results and connections active in memory so you can build on them.
+
+::: {.exercise-mcq correct="C"}
+
+What is the main advantage of the mnemonic medium (as developed by Matuschak and Nielsen in Quantum Country) over traditional flashcard-based spaced repetition?
+
+- It uses a more advanced scheduling algorithm than SM-2
+- It generates flashcards automatically using AI
+- It embeds review prompts directly in the narrative text, eliminating the gap between reading and reviewing
+- It allows learners to rate their confidence on a finer scale than 0-5
+
+::: {.feedback-correct}
+Correct. The fundamental friction in traditional SRS is that you read material in one context and then must separately create and review flashcards in another. Most people read a paper, intend to make flashcards later, and never do. The mnemonic medium solves this by interleaving prompts with prose so readers review as they go. The system then schedules future reviews automatically. The innovation is not in the algorithm but in the delivery mechanism.
+:::
+
+::: {.feedback-incorrect}
+The mnemonic medium's core innovation is not about the algorithm or AI generation. Think about what Nielsen and Matuschak identified as the biggest friction point in using SRS: it is the gap between *reading* material and *reviewing* it. The mnemonic medium addresses this by embedding the review prompts directly within the narrative text itself, so readers encounter questions as they read rather than having to create cards as a separate step.
+:::
+
+:::
+
+### Creating Personal Reference Artifacts
+
+Spaced repetition keeps core concepts retrievable. But for detailed technical knowledge (specific API patterns, long derivations, implementation tricks), you need reference artifacts that you can consult on demand. The generation and protege effects from @sec-study-methods-ranked support two strategies in particular:
+
+**Writing your own chapter or tutorial.** When Priya writes a document explaining MoE routing in her own words, she engages the generation effect (creating material produces stronger encoding than consuming it) and the protégé effect (writing to explain forces you to identify and fill gaps in your understanding). The resulting document also serves as a personalized reference that she can revisit in minutes, rather than re-reading the original papers.
+
+**Building a personal knowledge system.** A wiki, a set of well-organized notes, or a structured codebase with comments serves as an external memory extension. The key requirement is that the artifacts must be *your own creation*, not copies of other people's notes. The act of creating them is the learning; the artifact is the bonus.
+
+### Project-Based Maintenance
+
+Implementing what you learn in a real project creates *procedural memory traces*. These traces are distinct from declarative memory (knowing facts) and typically more durable. When Priya writes code that implements MoE routing from scratch, she builds procedural knowledge of how the components fit together. This procedural knowledge survives longer than her memory of the formulas, because it is embedded in a different memory system shaped by active, embodied practice.
+
+### When Knowledge Has Decayed: The Savings Effect
+
+When Priya returns to MoE after 3 months and finds her knowledge degraded, she should not despair. [Ebbinghaus](https://doi.org/10.1037/10011-000) discovered what he called the *savings effect*: relearning something you once knew is substantially faster than learning it for the first time. The neural pathways have weakened but not disappeared. A fraction of the original effort can reactivate them.
+
+Her notes, her tutorial, and her code serve as scaffolds for rapid reactivation. Instead of starting from survey papers again, she starts from her own artifacts, using the familiar language and examples she created. What took two weeks the first time might take two days to recover.
+
+::: {.callout-note title="Think Hard: Does using AI-generated flashcards undermine the generation effect?"}
+The generation effect says that making your own study materials produces stronger encoding than receiving pre-made ones. Modern AI tools can generate flashcards automatically from any text. Does using AI-generated cards eliminate the encoding benefit of card creation? The answer depends on how you use them. The generation effect comes from the cognitive effort of deciding what matters, formulating questions, and producing answers. If you use AI-generated cards passively (just reviewing whatever the AI produces), you lose most of the encoding benefit. But if you use AI cards as a *starting point* that you edit, rephrase, and curate, you retain much of the generation benefit while reducing the friction of initial creation. The optimal workflow may be: let AI generate draft cards, then spend your effort selecting, editing, and personalizing them.
+:::

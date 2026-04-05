@@ -1,0 +1,116 @@
+## What Works and What Doesn't: A Ranked Guide to Study Methods {#sec-study-methods-ranked}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Dunlosky et al., "Improving Students' Learning" (*PSPI*, 2013, full 55-page paper)](https://doi.org/10.1177/1529100612453266) | 10 strategies ranked; practice testing: >100 years, hundreds of experiments; continued testing 80% vs continued study 36% |
+| 2 | [Roediger & Karpicke, "Test-Enhanced Learning" (*Psychological Science*, 2006)](https://doi.org/10.1111/j.1467-9280.2006.01693.x) | The seminal testing effect study: restudying beats testing at 5 min, but testing beats restudying at 2 days and 1 week |
+| 3 | [Karpicke & Blunt, "Retrieval Practice Produces More Learning" (*Science*, 2011)](https://doi.org/10.1126/science.1199327) | Retrieval practice vs concept mapping: ~50% improvement, d=1.50; students predicted the opposite |
+| 4 | [Bjork, "Memory and Metamemory Considerations" (1994)](https://gwern.net/doc/psychology/spaced-repetition/1994-bjork.pdf) | Desirable difficulties; spacing, interleaving, testing as learning events; trainer/learner misperceptions |
+| 5 | [Scientific American, "The Interleaving Effect" (Pan, 2015)](https://www.scientificamerican.com/article/the-interleaving-effect-mixing-it-up-boosts-learning) | Rohrer's Tampa RCT: 25% better at 1 day, 76% better at 1 month for interleaved math |
+| 6 | [The Learner Lab, "The Protege Effect"](https://thelearnerlab.com/protege-effect/) | Kobayashi meta-analysis of 39 experiments; expectation to teach changes encoding |
+| 7 | [Centre for Mathematical Cognition Blog](https://blog.lboro.ac.uk/cmc/2024/04/09/spaced-and-interleaved-practice-what-are-they-and-what-are-their-roles-in-improving-mathematics-performance/) | Mixed evidence for interleaving in math |
+
+:::
+
+### The Dunlosky Ranking: A Definitive Hierarchy
+
+If you could read only one research review about how to study, it should be [Dunlosky et al.'s 2013 review](https://journals.sagepub.com/doi/10.1177/1529100612453266) of 10 learning strategies. Published in *Psychological Science in the Public Interest* and summarized for a broader audience in *American Educator*, the review evaluated each strategy on three criteria: how broadly applicable it is across ages and subjects, how much it improves learning and comprehension, and how much it can boost student achievement.
+
+The results form a clear hierarchy:
+
+| Rating | Strategies | Why |
+|---|---|---|
+| **Most effective** | Practice testing, Distributed practice | Effective across ages, materials, and testing conditions; boost achievement |
+| **Promising** | Interleaved practice, Elaborative interrogation, Self-explanation | Strong initial evidence, but broader research needed |
+| **Less useful** | Rereading, Highlighting/underlining, Summarization, Keyword mnemonic, Imagery for text | Popular but limited; some may hurt learning in certain conditions |
+
+The ranking contains a bitter irony: the strategies students use most often (highlighting, re-reading, cramming) are the strategies that work least well. The strategies that work best (practice testing, spacing, interleaving) are the strategies students rarely choose on their own.
+
+### Low-Utility Methods: Why They Seduce Us
+
+**Highlighting and underlining.** Dunlosky's review is direct: "as compared with simply reading a text, highlighting has been shown to have failed to help students of all sorts, including Air Force trainees, children, and undergraduate students." Even worse, "one study reported that students who highlighted while reading performed worse on tests of comprehension wherein they needed to make inferences that required connecting different ideas across the text." The reason: highlighting encourages you to focus on individual concepts in isolation, at the expense of connections between concepts. Dunlosky does not recommend taking highlighters away from students, but he frames them clearly: "students need to know that highlighting is only the beginning of the journey."
+
+::: {.callout-warning title="Common Misconception: Highlighting helps me focus"}
+Highlighting creates a physical record of what you read. It does not improve encoding or retention. Dunlosky's review found that highlighting "has been shown to have failed to help students of all sorts." In one study, highlighting actually *reduced* performance on inference questions, because students focused on individual highlighted facts rather than on connections between ideas. The fix is not to stop highlighting but to treat it as step one: after highlighting, go back and test yourself on the highlighted material without looking at it. The retrieval, not the highlighting, produces the learning.
+:::
+
+**Re-reading.** A survey at "an elite university revealed that 84 percent of the students studied by rereading their notes or textbooks." Despite this popularity, Dunlosky found that "rereading has inconsistent effects on student learning" and "any benefits of rereading (over just a single reading) may not be long-lasting." The problem is the fluency illusion from @sec-how-brain-learns: the second time through, the material feels familiar, and the brain misreads that familiarity as understanding.
+
+**Summarization.** This strategy is more subtle. Summarization can help, but only when students are trained to do it well. In one study Dunlosky cites, teachers received 90 minutes of training, then coached students across five 50-minute sessions. Students who received this coaching recalled more important points than control students. But Dunlosky notes that "the need for extensive training will make the use of this strategy less feasible in many contexts." Without training, most students summarize poorly.
+
+### High-Utility Methods: The Gold Standard
+
+**Practice testing (active recall).** Dunlosky rates this as one of the two most effective strategies. The foundational evidence comes from [Roediger and Karpicke's 2006 study in *Psychological Science*](https://doi.org/10.1111/j.1467-9280.2006.01693.x), one of the most cited papers in the learning sciences.
+
+In Experiment 1, 120 Washington University undergraduates studied short prose passages (about 260 words each) on scientific topics. Half the students studied a passage and then studied it again. The other half studied the passage and then took a free-recall test (writing down everything they could remember, with no feedback). Both groups then took a final retention test at one of three delays: 5 minutes, 2 days, or 1 week.
+
+The crossover result is the key finding. After 5 minutes, the restudy group recalled more than the tested group (81% vs 75%, d = 0.52). Restudying looked better in the short term. But after 2 days, the pattern reversed: the tested group recalled 68% while the restudy group recalled only 54% (d = 0.95). After 1 week, the gap persisted: 56% vs 42% (d = 0.83). As Roediger and Karpicke write, "taking an initial recall test prevented forgetting of information for an additional 5 days relative to repeated study."
+
+The crossover is what makes this result so important for learners. On the immediate test, restudying wins. On any test that matters (days or weeks later), testing wins. And the students who restudied felt *more confident* in their ability to remember the material. The method that feels more productive is the method that produces less durable learning.
+
+The full Dunlosky paper documents an even more dramatic demonstration of this effect. [Karpicke and Roediger (2008)](https://doi.org/10.1126/science.1155149) had students learn Swahili-English translations until each was recalled correctly once. After that initial success, items were either continued in study cycles (with no further testing) or continued in test cycles (with no further study). One week later, "performance on a final test was substantially greater after continued testing (80%) than after continued study (36%)." The gap is enormous: simply continuing to test yourself after you have gotten the answer right once doubles your retention compared to continuing to study the same material. Dunlosky's paper confirms that "more than 100 years of research has yielded several hundred experiments showing that practice testing enhances learning and retention."
+
+The full paper also provides important implementation guidance. Not all test formats are equally effective: "practice tests that require more generative responses (e.g. recall or short answer) are more effective than practice tests that require less generative responses (e.g. fill in the blank or recognition)." And feedback matters enormously: "the advantage of practice testing with feedback over restudy is extremely robust. Practice testing with feedback also consistently outperforms practice testing alone." When Priya tests herself on MoE concepts, she should always check the answer afterward. The correction step is not just error prevention; it is an integral part of the learning mechanism.
+
+**Retrieval practice vs elaborative study.** [Karpicke and Blunt's 2011 study in *Science*](https://doi.org/10.1126/science.1199327) pushed this further by comparing retrieval practice not just against re-reading but against an active, respected study method: concept mapping.
+
+In Experiment 1, 80 undergraduates studied science texts under four conditions: study once, study four times, create a concept map while viewing the text, or practice retrieval (study once, then recall, then study again, then recall again). One week later, all students took a final short-answer test that included both verbatim questions and inference questions requiring deeper understanding.
+
+The results were striking. Retrieval practice produced the best learning. The advantage over concept mapping was a 50% improvement in retention scores, with an effect size of d = 1.50, a very large effect. Concept mapping, itself an active and well-regarded study method, was "not significantly better than spending additional time reading." Retrieval practice outperformed everything.
+
+But here is the most provocative finding: students' predictions about their own learning were inverted. "Students predicted that repeated studying would produce the best long-term retention and that practicing retrieval would produce the worst retention, even though the opposite was true." In Experiment 2, the researchers tabulated individual-level results. Of 120 students, 101 performed better with retrieval practice. Yet 59 students *predicted* they would perform better with concept mapping. Only 30 predicted retrieval practice would win. Students systematically chose the wrong study method.
+
+::: {.callout-note title="Think Hard: If the testing effect is so powerful, why don't most educational systems use frequent low-stakes testing as a primary learning tool?"}
+Karpicke and Blunt's metacognition data provide part of the answer: students and educators predict that elaborative study methods (like concept mapping, summarization, and re-reading) will outperform testing. That prediction is wrong, but it drives behavior. Dunlosky adds two more factors. First, tests have negative associations: "test, exam, and quiz are four-letter words that provoke anxiety in many students." Second, the counterintuitive timing: practice testing looks *worse* than re-reading on immediate tests (as Roediger and Karpicke showed). A teacher who gives a practice test and sees students struggle may conclude the method is not working, when in fact the struggle is the mechanism through which it works. Bjork's desirable difficulties framework explains this directly: the difficulty is not a sign of failure; it is the learning event itself.
+:::
+
+**Distributed practice (spacing).** Covered in depth in @sec-time-intensity. Dunlosky rates this alongside practice testing as the most effective strategy, noting that "students will retain knowledge and skills for a longer period of time when they distribute their practice than when they mass it, even if they use the same amount of time massing and distributing their practice."
+
+### Moderate-Utility Methods Worth Mastering
+
+**Interleaving.** The [Scientific American article by Steven Pan](https://www.scientificamerican.com/article/the-interleaving-effect-mixing-it-up-boosts-learning) describes Doug Rohrer's landmark classroom study in Tampa middle schools. Over three months, 7th graders learned slope and graph problems. Weekly homework was either interleaved (mixing old and new problem types) or blocked (practicing one type at a time). "When the test was one day later, scores were 25 percent better for problems trained with interleaving; at one month later, the interleaving advantage grew to 76 percent."
+
+The full Dunlosky paper adds a compelling lab demonstration. In [Rohrer and Taylor (2007)](https://doi.org/10.1007/s11251-006-9025-5), college students learned to compute volumes of different geometric solids. During practice, blocked students completed all problems for one type of solid before moving to the next. Interleaved students completed problems in mixed order. During practice, blocked students outperformed interleaved students. But on a criterion test one week later, "interleaved practice boosted accuracy by 43%." The reversal was dramatic: the method that felt worse during practice produced far superior results on the test that mattered.
+
+Why does interleaving work? The full paper identifies two complementary mechanisms. First, *discriminative contrast*: interleaving forces students to identify which type of problem they face, not just execute a known procedure. [Taylor and Rohrer (2010)](https://doi.org/10.1007/s11251-009-9093-4) tested fourth graders learning prism formulas and found that discrimination errors (using the wrong formula for a given problem) "were more common after blocked practice than after interleaved practice," while fabrication errors (using a formula not originally trained) were equal across conditions. Interleaved students were better at matching the right method to the right problem. Second, *distributed retrieval*: in blocked practice, the relevant formula stays in working memory; in interleaved practice, each new problem type forces retrieval from long-term memory, producing the same strengthening effect as practice testing.
+
+Bjork's 1994 chapter provides the theoretical explanation. Interleaving is a form of *contextual interference*: "designing or interleaving materials to be learned in a way that creates, at least temporarily, interference for the learner." Bjork cites [Shea and Morgan (1979)](https://doi.org/10.1037/0096-3445.108.2.175), who found that "scheduling the practice trials on those tasks in random fashion, rather than blocking the trials by task type, has been shown to impair performance during training but enhance long-term performance." The mechanism: interleaving forces "more transfer appropriate processing," meaning processing that will transfer to the real-world environment where problems arrive in unpredictable order.
+
+However, as the [CMC blog from Loughborough University](https://blog.lboro.ac.uk/cmc/2024/04/09/spaced-and-interleaved-practice-what-are-they-and-what-are-their-roles-in-improving-mathematics-performance/) notes, the evidence is not uniformly positive for mathematics. One study found no benefit of interleaving for students aged 10-12 learning fractions. Pan's article also notes caveats: when interleaving was used for entirely unfamiliar material, results were "better, the same, or worse than after blocking." Interleaving works best when learners already have some familiarity with the material.
+
+**Self-explanation and elaborative interrogation.** Dunlosky rates both as "promising." Self-explanation asks students to explain *how* new information connects to what they already know, or to explain steps during problem solving. Elaborative interrogation asks students to generate explanations for *why* a fact is true. Both strategies force active processing rather than passive reception.
+
+The full Dunlosky paper provides impressive effect sizes for elaborative interrogation. In the foundational study by [Pressley, McDaniel, Turnure, Wood, and Ahmad (1987)](https://doi.org/10.1037/0022-0663.79.3.217), students who generated explanations for "Why did that particular man do that?" substantially outperformed students who received pre-made explanations: "accuracy in this group was approximately 72%, compared with approximately 37% in each of the other two groups." From this and similar studies, [Seifert (1993)](https://doi.org/10.1007/BF01320076) reported average effect sizes ranging from 0.85 to 2.57. These are large to very large effects.
+
+The mechanism is *discriminative processing*: elaborative interrogation prompts invite processing of both similarities and differences between related facts. As the full paper notes, "most elaborative-interrogation prompts explicitly or implicitly invite processing of both similarities and differences between related entities." When you ask "why would this be true of MoE routing but not standard attention?", you are forced to identify the specific properties that distinguish the two mechanisms. Elaborative interrogation received only a moderate utility rating (not high) because its benefits depend on the learner's prior knowledge: "the overall conclusion that emerges from the literature is that high-knowledge learners will generally be best equipped to profit from the elaborative-interrogation technique."
+
+### Generation and Teaching Effects
+
+**The generation effect.** Bjork's 1994 chapter provides the theoretical basis: creating study materials yourself produces stronger memory traces than receiving pre-made materials. The mechanism is what Bjork calls *elaborative encoding*: "we store information in terms of its meaning to us, defined by its associations and relationships to other information in our memories." When you write a flashcard question, decide what the answer should be, and phrase it in your own words, you are forced to build those associations actively. Receiving someone else's flashcard skips this construction process entirely.
+
+This finding has a provocative implication for the AI era: tools that generate flashcards from your lecture notes automatically may undermine the very process (generation) that makes flashcard-based study effective. The practical recommendation: use AI-generated materials as a first draft, then rewrite the hardest cards from scratch.
+
+**The protege effect.** The [Learner Lab article on the protege effect](https://thelearnerlab.com/protege-effect/) describes a 2009 experiment with middle schoolers: one group was told to study for themselves, the other was told to study to teach a digital character. "During the lessons the group that was learning to teach worked harder. They spent more time reading, revised their work more often, and were more engaged throughout." On the post-test, "the teaching group performed significantly better, especially on the hardest questions. On those questions, low-performing students from the teaching group scored as well as high-achieving students who had been studying for themselves."
+
+The key insight comes from a meta-analysis by [Kobayashi (2006)](https://doi.org/10.1037/0022-0663.98.2.397) of 39 experiments, as the Learner Lab reports: "This only really works if you're told that you're going to teach before engaging in the lesson. In experiments where people are surprised with the teaching task after engaging in the lesson, the protege effect disappears." The expectation of teaching changes how you encode during learning. Applied retroactively, the effect vanishes.
+
+For Priya, this suggests a powerful strategy: before reading each MoE paper, commit to writing a 10-minute explanation of what she learned for a colleague. Even if the colleague never sees it, the intention to teach will change how her brain processes the material.
+
+### The Full Picture: Why Bjork's Framework Matters
+
+Bjork's desirable difficulties framework from his 1994 chapter ties all of these findings together. The common thread across practice testing, spacing, interleaving, generation, and the protege effect is that each introduces a difficulty that feels counterproductive during study but enhances long-term learning. Bjork explains why training programs fail to adopt these methods: "individuals responsible for training are often misled as to what are, and are not, effective conditions of practice. Conditions that enhance performance during training are assumed, implicitly or explicitly, to be the conditions of choice." Trainers observe learner performance during training and optimize for that; but what optimizes training performance often fails to support post-training performance.
+
+The same dynamic applies to self-directed learners. Priya, left to her own instincts, will re-read papers (feels productive, low utility), highlight key passages (feels organized, low utility), and cram the night before her review (feels urgent, low durability). Bjork's framework says she should instead test herself (feels difficult), space her study (feels slow), interleave topics (feels confusing), and write her own explanations (feels time-consuming). Every effective method feels worse in the moment. That is not a coincidence. It is the mechanism.
+
+### Priya's Two-Week Study Plan
+
+Combining Dunlosky's rankings with Bjork's desirable difficulties framework, Karpicke's retrieval practice evidence, and Ericsson's effort constraint from @sec-time-intensity:
+
+1. **Days 1-3:** Study worked examples of MoE implementations. Read annotated code and paper derivations. Use self-explanation after each concept: "why does top-k gating produce zero gradients?"
+2. **Days 4-7:** Switch to active recall. Create flashcards for key concepts. Implement a basic MoE routing layer from scratch. Test yourself daily on material from previous days. (This is the highest-utility combination: practice testing + distributed practice + generation effect.)
+3. **Days 8-12:** Interleave: mix new MoE topics with review of earlier ones. Write a short explanation of each major concept as if teaching it to a colleague (protege effect + generation effect).
+4. **Days 13-14:** Full review using practice testing. Present a dry run of the design review to a colleague.
+
+This schedule stacks Dunlosky's top-ranked strategies (practice testing, distributed practice) with moderate-utility methods that build deep understanding (interleaving, self-explanation, generation). The progression from worked examples to active practice follows the cognitive load principles from @sec-how-brain-learns. And the 4-5 hour daily limit respects Ericsson's effort constraint.

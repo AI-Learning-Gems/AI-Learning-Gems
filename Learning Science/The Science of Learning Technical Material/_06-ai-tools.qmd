@@ -1,0 +1,314 @@
+## AI-Powered Learning Tools: What Works in 2024-2026 {#sec-ai-tools}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [LearnLM Paper (arXiv 2412.16429)](https://arxiv.org/abs/2412.16429) | Google DeepMind model trained for pedagogical instruction following; +31% preferred over GPT-4o |
+| 2 | [OpenAI — "Introducing Study Mode" (July 2025)](https://openai.com/blog/chatgpt-study-mode/) | Socratic questioning, scaffolded responses, knowledge checks in ChatGPT |
+| 3 | [NotebookLM Guide — Audio Overview](https://notebooklm-guide.com/notebooklm-audio-overview/) | AI podcast generation from documents; 3-10 sources optimal; custom instructions 3.8x more useful |
+| 4 | [Khanmigo — AI Tutor for Learners](https://www.khanmigo.ai/pt/learners) | Khan Academy Socratic tutor; never gives answers directly; covers math, science, coding |
+| 5 | [Andy Matuschak — Mnemonic Medium](https://notes.andymatuschak.org/Mnemonic_medium) | Orbit platform; embedding SRS prompts in narrative prose; Quantum Country experiment |
+
+:::
+
+The previous sections established what works for learning: active recall beats passive reading, spacing beats cramming, interleaving beats blocking, and the Feynman technique builds deep understanding. The obvious next question: can AI tools automate any of this? The answer, as of 2026, is a qualified yes. Several tools now operationalize specific learning science principles, but none yet combines the full stack into a coherent system. This section maps the science to the tools, evaluates the evidence for each, and identifies what is still missing.
+
+### From Learning Science to AI Tools: A Mapping
+
+The table below connects each principle from earlier sections to the AI capabilities that implement it. This mapping is the lens through which you should evaluate every new "AI study tool" that appears: does it implement a known principle, or is it just a chatbot with a graduation cap emoji?
+
+| Learning Science Principle | What It Requires | AI Tool That Implements It |
+|---|---|---|
+| Active recall | Questions that force retrieval, not recognition | Khanmigo, ChatGPT Study Mode, LearnLM |
+| Spaced repetition | Scheduling reviews at expanding intervals | Anki (FSRS algorithm), Orbit |
+| Socratic questioning | Withholding answers; guiding through hints | Khanmigo, ChatGPT Study Mode, LearnLM |
+| Immediate corrective feedback | Showing the correct answer after each retrieval attempt | All AI tutors ([Dunlosky et al., 2013](https://doi.org/10.1177/1529100612453266): "practice testing with feedback consistently outperforms practice testing alone") |
+| Worked examples | Step-by-step walkthroughs with explanation | Any LLM (prompted correctly) |
+| Cognitive load management | Adaptive difficulty; scaffolded presentation | LearnLM (trained for this) |
+| Dual coding (audio + text) | Hearing material in addition to reading it | NotebookLM Audio Overviews |
+| Self-explanation / Feynman | Conversational partner who asks "why?" | ChatGPT, Claude (with appropriate prompting) |
+| Interleaving | Mixed practice across related sub-topics | LLM-generated mixed problem sets |
+
+### Google LearnLM: Learning Science Baked Into the Model
+
+Most LLMs are trained to answer questions as accurately and helpfully as possible. For a tutor, that instinct is exactly wrong. A good tutor withholds answers, asks probing questions, and forces the learner to work through the problem themselves. Google DeepMind's *LearnLM* project addresses this tension directly by training models for what the research team calls *pedagogical instruction following*.
+
+The core idea: instead of hardcoding a single pedagogical style into the model, LearnLM teaches the model to follow system-level instructions that describe desired pedagogical behavior. A teacher or developer writes instructions like "do not reveal the answer" or "use Socratic questioning to guide the student toward the solution." The model then follows these instructions even when the student tries to circumvent them. A student who asks "just tell me the answer" will find that LearnLM holds its ground.
+
+The LearnLM paper describes their approach as combining supervised fine-tuning (SFT) with reinforcement learning from human feedback (RLHF), with pedagogical data mixed directly into Gemini's post-training pipeline. This *co-training* approach avoids the problem of the model "forgetting" its general capabilities when fine-tuned for education. The paper notes that "pedagogical behavior is often at odds with typical behavior of conversational AI, principally because learning is often a process of discovery rather than simply a transfer of information." That tension between helpfulness and pedagogy is the central design challenge.
+
+::: {.exercise-predict correct="D"}
+
+Google evaluated LearnLM against GPT-4o, Claude 3.5 Sonnet, and base Gemini 1.5 Pro by having 248 pedagogy experts rate tutoring conversations. Before reading the results, predict: by how much did experts prefer LearnLM over GPT-4o (measured as average preference strength)?
+
+- About 5% preferred: a small but measurable edge
+- About 10-15% preferred: a moderate advantage
+- About 20-25% preferred: a strong advantage
+- About 30% or more preferred: a commanding lead
+
+::: {.predict-reveal}
+**The answer is D.** LearnLM was preferred with an average preference strength of +31% over GPT-4o. The margin was +11% over Claude 3.5 Sonnet and +13% over base Gemini 1.5 Pro. The size of this gap reflects something important: training pedagogical behavior *into* the model (via SFT + RLHF with pedagogical data) produces dramatically better tutoring than relying on general-purpose helpfulness. The gap is not about intelligence; it is about trained resistance to simply giving answers.
+:::
+
+:::
+
+The evaluation was large-scale and the results were clear. In a study involving 186 educators role-playing as learners across 49 learning scenarios, and 248 pedagogy experts assessing conversation quality, LearnLM was preferred with an average preference strength of +31% over GPT-4o, +11% over Claude 3.5 Sonnet, and +13% over the base Gemini 1.5 Pro model. The qualitative analysis revealed that when experts preferred LearnLM, they cited its ability to keep the conversation on topic, challenge the learner, and avoid giving away answers. When experts preferred other models, they cited clearer information delivery and conversation style.
+
+### ChatGPT Study Mode: Socratic Scaffolding On Demand
+
+OpenAI launched *Study Mode* in ChatGPT in July 2025. The design philosophy is explicit: "a learning experience that helps you work through problems step by step instead of just getting an answer." Under the hood, Study Mode is powered by custom system instructions developed in collaboration with teachers and pedagogy experts. These instructions implement behaviors drawn directly from learning science: "encouraging active participation, managing cognitive load, proactively developing metacognition and self reflection, fostering curiosity, and providing actionable and supportive feedback."
+
+The key features map neatly onto four principles from earlier sections. *Interactive prompts* combine Socratic questioning with hints, implementing the desirable difficulty of active recall. *Scaffolded responses* break complex topics into digestible sections, managing cognitive load. *Knowledge checks* (quizzes and open-ended questions) implement retrieval practice. The mode can also be toggled on and off mid-conversation, giving the learner control over when they want guided discovery versus direct answers.
+
+Student feedback from early testing captures the value proposition clearly. One student described the experience as "a live, 24/7, all-knowing 'office hours.'" Another reported spending a 3-hour session working through sinusoidal positional encodings and "finally understood it well enough to feel confident." The Socratic approach forces learners to articulate their understanding, which is precisely what the self-explanation research from @sec-study-methods-ranked predicts would strengthen retention.
+
+The limitation is consistency. OpenAI acknowledges that Study Mode relies on custom system instructions rather than trained behavior, which "results in some inconsistent behavior and mistakes across conversations." The plan is to train Socratic behavior directly into future models once the team has gathered enough signal from student feedback.
+
+::: {.exercise-mcq correct="B"}
+
+ChatGPT Study Mode uses interactive prompts that combine Socratic questioning with hints, rather than providing direct answers. Which learning science principle does this approach most directly operationalize?
+
+- Dual coding: processing information through both visual and auditory channels simultaneously
+- Desirable difficulties: forcing effortful retrieval rather than passive recognition to strengthen memory
+- The spacing effect: distributing practice over increasing time intervals to improve long-term retention
+- Cognitive load theory: reducing the total amount of information presented at any one time
+
+::: {.feedback-correct}
+Correct. Socratic questioning creates a *desirable difficulty*: the learner must retrieve and articulate their understanding rather than passively receiving it. This mechanism is the active recall principle from the testing effect research. The effort of generating an answer (even with hints) produces stronger memory traces than being told the answer directly. Study Mode's design explicitly implements this: "encouraging active participation" through guided discovery rather than information delivery.
+:::
+
+::: {.feedback-incorrect}
+Not quite. While Study Mode does manage cognitive load (scaffolded responses) and could support spacing (across sessions), its *core* mechanism of withholding answers and asking guiding questions maps most directly to the concept of desirable difficulties. Forcing the learner to generate answers through effortful retrieval (active recall) is the primary learning science principle at work, not passive channel duplication or temporal scheduling.
+:::
+
+:::
+
+### NotebookLM: Audio Learning Done Right
+
+Google's NotebookLM takes a different approach entirely. Instead of interactive tutoring, NotebookLM converts your documents into AI-generated *audio overviews*: two-host podcast conversations that discuss your source material with inline citations. You upload 3-10 documents, optionally write a custom focus instruction, and the system generates a 10-30 minute audio discussion.
+
+This design maps to a specific principle from cognitive science: *dual coding*. Paivio's dual coding theory holds that information processed through two channels (visual/textual and auditory) creates more memory traces than information processed through one channel alone. Listening to a discussion about a paper you have already read creates complementary encoding that strengthens retention.
+
+The NotebookLM Guide reports that custom Audio Overviews score "3.8x higher in usefulness than defaults." The difference comes from the custom instruction: a blank focus note produces generic audio, while a specific instruction like "Focus on the contradictions between the two largest studies and adopt a skeptical tone" produces targeted, useful content. Interactive Mode, available since late 2025, lets you interrupt the hosts mid-conversation to ask follow-up questions or redirect focus.
+
+The critical caveat: **audio is passive consumption**. Audio serves as pre-study and review material, not as a substitute for active learning. Listening to a podcast about MoE routing while commuting builds familiarity and primes your mind for deeper engagement later, but passive listening does not create the retrieval practice that produces durable memory. NotebookLM works best at two points in a learning sequence: as the first step (orient yourself to the topic) or as a review step (re-encounter material you have already actively studied). The tool should not be the primary learning activity.
+
+::: {.exercise-mcq correct="C"}
+
+A learner uses NotebookLM to generate a 20-minute audio overview of a research paper and listens to it three times over a week. They feel confident they understand the material. Why does this approach, on its own, fail to produce durable learning?
+
+- Audio cannot convey the same density of information as text, so the learner is missing critical details
+- The AI hosts may introduce factual errors that the learner absorbs without critical evaluation
+- Listening is passive consumption that does not create the retrieval practice required for long-term memory formation
+- Three listens in one week violates the spacing effect by cramming reviews too close together
+
+::: {.feedback-correct}
+Correct. The fundamental problem is the distinction between *familiarity* and *recall*. Repeated listening creates a feeling of understanding (fluency), but because the learner never has to *retrieve* the information from memory, no durable memory trace is formed. This false confidence is the same illusion of competence that makes re-reading feel productive but score poorly on retention tests. NotebookLM's audio serves the dual coding principle (adding an auditory channel to text), but dual coding supplements active learning rather than replacing it.
+:::
+
+::: {.feedback-incorrect}
+While AI accuracy and information density are legitimate concerns, they are not the core issue. The fundamental problem is that listening is passive: the learner *receives* information but never *retrieves* it from memory. Without retrieval practice (active recall), repeated exposure creates familiarity ("I've heard this before") rather than durable knowledge ("I can explain this from memory"). The section explicitly warns that audio is "pre-study and review material, not a substitute for active learning."
+:::
+
+:::
+
+### Khanmigo: The Tutor That Never Gives Answers
+
+Khan Academy's *Khanmigo* takes perhaps the most disciplined approach to implementing learning science. Its core design principle is stated bluntly on its product page: "Unlike ChatGPT, Khanmigo never gives you the answer. It's built to help you learn." Powered by GPT-4, Khanmigo is integrated directly with Khan Academy's content library covering math, science, coding, history, and humanities.
+
+The Socratic approach means that when you ask Khanmigo for help with a problem, the system responds with guiding questions that push you to work through the solution yourself. This design implements the testing effect from @sec-study-methods-ranked: the act of generating the answer, even with hints, produces stronger memory traces than receiving the answer passively. The product page emphasizes that "with limitless patience, it guides learners to find the answer themselves." [Common Sense Media](https://www.commonsensemedia.org/ai-reviews/khanmigo) gave Khanmigo a 4-star rating, placing it above general-purpose chatbots for educational use.
+
+For Priya's use case (self-directed technical learning by a mid-career professional), Khanmigo's strength is its alignment with Khan Academy's structured content. For learning foundational topics where Khan Academy has thorough coverage, Khanmigo provides a guided path with built-in feedback. For cutting-edge topics like MoE routing, which fall outside Khan Academy's library, a general-purpose LLM with careful prompting may be more appropriate.
+
+### Karpathy's Three-Pass LLM Method
+
+Andrej Karpathy has described (in public talks and social media) a method for reading technical papers that uses LLMs as a comprehension accelerator. The approach involves three passes: (1) read the paper yourself to get the general structure and identify confusing sections; (2) ask an LLM for a plain-language summary and explanations of the parts you found confusing; and (3) return to the paper and engage in interactive Q&A with the LLM about specific claims, proofs, or design choices.
+
+This three-pass method maps directly onto elaborative encoding and retrieval practice. The first pass creates a scaffold of partial understanding. The second pass fills gaps through explanation (the "worked example" principle). The third pass forces you to articulate specific questions and evaluate the LLM's answers against your own developing understanding. That evaluation is a form of self-explanation.
+
+The critical insight is that the LLM is not replacing your reading. You read first, struggle with the material, and *then* use the AI as a discussion partner. This sequence preserves the desirable difficulty that makes learning stick while reducing the frustration that causes people to abandon difficult papers entirely.
+
+::: {.exercise-order correct="C,A,D,B"}
+
+Arrange the steps of Karpathy's three-pass LLM reading method in the correct order, from first to last:
+
+- Ask an LLM for a plain-language summary and explanations of the confusing parts
+- Return to the paper and engage in interactive Q&A with the LLM about specific claims, proofs, or design choices
+- Read the paper yourself to get the general structure and identify confusing sections
+- Evaluate the LLM's answers against your own developing understanding to deepen self-explanation
+
+::: {.order-feedback}
+**Correct order: C, A, D, B.** The method begins with your own unaided reading (C) because struggling with the material first creates the scaffold of partial understanding that makes later explanations meaningful. Then you use the LLM to fill gaps (A), playing the role of a worked example. Next you critically evaluate those explanations against your own understanding (D), a form of self-explanation. Finally, you return to the paper with targeted questions (B), turning the LLM into a discussion partner rather than an answer machine. The sequence preserves desirable difficulty: you struggle first, get help second, and verify third.
+:::
+
+:::
+
+### Matuschak's Mnemonic Medium and Orbit
+
+Andy Matuschak and Michael Nielsen's *mnemonic medium* represents the most theoretically grounded attempt to integrate spaced repetition directly into the reading experience. Their platform, [Orbit](https://withorbit.com), embeds spaced repetition prompts within narrative prose so that readers encounter review questions as they read, rather than creating flashcards separately after reading.
+
+Matuschak describes three key design properties in his working notes. The medium "gives structure to normally-atomized spaced repetition memory prompts" by embedding them in narrative context. The medium also "supplies expert-authored prompts to remove the burden of prompt-writing." And prompts are "interleaved into the reading experience" so that review happens at the point of encoding, not days later.
+
+Their first experiment was [Quantum Country](https://quantum.country), an online introduction to quantum computing. Readers who engaged with the embedded prompts retained significantly more material than those who read the same text without prompts. Matuschak notes that readers reported a "sense of safety" while reading: they knew a review set would arrive soon to consolidate what they had just read, which reduced anxiety about dense material.
+
+The mnemonic medium points toward what AI could eventually automate: given a technical text, generate high-quality spaced repetition prompts at the right granularity and embed them at the right points in the narrative. Current LLMs can generate flashcards, but the quality and pedagogical appropriateness of those flashcards varies widely. The mnemonic medium's careful design work shows that prompt quality matters enormously. A bad prompt does not just fail to help; a bad prompt can create misleading memory traces.
+
+### What Is Still Missing
+
+```{.d2}
+# =========================================================================
+# LAYOUT
+# =========================================================================
+direction: down
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+# =========================================================================
+# DESIGN SYSTEM
+# =========================================================================
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 13
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 16
+      bold: true
+    }
+  }
+}
+
+# =========================================================================
+# The Ideal AI Learning Stack
+# =========================================================================
+exists: What Exists Today {
+  class: [base; container]
+  label.near: top-center
+
+  row1: Socratic Tutoring {
+    class: [base; container]
+
+    learnlm: " LearnLM " {class: [base; process]}
+    study: " ChatGPT\nStudy Mode " {class: [base; process]}
+    khan: " Khanmigo " {class: [base; process]}
+  }
+
+  row2: Audio Pre-Study {
+    class: [base; container]
+
+    nlm: " NotebookLM\nAudio " {class: [base; process]}
+  }
+
+  row3: Spaced Repetition {
+    class: [base; container]
+
+    anki: " Anki / FSRS " {class: [base; process]}
+    orbit: " Orbit " {class: [base; process]}
+  }
+
+  row4: Implementation {
+    class: [base; container]
+
+    cursor: " Cursor / Copilot\n(code assist) " {class: [base; process]}
+  }
+}
+
+missing: What Is Missing {
+  class: [base; container]
+  label.near: top-center
+
+  m1: " Metacognitive feedback\n('Here is what you don't\nunderstand, specifically') " {
+    class: [base; highlight]
+  }
+  m2: " Cross-topic scheduling\n(spacing + interleaving\nacross subjects) " {
+    class: [base; highlight]
+  }
+  m3: " Unified progress tracking\n(single dashboard for\nall learning activities) " {
+    class: [base; highlight]
+  }
+  m4: " Auto-generated SRS prompts\nat expert quality " {
+    class: [base; highlight]
+  }
+}
+
+exists -> missing: " The gap " {
+  style.stroke: "#F43F5E"
+  style.stroke-width: 2
+}
+```
+
+Despite rapid progress, the current generation of AI learning tools has three significant gaps.
+
+**Metacognitive feedback is shallow.** Current tools can tell you *that* you got a question wrong, but they struggle to tell you *what you do not understand* at a conceptual level. A human tutor, after watching you make the same type of error three times, would say: "I think you are confusing the gate weights (which are continuous) with the selection decision (which is discrete). Let me explain how those relate." Current AI tutors generate generic encouragement or re-explain the whole concept from scratch. True metacognitive support requires modeling the student's understanding, not just their answer history.
+
+**Cross-topic scheduling does not exist.** If you are studying MoE routing, distributed systems, and optimization simultaneously (as a real engineer might), no current tool manages the spacing and interleaving across all three topics. Anki handles spacing within a deck but does not coordinate across decks. LLM tutors handle one session at a time with no memory of what you studied yesterday in a different topic. The ideal system would generate a daily study plan that interleaves topics optimally based on your retention curves across all of them.
+
+**No system unifies the full stack.** Priya currently needs NotebookLM for audio pre-study, ChatGPT for Socratic questioning, Anki for spaced repetition, and Cursor for implementation. Each tool is strong individually, but the tools do not share data. Her flashcard performance does not inform her tutoring sessions. Her code implementations do not generate review prompts. The ideal AI learning system would combine tutoring, scheduling, review, and implementation into a single feedback loop where each activity informs the others.
+
+::: {.callout-tip title="Think Hard"}
+
+The generation effect from @sec-study-methods-ranked says that creating your own study materials produces 10-30% better retention than using pre-made ones. But AI tools now generate flashcards, quizzes, and summaries automatically. Does using AI-generated study materials undermine the generation effect? Or does the time savings outweigh the encoding loss? Consider this: what if the AI generates a *draft* set of prompts, and your job is to edit, refine, and extend them? That hybrid approach might preserve the generation benefit while reducing the barrier to getting started.
+
+:::
+
+### Creative Extensions: Where AI Learning Tools Are Headed
+
+Three emerging capabilities point toward the next generation of AI-assisted learning.
+
+*Vision-language models for visual explanations.* Current VLMs can take a mathematical equation and generate a step-by-step visual walkthrough, highlighting which terms correspond to which components of a diagram. For a topic like MoE routing, a VLM could overlay gate weights onto an architecture diagram in real time as you ask questions about the routing mechanism. This capability would implement the multimedia learning principle (Mayer): words and pictures integrated at the point of explanation, rather than presented separately.
+
+*Agent-based study plans.* An AI agent with access to your calendar, your Anki statistics, your recent code commits, and your reading list could generate a daily study plan that implements spacing and interleaving across all your learning goals. Such an agent could say: "Today, spend 30 minutes reviewing MoE load balancing (last reviewed 4 days ago), then 45 minutes on new material about expert parallelism, then 15 minutes of mixed flashcard review." This agent-based scheduler is the cross-topic coordinator that no current tool provides.
+
+*Text-to-speech for personalized audio materials.* NotebookLM generates generic podcast-style audio. Future tools could generate audio materials specifically targeted to your gaps: "Here is a 10-minute explanation of the three things you got wrong on yesterday's flashcard review, with worked examples." This approach would combine spaced repetition scheduling with dual-coding audio delivery, creating a review experience optimized for commute time or exercise.
+
+The throughline across all of these extensions is the same: **AI tools are most valuable when they operationalize learning science principles, not when they replace the learner's cognitive effort.** The goal is not to make learning effortless. The goal is to make the right kind of effort easier to sustain.
