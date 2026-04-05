@@ -10,7 +10,7 @@
 
 ### Summary of Key Insights
 
-This chapter has covered the full landscape of Datasets & Benchmarks papers: from what they are, to how they differ from other paper types, to how to write a competitive submission. Here are the core insights, distilled:
+This chapter has covered the full scope of Datasets & Benchmarks papers: from what they are, to how they differ from other paper types, to how to write a competitive submission. Here are the core insights, distilled:
 
 1. **D&B papers contribute data artifacts and evaluation infrastructure, not algorithms.** The primary contribution of a D&B paper is the dataset, benchmark, evaluation tool, or data curation methodology itself. This is a distinct type of research contribution, and since 2021 it has been recognized as "first-class work on par with algorithms work" by the ML community.
 
@@ -20,9 +20,9 @@ This chapter has covered the full landscape of Datasets & Benchmarks papers: fro
 
 4. **Strong benchmark papers need three properties.** Following Ofir Press's framework: Natural (tasks reflect real-world needs), Automatically Evaluatable (objective, automated scoring), and Challenging (0.1–9% top accuracy at launch). Additionally: human baselines, a formal evaluation protocol, and a strategy for contamination resistance.
 
-5. **D&B work is becoming more critical, not less.** The LLM era has produced an evaluation crisis: benchmark saturation, training data contamination, expanding capability breadth, and urgent safety evaluation needs. Agentic AI demands fundamentally new evaluation paradigms: environment-based benchmarks, multi-step evaluation, and safety compliance testing. The community's institutional response (NeurIPS D&B, KDD D&B, DMLR journal, Croissant standard) confirms that data-centric research is a permanent feature of the landscape.
+5. **D&B work is becoming more critical, not less.** The LLM era has produced an evaluation crisis: benchmark saturation, training data contamination, expanding capability breadth, and urgent safety evaluation needs. Agentic AI demands fundamentally new evaluation paradigms: environment-based benchmarks, multi-step evaluation, and safety compliance testing. The community's institutional response (NeurIPS D&B, KDD D&B, DMLR journal, Croissant standard) confirms that data-centric research is a permanent feature of the field.
 
-6. **Document, host, baseline, reflect.** The practical requirements are non-negotiable: use the Datasheets framework, provide Croissant metadata, host your data on a permanent platform (HuggingFace, Kaggle, OpenML), run comprehensive baselines (≥3 models + human), and write an honest ethics section that addresses specific risks and limitations.
+6. **Document, host, baseline, reflect.** The practical requirements are non-negotiable: use the Datasheets framework, provide Croissant metadata, host your data on a permanent platform (HuggingFace, Kaggle, OpenML), run thorough baselines (≥3 models + human), and write an honest ethics section that addresses specific risks and limitations.
 
 7. **Datasets define research agendas.** ImageNet defined image recognition research for a decade. SQuAD defined reading comprehension. SWE-bench defined AI-for-coding. The most-cited papers in ML are often datasets, not algorithms. When you create a dataset or benchmark, you are not just releasing data. You are shaping what the community works on next.
 
@@ -39,15 +39,184 @@ This chapter has covered the full landscape of Datasets & Benchmarks papers: fro
 
 ### Dr. Chen's Epilogue
 
-Dr. Mei Chen submitted her multilingual reasoning benchmark to the NeurIPS 2025 D&B track. Her scoring algorithm went to EMNLP main track. She is generalizing her annotation tool for a potential ACL 2026 System Demo submission. Each paper stands on its own merits, evaluated by the right reviewers, using the right criteria. Her labmate Aditya, who suggested "just put it in the appendix," is now reading this chapter.
+Dr. Mei Chen submitted her multilingual reasoning benchmark to the NeurIPS **Evaluations & Datasets** track (the successor name to Datasets & Benchmarks), with Croissant metadata and a public Hugging Face release. Her scoring algorithm went to the EMNLP main track. She is generalizing her annotation tool for a potential ACL System Demo submission. Each paper stands on its own merits, evaluated by the right reviewers, using the right criteria. Her labmate Aditya, who suggested "just put it in the appendix," is now reading this chapter.
 
 
 ### Cross-Reference: The Companion Chapter
 
-This chapter complements the companion chapter on **Writing System Demonstration Papers at *CL Venues**. Together, the two chapters provide comprehensive guidance for submitting to all three major conference tracks:
+This chapter complements the companion chapter on **Writing System Demonstration Papers at *CL Venues**. Together, the two chapters provide thorough guidance for submitting to all three major conference tracks:
 
 - **Research track**: Algorithmic/theoretical contributions (standard conference submissions)
 - **D&B track**: Dataset and benchmark contributions (**this chapter**)
 - **System Demo track**: Software system contributions (**companion chapter**)
 
 If your work spans multiple tracks (as Dr. Chen's does), you now have guidance for each component. The key insight, reinforced across both chapters, is that matching your contribution type to the right track is not just a strategic decision. It is a prerequisite for fair review. A dataset paper reviewed as if it were a research paper will be judged by the wrong criteria. A system demo paper reviewed as if it were a D&B paper will face irrelevant questions. Choosing the right track ensures that your work is seen clearly and valued fully.
+
+
+### Chapter roadmap (end state) {#sec-closing-roadmap}
+
+The diagram below mirrors the introduction roadmap: every node is now a section you have completed.
+
+```{.d2}
+direction: down
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 14
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  data: {
+    style: {
+      stroke: "#8B5CF6"
+      fill: "#F5F3FF"
+      font-color: "#5B21B6"
+    }
+  }
+}
+
+start: {
+  class: [base; input]
+  label: "      Dataset / benchmark / eval idea      "
+}
+
+what: {
+  class: [base; process]
+  label: "  Sec. 1: What is a D&B / E&D paper?  "
+}
+
+compare: {
+  class: [base; highlight]
+  label: "  Sec. 2: Pick the right track  "
+}
+
+dataset: {
+  class: [base; data]
+  label: "  Sec. 3: Dataset paper anatomy  "
+}
+
+benchmark: {
+  class: [base; data]
+  label: "  Sec. 4: Benchmark paper anatomy  "
+}
+
+why: {
+  class: [base; decision]
+  label: "  Sec. 5: Why this matters now  "
+}
+
+how: {
+  class: [base; process]
+  label: "  Sec. 6: Write and ship  "
+}
+
+done: {
+  class: [base; output]
+  label: "      Ready to submit      "
+}
+
+start -> what -> compare
+compare -> dataset
+compare -> benchmark
+dataset -> why
+benchmark -> why
+why -> how -> done
+```
+
+
+### Retrieval practice {#sec-retrieval-practice}
+
+Answer from memory first, then expand the callout to check.
+
+1. **Track choice.** You built a new benchmark and a new training algorithm for your model. Which piece most naturally belongs in a Datasets & Benchmarks or Evaluations & Datasets track, and why?
+2. **Review criteria.** Name two questions a D&B reviewer is likely to ask that a main-track methods reviewer might not emphasize.
+3. **Documentation.** What is Croissant, and why do NeurIPS data submissions reference it?
+4. **Benchmark design.** State Ofir Press's three properties in your own words and give one failure mode if any one property is missing.
+5. **Lifecycle.** What does BetterBench-style analysis add to a one-sentence benchmark pitch?
+6. **NeurIPS 2026.** How does the Evaluations & Datasets call broaden scope beyond "we released a new CSV"?
+
+::: {.callout-note collapse="true" title="Answers (retrieval practice)"}
+
+1. The **benchmark** (task definition, data, protocol, baselines, hosted artifacts) belongs in D&B / E&D if it is the primary contribution. The **algorithm** belongs in the main research track unless the paper's center of gravity is evaluation science rather than a new method.
+2. Examples: **Will the community be able to access and maintain this artifact?** **Is the documentation sufficient for responsible reuse?** **Does the paper clarify what claims the benchmark supports and under what assumptions?** (Any two concrete D&B-style questions are fine.)
+3. **Croissant** is an MLCommons machine-readable dataset metadata format. NeurIPS uses it so hosts, reviewers, and tools can ingest consistent structured descriptions (including Responsible AI fields in the 2026 call).
+4. **Natural** tasks mirror real needs; **automatically evaluatable** scoring avoids vague manual judgment for the core metric; **challenging** means strong models still fail enough to discriminate. Missing naturalness yields toy tasks; missing auto-eval yields non-reproducible scores; missing difficulty yields instant saturation.
+5. It forces you to separate **design quality** from **implementation quality** and to think across **lifecycle stages** (for example who maintains the benchmark after release), not only headline accuracy numbers.
+6. It welcomes **evaluation as an object of study**: stress tests of prior benchmarks, methodological papers on metrics, critical analyses, and documentation for evaluative claims, not only brand-new datasets.
+
+:::
+
+
+### Common mistakes to avoid {#sec-common-mistakes}
+
+- **Treating the artifact as an appendix** while the prose centers on a single model. If the dataset or benchmark is the contribution, put it in the title, abstract, and first page.
+- **Skipping baselines** or reporting only one frontier model. Reviewers use baselines to judge difficulty and utility.
+- **Weak accessibility story**: broken links, missing Croissant, or "email the authors" hosting at camera-ready time. NeurIPS-style tracks expect reviewer-ready access.
+- **Confusing leaderboard with benchmark**: rankings without a frozen protocol, metric, and ground truth are not a complete benchmark contribution.
+- **Ignoring saturation and contamination**: strong benchmark papers acknowledge how scores might inflate and what maintenance or versioning plan you recommend.
+- **Ethics as boilerplate**: name concrete risks (who is represented, who is harmed, what you did to mitigate) tied to your collection process.
+
+
+### Curated resources {#sec-curated-resources}
+
+These URLs match sources used or cited in this chapter (check the current call for paper each cycle; venues update requirements yearly).
+
+- [NeurIPS 2026 Evaluations & Datasets CFP](https://neurips.cc/Conferences/2026/CallForEvaluationsDatasets) (Written: 2026, Accessed: 2026-04-05)
+- [NeurIPS 2025 Datasets & Benchmarks CFP](https://neurips.cc/Conferences/2025/CallForDatasetsBenchmarks) (Written: 2025, Accessed: 2026-04-05)
+- [NeurIPS blog: Raising the Bar for dataset submissions (2025)](https://blog.neurips.cc/2025/03/10/neurips-datasets-benchmarks-raising-the-bar-for-dataset-submissions/) (Written: 2025-03-10, Accessed: 2026-04-05)
+- [NeurIPS 2021 track announcement (Medium)](https://neuripsconf.medium.com/announcing-the-neurips-2021-datasets-and-benchmarks-track-644e27c1e66c) (Written: 2021, Accessed: 2026-04-05)
+- [KDD 2025 Datasets & Benchmarks track CFP](https://kdd2025.kdd.org/call-for-datasets-and-benchmarks-track-papers/) (Written: 2025, Accessed: 2026-04-05)
+- [ACL Rolling Review reviewer tutorial](https://aclrollingreview.org/reviewertutorial) (Written: 2024, Accessed: 2026-04-05)
+- [Croissant format (MLCommons)](https://mlcommons.org/working-groups/data/croissant/) (Written: ongoing, Accessed: 2026-04-05)
+- [Datasheets for Datasets (Gebru et al., arXiv:1803.09010)](https://arxiv.org/abs/1803.09010) (Written: 2018, Accessed: 2026-04-05)
+- [BetterBench (Reuel et al., arXiv:2411.12990)](https://arxiv.org/abs/2411.12990) and [betterbench.stanford.edu](https://betterbench.stanford.edu) (Written: 2024, Accessed: 2026-04-05)
+- [Stanford HAI policy brief: What Makes a Good AI Benchmark?](https://hai.stanford.edu/policy/what-makes-a-good-ai-benchmark) (Written: 2024-12, Accessed: 2026-04-05)
+- [NeurIPS 2023 conference fact sheet (PDF)](https://media.neurips.cc/Conferences/NeurIPS2023/NeurIPS2023-Fact_Sheet.pdf) and [NeurIPS 2024 conference fact sheet (PDF)](https://media.neurips.cc/Conferences/NeurIPS2024/NeurIPS2024-Fact_Sheet.pdf) (submission and acceptance statistics; Accessed: 2026-04-05)
+- [DMLR (Journal of Data-centric Machine Learning Research)](https://dmlr.ai/) (Written: ongoing, Accessed: 2026-04-05)
+- [Ofir Press: How to Build Good Language Modeling Benchmarks](https://ofir.io/How-to-Build-Good-Language-Modeling-Benchmarks/) (Written: 2024-08-07, Accessed: 2026-04-05)

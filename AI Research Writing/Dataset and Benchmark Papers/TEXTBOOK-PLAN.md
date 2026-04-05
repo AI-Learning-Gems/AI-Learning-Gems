@@ -1,11 +1,21 @@
 # TEXTBOOK-PLAN: Datasets & Benchmarks Papers — What They Are, Why They Matter, and How to Write Them
 
+## Semantic color map (editing pass)
+
+| Hex | Category | Example terms |
+|-----|----------|---------------|
+| `#4F46E5` | Paper type / track | Datasets & Benchmarks |
+| `#047857` | Artifact contribution | data artifact, evaluation infrastructure |
+| `#E11D48` | Primary contribution / review focus | main contribution, what reviewers optimize for |
+
+Applied in `_01-introduction.qmd` (Chapter Introduction) and `_02-track-comparison.qmd` (core question). No coloring inside callouts, exercises, or `_99-closing.qmd`.
+
 ## User Query
 > I want to understand the composition of Datasets and Benchmarks papers at NeurIPS, KDD and other conferences like ACL, EMNLP etc (which do not have D&B track but have Dataset papers). Download actual papers from this track and understand what specifically is the contribution and why it is important in terms of research. Look for blogs or opinions pieces from the best researchers as to why dataset contributions and benchmarks contributions are important for the research community in the current era of LLMs and agentic systems in 2023, 2024, 2025, 2026. I want one section which explains understand the kind of paper which goes into D&B track vs Research track vs System Demo track.
 
 **Topic:** Understanding Datasets & Benchmarks (D&B) papers — what they are, what constitutes their contribution, why they are essential to ML/NLP research, and how they differ from Research track and System Demo track papers  
 **Prior Knowledge:** The reader understands ML/NLP conferences, has read the companion chapter on System Demo papers, and is familiar with the general academic publishing landscape  
-**Learning Goals:** Be able to (1) distinguish D&B papers from Research and System Demo papers, (2) understand what constitutes a strong D&B contribution, (3) understand the current landscape of D&B venues and their evolution, (4) write a competitive D&B submission  
+**Learning Goals:** Be able to (1) distinguish Datasets & Benchmarks / Evaluations & Datasets papers from Research and System Demo papers; (2) understand what constitutes a strong dataset or benchmark contribution, including how benchmark quality is defined across design, implementation, documentation, and maintenance; (3) understand the venue landscape and its evolution (including NeurIPS 2026's Evaluations & Datasets track and expanded scope for evaluation science); (4) connect benchmarks to policy and deployment settings where scores drive model selection and compliance narratives; (5) write a competitive submission that states evaluative claims, assumptions, and limitations clearly  
 **Target Depth:** RESEARCHER  
 **Output Folder:** `Research-Writing/Dataset and Benchmark Papers`
 
@@ -51,6 +61,15 @@
 | 32 | [NeurIPS 2021 D&B accepted papers](https://proceedings.neurips.cc/paper_files/paper/2021) | [PROCEEDINGS] | N/A | 2021 | 2026-03-05 | KEY: 174 accepted from 484 submissions. Inaugural year. Covered CV, NLP, RL, multimodal. |
 | 33 | [ACL ARR Reviewer Tutorial](https://aclrollingreview.org/reviewertutorial) | [VENUE-GUIDE] | N/A | 2024 | 2026-03-05 | KEY: Explains artifact vs knowledge contribution distinction. Datasets treated as artifact contributions with different evaluation criteria than research papers. |
 | 34 | [Existing chapter: System Demo Papers](file:///Users/adivekar/workplace/AI-Learning-Gems/Research-Writing/System Demo Papers/System Demo Papers/TEXTBOOK-PLAN.md) | [COMPANION] | Local | 2026 | 2026-03-05 | KEY: Companion chapter covers system demo paper structure, value proposition framing, evaluation strategies. Reader has already read this. |
+| 35 | [BetterBench (Reuel et al., arXiv:2411.12990)](https://arxiv.org/abs/2411.12990) | [ACADEMIC] | `sources/arxiv-2411.12990/` | 2024 | 2026-04-05 | KEY: 46 lifecycle criteria; scores 24 benchmarks; checklist + betterbench.stanford.edu; adopts Raji et al. benchmark definition. |
+| 36 | [Stanford HAI — What Makes a Good AI Benchmark?](https://hai.stanford.edu/policy/what-makes-a-good-ai-benchmark) | [POLICY] | `sources/hai.stanford.edu/policy/what-makes-a-good-ai-benchmark/content.md` | 2024-12 | 2026-04-05 | Policy brief summarizing BetterBench; five lifecycle stages; design vs implementation quality gap. |
+| 37 | [HAI policy brief PDF](https://hai.stanford.edu/assets/files/hai-policy-brief-what-makes-a-good-ai-benchmark.pdf) | [POLICY] | `sources/hai.stanford.edu/assets/files/hai-policy-brief-what-makes-a-good-ai-benchmark.txt` | 2024-12 | 2026-04-05 | Full-text extract (pdftotext) of brief aligned with #36. |
+| 38 | [NeurIPS 2026 — Call for Evaluations & Datasets](https://neurips.cc/Conferences/2026/CallForEvaluationsDatasets) | [VENUE-CFP] | `sources/neurips.cc/Conferences/2026/CallForEvaluationsDatasets/content.md` | 2026 | 2026-04-05 | Track renamed from D&B; evaluation as object of study; double-blind default; Croissant RAI fields; contribution-dependent code policy. |
+| 39 | [Cameron R. Wolfe — "The Anatomy of an LLM Benchmark"](https://cameronrwolfe.substack.com/p/llm-bench) | [TUTORIAL] | `sources/cameronrwolfe.substack.com/p/llm-bench/content.md` | 2026-03-30 | 2026-04-05 | Survey of popular LLM benchmarks: sourcing, QC, metrics, saturation-driven refinements; IRT / fluid benchmarking pointers. |
+| 40 | [Toloka — AI Benchmarks: measuring progress](https://toloka.ai/blog/ai-benchmarks-how-to-measure-real-progress-in-artificial-intelligence/) | [TUTORIAL] | `sources/toloka.ai/blog/ai-benchmarks-how-to-measure-real-progress-in-artificial-intelligence/ai-benchmarks-how-to-measure-real-progress-in-artificial-intelligence.md` | 2025-09-26 | 2026-04-05 | Practitioner framing: exams analogy, validity/contamination, robustness, reproducibility, documentation. |
+| 41 | [Scaleway — Why AI Benchmarking Matters](https://www.scaleway.com/en/blog/why-ai-benchmarking-matters/) | [BLOG] | (extraction failed) | — | 2026-04-05 | **NOT USED:** `webpage_to_md.py` captured wrong article stub only; retry later with JS extraction if needed. |
+| 42 | [NeurIPS 2023 conference fact sheet (PDF)](https://media.neurips.cc/Conferences/NeurIPS2023/NeurIPS2023-Fact_Sheet.pdf) | [VENUE-DATA] | `sources/neurips.cc/Conferences/NeurIPS2023/NeurIPS2023-Fact_Sheet.txt` | 2023 | 2026-04-05 | D&B: 987 submissions in 2023; prior year (2022) D&B submissions stated as 487; 32.6% D&B acceptance rate. |
+| 43 | [NeurIPS 2024 conference fact sheet (PDF)](https://media.neurips.cc/Conferences/NeurIPS2024/NeurIPS2024-Fact_Sheet.pdf) | [VENUE-DATA] | `sources/neurips.cc/Conferences/NeurIPS2024/NeurIPS2024-Fact_Sheet.txt` | 2024 | 2026-04-05 | D&B: 1,820 submissions in 2024; 25.3% D&B acceptance rate. |
 
 :::
 
@@ -100,12 +119,13 @@ This chapter guides the reader through the full landscape of D&B papers: what th
 | ACL ARR Reviewer Tutorial | [VENUE-GUIDE] | Contribution types | "Artifact vs knowledge contributions" |
 | NeurIPS 2022/2023/2024 Awards | [VENUE-AWARDS] | D&B best papers | Concrete examples of what wins |
 | DMLR Journal | [ACADEMIC] | About/Scope | Journal-level venue for D&B work |
+| NeurIPS 2026 Evaluations & Datasets CFP | [VENUE-CFP] | Scope + review policy | Track rename; evaluation as science; double-blind default; expanded non-dataset submissions |
 
 **Content outline:**
 1. **The Birth of a Track** — Why NeurIPS created the D&B track in 2021. The problem: dataset work was "undervalued, unsupported, and taken for granted." Researchers couldn't find appropriate venues. Algorithm paper reviews were a poor fit for data contributions. Opening with the 2021 announcement's key quotes.
 2. **What Counts as a D&B Paper?** — The NeurIPS 2025 scope breakdown: new datasets, benchmarks, data generators/RL environments, data-centric AI tools, data curation practices, dataset audits, competition analyses. KDD's parallel scope. The key insight: the *primary contribution is the data artifact or evaluation infrastructure*, not a new algorithm.
-3. **The Venue Landscape** — Where to publish D&B work in 2025:
-   - **Dedicated D&B tracks:** NeurIPS (since 2021), KDD (since 2025)
+3. **The Venue Landscape** — Where to publish D&B work in 2025–2026:
+   - **Dedicated tracks:** NeurIPS **Evaluations & Datasets** (2026 onward; formerly Datasets & Benchmarks), KDD D&B (since 2025)
    - **Within-track resource papers:** ACL, EMNLP, NAACL accept dataset papers in their main track
    - **Journals:** DMLR (JMLR family, launched 2023), TMLR
    - **Workshops:** DMLR@ICLR, Data-centric AI workshops
@@ -118,6 +138,8 @@ This chapter guides the reader through the full landscape of D&B papers: what th
 **Self-explanation prompts:**
 - "What is the primary contribution of a D&B paper? How does this differ from a research paper that happens to introduce a new dataset?"
 - "If a researcher introduces a new dataset as part of a main-track research paper, does that count as a D&B contribution? When would splitting it into a separate D&B paper be more appropriate?"
+
+**[UPDATE 2026-04-05]** NeurIPS 2026 rebrands and broadens the track (Evaluations & Datasets). Chapter introduction now states that *evaluation* (protocols, audits, analyses of benchmarks) is first-class alongside datasets. Source: NeurIPS 2026 CFP (#38).
 
 <!-- END-SECTION-1 -->
 
@@ -182,6 +204,8 @@ This chapter guides the reader through the full landscape of D&B papers: what th
 **Self-explanation prompts:**
 - "Take a recent paper from your field. Could it have been submitted to a different track? Would it have been strengthened or weakened by doing so?"
 - "If a reviewer asks 'Where is the algorithmic novelty?' on a D&B paper, what demonstrates a misunderstanding of the track? How should the authors respond?"
+
+**[UPDATE 2026-04-05]** NeurIPS 2026 renames the track to **Evaluations & Datasets** and changes default review mode to **double-blind**, with optional single-blind for dataset-centered work. The comparison table in the chapter should be read alongside the 2026 CFP for blind-review nuance. Sources: #38 in Source Processing Log.
 
 <!-- END-SECTION-2 -->
 
@@ -269,6 +293,9 @@ This chapter guides the reader through the full landscape of D&B papers: what th
 | LiveBench | [ACADEMIC] | Paper structure | Contamination-resistant benchmark design |
 | Benchmark contamination survey | [ACADEMIC] | Overview | Contamination mechanisms and mitigations |
 | MineDojo | [ACADEMIC] | Paper structure | RL environment/benchmark design |
+| BetterBench (arXiv:2411.12990) | [ACADEMIC] | Intro + lifecycle fig | Raji et al. definition; 46 criteria; betterbench.stanford.edu |
+| Stanford HAI policy brief | [POLICY] | Key takeaways | Five lifecycle stages; design vs implementation gap |
+| Cameron R. Wolfe — LLM benchmark anatomy | [TUTORIAL] | Full post | Case studies: MMLU-Pro, GPQA, BIG-Bench/BBEH, IFEval; IRT pointers |
 
 **Content outline:**
 1. **How Benchmark Papers Differ from Dataset Papers** — A benchmark is more than a dataset: it includes (1) a task definition, (2) an evaluation metric, (3) a test set with ground truth, and (4) a reporting framework. A dataset paper says "here is data"; a benchmark paper says "here is data + here is how you compete on it." Many papers are hybrids (e.g., PRISM is a dataset, DecodingTrust is a benchmark), but the emphasis differs.
@@ -305,6 +332,8 @@ This chapter guides the reader through the full landscape of D&B papers: what th
 - "Design a benchmark for a capability you care about. Can you make it natural, automatically evaluatable, and challenging simultaneously? Which property is hardest to satisfy?"
 - "If your benchmark saturates within 6 months, was it a failure? Why or why not?"
 
+**[UPDATE 2026-04-05]** Added: (a) formal benchmark definition via Raji et al. as quoted in BetterBench ([Reuel et al., arXiv 2024](https://arxiv.org/abs/2411.12990)); (b) lifecycle-oriented quality framework (46 criteria, five stages) and link to [betterbench.stanford.edu](https://betterbench.stanford.edu); (c) Cameron Wolfe's survey of how major LLM benchmarks handle sourcing, quality control, metrics, and difficulty upgrades (MMLU-Pro, MMLU-Redux, BBH/BBEH, etc.).
+
 <!-- END-SECTION-4 -->
 
 ---
@@ -326,6 +355,8 @@ This chapter guides the reader through the full landscape of D&B papers: what th
 | NeurIPS D&B submission growth | [VENUE-DATA] | 484 → 1820 submissions | Community demand signal |
 | SWE-bench, GAIA, WebArena | [ACADEMIC] | Framing/motivation | Agentic AI evaluation needs |
 | NeurIPS 2025 Blog: Raising the Bar | [BLOG] | Opening paragraphs | "Progress depends just as much on data quality" |
+| BetterBench + HAI brief | [ACADEMIC]/[POLICY] | Summary sections | Weak benchmarks in policy; quality dispersion across lifecycle |
+| Toloka — AI Benchmarks guide | [TUTORIAL] | Full article | Practitioner checklist echoing validity, robustness, reproducibility |
 
 **Content outline:**
 1. **The Data-Centric AI Paradigm Shift** — Andrew Ng's argument: most ML research focuses on models, but improving data quality often yields larger gains. The shift from "bigger model" to "better data." How this validates D&B work: if data is the bottleneck, then data work deserves publication credit.
@@ -356,6 +387,7 @@ This chapter guides the reader through the full landscape of D&B papers: what th
    - ACL/EMNLP: explicit reviewer instructions to value dataset papers equally
    - Croissant metadata standard: industry-wide dataset documentation effort
    - Lora Aroyo's "truth by disagreement": fundamentally rethinking what "quality data" means
+   - NeurIPS 2026 Evaluations & Datasets track: evaluation treated as an object of scientific study (see Section 1 / Source #38)
 
 **Key equations:** None
 **Visualizations:** Timeline of paradigm shifts (model-centric → data-centric → evaluation-centric); the "evaluation crisis" diagram; table of landmark datasets and their downstream impact.
@@ -385,6 +417,7 @@ This chapter guides the reader through the full landscape of D&B papers: what th
 | Building Better Datasets (DMLR 2024) | [ACADEMIC] | Seven recommendations | Practical recommendations |
 | Ofir Press blog | [TUTORIAL] | Practical tips | Benchmark design tips |
 | Best paper example analyses | [ACADEMIC] | What makes them special | Patterns in award-winning papers |
+| NeurIPS 2026 Evaluations & Datasets CFP | [VENUE-CFP] | ED-specific guidelines | Double-blind default; optional single-blind for dataset-centered work; Croissant RAI fields; code policy by contribution type |
 
 **Content outline:**
 1. **The Value Proposition for D&B Papers** — Borrowing from the System Demo chapter's archetype framework, D&B papers use similar framing patterns:
@@ -426,6 +459,8 @@ This chapter guides the reader through the full landscape of D&B papers: what th
 - "Write one sentence that captures why your dataset/benchmark fills a gap that no existing resource fills. Does it sound compelling?"
 - "What would happen if your dataset disappeared tomorrow? Would anyone notice? If yes, you have a strong contribution."
 
+**[UPDATE 2026-04-05]** Chapter adds a NeurIPS 2026 addendum: Evaluations & Datasets naming; double-blind default; contribution-dependent code release; Croissant **core + Responsible AI fields**.
+
 <!-- END-SECTION-6 -->
 
 ---
@@ -436,7 +471,7 @@ Since this topic is primarily textual (conference guidelines, paper structures, 
 
 | # | Visualization | Type | Used In | Description |
 |---|--------------|------|---------|-------------|
-| 1 | NeurIPS D&B submission growth chart | Bar chart | Section 1 + Hook | Submissions by year: 484 (2021) → 447 (2022) → est. 900 (2023) → 1,820 (2024). Shows explosive growth. |
+| 1 | NeurIPS D&B submission growth chart | Bar chart | Section 1 + Hook | Submissions by year: 484 (2021, Medium announcement) → 487 (2022, per NeurIPS 2023 fact sheet) → 987 (2023) → 1,820 (2024). Values 2022–2024 from NeurIPS PDF fact sheets; local text in `sources/neurips.cc/Conferences/NeurIPS2023/` and `.../NeurIPS2024/`. |
 | 2 | Venue landscape table | Formatted table | Section 1 | Venues accepting D&B work: NeurIPS, KDD, ACL, EMNLP, DMLR, with format/requirements for each. |
 | 3 | D&B timeline | Timeline diagram | Section 1 | Major milestones: 2012 ImageNet, 2018 Datasheets/GLUE/SQuAD2, 2021 NeurIPS D&B, 2023 DMLR, 2024 Croissant, 2025 KDD D&B. |
 | 4 | Three-track comparison table | Formatted table | Section 2 | Research vs D&B vs System Demo: primary contribution, review criteria, blind review, page limits, artifacts, key reviewer question. |
@@ -509,3 +544,9 @@ The following topics are deliberately out of scope for this chapter but may be c
 - **Industry benchmarks and leaderboards:** Corporate evaluation suites (LMSYS Chatbot Arena, MTBench, Open LLM Leaderboard) have their own dynamics. This chapter focuses on academic publication venues.
 - **Data privacy and governance:** While ethical considerations are covered within D&B papers, the broader topic of data governance regulations (GDPR, EU AI Act) is a separate discipline.
 - **Detailed tutorial for Croissant metadata creation:** While Croissant is described, a step-by-step tutorial is better served by the official Croissant documentation.
+
+### Out-of-Scope Sources (Update 2026-04-05)
+
+| Source | Status | Notes |
+|--------|--------|-------|
+| [Scaleway — Why AI Benchmarking Matters](https://www.scaleway.com/en/blog/why-ai-benchmarking-matters/) | Not integrated | Static HTML extraction returned an unrelated short stub; retry with JS rendering if needed. |

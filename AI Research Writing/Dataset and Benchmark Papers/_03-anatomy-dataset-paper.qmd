@@ -24,7 +24,7 @@ Here is the canonical structure of a strong dataset paper, along with the typica
 | Section | Typical Pages | Purpose |
 |---|---|---|
 | **Introduction** | ~1.5 pages | Motivate the gap → state the contribution → preview the dataset |
-| **Related Work / Existing Datasets** | ~0.5–1 page | Position your dataset in the landscape of alternatives |
+| **Related Work / Existing Datasets** | ~0.5–1 page | Position your dataset among the alternatives |
 | **Data Collection & Curation** | ~2.5–3 pages | The heart of the paper: how data was collected, annotated, validated |
 | **Dataset Statistics & Analysis** | ~1–1.5 pages | Quantitative profile: size, distribution, diversity, quality metrics |
 | **Baseline Experiments** | ~1–1.5 pages | Run existing methods on your dataset; establish benchmarks |
@@ -33,7 +33,28 @@ Here is the canonical structure of a strong dataset paper, along with the typica
 
 **Notice what is missing:** there is no "Methods" section in the traditional sense (no new algorithm), no "Hypothesis," no "Theoretical Analysis." This is because the dataset paper's intellectual contribution *is* the data artifact and the methodology used to create it, not a new model or theory. The "Methods" equivalent is the Data Collection section. But it describes *how the data was built*, not how a model was trained.
 
-Let us walk through each section and understand what makes it strong or weak.
+
+::: {.exercise-mcq correct="C"}
+
+In the canonical **9-page NeurIPS-style dataset paper** template from this section, which block is **not** listed as a standard top-level section?
+
+- Related Work / Existing Datasets
+- Baseline Experiments
+- Theorem and Proof (formal generalization bounds for a new classifier)
+- Limitations & Ethics
+
+::: {.feedback-correct}
+Correct. Dataset papers replace a classic **Methods** block with **Data Collection & Curation**; they do not center a new classifier theorem. Generalization theory belongs in a **Research** paper whose contribution is the algorithm.
+:::
+
+::: {.feedback-incorrect}
+Not quite. Related work, baselines, and ethics are all part of the template. The outlier is the **theorem-focused** section, which signals a **methods paper**, not a dataset-first contribution.
+:::
+
+:::
+
+
+The subsections below walk through each part of the template and spell out what makes it strong or weak.
 
 ### The Introduction: Articulating the Gap
 
@@ -88,11 +109,31 @@ The NeurIPS 2025 guidelines have formalized what was previously informal. Three 
 | **Data Statements for NLP** ([Bender & Friedman, TACL 2018](https://direct.mit.edu/tacl/article/doi/10.1162/tacl_a_00041/43452/)) | 2018 | Speaker demographics, Annotator demographics, Language variety, Text characteristics | ACL/EMNLP (recommended) |
 | **Croissant Metadata** (MLCommons, 2024) | 2024 | Machine-readable dataset description: structure, fields, splits, formats | NeurIPS D&B 2025 (**required**) |
 
-**Datasheets for Datasets** is the most comprehensive framework. Inspired by datasheets in the electronics industry, it proposes that every dataset be accompanied by a structured document answering questions across seven categories: *Motivation* (why was the dataset created?), *Composition* (what's in it?), *Collection Process* (how was it gathered?), *Preprocessing/Cleaning* (what processing was applied?), *Uses* (what is the dataset intended for? what should it NOT be used for?), *Distribution* (how will it be shared?), and *Maintenance* (who is responsible for updates? how long will it be supported?). The NeurIPS D&B guidelines explicitly reference this framework and encourage (though do not yet require) authors to include a datasheet.
+**Datasheets for Datasets** is the most thorough framework. Inspired by datasheets in the electronics industry, it proposes that every dataset be accompanied by a structured document answering questions across seven categories: *Motivation* (why was the dataset created?), *Composition* (what's in it?), *Collection Process* (how was it gathered?), *Preprocessing/Cleaning* (what processing was applied?), *Uses* (what is the dataset intended for? what should it NOT be used for?), *Distribution* (how will it be shared?), and *Maintenance* (who is responsible for updates? how long will it be supported?). The NeurIPS D&B guidelines explicitly reference this framework and encourage (though do not yet require) authors to include a datasheet.
 
 **Croissant metadata** is the newest requirement and the one most likely to trip up first-time D&B submitters. Developed by MLCommons, Croissant provides a machine-readable JSON-LD format for describing datasets: their structure, fields, data types, splits, and loading instructions. It is already supported by HuggingFace, Kaggle, OpenML, and Dataverse. Starting in 2025, NeurIPS D&B submissions must include a Croissant metadata file, and non-compliance may result in desk rejection. Practically, this means that when you host your dataset on HuggingFace, you need to create a Croissant descriptor (HuggingFace's dataset card system can generate a basic one automatically, but you should review and customize it).
 
 **Data Statements for NLP** is specifically designed for language datasets and focuses on the demographic and sociolinguistic characteristics of the data: who produced the language data (speaker demographics), who annotated it (annotator demographics), what variety of language is represented (dialect, register, domain), and what characteristics the text has (formality, topic, genre). If you are creating an NLP dataset, especially one submitted to *CL venues, including a data statement is strongly recommended and signals methodological rigor to reviewers.
+
+
+::: {.exercise-mcq correct="B"}
+
+For **NeurIPS 2025-style** D&B submissions discussed here, which documentation item is described as **required** (not merely encouraged) for new datasets?
+
+- A prose-only blog post summarizing the splits
+- Croissant machine-readable metadata hosted alongside the dataset
+- A single PDF appendix without structured fields
+- An optional tweet thread announcing the release
+
+::: {.feedback-correct}
+Correct. The section states Croissant became a **mandatory** NeurIPS expectation alongside hosting on approved platforms; skipping it risks desk rejection.
+:::
+
+::: {.feedback-incorrect}
+Not quite. Datasheets and data statements are strongly recommended frameworks, but the callout here is **Croissant** as the **required machine-readable** layer. Informal announcements cannot substitute for structured metadata reviewers can validate.
+:::
+
+:::
 
 
 ### The Five Pillars of a Strong Dataset Contribution
@@ -103,11 +144,27 @@ After analyzing best-paper winners and common rejection reasons across NeurIPS D
 
 **2. Quality.** Size without quality is noise. Strong dataset papers demonstrate quality through multiple signals: high inter-annotator agreement (κ ≥ 0.70), rigorous quality control pipelines, expert validation, and transparent documentation of known limitations. If your dataset was crowd-sourced, describe how you vetted annotators, calibrated them with gold-standard examples, and resolved disagreements.
 
-**3. Documentation.** Comprehensive, structured documentation following established frameworks. Every field in the Datasheets for Datasets framework should be addressed. Metadata should be machine-readable (Croissant). The collection methodology should be reproducible from the paper's description alone. Reviewers will specifically check whether you have documented potential biases, demographic characteristics of annotators/data subjects, and intended (and explicitly warned-against) use cases.
+**3. Documentation.** Thorough, structured documentation following established frameworks. Every field in the Datasheets for Datasets framework should be addressed. Metadata should be machine-readable (Croissant). The collection methodology should be reproducible from the paper's description alone. Reviewers will specifically check whether you have documented potential biases, demographic characteristics of annotators/data subjects, and intended (and explicitly warned-against) use cases.
 
 **4. Accessibility.** The data must be easy to download, use, and understand. This means: hosted on a permanent platform (HuggingFace, Kaggle, OpenML, Dataverse), provided in standard formats (CSV, JSON, Parquet), accompanied by loading scripts or code, and organized with clear split definitions (train/validation/test). A beautifully documented dataset that requires emailing the authors for access will be penalized or rejected.
 
 **5. Demonstrated utility.** Baseline experiments show that the dataset *enables meaningful research*. Run existing state-of-the-art models on your dataset. Report the results. Analyze the error patterns. Show where models succeed and fail. This serves two purposes. First, it proves that the dataset is appropriate for research (models can be trained and evaluated on it). Second, it provides a benchmark for future work (researchers now have a baseline to beat). PRISM runs existing reward models across cultures and shows dramatic performance variation. ClimSim runs physics-informed ML models and reveals which climate variables are hardest to emulate.
+
+
+::: {.exercise-predict correct="B"}
+
+Before you read the next subsection on rejections: according to this chapter, are **baseline experiments** optional for a competitive NeurIPS D&B dataset paper?
+
+- Yes, if the collection story is long enough to fill nine pages
+- No, strong dataset papers are expected to include baselines that demonstrate utility
+- Only required when the dataset has fewer than 1,000 examples
+- Only required for vision datasets, not for language
+
+::: {.predict-reveal}
+**The answer is B.** The misconception callout in this section is explicit: best-paper examples all run models; without baselines reviewers cannot tell whether the resource supports real research. If you guessed optional, you confused narrative depth with **demonstrated utility**.
+:::
+
+:::
 
 
 ### Common Weaknesses and Rejection Reasons
@@ -135,7 +192,7 @@ Critics of the D&B track sometimes argue that building a dataset is "just labor"
 
 ### Worked Example: Dr. Chen's Dataset Paper Outline
 
-Let us see how Dr. Chen allocates her 9-page budget for the multilingual reasoning benchmark:
+Here is how Dr. Chen allocates her 9-page budget for the multilingual reasoning benchmark:
 
 | Section | Pages | What Dr. Chen Includes |
 |---|---|---|
@@ -148,3 +205,19 @@ Let us see how Dr. Chen allocates her 9-page budget for the multilingual reasoni
 | **Conclusion & Availability** | 0.25 | HuggingFace link, Croissant metadata, GitHub repo with evaluation scripts, maintenance commitment (annual updates). |
 
 The remaining unlimited appendix space includes the full Datasheets for Datasets document, per-language IAA breakdowns, additional example items, annotator demographic profiles, and a data statement following the Bender & Friedman framework. This is a complete, reviewable submission package that addresses every dimension reviewers will evaluate.
+
+
+::: {.exercise-fillin}
+
+Dr. Chen's outline allocates the **largest single content slice** of her nine pages to the part reviewers treat as the intellectual core of a dataset paper. Complete the mapping:
+
+1. She spends only a quarter page on conclusions and availability links.
+2. She spends about 1.5 pages on baselines.
+3. The **heart of the paper** receives roughly {B|A: Dataset Statistics alone|B: Data Collection and Curation|C: Related Work only|D: Limitations only}.
+4. She keeps ethics candid but compact.
+
+::: {.fillin-feedback}
+**Correct: B.** The section explains that **Data Collection & Curation** plays the role of a methods section: it is where trust, reproducibility, and quality arguments live. Statistics and related work support that core but do not replace it.
+:::
+
+:::

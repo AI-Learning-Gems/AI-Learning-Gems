@@ -12,20 +12,22 @@
 | 6 | [SWE-bench (ICLR 2024)](https://arxiv.org/abs/2310.06770) | Research/D&B hybrid: benchmark + initial agent results |
 | 7 | [AutoGen Studio (EMNLP 2024)](https://arxiv.org/abs/2408.15247) | System Demo: no-code multi-agent tool |
 | 8 | [Companion chapter: System Demo Papers](file:///Users/adivekar/workplace/AI-Learning-Gems/Research-Writing/System Demo Papers/System Demo Papers/TEXTBOOK-PLAN.md) | Cross-reference for System Demo track details |
+| 9 | [NeurIPS 2026: Evaluations & Datasets CFP](https://neurips.cc/Conferences/2026/CallForEvaluationsDatasets) | Review policy change; expanded scope beyond dataset-only artifacts |
+| 10 | [NeurIPS 2023–2024 conference fact sheets (PDF)](https://media.neurips.cc/Conferences/NeurIPS2024/NeurIPS2024-Fact_Sheet.pdf) | D&B track submission volumes and acceptance rates cited in this section |
 
 :::
 
 ### The Core Question: What Is Your Primary Contribution?
 
-If there is one question that determines which track is right for your paper, it is this: **What is the main thing you are contributing to the research community?** Not everything your paper contains. Every good paper contains many things. Rather, ask yourself what is the single most valuable artifact or finding that a reader walks away with. Is it:
+If there is one question that determines which track is right for your paper, it is this: [**What is the main thing you are contributing to the research community?**]{style="color: #E11D48;"} Not everything your paper contains. Every good paper contains many things. Rather, ask yourself what is the single most valuable artifact or finding that a reader walks away with. Is it:
 
 - **A new algorithm, method, theory, or empirical finding?** → Research track
-- **A new dataset, benchmark, evaluation tool, or data curation methodology?** → Datasets & Benchmarks track
+- **A new dataset, benchmark, evaluation tool, data curation methodology, or a systematic study of evaluation practice (audits, reproductions, analyses of benchmarks)?** → NeurIPS **Evaluations & Datasets** track (2026 onward; previously Datasets & Benchmarks), or another venue's dataset/resource track
 - **A working software system that others can download, install, and use?** → System Demo track
 
 This might sound like a simplistic test, but it is the foundational question that organizers, reviewers, and area chairs use to judge whether a paper has been submitted to the right venue. Many papers contain elements of all three. A researcher who builds a benchmark often also writes code (a system) and proposes a novel evaluation methodology (an algorithm). A system demo paper frequently introduces a new dataset that the system generates. A research paper that proposes a new training algorithm will release both code and an evaluation dataset. The question is not whether your work *touches* multiple categories, but which category captures the *primary value* of your contribution.
 
-Let us make this concrete with Dr. Chen's work. She has three outputs from her fourteen-month research project:
+Here is the same test applied to Dr. Chen's work. She has three outputs from her fourteen-month research project:
 
 1. **A multilingual reasoning benchmark:** 15,000 hand-annotated questions across 40 languages, with a formal evaluation protocol, quality-controlled annotations, and inter-annotator agreement metrics. The value of this artifact is that it enables the research community to evaluate multilingual reasoning capabilities in a way that no existing benchmark does.
 
@@ -34,6 +36,27 @@ Let us make this concrete with Dr. Chen's work. She has three outputs from her f
 3. **A web-based annotation tool:** A Gradio interface she built for crowd-sourcing annotations, with quality control dashboards, annotator management, and real-time agreement monitoring. The value of this artifact is the *software system* that other researchers could use for their own annotation campaigns.
 
 Each output maps to a different track. The benchmark is a D&B contribution. The scoring algorithm is a Research contribution. The annotation tool is a potential System Demo contribution. Combining all three into one paper would mean each contribution receives only a third of the page budget. It would also be reviewed by the wrong criteria. Algorithm reviewers would ask "Where is the novelty?" about the benchmark, while dataset reviewers would ask "Where is the documentation?" about the algorithm. Your paper would compete against submissions that are laser-focused on a single contribution type. Splitting the work into targeted submissions actually *increases* both your publication count and the impact of each paper. Each one will be reviewed by an audience that understands and values its specific type of contribution.
+
+
+::: {.exercise-mcq correct="B"}
+
+In Dr. Chen's three-way split, her **novel scoring algorithm** (a metric that correlates better with human judgments) maps most naturally to which track?
+
+- NeurIPS Evaluations & Datasets, because it measures model outputs
+- The main Research track at NeurIPS or EMNLP, judged on methodological novelty and empirical validation
+- KDD Datasets & Benchmarks, because metrics are "data about outputs"
+- System Demo, because evaluation code always ships as an app
+
+::: {.feedback-correct}
+Correct. The metric is a **knowledge contribution**: the intellectual value is the idea and evidence, not a hosted benchmark suite by itself. The benchmark paper is where the artifact lives; the methods paper argues for the metric.
+:::
+
+::: {.feedback-incorrect}
+Not quite. D&B reviewers prioritize the **dataset or benchmark artifact** and its documentation. A new metric without the full evaluation resource as the star belongs with **methods papers** in the Research track. System Demo is for reusable **software systems** with UI and adoption, not for a metric definition alone.
+:::
+
+:::
+
 
 ### The Three Tracks Compared
 
@@ -45,15 +68,33 @@ The following table provides a detailed comparison across the dimensions that ma
 | **The core reviewer question** | "Does this advance the state of the art?" | "Will this dataset/benchmark be useful to the community?" | "Does this system work and is it usable?" |
 | **Novelty expectation** | Algorithmic or theoretical novelty required | Data novelty OR methodological novelty in curation/evaluation design | Novelty in system design, integration, or utility  |
 | **Evaluation approach** | Beat SOTA on existing benchmarks; ablation studies | Demonstrate dataset quality; run baseline experiments on new benchmark | User studies, adoption metrics, case studies |
-| **Blind review** | Double-blind (NeurIPS, ACL/EMNLP) | Single-blind (NeurIPS, KDD) | Single-blind (*CL venues) |
+| **Blind review** | Double-blind (NeurIPS, ACL/EMNLP) | NeurIPS **Evaluations & Datasets (2026+): double-blind by default**, with optional single-blind for dataset-centered submissions; NeurIPS **D&B (2025 and earlier): single-blind**. KDD D&B: single-blind. | Single-blind (*CL venues) |
 | **Page limits** | 8–9 pages (NeurIPS, ACL) | 9 pages (NeurIPS), 8 pages (KDD) | 6 pages (*CL venues) |
 | **Required artifacts** | Code (encouraged), reproducibility checklist | Hosted dataset + Croissant metadata (NeurIPS 2025), code, documentation | Demo video (2–2.5 min), live demo URL, screenshots |
 | **What gets desk-rejected** | Anonymity violations (double-blind) | Dataset not accessible at review time (NeurIPS 2025) | No video, no working demo |
-| **Typical acceptance rate** | ~25–30% (NeurIPS main), ~20–25% (ACL main) | ~36% (NeurIPS D&B, 2022) | ~32–36% (ACL/EMNLP demos) |
+| **Typical acceptance rate** | ~25–30% (NeurIPS main), ~20–25% (ACL main) | **~25–33%** (NeurIPS D&B / E&D: **32.6%** in 2023 and **25.3%** in 2024 per [NeurIPS fact sheets](https://media.neurips.cc/Conferences/NeurIPS2024/NeurIPS2024-Fact_Sheet.pdf)) | ~32–36% (ACL/EMNLP demos) |
 
 Several details in this table deserve unpacking.
 
-**Single-blind vs. double-blind.** The D&B track at NeurIPS is single-blind. Reviewers can see who the authors are. This is a deliberate choice, not a lapse. Unlike algorithm papers, where intellectual contribution can be assessed from the text alone, D&B papers require reviewers to verify that the data is accessible, that the hosting is reliable, and that the claimed quality controls were implemented. If an author says "our dataset is hosted on HuggingFace with Croissant metadata," the reviewer can check. Anonymizing this would hide important verifiable claims. KDD's D&B track is also single-blind. System Demo papers at *CL venues are single-blind for similar reasons. Reviewers need to test the live demo and evaluate the video. Only the main research tracks maintain double-blind review.
+
+::: {.exercise-predict correct="C"}
+
+The comparison table already notes that NeurIPS D&B was **single-blind** through 2025. **Before** re-reading the next paragraph: for **NeurIPS 2026 Evaluations & Datasets**, what does the call emphasize as the **default** review setup?
+
+- Single-blind remains the default for every paper in the track
+- Double-blind is optional and rarely used
+- Double-blind is the default, with optional single-blind when the submission centers on releasing a dataset
+
+::: {.predict-reveal}
+**The answer is C.** The renamed track widens scope to evaluation methodology and audits, so **double-blind** becomes the default. Dataset-centered releases may still opt into **single-blind** when full anonymization conflicts with hosting needs. If you chose single-blind for everyone, you missed the policy shift tied to the broader mission.
+:::
+
+:::
+
+
+**Single-blind vs. double-blind.** Through **NeurIPS 2025**, the Datasets & Benchmarks track was single-blind. Reviewers could see who the authors were. The rationale was that dataset and benchmark papers require reviewers to verify that the data is accessible, that the hosting is reliable, and that the claimed quality controls were implemented. If an author says "our dataset is hosted on HuggingFace with Croissant metadata," the reviewer can check. KDD's D&B track remains single-blind as of 2025. System Demo papers at *CL venues are single-blind for similar reasons.
+
+**NeurIPS 2026 introduces a different default for the renamed Evaluations & Datasets track.** The [2026 call for papers](https://neurips.cc/Conferences/2026/CallForEvaluationsDatasets) states that the **default review mode is now double-blind**, reflecting a broader scope that includes evaluation methodology, audits, and conceptual papers where author identities are less tied to hosting verification. Authors whose submission **centers on releasing a dataset** may still **choose single-blind** review, given the practical difficulty of anonymizing some data releases. Benchmark papers that build on recognizable public codebases are asked to make a **best-effort attempt** at anonymization. Always read the current year's CFP: blind-review policy is one of the fastest-moving details in this track.
 
 **Page limits and page strategy.** The D&B and Research tracks at NeurIPS both allow 9 pages of content (plus unlimited appendices and references). This means D&B papers have the same real estate as research papers. This was a deliberate decision when the track was created. Giving D&B papers the same space signals that they are valued equally. However, the *allocation* within those 9 pages differs dramatically. A research paper might spend 3–4 pages on the method and 2–3 pages on experiments. A dataset paper might spend 3–4 pages on the data collection process and documentation, and 1–2 pages on baseline experiments. The page budget reflects the contribution type. System Demo papers at *CL venues, by contrast, have only 6 pages. This tighter constraint demands ruthless prioritization.
 
@@ -78,9 +119,29 @@ The difference between D&B and System Demo within the artifact category is *what
 There are gray areas (a dataset generation *tool* could be either), but the intent is usually clear from the paper's emphasis. If the paper spends most of its pages describing the *data* that the tool produces, its quality, its documentation, and its baselines, it is a D&B paper that happens to include a tool. If the paper spends most of its pages describing the *system* (its architecture, its user interface, its design goals, its adoption), it is a System Demo paper that happens to produce data.
 
 
+::: {.exercise-mcq correct="A"}
+
+Which example best illustrates a **knowledge contribution** in the ARR sense used in this section?
+
+- A theorem showing when a new preference-loss estimator is unbiased
+- A Hugging Face dataset repository with train/dev/test splits and a datasheet
+- A Gradio demo other labs can spin up for crowd labeling
+- A Croissant JSON-LD file bundled with hosted parquet shards
+
+::: {.feedback-correct}
+Correct. **Knowledge contributions** are ideas you learn from the paper: proofs, algorithms, empirical laws. Hosted data, demos, and Croissant files are **artifacts** you download or run.
+:::
+
+::: {.feedback-incorrect}
+Not quite. Repositories, Croissant metadata, and runnable demos are **artifacts**. The distractor that sounds academic but is still an artifact would be anything whose value is "you can fetch this object." Pick the option that is **purely conceptual**: a claim you verify by reasoning or experiments reported in prose.
+:::
+
+:::
+
+
 ### Where Papers Fall: Real Examples
 
-Theory is helpful, but worked examples are better. Let us trace through several well-known papers and identify which track they belong to, and why.
+Theory is helpful, but worked examples are better. The table below traces several well-known papers, identifies which track they belong to, and says why.
 
 ::: {.callout-note title="Think Hard: Why was SWE-bench published in the research track at ICLR, not a D&B track?"}
 SWE-bench is a benchmark. It defines a task (resolve real GitHub issues), provides evaluation infrastructure (a Docker-based harness that runs test suites), and tests AI systems on real-world software engineering challenges. By all definitions, it is a D&B contribution. Yet it was published in the ICLR 2024 main research track, not a D&B track (ICLR does not have one). This highlights an important practical reality: not every venue has a D&B track. At venues without one (ICLR, ACL, EMNLP), dataset and benchmark papers compete in the main track. ACL and EMNLP have addressed this by explicitly instructing reviewers to value dataset papers equally and not penalize them for lacking algorithmic novelty. ICLR has no such explicit guidance, but SWE-bench was accepted because the paper also introduced an initial agent (SWE-agent) and provided substantial experimental evaluation. This effectively made the paper a hybrid. At NeurIPS, it would have been a natural fit for the D&B track.
@@ -91,7 +152,7 @@ SWE-bench is a benchmark. It defines a task (resolve real GitHub issues), provid
 | **LAION-5B** ([Schuhmann et al., NeurIPS 2022](https://arxiv.org/abs/2210.08402)) | D&B | The contribution is the 5.85 billion image-text pair dataset itself. No new model is proposed. The paper's value is that it provides large-scale training data for vision-language models. It enabled Stable Diffusion. |
 | **PRISM Alignment Dataset** ([Kirk et al., NeurIPS 2024](https://arxiv.org/abs/2404.16019)) | D&B | The contribution is a participatory dataset from 75 countries for studying multicultural LLM alignment. The insight is in the *data design* (who was asked, how preferences were collected, what cultural patterns emerge), not in a new RLHF algorithm. |
 | **ClimSim** ([Yu et al., NeurIPS 2023](https://arxiv.org/abs/2306.08754)) | D&B | The contribution is 5.7 billion multivariate pairs for hybrid physics-ML climate emulation. This is the first large-scale dataset bridging climate science and ML. Cross-disciplinary dataset that opened a new research direction. |
-| **DecodingTrust** ([Wang et al., NeurIPS 2023](https://arxiv.org/abs/2306.11698)) | D&B | The contribution is a comprehensive benchmark for evaluating GPT's trustworthiness across toxicity, bias, privacy, and robustness. The benchmark *framework* is the innovation, not any specific model evaluation result. |
+| **DecodingTrust** ([Wang et al., NeurIPS 2023](https://arxiv.org/abs/2306.11698)) | D&B | The contribution is a thorough benchmark for evaluating GPT's trustworthiness across toxicity, bias, privacy, and robustness. The benchmark *framework* is the innovation, not any specific model evaluation result. |
 | **SWE-bench** ([Jimenez et al., ICLR 2024](https://arxiv.org/abs/2310.06770)) | Research (hybrid) | Benchmark + initial SWE-agent results. Could have been D&B at NeurIPS. Published in main track at ICLR (no D&B track). |
 | **AutoGen Studio** ([Wu et al., EMNLP 2024](https://arxiv.org/abs/2408.15247)) | System Demo | The contribution is the no-code multi-agent prototyping tool with UI. Value is in the *software system*: drag-and-drop workflow composition, real-time debugging, profiling. Not a new agent algorithm. |
 | **GPT-4 Technical Report** ([OpenAI, arXiv 2023](https://arxiv.org/abs/2303.08774)) | Research | The contribution is the model and its capabilities. GPT-4 introduces many benchmarks, but the *primary* value is the model itself and the empirical findings about scaling. |
@@ -110,19 +171,36 @@ Not every paper falls neatly into one category. Here are the most common dilemma
 
 **"I'm submitting to ACL or EMNLP, which don't have a separate D&B track."** At *CL venues, dataset and benchmark papers compete in the main track. This can feel disadvantageous. Your paper is being reviewed alongside algorithm papers by reviewers who might default to asking "Where is the algorithmic novelty?" However, both ACL and EMNLP have taken explicit steps to counteract this bias. The ARR reviewer guidelines state that "development of datasets is as important as modeling work" and that dataset papers should be evaluated on their own merits: quality, documentation, impact potential, and ethical considerations. The EMNLP 2025 CFP explicitly lists resource papers as a valid submission type and requires a Responsible NLP Checklist. If you submit a dataset paper to ACL/EMNLP, proactively address this in your introduction: frame your contribution using the "artifact contribution" language from the ARR guidelines, making it clear to reviewers that the paper's value is in the data artifact, not in algorithmic novelty.
 
+
+::: {.exercise-order correct="B,D,A,C"}
+
+You are revising a dataset-resource paper for **EMNLP main track** (no separate D&B track). Arrange these preparation steps in a sensible order:
+
+- Run baseline experiments on at least three model classes and report limitations
+- Review ACL Rolling Review guidance on **artifact versus knowledge** contributions
+- Anticipate that reviewers will weight documentation, ethics, and accessibility more than beating every SOTA number
+- State in the introduction that the **primary value is the dataset artifact**, not a new training algorithm
+
+::: {.order-feedback}
+**Correct order: B, D, A, C.** Read the **ARR framing first**, then **signal artifact status in the intro** so reviewers apply the right rubric, then **deliver baselines** that prove utility, and finally **set expectations** about review criteria (quality and responsibility, not only leaderboard gains).
+:::
+
+:::
+
+
 ::: {.callout-warning title="Common Misconception: D&B papers are 'easier' to publish"}
-Some researchers view the D&B track as a "back door" that is easier to get into than the main track, with lower standards. This is wrong. The NeurIPS D&B acceptance rate in 2022 was approximately 36%, which is comparable to the main track (~25–30% depending on the year). Moreover, the *type* of rigor demanded is different, not lower. Main track reviewers evaluate algorithmic novelty and experimental soundness. D&B track reviewers evaluate data quality, documentation completeness, accessibility, ethical sourcing, and community impact potential. Papers that would be strong in the main track can easily be rejected in D&B for insufficient documentation or inaccessible data. The standards are orthogonal, not hierarchical.
+Some researchers view the D&B track as a "back door" that is easier to get into than the main track, with lower standards. This is wrong. Official NeurIPS conference fact sheets report a **32.6%** acceptance rate for the Datasets & Benchmarks track in 2023 and **25.3%** in 2024 ([NeurIPS 2023 fact sheet PDF](https://media.neurips.cc/Conferences/NeurIPS2023/NeurIPS2023-Fact_Sheet.pdf), [NeurIPS 2024 fact sheet PDF](https://media.neurips.cc/Conferences/NeurIPS2024/NeurIPS2024-Fact_Sheet.pdf)). Those numbers are not "easy mode"; they are selective, and the *type* of rigor demanded is different, not lower. Main track reviewers evaluate algorithmic novelty and experimental soundness. D&B track reviewers evaluate data quality, documentation completeness, accessibility, ethical sourcing, and community impact potential. Papers that would be strong in the main track can easily be rejected in D&B for insufficient documentation or inaccessible data. The standards are orthogonal, not hierarchical.
 :::
 
 
 ### Dr. Chen's Decision: A Worked Walkthrough
 
-Let us apply everything from this section to Dr. Chen's situation. She has three components:
+Apply the same rules to Dr. Chen's situation. She has three components:
 
 **Component 1: The multilingual reasoning benchmark (15,000 questions, 40 languages)**
 
 - *Primary contribution type:* Data artifact and evaluation infrastructure
-- *Target track:* NeurIPS D&B track
+- *Target track:* NeurIPS Evaluations & Datasets track (successor to Datasets & Benchmarks)
 - *Why:* The benchmark fills a specific gap. No existing benchmark evaluates multilingual reasoning at this scale and language coverage. The primary value is the *dataset and evaluation protocol*, not a new algorithm.
 - *Key submission requirements:* Host on HuggingFace, provide Croissant metadata, run baselines with frontier models (GPT-4, Claude, Gemini, Llama), report inter-annotator agreement, document annotation methodology, address ethical considerations (especially cultural sensitivity in 40-language data collection).
 

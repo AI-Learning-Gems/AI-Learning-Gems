@@ -10,6 +10,7 @@
 | 4 | [Building Better Datasets: Seven Recommendations (DMLR 2024)](https://dmlr.ai/) | Evidence-based practical recommendations |
 | 5 | [Ofir Press: How to Build Good Benchmarks](https://ofir.io/How-to-Build-Good-Language-Modeling-Benchmarks/) | Practical benchmark design tips |
 | 6 | [Datasheets for Datasets (arXiv:1803.09010)](https://arxiv.org/abs/1803.09010) | Documentation framework |
+| 7 | [NeurIPS 2026: Evaluations & Datasets CFP](https://neurips.cc/Conferences/2026/CallForEvaluationsDatasets) | 2026-specific blind review, code policy, Croissant RAI fields |
 
 :::
 
@@ -28,9 +29,29 @@ To use this framing, your introduction should answer three questions in order: (
 **The Infrastructure Builder.** "The community needs evaluation infrastructure for a new paradigm." WebArena ([Zhou et al., ICLR 2024](https://arxiv.org/abs/2307.13854)) builds a full web environment for testing autonomous agents: not just questions and answers, but *a world*. MineDojo builds a Minecraft simulation suite with an internet-scale knowledge base for embodied AI research. These papers contribute not just data but *evaluation platforms*. These are complex systems that enable an entirely new type of research. The infrastructure framing works when a new research paradigm (agentic AI, embodied AI, long-horizon planning) has emerged but lacks the evaluation tools to make rigorous research possible.
 
 
+::: {.exercise-mcq correct="C"}
+
+Which framing archetype best matches DecodingTrust, as described in this section?
+
+- Gap-Filler that adds another accuracy leaderboard
+- Scale-Breaker that multiplies corpus size by 100×
+- Perspective-Shifter arguing we must measure trustworthiness, not only accuracy
+- Infrastructure Builder supplying a browser sandbox for agents
+
+::: {.feedback-correct}
+Correct. DecodingTrust is the textbook **Perspective-Shifter**: it claims prevailing suites optimize the wrong objective by ignoring toxicity, privacy, and related risk axes.
+:::
+
+::: {.feedback-incorrect}
+Not quite. WebArena illustrates the **Infrastructure Builder**. A **Gap-Filler** stresses an empty niche, not a redefinition of what should be scored.
+:::
+
+:::
+
+
 ### Submission Logistics: The NeurIPS 2025 Checklist
 
-The NeurIPS 2025 D&B track has the most comprehensive submission requirements of any D&B venue. Meeting these requirements is not optional. Non-compliance on key items can result in desk rejection. Here is the complete checklist:
+The NeurIPS 2025 D&B track has the most detailed submission requirements of any D&B venue. Meeting these requirements is not optional. Non-compliance on key items can result in desk rejection. Here is the complete checklist:
 
 ::: {.callout-important title="NeurIPS 2025 D&B Submission Checklist"}
 
@@ -68,7 +89,57 @@ The NeurIPS 2025 D&B track has the most comprehensive submission requirements of
 
 :::
 
+::: {.exercise-mcq correct="B"}
+
+According to the NeurIPS 2025 checklist callout in this section, how are authors identified to reviewers?
+
+- Double-blind: no author names or affiliations anywhere in the PDF
+- Single-blind: author names remain visible to reviewers
+- Fully open: identities public during the entire review process
+- Hybrid: only student first authors are anonymized
+
+::: {.feedback-correct}
+Correct. The checklist explicitly requires **single-blind** formatting so reviewers see who submitted the work, while authors still do not know reviewer identities.
+:::
+
+::: {.feedback-incorrect}
+Not quite. Compare this with the **NeurIPS 2026** addendum later: the newer track defaults to **double-blind**, which is a deliberate change from the 2025 rule you just read.
+:::
+
+:::
+
+
 **KDD 2025 D&B differences:** KDD has an 8-page content limit (vs. NeurIPS's 9 pages), a maximum of 2 submissions per author in the D&B track, and follows its own formatting requirements. The scope is similar but emphasizes data mining applications: structured data, temporal data, graph data, and recommendation datasets are particularly welcome.
+
+::: {.callout-tip title="NeurIPS 2026 addendum: Evaluations & Datasets track"}
+
+If you are targeting **NeurIPS 2026**, read the [**Evaluations & Datasets call for papers**](https://neurips.cc/Conferences/2026/CallForEvaluationsDatasets) alongside this checklist. Three changes matter most in practice:
+
+1. **Blind review:** The track now defaults to **double-blind** review. If your paper **centers on releasing a dataset**, you may still **elect single-blind** review. Plan anonymization accordingly.
+
+2. **Code release:** Code is **required at submission** when the primary contribution is a **reusable executable artifact** (benchmark suite, evaluation environment, data generator, or tool) whose behavior must be inspected to verify the paper's claims. For **analytical, empirical, conceptual, or methodological** papers without such an artifact, code is **encouraged** but not automatically mandatory if the paper is detailed enough to review.
+
+3. **Croissant + RAI fields:** Dataset authors must submit **Croissant** metadata. NeurIPS 2026 asks for both **core** Croissant fields and [**Responsible AI (RAI) fields**](https://docs.mlcommons.org/croissant/docs/croissant-rai-spec.html) (with tooling promised on the CFP page to help complete RAI fields on major hosting platforms).
+
+The 2026 CFP also repeats that datasets and code must be **accessible without a personal email to the PI** at submission time.
+
+:::
+
+
+::: {.exercise-predict correct="A"}
+
+Before re-reading the bullets inside the 2026 addendum: what is the **default review stance** for the NeurIPS 2026 Evaluations & Datasets track?
+
+- Double-blind review unless dataset-centered papers elect single-blind
+- Mandatory single-blind review for every submission type
+- Fully open identities for authors and reviewers simultaneously
+- Triple-blind review where area chairs are also hidden from authors
+
+::: {.predict-reveal}
+**The answer is A.** The addendum states the track now **defaults to double-blind** review while still letting **dataset-first** papers opt into single-blind. The other choices exaggerate or invent policies.
+:::
+
+:::
 
 
 ### Writing Tips Specific to D&B Papers
@@ -81,11 +152,28 @@ Beyond the structural and logistical requirements, certain writing strategies ar
 
 **Human baselines are gold.** For benchmark papers, a human performance baseline gives reviewers a critical calibration point. If GPT-4 scores 35% but humans score 92% (as in GAIA), that tells a clear story: the benchmark tests a real capability that models haven't mastered. If GPT-4 scores 85% and humans score 87%, the story is different: the benchmark may be close to saturation, or the task may not discriminate well between human and model capabilities. Human baselines are expensive (you need to pay people to take the test), but they are among the strongest signals you can include.
 
-**Diversity of baselines.** Don't only evaluate GPT-4. Run a range of models: open-source models (Llama, Mistral, Qwen), closed-source models (GPT-4, Claude, Gemini), smaller models (7B, 13B parameters), and if applicable, non-LLM baselines (traditional ML approaches, retrieval-based methods). This serves two purposes: it demonstrates that the benchmark is model-agnostic (not designed to favor one model family), and it creates a richer landscape of results that helps the community understand performance patterns. A result table with 8–12 models is far more informative than one with two.
+**Diversity of baselines.** Don't only evaluate GPT-4. Run a range of models: open-source models (Llama, Mistral, Qwen), closed-source models (GPT-4, Claude, Gemini), smaller models (7B, 13B parameters), and if applicable, non-LLM baselines (traditional ML approaches, retrieval-based methods). This serves two purposes: it demonstrates that the benchmark is model-agnostic (not designed to favor one model family), and it creates a richer spread of results that helps the community understand performance patterns. A result table with 8–12 models is far more informative than one with two.
 
 **Anticipate the "so what?" question.** Every D&B paper must answer: "Why should 100 researchers download this dataset next year?" If you cannot answer this crisply, the contribution may not be strong enough. The answer should be concrete and specific: "Because no other resource enables evaluation of multilingual reasoning in 40 languages" or "Because this is the first dataset that captures cultural variation in AI alignment preferences across 75 countries." Vague answers ("this will be useful for the community") are unconvincing.
 
-::: {.callout-warning title="Common Misconception: 'D&B papers are just data dumps — no intellectual contribution'"}
+
+::: {.exercise-fillin}
+
+Complete the sentence about page budget discipline from this section:
+
+1. Strong D&B papers spend most pages on collection, documentation, and analysis of the artifact.
+2. Baseline experiments still belong in the manuscript because reviewers expect empirical evidence.
+3. In that balance, baselines primarily exist to {B|A: showcase a proprietary new architecture|B: demonstrate the dataset or benchmark is informative|C: replace the need for error analysis}.
+4. A thin data section and bloated model section signals a misclassified submission.
+
+::: {.fillin-feedback}
+**Correct: B.** The section warns against treating baselines as the star; they **calibrate** how hard the suite is and whether it discriminates. Option A describes a main-track modeling paper, while option C ignores the checklist's emphasis on analyzed results.
+:::
+
+:::
+
+
+::: {.callout-warning title="Common Misconception: 'D&B papers are just data dumps: no intellectual contribution'"}
 This is perhaps the most damaging misconception about D&B work, and it sometimes surfaces in reviewer comments. The truth is that strong D&B papers require substantial intellectual contribution in multiple dimensions. **Task design** requires deep domain expertise to identify what should be measured and how. **Annotation methodology** requires solving genuine methodological challenges at scale (how do you get consistent labels from 500 annotators across 18 countries?). **Quality control** requires engineering rigorous pipelines that ensure data reliability. **Analysis** requires extracting insights from the data that shape the research agenda. The NeurIPS 2021 announcement was explicit: D&B work is "first-class work on par with algorithms work." If a reviewer fails to see the intellectual contribution in your paper, the problem is usually in how you've *presented* it, not in the work itself. Make the intellectual contribution visible: explain the design decisions, justify the methodology, highlight the insights.
 :::
 
@@ -104,13 +192,29 @@ The following rejection reasons appear repeatedly in D&B reviews across NeurIPS 
 | **Overlapping scope** | "This contribution is more appropriate for the main track / demo track" | Front-load the data contribution. If reviewers think your paper is about the algorithm, you've spent too many pages on the algorithm and too few on the data. |
 
 
+::: {.exercise-order correct="C,B,A,D"}
+
+Arrange these moves into the **Gap-Filler introduction sequence** described earlier in this section:
+
+- Close by stating your artifact and how it removes the bottleneck
+- Explain why incumbent datasets or benchmarks cannot cover the need
+- Open by naming the capability or domain stakeholders care about
+- Remind readers that reviewers will verify the gap against prior work
+
+::: {.order-feedback}
+**Correct order: C, B, A, D.** The section prescribes naming the important domain, showing why existing resources fail, stating your concrete contribution, and remembering that reviewers will fact-check the claimed gap against prior suites.
+:::
+
+:::
+
+
 ### Dr. Chen's Final Submission Package
 
-Let us follow Dr. Chen through her final submission preparation for the NeurIPS 2025 D&B track, tracing how she addresses every requirement in the checklist.
+The following walkthrough follows Dr. Chen through her final submission preparation for the NeurIPS 2025 D&B track and shows how she addresses each checklist item.
 
 **The paper (9 pages + appendix).** Following the page allocation from @sec-anatomy-dataset, her paper opens with a gap-filler introduction ("Current multilingual reasoning benchmarks cover at most 8 languages, leaving 80% of the world's LLM users unevaluated"). The Data Collection section describes her annotation framework across 18 countries: recruited annotators with verified language proficiency, provided detailed annotation guidelines with training examples, implemented gold-standard calibration items, and monitored IAA in real time. Her Dataset Statistics section reports κ = 0.79 overall (substantial agreement), with per-language breakdowns ranging from 0.68 (Swahili, harder due to limited annotator pool) to 0.87 (English, largest pool). Her Baseline Experiments section runs GPT-4 (62%), Claude 3 (58%), Gemini Pro (54%), Llama 3 70B (48%), Qwen 2 72B (51%), and Mistral Large (46%), along with a human baseline (89%). The results table breaks down by language and difficulty level, revealing that performance drops sharply for low-resource languages (20–35%) and for Level 3 reasoning tasks (30–40% across all models). Her Limitations section discusses cultural bias in question design (questions sourced from educational systems that may not represent all cultural contexts), annotator recruitment challenges in certain regions, and the risk that her benchmark could inadvertently prioritize languages with more internet resources. Her appendix includes the complete Datasheets for Datasets document, per-language IAA tables, example items, annotator demographics, and a data statement following Bender & Friedman.
 
-**The HuggingFace dataset card.** She created a comprehensive dataset card on HuggingFace including: dataset description, intended uses and limitations, data splits (train: 10,000 / dev: 2,500 / test: 2,500), per-language statistics, loading code (`datasets.load_dataset("meichen/MultiLingReason")`), citation information, and license (CC-BY-4.0).
+**The HuggingFace dataset card.** She created a thorough dataset card on HuggingFace including: dataset description, intended uses and limitations, data splits (train: 10,000 / dev: 2,500 / test: 2,500), per-language statistics, loading code (`datasets.load_dataset("meichen/MultiLingReason")`), citation information, and license (CC-BY-4.0).
 
 **The Croissant metadata.** She generated a Croissant JSON-LD file describing the dataset's structure: fields (question, choices, answer, language, difficulty_level, reasoning_type), data types, splits, and format (Parquet files). She tested the Croissant file using the MLCommons Croissant validator and included the validation report in her supplementary materials.
 
