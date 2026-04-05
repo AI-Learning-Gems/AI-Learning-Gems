@@ -282,7 +282,7 @@ Web search result summaries are lossy, frequently inaccurate, and sometimes fabr
 
 1. If a source is cited in TEXTBOOK-PLAN.md, it MUST be downloaded locally to `AI-Learning-Gems/sources/` BEFORE you begin writing.
 2. If a source is downloaded locally, you MUST read it IN FULL using the Read tool (or `view_file`) BEFORE writing any section that references it.
-3. If a source cannot be downloaded (paywalled, broken link, etc.), you MUST either find an alternative source that CAN be downloaded, or drop the claim. Never cite a source you have not read.
+3. If a source cannot be downloaded (paywalled, broken link, etc.), you MUST follow the **Paywalled Paper Retrieval Cascade** in `web-source-fetching.md` before giving up. This cascade has 7 steps (arXiv preprint → author website → academic repositories → abstract-text search → Gwern archive → Wayback Machine → flag to user). Most paywalled papers can be found freely through author sites, course reading lists, or academic repositories. Only after exhausting ALL 7 steps should you drop the claim or flag the source to the user. Never cite a source you have not read.
 
 **What "read in full" means:** Use the Read tool on the local file. Read every line. For long sources (30K+ chars), you may read in chunks, but you must read ALL chunks, not just the first page. For PDFs, convert to text first (see `web-source-fetching.md`).
 
@@ -853,7 +853,7 @@ Every example must pass the **"15-year-old to 35-year-old test":**
    # arXiv papers:
    mkdir -p "sources/arxiv-{ID}" && cd "sources/arxiv-{ID}" && curl -sL "https://arxiv.org/src/{ID}" -o source.tar.gz && tar -xzf source.tar.gz && rm source.tar.gz
    ```
-3. **For sources that cannot be downloaded** (paywalled, broken link, requires login you don't have): note these in the chat and either find an alternative downloadable source, or mark the claims from that source as unverifiable.
+3. **For paywalled sources:** Do NOT give up immediately. Follow the **Paywalled Paper Retrieval Cascade** in `web-source-fetching.md`. This is a 7-step process that finds freely accessible copies of most paywalled papers through arXiv preprints, author websites, academic repositories (Semantic Scholar, PubMed Central, ERIC, CORE), abstract-text search, the Gwern archive, and the Wayback Machine. Only after exhausting ALL 7 steps should you flag the source to the user. **After downloading, verify with `pdfinfo` that the page count matches the expected paper length** (the `file` command is unreliable for page counts). Then extract to markdown with `scripts/mistral_ocr.py`.
 4. **Verify all downloads:** Run `ls` on each expected source path to confirm content exists.
 
 5. **CRITICAL — Verify readability of every source (MANDATORY).** Downloaded is not the same as readable. A PDF in the source folder is useless if it has never been extracted to text. For EACH source folder:

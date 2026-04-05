@@ -5,6 +5,7 @@ globs:
 alwaysApply: true
 ---
 
+
 # Web Source Fetching Strategies
 
 This document contains rules and strategies for fetching authoritative content from various web sources. It is a **living document** — add new entries as you discover what works for each website.
@@ -55,6 +56,16 @@ This document contains rules and strategies for fetching authoritative content f
 Is it an arXiv paper?
 ├─ YES → Download LaTeX source: curl arxiv.org/src/PAPER_ID (ALWAYS prefer this over PDF)
 └─ NO
+   ├─ Is it a PAYWALLED academic paper? (SAGE, APA, Elsevier, Springer, etc.)
+   │  └─ YES → Follow the Paywalled Paper Retrieval Cascade (see section below):
+   │           1. Check arXiv for preprint
+   │           2. Search author's personal/university website
+   │           3. Search Semantic Scholar, PubMed Central, ERIC, CORE
+   │           4. Search using unique abstract text + filetype:pdf
+   │           5. Check gwern.net archive
+   │           6. Try Wayback Machine
+   │           7. Flag to user (LAST RESORT)
+   │           Then: verify with pdfinfo (page count), extract with mistral_ocr.py
    ├─ Is it a PDF?
    │  ├─ Is it a OneNote export? (single giant page, handwritten ink, no text layer)
    │  │  └─ YES → python scripts/onenote_pdf_to_markdown.py file.pdf -o output/
@@ -280,6 +291,209 @@ Is LaTeX source available? (arXiv, GitHub)
       │     └─ pdftotext -layout file.pdf > file.txt
       └─ Alternative: marker-pdf (local, slower)
 ```
+
+---
+
+### Paywalled Academic Papers (SAGE, APA, Elsevier, Springer, Wiley, etc.)
+
+> **This is one of the most common failure modes in the entire workflow.** Agents encounter a paywalled journal paper, get an HTML landing page instead of a PDF, and either (a) give up and write `N/A`, (b) use the abstract as a substitute, or (c) write from training data. All three produce unreliable content. The strategy below has been tested and works for the vast majority of paywalled papers.
+
+**The core problem:** Most important academic papers are behind publisher paywalls (SAGE, APA/PsycNet, Elsevier/ScienceDirect, Springer, Wiley, Taylor & Francis, IEEE, ACM). A direct `curl` to the DOI or publisher URL returns an HTML paywall page, not the PDF. The agent sees a file named `.pdf` but `file` reports `HTML document`. Many agents then give up.
+
+**The core insight:** Almost every important academic paper exists in at least one freely accessible location on the internet. The publisher's paywall is not the only copy. The strategy is to systematically search alternative locations before giving up.
+
+#### The Paywalled Paper Retrieval Cascade (Try ALL Steps In Order)
+
+**STEP 1: Check if the paper is on arXiv.**
+
+Many CS, physics, math, and increasingly social science papers have arXiv preprints. Search:
+
+```bash
+# Search by title (use quotes for exact match)
+# Web search: "Exact Paper Title" site:arxiv.org
+
+# If found, download LaTeX source (ALWAYS prefer this over PDF):
+mkdir -p "sources/arxiv-{ID}" && cd "sources/arxiv-{ID}" && \
+curl -sL "https://arxiv.org/src/{ID}" -o source.tar.gz && \
+tar -xzf source.tar.gz && rm source.tar.gz
+```
+
+**STEP 2: Search for the PDF on the author's personal/university website.**
+
+Most researchers host their papers on their personal sites or university profiles. Search:
+
+```bash
+# Web search strategies (try ALL of these):
+# "{First Author Last Name}" "{Paper Title}" filetype:pdf
+# "{First Author Last Name}" "{Paper Title}" site:edu
+# "{First Author Last Name}" publications personal website
+
+# Common hosting patterns:
+# https://psychology.ucsd.edu/people/profiles/faculty/roediger/publications.html
+# https://bjorklab.psych.ucla.edu/publications/
+# https://learninglab.psych.purdue.edu/downloads/
+```
+
+This is surprisingly effective. For example:
+- Roediger & Karpicke (2006) → freely available at `gwern.net/doc/psychology/spaced-repetition/2006-roediger.pdf`
+- Karpicke & Blunt (2011) → freely available at `learninglab.psych.purdue.edu/downloads/2011/`
+- Bjork (1994) → freely available at `gwern.net/doc/psychology/spaced-repetition/1994-bjork.pdf`
+- Ericsson et al. (1993) → freely available at `whatahowler.com/wp-content/uploads/2016/11/`
+
+**STEP 3: Search academic repositories and indexers.**
+
+Several repositories host papers legally or via author-deposited copies:
+
+```bash
+# Try these in order:
+# 1. Semantic Scholar: https://api.semanticscholar.org/graph/v1/paper/DOI:{doi}?fields=openAccessPdf
+# 2. PubMed Central (for biomedical/psych): https://pmc.ncbi.nlm.nih.gov/
+# 3. ERIC (for education): https://eric.ed.gov/ → files.eric.ed.gov/fulltext/
+# 4. CORE: https://core.ac.uk/
+# 5. Google Scholar: click "All N versions" to find free copies
+# 6. ResearchGate: authors often upload their papers here
+# 7. Academia.edu: same as ResearchGate
+
+# Search: "{Paper Title}" filetype:pdf site:pmc.ncbi.nlm.nih.gov OR site:eric.ed.gov OR site:core.ac.uk
+```
+
+**STEP 4: Search for the paper using unique text from the abstract.**
+
+If you know the abstract or a unique sentence from the paper, search for that exact text in quotes. This often finds copies on course websites, reading lists, and mirror sites that the above searches missed:
+
+```bash
+# Find a unique sentence from the abstract (not the title — titles match too many pages)
+# Web search: "exact unique sentence from abstract" filetype:pdf
+
+# For example, for Dunlosky et al. 2013:
+# "we identified 10 learning techniques" "utility assessment" filetype:pdf
+# This found the full 55-page paper hosted at acs.ist.psu.edu (a Penn State course site)
+```
+
+**Why this works:** Professors frequently upload required readings for their courses. These copies are indexed by search engines but not easily found by searching for the paper title alone (which returns the publisher's paywall page first).
+
+**STEP 5: Try Gwern Branwen's archive.**
+
+Gwern Branwen maintains an extensive archive of cognitive science, psychology, and AI papers at `gwern.net/doc/`. Many hard-to-find papers are there:
+
+```bash
+# Web search: site:gwern.net "{Paper Title}" OR "{First Author}" "{Year}"
+# Direct browse: https://gwern.net/doc/psychology/
+```
+
+**STEP 6: Try the Wayback Machine.**
+
+If a paper was once freely available but the link is now dead:
+
+```bash
+# Web search: site:web.archive.org "{Paper Title}" filetype:pdf
+# Or construct directly:
+# https://web.archive.org/web/*/{original-url-to-paper}.pdf
+```
+
+**STEP 7: Flag to the user (LAST RESORT ONLY).**
+
+If ALL of the above steps fail, flag the paper to the user with a specific request:
+
+```
+⚠️ PAYWALLED SOURCE: Dunlosky et al. (2013), "Improving Students' Learning With 
+Effective Learning Techniques," PSPI 14(1), 4-58. DOI: 10.1177/1529100612453266
+
+I tried: arXiv (not available), author sites, Semantic Scholar, PubMed Central, 
+ERIC, Google Scholar, Gwern archive, and abstract-text search. The paper is behind 
+a SAGE paywall.
+
+Can you provide access? Options:
+1. Download via university library proxy and place in sources/dunlosky-2013-full/
+2. Use Sci-Hub if you have access (I cannot access Sci-Hub)
+3. Accept the 10-page American Educator summary as a substitute (loses detail)
+```
+
+Do NOT silently drop the source. Do NOT use training data as a substitute. Do NOT use the abstract as if it were the paper.
+
+#### After Downloading: Verification and Extraction
+
+**CRITICAL: Verify you got the actual paper, not a paywall page.**
+
+```bash
+# Step 1: Check file type (catches HTML disguised as PDF)
+file "sources/paper-folder/paper.pdf"
+# GOOD: "PDF document, version 1.4"
+# BAD:  "HTML document text" — you got the paywall page, not the paper
+
+# Step 2: Check page count (catches short summaries vs full papers)
+pdfinfo "sources/paper-folder/paper.pdf" | grep Pages
+# Compare against expected page count from the citation
+# e.g., "Psychol Sci Public Interest 2013.14:4-58" = 55 pages (58-4+1)
+
+# Step 3: Check file size (rough heuristic)
+# Full papers: typically 200KB - 10MB
+# Paywall HTML pages: typically 5KB - 100KB
+# Short summaries: typically 100KB - 500KB for <10 pages
+wc -c < "sources/paper-folder/paper.pdf"
+```
+
+**WARNING about `file` vs `pdfinfo`:** The `file` command can misreport page counts. It may say "8 pages" for a PDF that `pdfinfo` correctly reports as 55 pages. **Always use `pdfinfo` for page counts**, not `file`. If `pdfinfo` is not available, install it via `brew install poppler` (macOS) or `apt install poppler-utils` (Linux).
+
+**Extract to markdown after verification:**
+
+```bash
+# Use Mistral OCR for the best quality extraction:
+$(conda info --base)/envs/ai-learning-gems/bin/python scripts/mistral_ocr.py \
+  "sources/paper-folder/paper.pdf" \
+  -o "sources/paper-folder/"
+
+# For very long papers (40+ pages), use --no-images to reduce API cost:
+$(conda info --base)/envs/ai-learning-gems/bin/python scripts/mistral_ocr.py \
+  "sources/paper-folder/paper.pdf" \
+  -o "sources/paper-folder/" --no-images
+
+# Verify extraction produced real content:
+wc -c "sources/paper-folder/paper.md"
+# Should be >10,000 chars for a real paper extraction
+```
+
+#### Folder Naming for Journal Papers
+
+Use this pattern for journal papers (NOT the arXiv pattern):
+
+```
+sources/{first-author-lastname}-{year}-{short-descriptor}/
+```
+
+Examples:
+- `sources/ericsson-1993-deliberate-practice/`
+- `sources/roediger-karpicke-2006-testing-effect/`
+- `sources/dunlosky-2013-full/`
+- `sources/bjork-1994-desirable-difficulties/`
+- `sources/karpicke-blunt-2011-retrieval-practice/`
+
+**Do NOT use the arXiv `arxiv-{ID}` pattern for non-arXiv papers.** The naming convention must make it clear this is a journal paper, not an arXiv preprint.
+
+#### Common Paywalled Publishers and Known Free-Access Patterns
+
+| Publisher | Paywall Type | Known Free Access Patterns |
+|---|---|---|
+| **SAGE** (journals.sagepub.com) | Hard paywall; some open-access | SAGE sometimes provides free "stoken" URLs for high-impact papers. Check if the SAGE URL contains `/stoken/`. Also check author university profiles. |
+| **APA** (psycnet.apa.org) | Hard paywall | Authors often host PDFs on their lab websites. Try `"{author name}" publications site:edu`. PsycINFO records sometimes link to PubMed Central. |
+| **Elsevier** (sciencedirect.com) | Hard paywall; some open-access | Check if marked "Open Access" on ScienceDirect. Try `"{paper title}" site:ncbi.nlm.nih.gov/pmc` for PubMed Central versions. |
+| **Springer** (link.springer.com) | Hard paywall; some open-access | Springer has a growing open-access portfolio. Check the paper page for a "Download PDF" button (available for OA papers). Try author university profiles. |
+| **Wiley** (onlinelibrary.wiley.com) | Hard paywall | Try author university profiles and Google Scholar "All versions." |
+| **Taylor & Francis** (tandfonline.com) | Hard paywall | Try author profiles. T&F sometimes has "free access" periods for high-impact papers. |
+| **IEEE** (ieeexplore.ieee.org) | Hard paywall | Most IEEE papers have arXiv preprints. Try `"{paper title}" site:arxiv.org`. |
+| **ACM** (dl.acm.org) | Paywall for non-members | ACM papers frequently have arXiv preprints. Many are also available via `dl.acm.org/doi/pdf/` for open-access papers. Author preprints are very common. |
+| **Science** (science.org) | Hard paywall | Authors almost always host PDFs on their lab sites. The Purdue Learning Lab, for example, hosts all Karpicke papers. |
+| **Nature** (nature.com) | Hard paywall | Check for "Shared" links. Authors host preprints. Try PubMed Central for biomedical papers. |
+| **PNAS** (pnas.org) | Free after 6 months | Papers older than 6 months are freely available on PNAS directly. |
+
+#### What To Do When You Cannot Get the Full Paper
+
+If all 7 steps fail and the user cannot provide access:
+
+1. **Check if an acceptable substitute exists.** Some papers have companion summary articles (like Dunlosky's 10-page *American Educator* version of the 55-page PSPI paper). These are less detailed but cover the main findings. Use the summary and note its limitations explicitly.
+2. **Use the paper's abstract + citing papers.** The abstract gives the main finding. Search for papers that cite this paper and describe its methodology/results in their literature review sections. Those descriptions, being in other published papers, are more reliable than web search summaries.
+3. **Drop specific claims you cannot verify.** If the TEXTBOOK-PLAN attributes a specific statistic to a paywalled paper and you cannot access the paper, drop the statistic. Write around it. A section without a specific number is better than a section with a number from training data that might be wrong.
+4. **Never write from the abstract alone as if you read the paper.** Abstracts are summaries. They omit conditions, caveats, effect sizes, sample characteristics, and methodological details. If you only have the abstract, cite it as "(Author et al., Year, abstract)" and do not attribute detailed claims to the paper.
 
 ---
 
