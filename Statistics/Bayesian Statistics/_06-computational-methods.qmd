@@ -1,0 +1,357 @@
+## When Conjugacy Fails: MCMC and Computational Bayesian Methods {#sec-computational-methods}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [VanderPlas, "Frequentism and Bayesianism" Part IV (2014)](http://jakevdp.github.io/blog/2014/03/11/frequentism-and-bayesianism-a-practical-intro/) | MCMC implementation |
+| 2 | [Eric Jang, "A Beginner's Guide to Variational Methods" (2016)](https://blog.evjang.com/2016/08/variational-bayes.html) | ELBO, mean-field VI |
+| 3 | [Gelman et al., "Bayesian Workflow" (2020)](https://stat.columbia.edu/~gelman/research/unpublished/Bayesian_Workflow_article.pdf) | Full Bayesian workflow |
+| 4 | [PyMC Documentation: GLM Linear Regression](https://www.pymc.io/projects/docs/en/v5.7.0/learn/core_notebooks/GLM_linear.html) | Practical PyMC |
+
+:::
+
+### The Problem: Most Posteriors Have No Closed Form
+
+Every posterior we have computed so far has been a conjugate model. The Beta-Binomial was tidy: plug in the counts, read off the parameters, done. But conjugacy is the exception, not the rule. The moment you step outside the short list of conjugate pairs, Bayes' theorem hands you an integral that no amount of algebra can solve. This section shows you how to handle that situation.
+
+To see why conjugacy breaks down so quickly, suppose we want to do something more realistic than simply estimating a single positive rating rate. The product's rating rate likely varies by price tier: cheaper headphones might get rated more positively than expensive ones. A natural model is logistic regression with a Bayesian twist. Let $y_i = 1$ if rating $i$ is positive, and let $x_i$ be the product's (centered) price. The model is:
+
+$$
+P(y_i = 1 \mid \beta_0, \beta_1) = \frac{1}{1 + \exp(-(\beta_0 + \beta_1 x_i))},
+$$
+
+with priors on the coefficients: $\beta_0 \sim \text{Normal}(0, 4)$ and $\beta_1 \sim \text{Normal}(0, 1)$.
+
+Now write out the posterior over $(\beta_0, \beta_1)$ given $n$ ratings:
+
+$$
+p(\beta_0, \beta_1 \mid \mathbf{y}, \mathbf{x}) = \frac{\prod_{i=1}^{n} p(y_i \mid \beta_0, \beta_1) \cdot p(\beta_0) \cdot p(\beta_1)}{\int \int \prod_{i=1}^{n} p(y_i \mid \beta_0, \beta_1) \cdot p(\beta_0) \cdot p(\beta_1) \, d\beta_0 \, d\beta_1}.
+$$
+
+The double integral in the denominator has no closed-form solution. The logistic likelihood and the Normal priors do not form a conjugate pair. For a model with 50 predictors, the denominator becomes a 50-dimensional integral. Real Bayesian models routinely have hundreds or thousands of parameters: hierarchical models, Gaussian processes, neural network weight priors. In every one of these cases, the normalizing constant is intractable.
+
+So how do Bayesians actually compute posteriors in practice? They do not compute the integral at all. They *sample* from the posterior instead.
+
+### The Core Idea: Sample, Don't Solve
+
+Here is the key insight behind all computational Bayesian methods. Suppose you could somehow generate thousands of random draws $\theta^{(1)}, \theta^{(2)}, \ldots, \theta^{(S)}$ from the posterior distribution $p(\theta \mid \text{data})$, even without knowing the normalizing constant. Then you could approximate any quantity you care about:
+
+- The posterior mean: $\bar{\theta} \approx \frac{1}{S} \sum_{s=1}^{S} \theta^{(s)}$.
+- The posterior variance: use the sample variance of the draws.
+- A 95% credible interval: take the 2.5th and 97.5th percentiles of the draws.
+- The probability that $\theta > 0.7$: count how many draws exceed 0.7, divide by $S$.
+
+With enough samples, these Monte Carlo approximations converge to the true posterior quantities by the law of large numbers. The challenge is generating the samples. You cannot just call a random number generator and ask for "draws from $p(\theta \mid \text{data})$" because you do not know the distribution in closed form. Solving that generation problem is exactly what Markov chain Monte Carlo (MCMC) algorithms accomplish.
+
+### Metropolis-Hastings: A Random Walk on a Mountain
+
+The Metropolis-Hastings (MH) algorithm, independently proposed by [Metropolis et al. (J. Chem. Phys., 1953)](https://doi.org/10.1063/1.1699114) and generalized by [Hastings (Biometrika, 1970)](https://doi.org/10.1093/biomet/57.1.97), is the foundational MCMC algorithm. The intuition is vivid: imagine you are hiking on a mountain range at night, where the height at each point represents the posterior probability of that parameter value. You want to explore the terrain so that you spend time at each location in proportion to its height. You cannot see the whole mountain, but you can check the height wherever you stand.
+
+The algorithm translates that intuition into a precise procedure. You start at some position $\theta^{(t)}$. You propose a move to a new position $\theta'$ drawn from a *proposal distribution* $q(\theta' \mid \theta^{(t)})$, which is typically a Normal distribution centered at your current position (so $\theta'$ is a small random step away from $\theta^{(t)}$). You then compute the acceptance ratio:
+
+$$
+\alpha = \min\left(1, \; \frac{p(\theta' \mid \text{data}) \cdot q(\theta^{(t)} \mid \theta')}{p(\theta^{(t)} \mid \text{data}) \cdot q(\theta' \mid \theta^{(t)})}\right).
+$$ {#eq-mh-acceptance}
+
+You accept the move (set $\theta^{(t+1)} = \theta'$) with probability $\alpha$, otherwise stay put ($\theta^{(t+1)} = \theta^{(t)}$). If you use a symmetric proposal (the usual case), then $q(\theta' \mid \theta^{(t)}) = q(\theta^{(t)} \mid \theta')$, and the ratio simplifies to:
+
+$$
+\alpha = \min\left(1, \; \frac{p(\theta' \mid \text{data})}{p(\theta^{(t)} \mid \text{data})}\right).
+$$
+
+**This is where the magic happens.** By Bayes' theorem, $p(\theta \mid \text{data}) \propto p(\text{data} \mid \theta) \, p(\theta)$. The intractable normalizing constant $p(\text{data})$ appears in both the numerator and denominator of the ratio, so the constant cancels. You never need to compute the integral. You only need the *unnormalized* posterior, which is just the likelihood times the prior, and that product you can always evaluate.
+
+The algorithm has a beautiful self-correcting property. If the proposed position $\theta'$ has higher posterior density than the current position, the ratio exceeds 1 and you always accept. You move uphill. If $\theta'$ has lower density, you accept with probability equal to the density ratio: you *sometimes* move downhill, which prevents you from getting stuck on a single peak. Over many iterations, the chain spends time at each point in proportion to the posterior density. That proportional visiting pattern is exactly what you need.
+
+::: {.exercise-mcq correct="B"}
+
+Why does Metropolis-Hastings not require computing the normalizing constant $p(\text{data})$?
+
+- The normalizing constant is always equal to 1 for posterior distributions
+- The normalizing constant appears in both numerator and denominator of the acceptance ratio, so it cancels out
+- The algorithm approximates the normalizing constant using the proposal distribution
+- The normalizing constant only matters for continuous parameters, not discrete ones
+
+::: {.feedback-correct}
+Exactly. The acceptance ratio compares $p(\theta' \mid \text{data})$ to $p(\theta^{(t)} \mid \text{data})$. Since $p(\theta \mid \text{data}) = p(\text{data} \mid \theta) \, p(\theta) / p(\text{data})$, the denominator $p(\text{data})$ is the same in both terms and cancels. The algorithm only ever needs the *unnormalized* posterior (the likelihood times the prior), which you can always evaluate directly.
+:::
+
+::: {.feedback-incorrect}
+Look again at the acceptance ratio in @eq-mh-acceptance. The ratio divides one posterior density by another. Since $p(\theta \mid \text{data}) \propto p(\text{data} \mid \theta) \, p(\theta)$, the proportionality constant (the normalizing constant $p(\text{data})$) is the same for every value of $\theta$. When you divide two quantities that share the same constant factor, that factor cancels. This cancellation is the key property that makes MCMC practical: you never need the intractable integral.
+:::
+
+:::
+
+### The Trouble with Random Walks
+
+Metropolis-Hastings works in principle, but it struggles in practice for models with more than a handful of parameters. Three problems compound in high dimensions:
+
+1. **Slow exploration.** The random walk takes small, undirected steps. In 50 dimensions, most directions are "sideways" relative to the high-probability region. The chain wanders inefficiently, requiring millions of iterations to traverse the posterior.
+
+2. **Correlated samples.** Because each sample is a small perturbation of the previous one, consecutive draws are highly correlated. You might need 100 or 1,000 autocorrelated samples to get the information equivalent of one independent draw. This equivalent count, the number of independent draws you would need to obtain the same estimation precision, is called the *effective sample size* (ESS).
+
+3. **Proposal tuning.** If the proposal step size is too small, the chain accepts almost every move but barely moves. If the step size is too large, almost every proposal lands in low-density regions and gets rejected. Finding the right step size for each parameter is tedious and fragile.
+
+These three limitations motivated the development of smarter samplers.
+
+### Hamiltonian Monte Carlo and NUTS: Using the Gradient
+
+Hamiltonian Monte Carlo (HMC), introduced to statistics by [Neal (2011)](https://arxiv.org/abs/1206.1901), replaces the random walk with a physics simulation. Instead of stumbling around blindly, HMC uses the *gradient* of the log-posterior to make informed proposals.
+
+The analogy: imagine placing a ball on the posterior surface (where height is the negative log-posterior, so peaks become valleys). You give the ball a random push, and it rolls according to Hamiltonian dynamics. The ball naturally moves toward high-density regions and travels long distances in a single step. After simulating the trajectory for some number of steps, the ball's final position is the proposal. Because the trajectory follows the geometry of the posterior, the acceptance rate is high even in hundreds of dimensions.
+
+The catch is that HMC requires you to choose two tuning parameters: the step size and the number of simulation steps (trajectory length). Pick a trajectory that is too short, and you are back to small steps. Pick a trajectory that is too long, and the ball doubles back on itself, wasting computation.
+
+The No-U-Turn Sampler (NUTS), developed by [Hoffman and Gelman (JMLR, 2014)](https://jmlr.org/papers/v15/hoffman14a.html), solves this tuning problem by automatically determining the trajectory length. NUTS extends the trajectory until the ball starts to turn back (a "U-turn"), then stops. The sampler also auto-tunes the step size during a warm-up phase. The result is an algorithm that works well out of the box for a wide class of models.
+
+**NUTS is the default sampler in both [PyMC](https://www.pymc.io/) and [Stan](https://mc-stan.org/),** the two most widely used probabilistic programming frameworks. When you see "Bayesian inference" applied in modern research, NUTS is almost always the engine under the hood.
+
+::: {.exercise-mcq correct="C"}
+
+What is the main advantage of Hamiltonian Monte Carlo (HMC) over basic Metropolis-Hastings?
+
+- HMC does not require specifying a prior distribution
+- HMC computes the normalizing constant exactly, removing the need for sampling
+- HMC uses gradient information to make large, informed proposals that follow the posterior's geometry
+- HMC guarantees that every proposed sample is accepted
+
+::: {.feedback-correct}
+Correct. HMC computes the gradient of the log-posterior and uses it to simulate a physics trajectory along the posterior surface. The gradient-guided trajectory allows the sampler to make large moves that still land in high-density regions, achieving high acceptance rates even in hundreds of dimensions. Basic Metropolis-Hastings proposes blind random steps that become increasingly inefficient as dimensionality grows.
+:::
+
+::: {.feedback-incorrect}
+Revisit the mountain analogy. Metropolis-Hastings proposes random steps (like stumbling in the dark), while HMC simulates a ball rolling on the posterior surface. The ball follows the *gradient*; it knows which direction is "downhill" (toward higher density). This gradient information is what lets HMC propose moves that are both large and likely to be accepted, solving the core inefficiency of random-walk proposals.
+:::
+
+:::
+
+### Choosing Your Tool: A Decision Map
+
+Not every problem calls for the same computational approach. The following diagram sketches the decision space, from simple conjugate models to the methods you reach for when things get hard.
+
+```{.d2}
+direction: down
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 14
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+}
+
+start: " Your Bayesian Model " {
+  class: [base; input]
+}
+
+q1: " Is the posterior\n conjugate? " {
+  class: [base; decision]
+}
+
+conjugate: " Closed-Form Solution\n (Beta-Binomial, Normal-Normal, etc.) " {
+  class: [base; output]
+}
+
+q2: " Is the dataset\n very large (>100K)? " {
+  class: [base; decision]
+}
+
+vi: " Variational Inference\n (fast, approximate) " {
+  class: [base; highlight]
+}
+
+q3: " Can you compute\n gradients of the\n log-posterior? " {
+  class: [base; decision]
+}
+
+nuts: " HMC / NUTS\n (PyMC, Stan) " {
+  class: [base; output]
+}
+
+mh: " Metropolis-Hastings\n (or Gibbs Sampling) " {
+  class: [base; process]
+}
+
+start -> q1
+q1 -> conjugate: " Yes " {
+  style.stroke: "#10B981"
+  style.font-color: "#065F46"
+}
+q1 -> q2: " No " {
+  style.stroke: "#F43F5E"
+  style.font-color: "#BE123C"
+}
+q2 -> vi: " Yes " {
+  style.stroke: "#10B981"
+  style.font-color: "#065F46"
+}
+q2 -> q3: " No " {
+  style.stroke: "#F43F5E"
+  style.font-color: "#BE123C"
+}
+q3 -> nuts: " Yes " {
+  style.stroke: "#10B981"
+  style.font-color: "#065F46"
+}
+q3 -> mh: " No " {
+  style.stroke: "#F43F5E"
+  style.font-color: "#BE123C"
+}
+```
+
+For the vast majority of Bayesian models you will encounter in practice, NUTS is the right choice. Variational inference, which we introduce in the next subsection, becomes attractive when the dataset is large enough that MCMC's per-iteration cost is prohibitive and an approximate posterior is acceptable.
+
+::: {.exercise-predict correct="A"}
+
+Variational inference replaces sampling with optimization. Before reading the next section, predict: compared to MCMC, will VI be faster or slower? More accurate or less accurate?
+
+- Faster but less accurate: optimization converges quickly, but the approximating family cannot capture the full posterior shape
+- Slower but more accurate: optimization over a variational family requires more computation, but the result is closer to the true posterior
+- Both faster and more accurate: optimization is strictly superior to random sampling
+- About the same speed and accuracy: the two approaches are mathematically equivalent
+
+::: {.predict-reveal}
+**The answer is A.** Variational inference converts the inference problem into an optimization problem, which can use gradient descent and minibatching to scale to massive datasets. That makes it fast. But the price is accuracy: the mean-field approximation forces the approximate posterior to factorize across parameters, which means it cannot represent correlations. If $\beta_0$ and $\beta_1$ are tightly correlated in the true posterior, VI will underestimate the uncertainty. MCMC (given enough samples and convergence) recovers the full posterior faithfully. The tradeoff is real: speed for exactness.
+:::
+
+:::
+
+### Variational Inference: Optimization Instead of Sampling
+
+Variational inference (VI) takes a fundamentally different approach. Instead of sampling from the posterior, VI *approximates* the posterior with a simpler distribution and finds the best approximation using optimization. You choose a family of tractable distributions $q(\theta; \phi)$ (often a product of independent Normals, called the *mean-field* approximation) and then search for the parameters $\phi$ that make $q$ as close as possible to the true posterior.
+
+"Closeness" is measured by the Kullback-Leibler divergence $\text{KL}(q \| p)$. Minimizing this KL divergence is equivalent to maximizing a quantity called the Evidence Lower Bound (ELBO):
+
+$$
+\text{ELBO}(\phi) = \mathbb{E}_{q(\theta; \phi)}\big[\log p(\text{data}, \theta)\big] - \mathbb{E}_{q(\theta; \phi)}\big[\log q(\theta; \phi)\big].
+$$ {#eq-elbo}
+
+The first term encourages $q$ to place mass where the joint probability of data and parameters is high. The second term is the entropy of $q$, which encourages the approximation to spread out rather than collapse to a point. Maximizing the ELBO is a standard optimization problem solvable with gradient ascent. The ELBO also scales gracefully to large datasets through stochastic minibatching.
+
+The tradeoff is accuracy. The mean-field assumption forces $q$ to factorize across parameters, so the approximation cannot capture correlations in the posterior. If $\beta_0$ and $\beta_1$ are strongly correlated in the true posterior, the mean-field approximation will underestimate the uncertainty. As [Eric Jang explains in his introduction to variational methods (2016)](https://blog.evjang.com/2016/08/variational-bayes.html), VI trades statistical exactness for computational speed. Use MCMC when you need the full posterior faithfully. Use VI when the dataset is massive, you need fast iteration, and an approximate answer is good enough.
+
+### Putting It Together: A PyMC Example
+
+Let us return to the product's price-dependent rating model and write it as a complete PyMC program. The code below specifies the model, runs NUTS, and produces a posterior you can query for any question about $\beta_0$ and $\beta_1$.
+
+```python
+import pymc as pm
+import numpy as np
+
+price_centered = np.array([...])  # product prices, mean-centered
+y_obs = np.array([...])           # 1 = positive rating, 0 = negative
+
+with pm.Model() as product_model:
+    # Priors on logistic regression coefficients
+    intercept = pm.Normal("intercept", mu=0, sigma=2)
+    beta_price = pm.Normal("beta_price", mu=0, sigma=1)
+
+    # Linear predictor
+    logit_p = intercept + beta_price * price_centered
+
+    # Likelihood
+    ratings = pm.Bernoulli("ratings", logit_p=logit_p, observed=y_obs)
+
+    # Sample from posterior using NUTS
+    trace = pm.sample(2000, tune=1000, target_accept=0.95)
+```
+
+Four lines define the model; one line runs the inference. Here is what each piece does:
+
+- The `pm.Normal` calls define priors. The intercept prior is wide ($\sigma = 2$), expressing mild prior uncertainty about the baseline positive rating rate. The slope prior is tighter ($\sigma = 1$), expressing a belief that price effects are moderate.
+- The `logit_p` line defines the linear predictor on the logit scale, exactly like classical logistic regression.
+- The `pm.Bernoulli` line is the likelihood. The `observed=y_obs` argument tells PyMC that these are data, not parameters.
+- The `pm.sample` call launches NUTS. The sampler runs 1,000 warm-up iterations (during which NUTS auto-tunes its step size), then collects 2,000 posterior samples per chain. The `target_accept=0.95` argument asks for a high acceptance rate, which helps with tricky geometries.
+
+After sampling, `trace` contains thousands of draws for `intercept` and `beta_price`. You can compute the posterior mean of `beta_price`, build a 95% credible interval, or calculate the probability that the price effect is negative (cheaper products get better ratings), all by summarizing the samples.
+
+### The Bayesian Workflow: More Than Just Sampling
+
+Running `pm.sample` is not the end of the analysis. [Gelman et al. (2020)](https://stat.columbia.edu/~gelman/research/unpublished/Bayesian_Workflow_article.pdf) describe a full Bayesian workflow with diagnostic steps before and after fitting:
+
+1. **Prior predictive check.** Before looking at data, simulate fake datasets from your priors. If the priors imply that the positive rating rate could be 99.99% or 0.01%, your priors are too vague. Adjust until the prior predictive distribution produces plausible datasets.
+
+2. **Fit the model.** Run NUTS (or your chosen sampler).
+
+3. **Convergence diagnostics.** Check three things. First, the $\hat{R}$ statistic (pronounced "R-hat") should be below 1.01 for every parameter; values above 1.01 indicate the chains have not converged. Second, the effective sample size (ESS) should be at least 400 for reliable posterior summaries. Third, inspect trace plots visually: healthy chains look like "fuzzy caterpillars" with no trends or stuck regions.
+
+4. **Posterior predictive check.** Simulate new datasets from the fitted posterior and compare them to the real data. If the simulated data looks nothing like the observed data, the model is misspecified.
+
+Skipping these diagnostic steps is the most common source of bad Bayesian analyses. The sampler will always produce numbers, even when the model is broken or the chain has not converged.
+
+::: {.exercise-order correct="C,E,A,B,D"}
+
+Arrange the five steps of the Bayesian workflow in the correct order:
+
+- Run the MCMC sampler (e.g., NUTS via PyMC)
+- Check convergence diagnostics (R-hat, ESS, trace plots)
+- Simulate fake datasets from your priors to verify they produce plausible data
+- Simulate new datasets from the fitted posterior and compare to observed data
+- Specify priors and likelihood for your model
+
+::: {.order-feedback}
+**Correct order: C, E, A, B, D.** First, perform a prior predictive check (C) by simulating data from your priors to make sure they are reasonable. Then specify the full model with priors and likelihood (E). Next, run the sampler (A). After sampling, check convergence diagnostics (B) to verify the chains have mixed properly. Finally, run a posterior predictive check (D) to see whether the fitted model can reproduce patterns in the real data. Skipping any of these steps, especially the diagnostic checks, is the most common source of flawed Bayesian analyses.
+:::
+
+:::
+
+::: {.callout-warning title="Common Misconception: MCMC gives you the exact posterior"}
+
+MCMC produces *samples* that approximate the posterior. With enough iterations and proper convergence, the approximation is excellent. But it is never exact, and convergence is never guaranteed by simply running more iterations. You must check diagnostics. An $\hat{R}$ above 1.01 means the chains disagree with each other. An ESS below 100 means your 4,000 samples contain the equivalent information of fewer than 100 independent draws. Trace plots with flat stretches or sudden jumps indicate the sampler is stuck. Never trust MCMC output without verifying these diagnostic checks.
+
+:::
+
+### What You Have Gained
+
+Step back and notice how far the toolkit has expanded. In previous sections, you were limited to conjugate models: Beta-Binomial for proportions, Normal-Normal for means. Those models are useful, but they cover a tiny fraction of what scientists and engineers actually need. MCMC and variational inference remove that restriction entirely. You can now put priors on any parameter in any model: a logistic regression coefficient, a neural network weight, a random effect in a product category, a correlation matrix in a multivariate time series.
+
+The computational cost is real: MCMC can take minutes to hours for complex models, and convergence requires careful checking. But the payoff is access to the full power of the Bayesian framework. You can quantify uncertainty in any parameter, propagate that uncertainty forward into predictions, and compare models using Bayes factors and posterior predictive checks.
+
+The next section applies these computational tools to two of the most important extensions of the Bayesian toolkit: hierarchical models that share information across groups, and Bayesian regression that provides full uncertainty quantification over predictions.

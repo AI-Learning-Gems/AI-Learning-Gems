@@ -1,0 +1,223 @@
+## Closing {#sec-closing}
+
+### Key Takeaways
+
+- **Parameters are random variables.** The single most important shift from frequentist to Bayesian statistics is treating unknown parameters as random variables with probability distributions, not fixed constants to be estimated.
+- **Posterior = Prior x Likelihood (normalized).** Bayes' rule combines your prior belief $p(\theta)$ with the evidence from data $p(x|\theta)$ to produce an updated posterior $p(\theta|x)$. For our Amazon headphones, the Beta(3, 1) prior (your general shopping experience that most products are decent) combined with 15 positive ratings out of 20 produced a Beta(18, 6) posterior. That single distribution answered the question we started with: an 82% probability that the true positive-rating rate exceeds 70%.
+- **Conjugate priors make computation easy.** When the prior and posterior belong to the same family (Beta-Binomial, Normal-Normal, Gamma-Poisson), the posterior has a closed-form expression with simple rules for updating hyperparameters. The headphones example was a textbook case: a Beta(3, 1) prior plus 15 successes and 5 failures gave us Beta(3+15, 1+5) = Beta(18, 6) with no integrals required. Most real problems are not this convenient.
+- **Credible intervals answer the question people actually want.** A 95% credible interval directly states "there is a 95% probability the parameter lies in this range." For the headphones, a 95% credible interval on $\theta$ from Beta(18, 6) tells you the plausible range of the true positive-rating rate, something a frequentist confidence interval cannot phrase this way (the confidence level is a statement about the procedure, not about the parameter).
+- **Bayes factors measure relative evidence.** The Bayes factor $BF_{10}$ tells you how many times more likely the data is under one hypothesis compared to another. Unlike p-values, Bayes factors quantify evidence for (not just against) a hypothesis.
+- **MCMC makes modern Bayesian statistics possible.** When posteriors lack closed-form expressions, MCMC algorithms (especially HMC/NUTS) generate samples from the posterior distribution. Those samples approximate any quantity of interest: means, variances, credible intervals, predictions.
+- **Hierarchical models enable partial pooling.** When data comes from multiple groups with varying sample sizes, the hierarchical Bayesian model automatically borrows strength from data-rich groups to improve estimates for data-poor groups. Small-sample groups shrink toward the group mean; large-sample groups barely move.
+
+### Concept Map (Completed)
+
+```{.d2}
+# =========================================================================
+direction: down
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 13
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 15
+      bold: true
+    }
+  }
+}
+
+# Core insight
+core: {
+  class: [base; highlight]
+  label: "Parameters are\nRandom Variables"
+}
+
+# Inputs
+prior: {
+  class: [base; input]
+  label: "Prior p(θ)\n(your beliefs)"
+}
+data: {
+  class: [base; input]
+  label: "Data x\n(observed)"
+}
+
+# Central engine
+bayes: {
+  class: [base; process]
+  label: "Bayes' Rule\np(θ|x) ∝ p(x|θ)p(θ)"
+}
+
+# Computation
+compute: {
+  class: container
+  label: "How to Compute"
+  label.near: top-left
+  conj: {
+    class: [base; decision]
+    label: "Conjugate?"
+  }
+  mcmc: {
+    class: [base; process]
+    label: "MCMC\n(HMC/NUTS)"
+  }
+  vi: {
+    class: [base; process]
+    label: "Variational\nInference"
+  }
+}
+
+# Posterior
+posterior: {
+  class: [base; output]
+  label: "Posterior p(θ|x)\n(updated beliefs)"
+}
+
+# Outputs
+outputs: {
+  class: container
+  label: "What You Get"
+  label.near: top-left
+  ci: {
+    class: [base; output]
+    label: "Credible\nIntervals"
+  }
+  bf: {
+    class: [base; output]
+    label: "Bayes\nFactors"
+  }
+  pred: {
+    class: [base; output]
+    label: "Posterior\nPredictions"
+  }
+}
+
+# Extensions
+ext: {
+  class: container
+  label: "Extensions"
+  label.near: top-left
+  reg: {
+    class: [base; process]
+    label: "Bayesian\nRegression"
+  }
+  hier: {
+    class: [base; process]
+    label: "Hierarchical\nModels"
+  }
+}
+
+core -> prior
+core -> data
+prior -> bayes
+data -> bayes
+bayes -> compute.conj
+compute.conj -> posterior: "Yes\n(closed form)"
+compute.conj -> compute.mcmc: "No"
+compute.conj -> compute.vi: "No\n(large data)"
+compute.mcmc -> posterior
+compute.vi -> posterior
+posterior -> outputs.ci
+posterior -> outputs.bf
+posterior -> outputs.pred
+posterior -> ext.reg
+posterior -> ext.hier
+```
+
+### Retrieval Practice Questions
+
+Test your understanding with these questions. Try to answer each one before expanding the solution.
+
+::: {.callout-tip collapse="true" title="Q1: What is the fundamental difference between frequentist and Bayesian treatment of unknown parameters?"}
+In frequentist statistics, the population parameter $\theta$ is a fixed but unknown constant. Probability applies to data (repeated sampling). In Bayesian statistics, $\theta$ is treated as a random variable with a probability distribution. Probability applies to both data *and* parameters. The Bayesian treatment allows direct probability statements about $\theta$ and formal incorporation of prior knowledge.
+:::
+
+::: {.callout-tip collapse="true" title="Q2: You find a different product on Amazon with 12 positive ratings out of 15. Using a Beta(3, 1) prior, what is the posterior? What is the posterior mean?"}
+The posterior is $\text{Beta}(\alpha + k, \beta + n - k) = \text{Beta}(3 + 12, 1 + 15 - 12) = \text{Beta}(15, 4)$. The posterior mean is $15/19 \approx 0.789$, compared to the raw sample proportion of $12/15 = 0.80$. The Beta(3, 1) prior (centered at 0.75) pulled the estimate only slightly downward because 15 ratings already provide moderate evidence.
+:::
+
+::: {.callout-tip collapse="true" title="Q3: Why can't you say a 95% confidence interval has a 95% probability of containing the true parameter?"}
+A confidence interval is a statement about the *procedure*, not the specific interval you computed. If you repeated the experiment many times, 95% of the resulting intervals would contain $\theta$. But for any *specific* interval you computed, $\theta$ is either in the interval or not. The probability is 0 or 1, not 0.95. Only a Bayesian credible interval allows the statement "there is a 95% probability that $\theta$ lies in this range."
+:::
+
+::: {.callout-tip collapse="true" title="Q4: For our headphones with a Beta(18, 6) posterior, when would the MAP estimate equal the MLE of 15/20 = 0.75?"}
+The MAP estimate equals the MLE when the prior $p(\theta)$ is flat (uniform) over the parameter space. With a uniform Beta(1, 1) prior, the posterior would be Beta(1+15, 1+5) = Beta(16, 6), and the MAP would be $(16-1)/(16+6-2) = 15/20 = 0.75$, matching the MLE exactly. In the MAP formula $\hat{\theta}_{MAP} = \arg\max_\theta \, p(x|\theta) \cdot p(\theta)$, if $p(\theta)$ is constant, then the maximization depends only on $p(x|\theta)$, which is exactly the MLE objective. With our Beta(3, 1) prior, the MAP shifts to $(18-1)/(18+6-2) = 17/22 \approx 0.773$.
+:::
+
+::: {.callout-tip collapse="true" title="Q5: Why is MCMC needed for most real Bayesian models?"}
+Computing the posterior requires evaluating $p(\theta|x) = p(x|\theta)p(\theta) / p(x)$, where $p(x) = \int p(x|\theta)p(\theta) \, d\theta$. For conjugate models, this integral has a closed-form solution. For most real models (logistic regression, hierarchical models, neural networks), the integral is intractable. MCMC algorithms sidestep the integral by generating samples from $p(\theta|x)$ directly, using only the unnormalized posterior $p(x|\theta) \cdot p(\theta)$.
+:::
+
+::: {.callout-tip collapse="true" title="Q6: What is partial pooling and why is it useful?"}
+Partial pooling is the automatic compromise between estimating each group separately (no pooling, high variance) and ignoring group identity entirely (complete pooling, high bias). In a hierarchical Bayesian model, each group's parameter estimate is pulled ("shrunk") toward the overall group mean, with the degree of shrinkage determined by the group's sample size. Groups with little data are pulled strongly toward the mean; groups with lots of data barely move. This borrowing of strength reduces overfitting for small groups while preserving genuine between-group variation.
+:::
+
+### Common Mistakes to Avoid
+
+- **Confusing credible intervals with confidence intervals.** The two often give similar numbers but have different interpretations. A credible interval directly quantifies the probability that $\theta$ is in the interval. A confidence interval does not.
+- **Thinking flat priors are "non-informative."** A uniform prior on $\theta$ is not uniform on $\log \theta$ or $\theta^2$ (because the Jacobian of the transformation changes the density shape). Every prior is informative under some reparametrization. Use weakly informative priors that encode basic domain constraints instead.
+- **Interpreting Bayes factors as absolute probabilities.** A Bayes factor of 10 does not mean there is a 90% chance $H_1$ is true. The posterior odds depend on both the Bayes factor and the prior odds.
+- **Using MCMC without checking convergence.** Always inspect trace plots, R-hat (should be < 1.01), and effective sample size (should be > 400) before trusting MCMC output. Divergent transitions (a warning that HMC's numerical trajectory failed to track the posterior geometry accurately) indicate the model needs reparametrization or different priors.
+- **Starting with complex models.** Build the simplest Bayesian model first (conjugate if possible), verify the model works, then add complexity. The Bayesian workflow is iterative: specify, fit, check, refine.
+- **Ignoring prior knowledge when sample sizes are small.** With only 20 ratings, the raw 75% positive rate for our headphones could easily be noise. The Beta(3, 1) prior from your Amazon shopping experience (centered around 75%-80%) sharpened the estimate and gave a posterior mean of 75%, more stable than the raw proportion alone. Small samples are exactly where priors earn their keep.
+
+### Curated Resources
+
+- [*Think Bayes* 2nd edition](https://allendowney.github.io/ThinkBayes2/) by Allen Downey. Free online textbook. Code-first approach using Python, minimal calculus.
+- [*Bayesian Data Analysis* 3rd edition](https://sites.stat.columbia.edu/gelman/book/) by Gelman et al. Free PDF available. The definitive reference for Bayesian methods, from fundamentals through advanced computation.
+- [*Statistical Rethinking*](https://xcelab.net/rm/statistical-rethinking/) by Richard McElreath. Accompanied by [free video lectures](https://www.youtube.com/playlist?list=PLDcUM9US4XdPz-KxHM4XHt7uUVGWWVSus). Builds Bayesian intuition through simulation and causal reasoning.
+- [PyMC documentation and example gallery](https://www.pymc.io/projects/examples/en/latest/). Practical Bayesian modeling with NUTS sampling. Extensive case studies including hierarchical models, GLMs, and Gaussian processes.
+- [MIT 18.05 course materials](https://ocw.mit.edu/courses/18-05-introduction-to-probability-and-statistics-spring-2022/resources/lecture-notes/). Free undergraduate-level lecture notes covering Bayesian updating, conjugate priors, and decision theory.
+- [Gregory Gundersen's blog](https://gregorygundersen.com/blog/tags/bayes/). Rigorous derivations of conjugacy, exponential families, and MCMC methods with careful exposition.

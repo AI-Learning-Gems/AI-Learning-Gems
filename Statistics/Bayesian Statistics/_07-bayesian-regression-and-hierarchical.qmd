@@ -1,0 +1,486 @@
+## Bayesian Linear Regression and Hierarchical Models {#sec-bayesian-regression-hierarchical}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [PyMC: GLM Linear Regression](https://www.pymc.io/projects/docs/en/v5.7.0/learn/core_notebooks/GLM_linear.html) | Bayesian linear regression with NUTS sampling |
+| 2 | [PyMC: Hierarchical Partial Pooling](https://www.pymc.io/projects/examples/en/latest/case_studies/hierarchical_partial_pooling.html) | Partial pooling concept with baseball batting averages |
+| 3 | [Gelman et al., *Bayesian Data Analysis* 3e, Ch5 (2013)](https://sites.stat.columbia.edu/gelman/book/) | Hierarchical models and group-level inference |
+
+:::
+
+Everything you have seen so far in this chapter applies to a single parameter $\theta$: one positive rating rate, one coin bias, one population mean. But the original product question has a natural extension: what if you are not just evaluating one product, but choosing among several products on Amazon? Some have hundreds of ratings, others have just a handful. Bayesian linear regression and hierarchical models give you the tools to handle both situations. Regression lets you model how a product's rating rate depends on covariates (like brand or price tier). Hierarchical models let data from products with many ratings improve your estimate for products with few ratings. Both ideas follow directly from the Bayesian machinery you already know. The only new ingredient is structure: telling the model which parameters are related, and how.
+
+### From OLS to Bayesian Regression
+
+You already know the standard linear regression setup. The outcome $y$ is modeled as a linear function of predictors $\mathbf{X}$ plus noise:
+
+$$
+y = \mathbf{X} \boldsymbol{\beta} + \boldsymbol{\varepsilon}, \qquad \boldsymbol{\varepsilon} \sim \text{Normal}(0, \sigma^2 \mathbf{I}).
+$$
+
+The frequentist approach (ordinary least squares) finds the $\boldsymbol{\beta}$ that minimizes the sum of squared residuals. The result is a single vector of coefficient estimates, $\hat{\boldsymbol{\beta}}_{\text{OLS}}$, plus standard errors derived from the residual variance.
+
+The Bayesian version changes one thing: instead of treating $\boldsymbol{\beta}$ and $\sigma$ as fixed unknowns to be estimated, you treat them as random variables with prior distributions. The full model is:
+
+$$
+p(\boldsymbol{\beta}) = \text{Normal}(\mathbf{0}, \sigma_\beta^2 \mathbf{I}), \qquad p(\sigma) = \text{Half-Cauchy}(0, s),
+$$
+
+The Half-Cauchy is a heavy-tailed distribution restricted to positive values, commonly used as a weakly informative prior for scale parameters like $\sigma$ because it allows large values if the data demand them while gently concentrating probability near zero. The full model is completed by the likelihood:
+
+$$
+p(y \mid \mathbf{X}, \boldsymbol{\beta}, \sigma) = \text{Normal}(\mathbf{X}\boldsymbol{\beta}, \, \sigma^2 \mathbf{I}).
+$$
+
+The posterior is the joint distribution over all unknowns given the data:
+
+$$
+p(\boldsymbol{\beta}, \sigma \mid y, \mathbf{X}) \;\propto\; p(y \mid \mathbf{X}, \boldsymbol{\beta}, \sigma) \cdot p(\boldsymbol{\beta}) \cdot p(\sigma).
+$$ {#eq-bayesian-regression-posterior}
+
+The posterior distribution is no longer a single point. It is a distribution over the *entire space* of possible $(\boldsymbol{\beta}, \sigma)$ combinations. Every draw from the posterior gives you a different regression line. The cloud of lines tells you exactly where the data constrains the fit tightly and where substantial uncertainty remains. For the headphones, imagine predicting a product's positive rating rate from its price and number of listed features. Instead of a single best-fit line, the Bayesian approach gives you a distribution over regression lines, each with its own slope and intercept.
+
+The prior on $\boldsymbol{\beta}$ is doing real work. A Normal$(0, \sigma_\beta^2)$ prior on each coefficient expresses the belief that coefficients are probably not enormous. Large values of $\sigma_\beta^2$ make the prior wide and uninformative (the data dominates). Small values pull coefficients toward zero (the prior dominates). The connection between Bayesian priors and frequentist regularization is not a loose analogy; **it is an exact mathematical equivalence**.
+
+### The Regularization-Prior Correspondence
+
+The choice of prior on $\boldsymbol{\beta}$ directly corresponds to a regularization penalty in frequentist regression. The following table makes the mapping explicit:
+
+| Frequentist Method | Prior on $\beta_j$ | Effect on Coefficients |
+|---|---|---|
+| OLS (no regularization) | Flat / improper prior | No shrinkage; coefficients fit data freely |
+| Ridge regression ($L_2$ penalty) | $\text{Normal}(0, 1/\lambda)$ | Shrinks all coefficients toward zero; none set exactly to zero |
+| Lasso ($L_1$ penalty) | $\text{Laplace}(0, 1/\lambda)$ | Shrinks coefficients toward zero; some set exactly to zero (sparsity) |
+
+The Laplace distribution (also called the double-exponential) places a sharp peak at zero, which is why it produces exact zeros in coefficients: most of the prior mass is concentrated at or near zero, creating a strong pull that forces small coefficients all the way to zero rather than merely shrinking them. Returning to our headphones-price regression: a Normal prior on the coefficients gives you the Bayesian equivalent of Ridge regression (all coefficients shrink but none vanish), while a Laplace prior gives you Lasso (irrelevant predictors like, say, package weight get zeroed out entirely).
+
+The regularization strength $\lambda$ controls the prior's precision. Larger $\lambda$ means a tighter prior (more shrinkage); smaller $\lambda$ means a wider prior (less shrinkage). If you have ever used ridge regression to stabilize a model with correlated predictors, you were implicitly performing Bayesian inference with a Gaussian prior on the coefficients. The Bayesian framing makes the assumption visible and tunable: instead of picking $\lambda$ by cross-validation, you can place a hyperprior on $\lambda$ and let the data determine how much regularization is appropriate.
+
+::: {.exercise-mcq correct="B"}
+
+Ridge regression applies an $L_2$ penalty to the regression coefficients. In the Bayesian interpretation, this penalty corresponds to which prior on the coefficients?
+
+- A flat (improper) prior, allowing coefficients to take any value
+- A Normal (Gaussian) prior centered at zero
+- A Laplace (double-exponential) prior centered at zero
+- A Uniform prior on a bounded interval
+
+::: {.feedback-correct}
+Correct. The $L_2$ penalty in ridge regression is mathematically equivalent to placing a Gaussian prior on each coefficient. The penalty strength $\lambda$ maps to the prior's precision: larger $\lambda$ means a tighter Normal prior (more shrinkage toward zero).
+:::
+
+::: {.feedback-incorrect}
+Review the regularization-prior correspondence table above. OLS (no penalty) corresponds to a flat prior. The $L_1$ penalty (Lasso) corresponds to a Laplace prior, which produces sparsity. The $L_2$ penalty (Ridge) corresponds to a Normal prior, which shrinks coefficients toward zero without setting any exactly to zero.
+:::
+
+:::
+
+### Posterior Predictive Intervals
+
+One of the most practical outputs of Bayesian regression is the *posterior predictive distribution*. Given a new input $\tilde{x}$, the predicted outcome is:
+
+$$
+p(\tilde{y} \mid \tilde{x}, \text{data}) = \int p(\tilde{y} \mid \tilde{x}, \boldsymbol{\beta}, \sigma) \; p(\boldsymbol{\beta}, \sigma \mid \text{data}) \; d\boldsymbol{\beta} \; d\sigma.
+$$ {#eq-posterior-predictive}
+
+The integral marginalizes over all plausible parameter values. The result is a full predictive distribution for $\tilde{y}$, not just a point prediction. You can read off a 95% prediction interval directly from this distribution.
+
+Why does this distinction matter? In frequentist regression, prediction intervals typically use plug-in estimates: you substitute $\hat{\boldsymbol{\beta}}_{\text{OLS}}$ and $\hat{\sigma}$ into the formula and then account for estimation uncertainty via a $t$-distribution correction. This plug-in approach underestimates uncertainty when the sample size is small or the model is complex, because it treats $\hat{\boldsymbol{\beta}}_{\text{OLS}}$ as if it were the true $\boldsymbol{\beta}$. The Bayesian posterior predictive interval avoids this problem by construction: it integrates over all $\boldsymbol{\beta}$ values that are plausible given the data, weighted by how plausible each value is.
+
+The practical result is wider, more honest uncertainty bands. Where data is dense, the posterior predictive interval is narrow (many parameter values agree). Where data is sparse, the interval fans out, honestly reflecting the model's ignorance. These prediction intervals are exactly the kind of uncertainty quantification that decision-makers need. If Amazon is predicting a product's positive rating rate for a new price tier, the posterior predictive interval tells the product team: "our best guess is 78%, but plausible values range from 71% to 85%."
+
+### Why Hierarchical Models? The Multi-Product Problem
+
+Now suppose Amazon lists 8 wireless headphones in the $50-$100 range, each from a different brand. Product A (Sony) has 500 ratings and a 75% positive rate. Product B (a new brand) has only 8 ratings and saw 5 positive out of 8 (62.5% positive rate). Product C has 200 ratings at 71%, and so on. You need to estimate each product's true positive rating rate. How should you combine the data across products?
+
+Three strategies present themselves:
+
+**No pooling.** Estimate each product's positive rating rate independently. Product A gets $\hat{\theta}_A = 0.75$ from its 500 ratings. Product B gets $\hat{\theta}_B = 0.625$ from its 8 ratings. The problem is variance: Product B's estimate is based on so little data that it could easily be 20 percentage points off. You are trusting a tiny sample to speak for the entire product.
+
+**Complete pooling.** Ignore product identity entirely. Pool all ratings together and compute one overall positive rate. Pooling throws away real differences between products. If Product A is a well-known Sony model and Product C is a budget brand, their true positive rates probably differ. Complete pooling forces a single number on all products (high bias, low variance).
+
+**Partial pooling (hierarchical).** Partial pooling is the Bayesian solution, and it threads the needle between the two extremes. Each product gets its own positive rating rate parameter $\theta_j$, but these parameters are not independent. They are drawn from a shared population distribution whose mean and spread are themselves unknown. Data-rich products' estimates stay close to their raw rates (the data is informative enough to speak for itself). Data-poor products' estimates get pulled toward the group average (borrowing strength from the other products). The degree of pulling is determined automatically by the data.
+
+This borrowing of strength across groups is the fundamental insight of hierarchical modeling. You are not ignoring differences between products. You are not treating them as completely unrelated. You are modeling the products as a *population*, where each product is a draw from a common distribution, and using the entire population's data to inform every individual estimate.
+
+### The Hierarchical Model Structure
+
+The mathematical structure has three levels: data at the bottom, product-level parameters in the middle, and population-level hyperparameters at the top.
+
+**Level 1 (Data).** Each rating outcome $y_{ij}$ (positive or negative for rating $i$ of product $j$) follows a Bernoulli distribution:
+
+$$
+y_{ij} \sim \text{Bernoulli}(\theta_j).
+$$
+
+**Level 2 (Products).** Each product's positive rating rate $\theta_j$ is drawn from a shared population distribution. Working on the logit scale (so $\theta_j$ is unconstrained):
+
+$$
+\text{logit}(\theta_j) \sim \text{Normal}(\mu, \tau^2).
+$$
+
+The population mean $\mu$ represents the "typical" product positive rating rate (on the log-odds scale), and $\tau$ controls how much products vary from one another. A large $\tau$ means products are very different; a small $\tau$ means they are all similar.
+
+**Level 3 (Hyperpriors).** The population-level parameters $\mu$ and $\tau$ are unknown and receive their own priors:
+
+$$
+\mu \sim \text{Normal}(0, 5), \qquad \tau \sim \text{Half-Cauchy}(0, 2).
+$$
+
+The prior on $\mu$ is deliberately wide (a standard deviation of 5 on the logit scale covers positive rates from near 0% to near 100%). The Half-Cauchy prior on $\tau$ is a common recommendation from [Gelman et al., *BDA3* (2013)](https://sites.stat.columbia.edu/gelman/book/): it allows $\tau$ to be large if the data demands it but gently favors smaller values. The prior provides regularization without being overly restrictive.
+
+The following diagram shows how these three levels connect.
+
+```{.d2}
+# =========================================================================
+# 1. LAYOUT CONFIGURATION
+# =========================================================================
+direction: down
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+# =========================================================================
+# 2. DESIGN SYSTEM (6 Semantic Classes)
+# =========================================================================
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 14
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+  container: {
+    style: {
+      fill: "#F9FAFB"
+      stroke: "#D1D5DB"
+      font-color: "#1F2937"
+      font-size: 16
+      bold: true
+    }
+  }
+}
+
+# =========================================================================
+# 3. CONTENT
+# =========================================================================
+population: "Population Level (Hyperpriors)" {
+  class: [base; container]
+  label.near: top-left
+
+  mu: {
+    class: [base; highlight]
+    label: |latex
+      \\mu \\sim \\text{Normal}(0, 5)
+    |
+  }
+
+  tau: {
+    class: [base; highlight]
+    label: |latex
+      \\tau \\sim \\text{Half-Cauchy}(0, 2)
+    |
+  }
+}
+
+hospitals: "Product Level (Parameters)" {
+  class: [base; container]
+  label.near: top-left
+
+  theta1: {
+    class: [base; process]
+    label: |latex
+      \\theta_1
+    |
+  }
+  theta2: {
+    class: [base; process]
+    label: |latex
+      \\theta_2
+    |
+  }
+  dots: {
+    class: [base; process]
+    label: " ··· "
+  }
+  theta8: {
+    class: [base; process]
+    label: |latex
+      \\theta_8
+    |
+  }
+}
+
+data: "Data Level (Observations)" {
+  class: [base; container]
+  label.near: top-left
+
+  y1: {
+    class: [base; input]
+    label: |latex
+      y_{i1} \\sim \\text{Bern}(\\theta_1)
+    |
+  }
+  y2: {
+    class: [base; input]
+    label: |latex
+      y_{i2} \\sim \\text{Bern}(\\theta_2)
+    |
+  }
+  ydots: {
+    class: [base; input]
+    label: " ··· "
+  }
+  y8: {
+    class: [base; input]
+    label: |latex
+      y_{i8} \\sim \\text{Bern}(\\theta_8)
+    |
+  }
+}
+
+shared: {
+  class: [base; output]
+  label: ||latex
+    \\text{logit}(\\theta_j) \\sim \\text{Normal}(\\mu, \\tau^2)
+  ||
+}
+
+population.mu -> shared: " "
+population.tau -> shared: " "
+shared -> hospitals.theta1: " "
+shared -> hospitals.theta2: " "
+shared -> hospitals.dots: " "
+shared -> hospitals.theta8: " "
+hospitals.theta1 -> data.y1: " "
+hospitals.theta2 -> data.y2: " "
+hospitals.dots -> data.ydots: " "
+hospitals.theta8 -> data.y8: " "
+```
+
+The arrows encode dependency: rating outcomes depend on product-specific positive rates, which depend on the population distribution, which in turn depends on the hyperpriors. Inference flows in the reverse direction. Observed data at the bottom updates product-level estimates. Those updated estimates in turn update the population-level hyperparameters, which feed back into every product's estimate. This bidirectional flow of information is what makes partial pooling work.
+
+### Shrinkage: The Mechanics of Borrowing Strength
+
+The key quantitative feature of hierarchical models is *shrinkage*: each group's estimate is pulled from its raw sample rate toward the overall group mean. The degree of shrinkage depends on two things: how much data the group has, and how variable the groups are.
+
+An approximate shrinkage formula makes this concrete. How much pooling occurs depends on a shrinkage factor $\kappa$ that captures the ratio of within-group variability to between-group variability. When products differ greatly from each other ($\kappa$ is small), the model trusts each product's own data. When products are similar ($\kappa$ is large), the model pulls every estimate toward the grand mean. For product $j$ with $n_j$ ratings and sample mean $\bar{x}_j$, the hierarchical Bayes estimate is approximately:
+
+$$
+\hat{\theta}_j^{\,\text{Bayes}} \;\approx\; \frac{n_j}{n_j + \kappa} \cdot \bar{x}_j \;+\; \frac{\kappa}{n_j + \kappa} \cdot \hat{\mu},
+$$ {#eq-shrinkage}
+
+where $\hat{\mu}$ is the estimated population mean. The estimate is a weighted average of the product's own data and the population mean. When $n_j$ is large relative to $\kappa$, the weight falls mostly on $\bar{x}_j$ (the product's data speaks for itself). When $n_j$ is small, the weight shifts toward $\hat{\mu}$ (the population average fills in for the lack of data).
+
+For our products: Product A with 500 ratings and 75% positive rate barely moves from its raw rate. Product B with 8 ratings and 62.5% positive rate gets pulled substantially toward the group mean, perhaps landing around 70%. The model is saying: "Product B's 8 ratings are not enough evidence to be confident in a 62.5% rate. Given what we know about the other 7 products, a rate closer to the group average is more plausible."
+
+::: {.exercise-fillin}
+
+Consider a hierarchical model with shrinkage factor kappa = 20 and estimated grand mean of 72%. Product B has 8 ratings and a raw positive rate of 62.5%. The shrinkage formula is:
+
+1. The hierarchical estimate is a weighted average of the product's own data and the population mean
+2. The weight on Product B's own data is: n / (n + kappa) = 8 / (8 + 20) = 8/28, which is roughly 0.29
+3. The weight on the population mean is: kappa / (n + kappa) = 20 / (8 + 20) = 20/28, which is roughly 0.71
+4. In this case, most of the weight goes to {B|A: the product's own raw rate of 62.5%|B: the population grand mean of 72%|C: an equal split between the two}
+5. This is because Product B has far fewer ratings than the shrinkage factor kappa
+
+::: {.fillin-feedback}
+**Correct: B.** With only 8 ratings versus a shrinkage factor of 20, Product B's weight on its own data is only 0.29, while the weight on the population mean is 0.71. Most of the hierarchical estimate comes from the grand mean, not the product's own rate. This is the essence of shrinkage: data-poor groups lean heavily on population-level information.
+:::
+
+:::
+
+::: {.callout-note title="Think Hard: Should equal raw rates get equal estimates?"}
+
+A product with 5 ratings (3 positive) and a product with 500 ratings (350 positive) both have 60% raw positive rate. Should they receive the same estimate?
+
+No. The hierarchical model gives them different estimates. The product with 500 ratings has a posterior concentrated tightly around 60%, because 500 observations provide strong evidence. The product with 5 ratings has a posterior pulled substantially toward the grand mean, perhaps landing at 65% or 68% depending on the other products' rates. The model "trusts" data-rich products more and fills in for data-poor products with group-level information. The same raw rate can map to very different hierarchical estimates, and that difference is entirely determined by sample size.
+
+:::
+
+### Visualizing Shrinkage Across Products
+
+The following plot shows all 8 wireless headphones in the $50-$100 range. The x-axis shows each product's raw (no-pooling) positive rating rate, and the y-axis shows the hierarchical Bayes estimate after partial pooling. The diagonal line marks where the two would be equal (no shrinkage). Arrows show how each product's estimate moves from its raw rate toward the grand mean. Products with fewer ratings show larger arrows (more shrinkage); products with more ratings stay close to the diagonal.
+
+::: {.exercise-predict correct="B"}
+
+Product B has 8 ratings and a 62.5% raw positive rate. Product A has 500 ratings and a 75% raw positive rate. The grand mean across all products is 72%. In a hierarchical model, which product's estimate will change more from its raw rate?
+
+- Product A, because it is farther from the grand mean in absolute terms
+- Product B, because it has far fewer ratings and the model trusts small samples less
+- Both will change by the same amount, because the shrinkage formula treats all products equally
+- Neither will change, because the model preserves each product's raw estimate
+
+::: {.predict-reveal}
+**The answer is B.** Product B's estimate moves dramatically (from 62.5% toward roughly 70%), while Product A barely budges from 75%. The shrinkage formula weights each product's own data by n/(n + kappa). Product A's weight on its own data is 500/(500 + 20) = 0.96, so it keeps 96% of its raw rate. Product B's weight is only 8/(8 + 20) = 0.29, so it keeps just 29% of its raw rate and gets 71% of the grand mean instead. Sample size, not distance from the mean, is the primary driver of shrinkage.
+:::
+
+:::
+
+```{python}
+#| output: false
+#| error: true
+#| warning: false
+import warnings
+warnings.filterwarnings("ignore")
+import numpy as np
+import pandas as pd
+import hvplot.pandas
+import holoviews as hv
+hv.extension('bokeh')
+
+products = pd.DataFrame({
+    'Product': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
+    'n_ratings': [500, 8, 200, 45, 120, 15, 300, 30],
+    'raw_rate': [0.750, 0.625, 0.710, 0.689, 0.725, 0.600, 0.740, 0.667],
+})
+
+grand_mean = 0.72
+kappa = 20
+
+products['hierarchical_estimate'] = (
+    (products['n_ratings'] / (products['n_ratings'] + kappa)) * products['raw_rate']
+    + (kappa / (products['n_ratings'] + kappa)) * grand_mean
+)
+
+hvplot_opts = dict(width=620, height=500, grid=True)
+hv_opts = dict(
+    show_grid=True,
+    default_tools=['hover', 'save', 'pan', 'box_zoom', 'reset', 'wheel_zoom'],
+    active_tools=['pan'],
+)
+
+diag_df = pd.DataFrame({'x': [0.55, 0.80], 'y': [0.55, 0.80]})
+diag_line = diag_df.hvplot.line(
+    x='x', y='y', color='#D1D5DB', line_dash='dashed', line_width=1.5,
+)
+
+grand_mean_vline = hv.VLine(grand_mean).opts(
+    color='#F43F5E', line_dash='dotted', line_width=2,
+)
+
+segments = []
+for _, row in products.iterrows():
+    seg_df = pd.DataFrame({
+        'x': [row['raw_rate'], row['hierarchical_estimate']],
+        'y': [row['raw_rate'], row['hierarchical_estimate']],
+    })
+    seg = hv.Curve(
+        [(row['raw_rate'], row['raw_rate']),
+         (row['raw_rate'], row['hierarchical_estimate'])],
+        kdims='Raw Positive Rating Rate', vdims='Hierarchical Estimate',
+    ).opts(color='#6366F1', line_width=1.5, alpha=0.6)
+    segments.append(seg)
+arrow_overlay = hv.Overlay(segments)
+
+scatter = products.hvplot.scatter(
+    x='raw_rate', y='hierarchical_estimate',
+    hover_cols=['Product', 'n_ratings', 'raw_rate', 'hierarchical_estimate'],
+    color='#3B82F6', size=120, line_color='#1D4ED8', line_width=1.5,
+    xlabel='Raw Positive Rating Rate (No Pooling)',
+    ylabel='Hierarchical Bayes Estimate',
+    title='Shrinkage in Hierarchical Model: 8 Wireless Headphones ($50-$100)',
+    **hvplot_opts,
+)
+
+labels = hv.Labels(
+    {
+        'x': products['raw_rate'].values,
+        'y': products['hierarchical_estimate'].values + 0.008,
+        'text': [f"{s} (n={n})" for s, n in zip(products['Product'], products['n_ratings'])],
+    },
+    kdims=['x', 'y'], vdims='text',
+).opts(text_font_size='9pt', text_color='#374151')
+
+grand_label = hv.Text(
+    grand_mean + 0.003, 0.565, 'Grand\nMean', halign='left',
+).opts(text_font_size='8pt', text_color='#F43F5E')
+
+final_plot = (diag_line * grand_mean_vline * arrow_overlay * scatter * labels * grand_label).opts(
+    **hv_opts,
+    xlim=(0.55, 0.80),
+    ylim=(0.55, 0.80),
+)
+```
+
+```{python}
+#| label: fig-shrinkage
+#| fig-cap: "Shrinkage toward the grand mean in a hierarchical model. Each point is a product. Vertical arrows show how each product's estimate moves from its raw rate (on the diagonal) toward the hierarchical Bayes estimate. Products with fewer ratings (B, F, H) experience more shrinkage; products with many ratings (A, C, G) barely move."
+#| echo: false
+#| warning: false
+from bokeh.io import output_notebook, show
+import holoviews as hv
+output_notebook(hide_banner=True)
+show(hv.render(final_plot, backend='bokeh'))
+```
+
+The pattern in @fig-shrinkage is unmistakable. Product B (8 ratings, 62.5% raw rate) gets pulled strongly toward the grand mean of 72%, landing around 70%. Product F (15 ratings, 60%) also moves substantially. Product A (500 ratings, 75%) barely moves at all, because 500 observations overwhelm the pull of the prior. The diagonal dashed line marks where raw rate equals hierarchical estimate. Every point below this line has been shrunk upward toward the grand mean; points above it have been shrunk downward.
+
+This shrinkage pattern has a surprising frequentist parallel. In the 1960s, Charles Stein proved that when estimating three or more means simultaneously, shrinking every estimate toward a grand mean always reduces total mean squared error. The James-Stein estimator dominates the no-pooling estimator for any set of three or more related means. The hierarchical Bayesian model arrives at the same conclusion from a completely different starting point: the prior says the products are drawn from a common population, and the posterior automatically produces shrinkage toward the population mean.
+
+::: {.exercise-mcq correct="C"}
+
+In a hierarchical model, what primarily determines how much a specific group's estimate is shrunk toward the grand mean?
+
+- The group's distance from the grand mean
+- The total number of groups in the hierarchy
+- The group's sample size relative to the shrinkage factor
+- The choice of hyperprior on the population variance
+
+::: {.feedback-correct}
+Correct. The shrinkage formula shows that the weight on a group's own data is n/(n + kappa). Groups with large sample sizes (n much greater than kappa) keep most of their raw estimate, while groups with small sample sizes (n much less than kappa) get pulled strongly toward the grand mean. Sample size is the primary driver of shrinkage.
+:::
+
+::: {.feedback-incorrect}
+Look again at the shrinkage formula: the hierarchical estimate is (n/(n + kappa)) times the group's raw rate plus (kappa/(n + kappa)) times the grand mean. The weight on the group's own data depends on n relative to kappa. A group with n = 500 barely moves, while a group with n = 8 gets pulled heavily toward the grand mean. Distance from the mean affects how far the estimate *could* move, but sample size determines how much it *actually does* move.
+:::
+
+:::
+
+### Where Hierarchical Thinking Leads
+
+Hierarchical Bayesian models appear wherever data has a grouped structure. The pattern repeats across disciplines with almost mechanical consistency:
+
+- **Meta-analysis in product quality research.** Each study provides an estimate of a quality metric. Studies vary in size and population. A hierarchical model produces a pooled estimate that weights larger studies more heavily while still estimating study-specific effects.
+- **Mixed-effects models in social science.** Students nested within classrooms, classrooms within schools, schools within districts. Each level gets its own parameters, linked by a shared population distribution.
+- **Transfer learning in machine learning.** A model trained on a large general dataset provides the "population-level" knowledge. Fine-tuning on a small domain-specific dataset is analogous to updating the product-level parameters with limited data. This analogy is loose rather than exact: fine-tuning uses gradient descent on the new data, not Bayesian updating, and does not produce shrinkage estimates or credible intervals. The conceptual parallel is that a small dataset benefits from knowledge acquired on a larger related source.
+- **Bayesian neural networks.** Weight priors in neural networks serve the same function as priors on $\boldsymbol{\beta}$ in regression: they regularize the model and provide uncertainty estimates on predictions.
+
+The pattern is always the same: individual parameters, a shared population-level distribution, and data at the individual level. Partial pooling is the automatic, data-adaptive outcome. Groups with abundant data get estimates driven by their own observations. Groups with scarce data borrow strength from the population. No manual tuning is required to decide *how much* borrowing happens; the data and the model structure jointly determine the shrinkage.

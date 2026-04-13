@@ -1,0 +1,21 @@
+---
+title: "Bayesian Statistics"
+filters:
+  - ../_extensions/pandoc-ext/diagram/diagram.lua
+---
+
+{{< include "Bayesian Statistics/_01-introduction.qmd" >}}
+
+{{< include "Bayesian Statistics/_02-the-bayesian-leap.qmd" >}}
+
+{{< include "Bayesian Statistics/_03-bayesian-updating.qmd" >}}
+
+{{< include "Bayesian Statistics/_04-conjugate-priors-and-choosing.qmd" >}}
+
+{{< include "Bayesian Statistics/_05-credible-intervals-and-testing.qmd" >}}
+
+{{< include "Bayesian Statistics/_06-computational-methods.qmd" >}}
+
+{{< include "Bayesian Statistics/_07-bayesian-regression-and-hierarchical.qmd" >}}
+
+{{< include "Bayesian Statistics/_99-closing.qmd" >}}

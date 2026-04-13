@@ -1,0 +1,415 @@
+## The Mechanics of Bayesian Updating {#sec-bayesian-updating}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Probabilitycourse.com Ch9.1.1](https://www.probabilitycourse.com/chapter9/9_1_1_prior_and_posterior.php) | Prior/posterior derivation |
+| 2 | [Gregory Gundersen, "Conjugacy in Bayesian Inference" (2019)](https://gregorygundersen.com/blog/2019/03/16/conjugacy/) | Beta-Binomial derivation, sequential updating |
+| 3 | [MIT 18.05 Lec 15](https://ocw.mit.edu/courses/18-05-introduction-to-probability-and-statistics-spring-2022/mit18_05_s22_lec15.pdf) | Conjugate prior examples |
+
+:::
+
+You now know the philosophical motivation behind Bayesian inference: prior beliefs plus data produce updated beliefs. But knowing the philosophy is not the same as being able to *do* it. This section is purely mechanical. By the end, you will be able to take a prior distribution, combine it with observed data through a likelihood function, and compute the resulting posterior distribution step by step. You will also understand why the normalizing constant is the hard part of Bayesian computation, and why in practice you can often ignore it entirely.
+
+Recall our goal: we want to compute the probability that the product's true positive rating rate exceeds 70%. To get that number, we first need the *posterior distribution* over the product's rate. This section shows you exactly how to compute that posterior, one algebraic step at a time.
+
+We will work through every step using the product rating running example. No steps are skipped. If you can follow the arithmetic here, you can apply Bayesian updating to any conjugate model.
+
+### The Three Ingredients
+
+Every Bayesian update requires exactly three components:
+
+1. A *prior distribution* $p(\theta)$, which encodes your beliefs about the parameter $\theta$ before seeing any data.
+2. A *likelihood function* $p(x \mid \theta)$, which tells you how probable the observed data $x$ would be if the parameter had a particular value $\theta$.
+3. A *posterior distribution* $p(\theta \mid x)$, which is the output: your updated belief about $\theta$ after seeing the data.
+
+Bayes' theorem connects these three quantities:
+
+$$
+p(\theta \mid x) = \frac{p(x \mid \theta) \, p(\theta)}{p(x)}
+$$ {#eq-bayes-theorem-updating}
+
+The denominator $p(x) = \int p(x \mid \theta) \, p(\theta) \, d\theta$ is called the *marginal likelihood* or the *evidence*. It is a single number (not a function of $\theta$) that ensures the posterior integrates to 1. We will return to this denominator shortly, but first, let us set up the product rating example with concrete numbers.
+
+**The product rating scenario.** You are evaluating a pair of wireless headphones on Amazon. The parameter $\theta$ represents the product's true quality: the probability that any given customer leaves a positive rating (4-5 stars). You believe the product is likely decent, with higher values of $\theta$ more probable. You encode this belief as a Beta(3, 1) prior, which has a mean of 0.75 and increases steadily toward $\theta = 1$. Then you look at the product's 20 ratings and find that 15 of them are positive. The question is: what should you now believe about $\theta$?
+
+**The prior: Beta(3, 1).** The Beta distribution with parameters $\alpha = 3$ and $\beta = 1$ has the probability density function
+
+$$
+p(\theta) = \frac{\theta^{\alpha - 1}(1 - \theta)^{\beta - 1}}{B(\alpha, \beta)} = \frac{\theta^{2}(1 - \theta)^{0}}{B(3, 1)} = \frac{\theta^{2}}{B(3, 1)},
+$$
+
+where $B(3, 1)$ is the Beta function, a normalizing constant that ensures the density integrates to 1. The shape is simple: the density is proportional to $\theta^2$, meaning it increases as $\theta$ approaches 1. This prior says that you expect the product to be reasonably good, with more probability mass concentrated near higher values of $\theta$.
+
+**The likelihood: Binomial(20, 15).** Given a particular quality rate $\theta$, the probability of observing exactly 15 positive ratings out of 20 customers follows the Binomial distribution:
+
+$$
+p(x \mid \theta) = \binom{20}{15} \theta^{15} (1 - \theta)^{5}.
+$$
+
+The binomial coefficient $\binom{20}{15}$ counts the number of ways to choose which 15 of the 20 customers leave positive ratings. Crucially, this coefficient does not depend on $\theta$. When we multiply the prior by the likelihood, this constant factor will cancel out during normalization. So for the purpose of finding the posterior, the likelihood is proportional to $\theta^{15}(1 - \theta)^5$.
+
+### The Recipe: Multiply and Normalize
+
+The core of Bayesian updating is a two-step recipe: multiply the prior by the likelihood, then normalize so the result integrates to 1. Let us execute this recipe for our product.
+
+**Step 1: Multiply prior by likelihood.** We need the product $p(x \mid \theta) \cdot p(\theta)$. Dropping all constants that do not depend on $\theta$ (which we write using the proportionality symbol $\propto$, meaning "equal up to a multiplicative constant"):
+
+$$
+p(x \mid \theta) \cdot p(\theta) \propto \theta^{15}(1 - \theta)^5 \cdot \theta^2 = \theta^{17}(1 - \theta)^5.
+$$
+
+Here is the key observation. The prior contributed a factor of $\theta^{2}$ (from $\theta^{\alpha - 1} = \theta^{3-1}$). The likelihood contributed $\theta^{15}$ and $(1 - \theta)^5$. When we multiply these together, the exponents add: $15 + 2 = 17$ for $\theta$, and $5 + 0 = 5$ for $(1 - \theta)$.
+
+**Step 2: Recognize the posterior's form.** The product $\theta^{17}(1 - \theta)^5$ has the same functional form as a Beta distribution. Specifically, a Beta distribution with parameters $\alpha' = 18$ and $\beta' = 6$ has density proportional to $\theta^{\alpha' - 1}(1 - \theta)^{\beta' - 1} = \theta^{17}(1 - \theta)^5$. Since we know the Beta distribution integrates to 1 (by definition), we can immediately write:
+
+$$
+p(\theta \mid x) = \text{Beta}(\theta \mid 18, 6).
+$$
+
+No integration required. The normalizing constant is simply $B(18, 6)$, the Beta function evaluated at 18 and 6.
+
+**Step 3: Verify the update rule.** The posterior parameters follow a clean pattern. The prior was Beta($\alpha, \beta$) = Beta(3, 1). The data gave $k = 15$ successes out of $n = 20$ trials. The posterior is Beta($\alpha + k, \beta + n - k$) = Beta($3 + 15, 1 + 20 - 15$) = Beta(18, 6). This pattern holds for any Beta prior combined with Binomial data:
+
+$$
+\text{Beta}(\alpha, \beta) + \text{Binomial}(n, k) \longrightarrow \text{Beta}(\alpha + k, \, \beta + n - k).
+$$ {#eq-beta-binomial-update}
+
+The update rule in @eq-beta-binomial-update says: add the number of successes to $\alpha$, and add the number of failures to $\beta$. That is the entire computation. The prior parameters $\alpha$ and $\beta$ can be interpreted as "pseudo-counts" from a hypothetical previous experiment: $\alpha - 1$ prior successes and $\beta - 1$ prior failures. The data contributes $k$ real successes and $n - k$ real failures. The posterior combines both.
+
+::: {.exercise-fillin}
+
+A startup is estimating the click-through rate of a new ad. They begin with a Beta(2, 2) prior (reflecting mild uncertainty centered at 0.5). They then show the ad to 10 users and observe 8 clicks. Apply the Beta-Binomial update rule to find the posterior.
+
+1. The prior is Beta(2, 2), so the initial alpha is 2 and initial beta is 2.
+2. The data has k = 8 successes out of n = 10 trials, so the number of failures is n - k = 2.
+3. The posterior alpha is: prior alpha + successes = {A|A: 10|B: 12|C: 4}
+4. The posterior beta is: prior beta + failures = {A|A: 10|B: 2|C: 4}
+5. The full posterior distribution is therefore Beta(10, 4).
+
+::: {.fillin-feedback}
+**Step 3: A (10).** The posterior alpha equals the prior alpha (2) plus the number of successes (8), giving 2 + 8 = 10.
+
+**Step 4: C (4).** The posterior beta equals the prior beta (2) plus the number of failures (2), giving 2 + 2 = 4.
+
+The posterior Beta(10, 4) has a mean of 10/14 approximately equal to 0.714, pulled slightly below the observed click rate of 0.8 by the Beta(2, 2) prior's centering at 0.5.
+:::
+
+:::
+
+### The Normalizing Constant: Why You Can (Usually) Ignore It
+
+So far, we have been dropping constants and working with the proportionality symbol $\propto$. But what about the denominator $p(x)$ in Bayes' theorem? You might expect it to be a headache. It is, but there is good news: for conjugate models like the Beta-Binomial, you never need to compute it directly.
+
+The denominator $p(x)$ in Bayes' theorem requires computing an integral:
+
+$$
+p(x) = \int_0^1 p(x \mid \theta) \, p(\theta) \, d\theta = \int_0^1 \binom{20}{15} \theta^{15}(1-\theta)^5 \cdot \frac{\theta^2}{B(3,1)} \, d\theta.
+$$
+
+This integral is the *hard part* of Bayesian inference. For the Beta-Binomial case, it has a closed-form solution involving the Beta function. But for more complex models (high-dimensional parameters, non-conjugate priors), this integral becomes analytically intractable. Computing it is the reason algorithms like Markov Chain Monte Carlo (MCMC) and Variational Inference exist.
+
+The critical insight is that the normalizing constant does not depend on $\theta$. It is a fixed number. So if you only care about the *shape* of the posterior (which tells you where $\theta$ is likely to be), you can work with the unnormalized product:
+
+$$
+p(\theta \mid x) \propto p(x \mid \theta) \cdot p(\theta).
+$$
+
+Recall the proportionality symbol $\propto$ from earlier: it means "proportional to," i.e., equal up to a multiplicative constant. Once you recognize the shape of the unnormalized product (in our case, a Beta distribution), you can read off the normalizing constant from the known formula for that distribution. This "proportional to" shortcut is the single most useful trick in applied Bayesian computation.
+
+### Point Estimates from the Posterior
+
+The posterior Beta(18, 6) is a full distribution over $\theta$. But sometimes you need a single number: a point estimate. There are three natural candidates.
+
+**Maximum Likelihood Estimate (MLE).** The MLE ignores the prior entirely and maximizes only the likelihood. For Binomial data, the MLE is simply the observed proportion of successes:
+
+$$
+\hat{\theta}_{\text{MLE}} = \frac{k}{n} = \frac{15}{20} = 0.750.
+$$
+
+**Maximum A Posteriori (MAP) estimate.** The MAP estimate is the mode of the posterior, the value of $\theta$ where the posterior density is highest. For a Beta($\alpha', \beta'$) distribution with $\alpha' > 1$ and $\beta' > 1$:
+
+$$
+\hat{\theta}_{\text{MAP}} = \frac{\alpha' - 1}{\alpha' + \beta' - 2} = \frac{18 - 1}{18 + 6 - 2} = \frac{17}{22} \approx 0.773.
+$$
+
+**Posterior mean.** The expected value of $\theta$ under the posterior distribution. For a Beta($\alpha', \beta'$) distribution:
+
+$$
+E[\theta \mid x] = \frac{\alpha'}{\alpha' + \beta'} = \frac{18}{18 + 6} = \frac{18}{24} = 0.750.
+$$
+
+Here is the comparison, side by side:
+
+| Estimate | Formula | Value |
+|---|---|---|
+| MLE | $k / n$ | 0.750 |
+| MAP | $(\alpha + k - 1) / (\alpha + k + \beta + n - k - 2)$ | 0.773 |
+| Posterior mean | $(\alpha + k) / (\alpha + k + \beta + n - k)$ | 0.750 |
+
+The MLE and the posterior mean happen to coincide at 0.750 in this example, but that is a coincidence of the particular numbers involved. The MAP is pulled upward to 0.773 because the Beta(3, 1) prior places extra weight on higher values of $\theta$. With a different prior (say, Beta(1, 1), the uniform distribution), the MAP would equal the MLE exactly.
+
+### The Precision-Weighted Average: A General Principle
+
+The posterior mean of 18/24 = 0.750 sits between the prior mean (0.75) and the MLE (0.750). That is not a coincidence. There is a clean formula that explains exactly where the posterior mean lands, and it reveals something important about how data and prior knowledge compete for influence.
+
+The posterior mean in the Beta-Binomial case can be rewritten as a *convex combination* of the prior mean and the MLE:
+
+$$
+E[\theta \mid x] = \frac{\alpha + k}{\alpha + \beta + n} = \underbrace{\frac{\alpha + \beta}{\alpha + \beta + n}}_{\text{weight on prior}} \cdot \underbrace{\frac{\alpha}{\alpha + \beta}}_{\text{prior mean}} + \underbrace{\frac{n}{\alpha + \beta + n}}_{\text{weight on data}} \cdot \underbrace{\frac{k}{n}}_{\text{MLE}}.
+$$
+
+The posterior mean always sits between the prior mean and the MLE. How close it lands to each depends on the relative "sample sizes": the prior contributes $\alpha + \beta$ pseudo-observations, and the data contributes $n$ real observations. When $n$ is large relative to $\alpha + \beta$, the posterior mean tracks the MLE. When $n$ is small, the prior dominates.
+
+This property is not specific to the Beta-Binomial model. The posterior mean is a precision-weighted average of the prior mean and the MLE whenever the prior and likelihood are conjugate. The weight on the prior is $(\alpha + \beta) / (\alpha + \beta + n)$, and the weight on the data is $n / (\alpha + \beta + n)$. As [Sosa et al. (arXiv, 2025)](https://arxiv.org/abs/2512.05883) put it, the posterior expectation is always a linear (convex) combination of the prior expectation and the sample mean, with the balance determined by the prior pseudo-sample size and the actual sample size.
+
+This *linear Bayes* property generalizes far beyond the Beta-Binomial. As shown by [Diaconis and Ylvisaker (Annals of Statistics, 1979)](https://doi.org/10.1214/aos/1176344611), the same convex-combination formula holds for every model in the *natural exponential family* (the family that includes Binomial, Normal, Poisson, Exponential, and Gamma, among others) with a conjugate prior. The same pattern holds for the Normal-Normal model (as you will see in @sec-conjugate-priors) and the Poisson-Gamma model.
+
+This general result gives you a powerful mental model. Every Bayesian point estimate reflects a balance between the data and the prior, and the balance always shifts toward the data as the sample size grows.
+
+::: {.exercise-mcq correct="B"}
+
+Under what condition does the MAP estimate equal the MLE exactly?
+
+- When the sample size is very large
+- When the prior is uniform (e.g., Beta(1, 1))
+- When the prior mean equals the observed proportion
+- When the number of successes equals the number of failures
+
+::: {.feedback-correct}
+Correct. The MAP finds the mode of the posterior, which is the mode of (prior times likelihood). A uniform prior like Beta(1, 1) contributes a constant factor to the product, so the posterior mode is determined entirely by the likelihood. That makes MAP identical to MLE. In formula terms, the MAP for Beta(alpha + k, beta + n - k) is (alpha + k - 1) / (alpha + k + beta + n - k - 2). When alpha = beta = 1, this simplifies to k / n, which is exactly the MLE.
+:::
+
+::: {.feedback-incorrect}
+Not quite. A large sample size makes MAP *approach* MLE, but does not make them exactly equal (the prior still shifts the mode, just by a smaller amount). The prior mean equaling the observed proportion affects the posterior mean, not the mode. The key is the prior's *shape*: a uniform prior contributes a constant to the product of prior times likelihood, so the posterior mode is determined entirely by the likelihood. That makes MAP = MLE exactly.
+:::
+
+:::
+
+### Visualizing the Update
+
+The following plot shows all three distributions: the Beta(3, 1) prior, the (normalized) Binomial likelihood, and the Beta(18, 6) posterior. You can see how the posterior sits between the prior and the likelihood, combining information from both.
+
+```{python}
+#| output: false
+#| error: true
+#| warning: false
+import warnings
+warnings.filterwarnings("ignore")
+import numpy as np
+import pandas as pd
+import hvplot.pandas
+import holoviews as hv
+from scipy import stats
+hv.extension('bokeh')
+
+hvplot_opts = dict(width=750, height=450, grid=True)
+hv_opts = dict(
+    show_grid=True,
+    default_tools=['hover', 'save', 'pan', 'box_zoom', 'reset', 'wheel_zoom'],
+    active_tools=['pan'],
+)
+
+theta = np.linspace(0.001, 0.999, 500)
+
+prior = stats.beta.pdf(theta, 3, 1)
+
+raw_likelihood = stats.binom.pmf(15, 20, theta)
+likelihood_normalized = raw_likelihood / np.trapz(raw_likelihood, theta)
+
+posterior = stats.beta.pdf(theta, 18, 6)
+
+df = pd.DataFrame({
+    'θ': np.tile(theta, 3),
+    'Density': np.concatenate([prior, likelihood_normalized, posterior]),
+    'Distribution': (
+        ['Prior: Beta(3, 1)'] * len(theta)
+        + ['Likelihood (normalized)'] * len(theta)
+        + ['Posterior: Beta(18, 6)'] * len(theta)
+    ),
+})
+
+final_plot = df.hvplot.line(
+    x='θ', y='Density', by='Distribution',
+    **hvplot_opts,
+    xlabel='θ (product rating rate)',
+    ylabel='Density',
+    title='Bayesian Update: Prior × Likelihood → Posterior',
+    line_width=2.5,
+    color=['#6366F1', '#F59E0B', '#10B981'],
+).opts(**hv_opts)
+```
+
+```{python}
+#| label: fig-prior-likelihood-posterior
+#| fig-cap: "The prior Beta(3, 1) reflects our initial belief favoring a high product rating rate. The normalized likelihood concentrates around the observed proportion 15/20 = 0.75. The posterior Beta(18, 6) combines both, landing between the prior and the data."
+#| echo: false
+#| warning: false
+from bokeh.io import output_notebook, show
+import holoviews as hv
+output_notebook(hide_banner=True)
+show(hv.render(final_plot, backend='bokeh'))
+```
+
+Notice how the posterior is much narrower than the prior. The prior was spread broadly across high values of $\theta$; after seeing 20 data points, the posterior concentrates tightly around 0.75. This narrowing reflects the information gained from the data. With more data, the posterior will continue to narrow, and the influence of the prior will diminish.
+
+### The Bayesian Update Cycle
+
+Bayesian updating is not a one-time procedure. It is a cycle. The posterior from one round of data collection becomes the prior for the next round. This property, called *sequential updating*, is one of the most practically useful features of the Bayesian framework.
+
+```{.d2}
+# =========================================================================
+# 1. LAYOUT CONFIGURATION
+# =========================================================================
+direction: right
+vars: {
+  d2-config: {
+    layout-engine: elk
+  }
+}
+
+# =========================================================================
+# 2. DESIGN SYSTEM (6 Semantic Classes)
+# =========================================================================
+classes: {
+  base: {
+    style: {
+      fill: "white"
+      stroke: "#E5E7EB"
+      stroke-width: 2
+      shadow: true
+      border-radius: 8
+      font-size: 14
+    }
+  }
+  input: {
+    style: {
+      stroke: "#6366F1"
+      fill: "#EEF2FF"
+      font-color: "#3730A3"
+    }
+  }
+  process: {
+    style: {
+      stroke: "#10B981"
+      fill: "#ECFDF5"
+      font-color: "#065F46"
+    }
+  }
+  output: {
+    style: {
+      fill: "#3B82F6"
+      stroke: "#1D4ED8"
+      font-color: "white"
+    }
+  }
+  highlight: {
+    style: {
+      stroke: "#F43F5E"
+      fill: "#FFF1F2"
+      font-color: "#BE123C"
+      stroke-width: 3
+    }
+  }
+}
+
+# =========================================================================
+# 3. CONTENT
+# =========================================================================
+prior: {
+  class: [base; input]
+  label: "   Prior p(θ)   "
+}
+
+data: {
+  class: [base; input]
+  label: "  Data arrives  "
+}
+
+multiply: {
+  class: [base; process]
+  label: " Prior × Likelihood "
+}
+
+normalize: {
+  class: [base; process]
+  label: "   Normalize   "
+}
+
+posterior: {
+  class: [base; output]
+  label: "  Posterior p(θ|x)  "
+}
+
+next: {
+  class: [base; highlight]
+  label: " Becomes new Prior "
+}
+
+prior -> multiply: " "
+data -> multiply: " "
+multiply -> normalize: " "
+normalize -> posterior: " "
+posterior -> next: " "
+next -> prior: " " {
+  style: {
+    stroke-dash: 5
+    stroke: "#F43F5E"
+  }
+}
+```
+
+**Our headphones, round two.** After the first batch of 20 ratings, your belief about $\theta$ is captured by the posterior Beta(18, 6). Now suppose 10 more customers leave ratings and 8 of them are positive. The posterior from round one becomes the prior for round two. Applying the update rule from @eq-beta-binomial-update:
+
+$$
+\text{Beta}(18, 6) + \text{Binomial}(10, 8) \longrightarrow \text{Beta}(18 + 8, \, 6 + 10 - 8) = \text{Beta}(26, 8).
+$$
+
+The new posterior Beta(26, 8) has a mean of $26/34 \approx 0.765$ and is even more concentrated than Beta(18, 6). Each round of data sharpens the estimate.
+
+Here is the beautiful part: you get the same answer whether you update sequentially (first with 20 ratings, then with 10) or all at once (with all 30 ratings in a single batch). Starting from the original Beta(3, 1) prior and combining all 30 observations ($15 + 8 = 23$ positive ratings, $5 + 2 = 7$ negative ratings):
+
+$$
+\text{Beta}(3, 1) + \text{Binomial}(30, 23) \longrightarrow \text{Beta}(3 + 23, \, 1 + 30 - 23) = \text{Beta}(26, 8).
+$$
+
+The same Beta(26, 8). The order in which you process the data does not matter. This *order invariance* means you can update your beliefs as data streams in, one observation at a time if needed, without worrying about batch boundaries.
+
+::: {.exercise-order correct="C,D,A,E,B"}
+
+Arrange the five steps of a single Bayesian update in the correct order:
+
+- Multiply the prior density by the likelihood function
+- Read off the posterior parameters from the recognized form
+- Specify a prior distribution for the unknown parameter
+- Observe data and write down the likelihood function
+- Recognize the unnormalized product as a known distribution family
+
+::: {.order-feedback}
+**Correct order: C, D, A, E, B.**
+
+1. **Specify a prior** (C): You must encode your beliefs before seeing data.
+2. **Observe data and write the likelihood** (D): The likelihood function describes how probable the observed data is for each parameter value.
+3. **Multiply prior by likelihood** (A): The core computation produces the unnormalized posterior.
+4. **Recognize the product's distributional form** (E): For conjugate models, the product belongs to the same family as the prior (e.g., a Beta shape).
+5. **Read off posterior parameters** (B): Once you identify the family, the exponents directly give you the updated parameters, with no integration needed.
+:::
+
+:::
+
+::: {.callout-note title="Think Hard"}
+
+You have a Beta(1, 1) prior (uniform over $[0, 1]$) and observe 0 successes in 10 trials. The MLE is $\hat{\theta}_{\text{MLE}} = 0/10 = 0$. What is the posterior mean? Why is this different, and which answer is more useful?
+
+**Answer.** Applying the update rule: Beta$(1, 1)$ + Binomial$(10, 0)$ $\rightarrow$ Beta$(1 + 0, 1 + 10 - 0)$ = Beta$(1, 11)$. The posterior mean is $1 / (1 + 11) = 1/12 \approx 0.083$, not 0.
+
+The MLE says the success probability is exactly zero. That estimate is almost certainly wrong; you just had bad luck (or a small sample). A probability of exactly zero would mean success is *impossible*, which is a very strong claim from just 10 trials. The Bayesian posterior mean of 0.083 incorporates the prior belief that some nonzero probability exists and gives a more cautious estimate. This regularization effect, where the prior pulls extreme estimates toward more moderate values, is one of the key practical benefits of Bayesian estimation. It is especially valuable in small-sample settings where the MLE can be misleading.
+
+:::
+
+### What You Have Learned
+
+You now have a complete five-step mechanical procedure: take a Beta prior, observe Binomial data, multiply, recognize the product as another Beta distribution, and read off the posterior parameters. You can extract point estimates (MLE, MAP, posterior mean) and you know that the posterior from one experiment becomes the prior for the next.
+
+Now that you can compute a posterior distribution by hand, a natural question arises: how should you choose the prior in the first place? And are there priors that always make the computation this clean? The answer to the second question is yes, and they are called *conjugate priors*.
