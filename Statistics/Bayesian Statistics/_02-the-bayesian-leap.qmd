@@ -7,36 +7,44 @@
 | 1 | [VanderPlas, "Frequentism and Bayesianism" (2014)](http://jakevdp.github.io/blog/2014/03/11/frequentism-and-bayesianism-a-practical-intro/) | Philosophical distinction, probability definitions |
 | 2 | [Sosa et al., "The Bayesian Way" (arXiv, 2025)](https://arxiv.org/abs/2512.05883) | Historical context, formal framework |
 | 3 | [Probabilitycourse.com Ch9](https://www.probabilitycourse.com/chapter9/9_1_0_bayesian_inference.php) | Motivating examples |
+| 4 | [Douglas Yao, "Understanding Frequentist vs. Bayesian Inference" (2020)](https://douglasyao.github.io/blogs/2020/10/04/frequentist-bayesian.html) | Inverse problem framing |
+| 5 | [Gundersen, "Probabilistic ML" (2018)](https://gregorygundersen.com/blog/2018/06/13/probabilistic-ml/) | Bayesian approach to ML, marginalization |
 
 :::
 
-### The Product Rating Problem: Same Data, Two Answers
+### The Headphones Problem: Same Data, Two Frameworks
 
-Remember the question from the introduction: what is the probability that this product's true positive rating rate is above 70%? Before we can answer that question, we need to understand *why* the frequentist and Bayesian frameworks give different answers from the same data. That difference comes down to one philosophical choice, and this section makes it concrete.
+Remember the five questions from the introduction: What is the true return rate? What is the real star rating distribution? Why do returns happen? How many questions per day? How long does the battery last? Before we can answer any of them, we need to understand *why* the frequentist and Bayesian frameworks give different answers from the same data. The difference comes down to one philosophical choice, and this section makes it concrete.
 
-You are shopping on Amazon and find a pair of wireless headphones in the $50-$100 range. The product has 20 ratings, and 15 of them are positive (4-5 stars). Your friend asks a seemingly simple question: "How good are these headphones, really?"
+We will focus on the first and simplest quantity: the return rate. Three out of 20 buyers returned the headphones. The parameter $\theta$ is the product's true return rate, the fraction of all buyers who would return the product if thousands purchased it.
 
-You approach it the frequentist way. The maximum likelihood estimate is $\hat{\theta}_{MLE} = 15/20 = 0.75$. You compute a 95% confidence interval using the normal approximation: roughly $(0.56, 0.94)$. You show this to your friend. They frown. "That interval is huge. And don't most wireless headphones in this price range on Amazon have positive rating rates between 70% and 90%? Why aren't we using that information?"
+You approach it the frequentist way. The maximum likelihood estimate is $\hat{\theta}_{MLE} = 3/20 = 0.15$. You compute a 95% confidence interval using the normal approximation: roughly $(0.03, 0.27)$. You show this to your friend. They frown. "That interval is huge. And don't most wireless headphones in this price range have return rates between 5% and 20%? Why aren't we using that information?"
 
-They have a point. From your experience buying similar products on Amazon, most wireless headphones in this price range have positive rating rates between 70% and 90%. You have genuine prior knowledge about what product rating rates are plausible. But the frequentist framework has no mechanism to incorporate that knowledge into the analysis. The MLE treats the 20 ratings in front of you as if they were all the information in the universe. The confidence interval answers the question "what range of parameter values is consistent with this data?" but ignores everything you knew before reading the ratings.
+They have a point. From your experience buying similar products on Amazon, most wireless headphones in this price range have return rates between 5% and 20%. You have genuine prior knowledge about what return rates are plausible. But the frequentist framework has no mechanism to incorporate that knowledge into the analysis. The MLE treats the 20 buyers in front of you as if they were all the information in the universe. The confidence interval answers the question "what range of parameter values is consistent with this data?" but ignores everything you knew before reading the reviews.
 
-The Bayesian approach starts from a different place. Before looking at the ratings, you encode your prior knowledge as a probability distribution over product rating rates. For illustration, suppose your Amazon shopping experience is quite strong, captured by a $\text{Beta}(14, 6)$ prior, which has a mean of 0.70 and concentrates most of its mass between 0.55 and 0.85. (In the next section, we will use a simpler $\text{Beta}(3, 1)$ prior to keep the algebra visible; the mechanics are the same regardless of which prior you choose.) You then combine that prior distribution with the rating data using Bayes' rule. The result is a *posterior distribution*, $\text{Beta}(29, 11)$, with a mean of about 0.73 and a much tighter 95% credible interval: roughly $(0.59, 0.85)$. The posterior sits between the pure data (75%) and the prior belief (70%), pulled toward the data but tempered by prior knowledge.
+The Bayesian approach starts from a different place. Before looking at the data, you encode your prior knowledge as a probability distribution over return rates. Suppose your Amazon shopping experience suggests a $\text{Beta}(2, 12)$ prior, which has a mean of about 0.14 and concentrates most of its mass between 0.03 and 0.30. You then combine that prior distribution with the return data using Bayes' rule. The result is a *posterior distribution*, $\text{Beta}(5, 29)$, with a mean of about 0.147 and a tighter 95% credible interval: roughly $(0.05, 0.27)$. The posterior sits between the pure data (15%) and the prior belief (14%), tempered by prior knowledge.
 
-Two frameworks. Same 20 ratings. Different answers. Neither involves a mathematical error. The difference comes from what each framework allows you to do with prior knowledge, and what each framework thinks "probability" means in the first place.
+Two frameworks. Same 20 buyers. Different answers. Neither involves a mathematical error. The difference comes from what each framework allows you to do with prior knowledge, and what each framework thinks "probability" means in the first place.
 
 ### The Frequentist Worldview (What You Already Know)
 
-You have spent considerable time building the frequentist framework, so let us be precise about what it assumes. In frequentist statistics, the unknown population parameter $\theta$ is a fixed but unknown constant. There is a single, true value of $\theta$ somewhere in the parameter space $\Theta$. Your job is to estimate it.
+You have spent considerable time building the frequentist framework, so let us be precise about what it assumes. In frequentist statistics, the unknown population parameter $\theta$ is a fixed but unknown constant. There is a single true value of $\theta$ somewhere in the parameter space $\Theta$. Your job is to estimate it.
 
 The data are random. You model the data-generating process as a statistical model $(\mathcal{E}, \{P_\theta\}_{\theta \in \Theta})$, where $\mathcal{E}$ is the sample space and $\{P_\theta\}$ is a family of probability distributions indexed by $\theta$. You observe a sample $x = (x_1, \ldots, x_n)$, which is one realization of the random process. A different sample would give different numbers.
 
 Probability, in the frequentist view, means *long-run relative frequency*. When a frequentist says "the probability of heads is 0.5," they mean that if you flipped the coin infinitely many times, the fraction of heads would converge to 0.5. Probability is a property of the physical process, not a statement about your belief.
 
-This view has three consequences that matter for what comes next. First, because $\theta$ is fixed (not random), you cannot assign a probability distribution to it. The sentence "there is a 70% probability that $\theta$ lies between 0.6 and 0.8" is meaningless in the frequentist framework. Second, all inference rests on the sampling distribution: the distribution of your estimator $\hat{\theta}$ across hypothetical repeated experiments. Confidence intervals, p-values, and hypothesis tests all depend on imagining what would happen if you ran the experiment many times. Third, prior knowledge has no formal role. You might informally use prior knowledge to choose your model or your hypotheses, but the mathematics of inference does not provide a slot for it.
+The frequentist view has three consequences that matter for what comes next.
+
+First, because $\theta$ is fixed (not random), you cannot assign a probability distribution to it. The sentence "there is a 70% probability that $\theta$ lies between 0.6 and 0.8" is not a valid probability statement in the frequentist framework. Since $\theta$ is a fixed number, the set $\{\theta \in [0.6, 0.8]\}$ is not an event in any probability space (probability is defined as a measure on events generated by random variables, and a fixed constant generates no such events). The containment question $\theta \in [0.6, 0.8]$ has a deterministic truth value, like "$3 \in [2, 4]$," but no probability attaches to it.
+
+Second, all inference rests on the *sampling distribution*: the distribution of your estimator $\hat{\theta}$ across hypothetical repeated experiments. Confidence intervals, p-values, and hypothesis tests all depend on imagining what would happen if you ran the experiment many times.
+
+Third, prior knowledge has no formal role. You might informally use prior knowledge to choose your model or your hypotheses, but the mathematics of inference does not provide a slot for it.
 
 ### The Bayesian Worldview: Parameters as Random Variables
 
-The Bayesian framework makes one change to the setup above, and everything else follows from that change. Instead of treating $\theta$ as a fixed constant, Bayesian statistics treats $\theta$ as a *random variable* with its own probability distribution.
+The Bayesian framework makes one change to the setup above. Everything else follows from it. Instead of treating $\theta$ as a fixed constant, Bayesian statistics treats $\theta$ as a *random variable* with its own probability distribution.
 
 Before collecting data, you specify a *prior distribution* $p(\theta)$ that encodes your beliefs about $\theta$. After collecting data $x$, you compute the *posterior distribution* $p(\theta | x)$ using Bayes' rule:
 
@@ -44,37 +52,39 @@ $$
 p(\theta | x) = \frac{p(x | \theta) \, p(\theta)}{p(x)}
 $$ {#eq-bayes-rule-leap}
 
-The prior $p(\theta)$ represents what you believe about $\theta$ before seeing data. The likelihood $p(x | \theta)$ is the same likelihood function you maximized in MLE. The posterior $p(\theta | x)$ is your updated belief after seeing the data. The evidence $p(x) = \int p(x | \theta) \, p(\theta) \, d\theta$ is a normalizing constant.
+The prior $p(\theta)$ represents what you believe about $\theta$ before seeing data. The likelihood $p(x | \theta)$ is the same likelihood function you maximized in MLE. (A notational subtlety: in the frequentist framework, $p(x \mid \theta)$ is shorthand for $P_\theta(x)$, a family of distributions indexed by the fixed parameter $\theta$. In the Bayesian framework, where $\theta$ is a random variable, $p(x \mid \theta)$ is a genuine conditional probability. The function is the same; the interpretation of the conditioning bar differs.) The posterior $p(\theta | x)$ is your updated belief after seeing the data. The evidence $p(x) = \int p(x | \theta) \, p(\theta) \, d\theta$ is a normalizing constant.
 
-The deeper shift is in the definition of probability itself. For a Bayesian, probability represents a *degree of belief* (or *degree of uncertainty*) rather than a long-run frequency. When a Bayesian says "there is a 70% probability that $\theta$ lies between 0.6 and 0.8," they mean: "given everything I know (prior knowledge and observed data), I believe with 70% confidence that $\theta$ falls in this range." This is not a statement about hypothetical repeated experiments. It is a statement about the plausibility of different parameter values, given your current state of knowledge.
+The deeper shift is in the definition of probability itself. For a Bayesian, probability represents a *degree of belief* (or *degree of uncertainty*) rather than a long-run frequency. When a Bayesian says "there is a 70% probability that $\theta$ lies between 0.6 and 0.8," they mean: "given everything I know (prior knowledge and observed data), the posterior probability mass in $[0.6, 0.8]$ is 70%." Formally, the claim is the integral $\int_{0.6}^{0.8} p(\theta \mid x)\, d\theta = 0.70$, which is well-defined because $\theta$ is a random variable with a posterior density. The statement is not about hypothetical repeated experiments. It is a statement about the plausibility of different parameter values, given your current state of knowledge.
 
-As [VanderPlas (2014)](http://jakevdp.github.io/blog/2014/03/11/frequentism-and-bayesianism-a-practical-intro/) puts it, the fundamental distinction is this: frequentists treat probabilities as properties of the world (frequencies of outcomes), while Bayesians treat probabilities as properties of your knowledge about the world (degrees of belief). Neither is "correct" in an absolute sense. They are different choices that lead to different kinds of inference.
+As [VanderPlas (2014)](http://jakevdp.github.io/blog/2014/03/11/frequentism-and-bayesianism-a-practical-intro/) puts it, the fundamental distinction is this: frequentists treat probabilities as properties of the world (frequencies of outcomes), while Bayesians treat probabilities as properties of your knowledge about the world (degrees of belief). Neither interpretation is "correct" in an absolute sense. They are different choices that lead to different kinds of inference.
 
 ### Three Concrete Consequences
 
-Treating $\theta$ as a random variable is not a philosophical nicety. It has three practical consequences that change what questions you can answer.
+Treating $\theta$ as a random variable is not a philosophical nicety. This single change has three practical consequences that reshape what questions you can answer.
 
-**Consequence 1: Direct probability statements about $\theta$.** Because $\theta$ has a posterior distribution, you can compute probabilities directly. "The probability that this product's true positive rating rate exceeds 70% is 0.82." "The probability that $\theta$ lies between 0.65 and 0.80 is 0.91." These are direct probability statements that frequentist inference *cannot* make. A frequentist confidence interval is often misinterpreted as a probability statement about $\theta$, but its actual meaning concerns the long-run coverage of the *procedure*: "if I repeated this experiment many times, 95% of the intervals I construct would contain the true $\theta$." The Bayesian credible interval means what most people *think* a confidence interval means.
+**Consequence 1: Direct probability statements about parameters.** Because each parameter has a posterior distribution, you can compute probabilities directly. "The probability that the return rate is below 15% is 0.54." "The probability that the five-star proportion exceeds 40% is 0.73." "The probability that the true battery life mean exceeds 29 hours is 0.88." These statements are well-defined probabilities because each parameter is a random variable in the Bayesian framework: $P(\theta < 0.15 \mid x)$ is the integral of the posterior density from 0 to 0.15. The same capability applies to every one of the five quantities in the headphones problem. Frequentist inference cannot produce these statements for any of them, because the frequentist treats each parameter as a fixed constant, making "$\theta < 0.15$" a deterministic fact rather than a random event.
 
-**Consequence 2: Formal incorporation of prior knowledge.** The prior distribution $p(\theta)$ gives you a principled, mathematically explicit mechanism to incorporate information from previous purchases, category-wide patterns, or any other source of knowledge. In our headphones example, the prior captures the fact that similar products on Amazon typically have positive rating rates between 60% and 85%. The frequentist framework has no analogous mechanism. You might informally use prior knowledge to choose your model, but the inference machinery does not account for it.
+A frequentist confidence interval is often misinterpreted as a probability statement about the parameter, but the 95% is a property of the *random interval* $(\hat{\theta}_L, \hat{\theta}_H)$. The coverage probability $P(\hat{\theta}_L \leq \theta \leq \hat{\theta}_H) \geq 0.95$ is a statement about the joint distribution of these random variables across hypothetical samples. For any *specific* realized interval (say, 0.03 to 0.27), both $\theta$ and the interval endpoints are fixed numbers. The containment question $0.03 \leq \theta \leq 0.27$ is therefore a deterministic fact, not a probabilistic event. No probability attaches to it. **The Bayesian credible interval means what most people *think* a confidence interval means.**
 
-**Consequence 3: A full distribution, not just a point estimate.** The posterior $p(\theta | x)$ is an entire probability distribution. From that distribution you can extract anything: the mean, the mode (the MAP estimate), the variance (how uncertain you are), quantiles, tail probabilities, or predictions about future data. The frequentist framework gives you a point estimate $\hat{\theta}$ and a confidence interval, but the confidence interval is a property of the procedure, not a description of where $\theta$ is likely to live. The posterior distribution, by contrast, provides a complete picture of your uncertainty about $\theta$ after seeing the data.
+**Consequence 2: Formal incorporation of prior knowledge.** The prior distribution $p(\theta)$ gives you a principled, mathematically explicit mechanism to incorporate information from previous purchases, category-wide patterns, or any other source of knowledge. In our headphones example, the prior captures the fact that similar products on Amazon typically have return rates between 5% and 20%. For star ratings, a Dirichlet prior encodes your expectation that most products in this price range skew positive. For battery life, a Normal prior encodes the manufacturer's claim and your experience with how much actual performance varies. The frequentist framework has no analogous mechanism for incorporating any of this information. You might informally use prior knowledge to choose your model, but the inference machinery does not account for it.
 
-::: {.exercise-mcq correct="A"}
+**Consequence 3: A full distribution, not just a point estimate.** The posterior $p(\theta | x)$ is an entire probability distribution. From it you can extract anything: the mean, the mode (the MAP estimate), the variance (how uncertain you are), quantiles, tail probabilities, or predictions about future data. As [Gundersen (2018)](https://gregorygundersen.com/blog/2018/06/13/probabilistic-ml/) explains, the probabilistic approach models data as random observations drawn from an underlying process; learning is the task of inferring that process's parameters. The posterior captures all uncertainty about those parameters. Marginalization over the posterior yields predictions that account for that uncertainty: $p(x) = \int p(x \mid \theta) p(\theta) d\theta$. The frequentist framework gives you a point estimate $\hat{\theta}$ and a confidence interval, but the CI's coverage guarantee is a property of the procedure, not a probability about $\theta$ in any specific interval. The posterior, by contrast, provides a complete picture of your uncertainty about $\theta$ after seeing the data.
 
-Your friend asks: "What is the probability that this product's true positive rating rate exceeds 70%?" Which of the three consequences above makes it possible to answer their question directly?
+::: {.exercise-mcq correct="C"}
 
-- Direct probability statements about the parameter (Consequence 1)
-- Formal incorporation of prior knowledge (Consequence 2)
-- Having a full distribution instead of a point estimate (Consequence 3)
-- All three consequences are equally required to answer this question
+A frequentist computes a 95% confidence interval of (0.03, 0.27) for the headphones return rate. A colleague says: "Great, so there's a 95% probability the true return rate is between 3% and 27%." What is wrong with this interpretation?
+
+- Nothing is wrong; that is exactly what a 95% confidence interval means
+- The interval should be interpreted as containing the MLE with 95% probability
+- The 95% describes the long-run coverage rate of the interval-construction procedure, not the probability of where the parameter is
+- The interpretation would be correct if the sample size were larger than 20
 
 ::: {.feedback-correct}
-Your friend is asking for a probability statement about the parameter itself: $P(\theta > 0.70 \mid x)$. This capability is Consequence 1. The frequentist framework cannot assign probabilities to fixed parameters, but the Bayesian posterior lets you compute $P(\theta > 0.70 \mid x)$ directly. While Consequences 2 and 3 are valuable, the specific capability of making direct probability statements about the parameter is what answers their question.
+The confidence interval is a pair of random variables computed from the sample. The "95%" means: if you repeated this experiment many times, 95% of the resulting intervals would contain the true (fixed) parameter. For any *specific* realized interval like (0.03, 0.27), the parameter either is or is not inside it; no probability attaches to that fixed containment question. The Bayesian credible interval, by contrast, *does* mean "95% posterior probability that the parameter is in this range," which is what most people intuitively expect an interval to mean.
 :::
 
 ::: {.feedback-incorrect}
-Read the question carefully: they want a probability that the parameter exceeds a threshold. In the frequentist framework, the parameter is a fixed constant, so "the probability that $\theta > 0.70$" is either 0 or 1 (you just don't know which). The Bayesian framework treats $\theta$ as a random variable, which means one specific consequence lets you compute $P(\theta > 0.70 \mid x)$ as a meaningful quantity between 0 and 1.
+The colleague's interpretation is the most common misunderstanding of confidence intervals. In the frequentist framework, the parameter $\theta$ is a fixed constant. Once you compute a specific interval (0.03, 0.27), both the endpoints and $\theta$ are fixed numbers. The containment question "$0.03 \leq \theta \leq 0.27$" is a deterministic fact, not a random event. The "95%" is a property of the *procedure* (across hypothetical repetitions), not a probability about this particular interval.
 :::
 
 :::
@@ -89,26 +99,38 @@ The table below summarizes the key differences. Refer back to it as you work thr
 | Probability means | Long-run frequency of events | Degree of belief / uncertainty |
 | Prior knowledge | No formal role in inference | Encoded as the prior distribution $p(\theta)$ |
 | Primary output | Point estimate $\hat{\theta}$ + confidence interval | Full posterior distribution $p(\theta \mid x)$ |
-| Interval interpretation | "95% of intervals from repeated experiments contain $\theta$" | "Given my data and prior, 95% probability $\theta$ is in this range" |
-| Can say "$P(\theta \in [a,b]) = 0.95$"? | No (meaningless; $\theta$ is not random) | Yes (direct posterior probability) |
+| Interval interpretation | "The CI is a pair of random variables $(\hat{\theta}_L, \hat{\theta}_H)$ computed from the sample; $P(\hat{\theta}_L \leq \theta \leq \hat{\theta}_H) \geq 0.95$ where probability is over the randomness of the sample" | "Given my data and prior, 95% probability $\theta$ is in this range" |
+| Can say "$P(\theta \in [a,b]) = 0.95$"? | No ($\theta$ is a fixed constant, not a random variable, so $\{\theta \in [a,b]\}$ is not an event in any probability space) | Yes (direct posterior probability; $\theta$ is a random variable with a posterior distribution) |
 | Role of sample size | Everything; inference requires repeated-sampling thought experiments | Important, but prior knowledge partially substitutes when $n$ is small |
 | Regularization | Ad hoc (ridge, lasso) or justified by bias-variance tradeoff | Emerges naturally from the prior |
 
-::: {.exercise-mcq correct="C"}
+The category error affects every one of the five headphones quantities. The table below shows the specific question you cannot ask in the frequentist framework for each data type, and the Bayesian posterior that answers it:
 
-According to the comparison table, a frequentist who computes a 95% confidence interval for a parameter can correctly claim which of the following?
+| Quantity | Parameter | Frequentist Cannot Compute | Bayesian Computes |
+|---|---|---|---|
+| Return rate | $\theta \in [0,1]$ | $P(\theta < 0.15)$ (fixed constant, not random) | $\int_0^{0.15} p(\theta \mid x)\, d\theta$ |
+| Star ratings | $\mathbf{p} \in \Delta^4$ | $P(p_5 > 0.40)$ (fixed vector, not random) | $\int_{p_5 > 0.40} p(\mathbf{p} \mid x)\, d\mathbf{p}$ |
+| Return reasons | $\mathbf{q} \in \Delta^4$ | $P(q_{\text{defective}} > 0.30)$ | $\int_{q_1 > 0.30} p(\mathbf{q} \mid x)\, d\mathbf{q}$ |
+| Questions/day | $\lambda > 0$ | $P(\lambda < 3)$ (fixed constant, not random) | $\int_0^{3} p(\lambda \mid x)\, d\lambda$ |
+| Battery life | $\mu \in \mathbb{R}$ | $P(\mu > 29)$ (fixed constant, not random) | $\int_{29}^{\infty} p(\mu \mid x)\, d\mu$ |
 
-- "There is a 95% probability that the true parameter lies in this interval"
-- "Given my data and prior, 95% probability the parameter is in this range"
-- "If I repeated this experiment many times, 95% of the intervals I construct would contain the true parameter"
-- "The parameter is fixed at the center of this interval with 95% certainty"
+In every row, the observation space and the parameter space are different. Returns are binary, but $\theta$ is continuous. Star ratings are integers 1 through 5, but $\mathbf{p}$ is a 5-dimensional probability vector. Question counts are non-negative integers, but $\lambda$ is a positive real number. Battery life measurements are continuous, but $\mu$ is the unknown mean. The observation/parameter separation makes it impossible to confuse "what the data looks like" with "what we are trying to learn."
+
+::: {.exercise-mcq correct="D"}
+
+The Bernstein-von Mises theorem says that as sample size grows, the posterior converges to a Normal distribution centered at the MLE. A researcher uses a strongly informative prior (Beta(50, 50), centered at 0.5) for the headphones return rate and collects data from 100,000 buyers showing 12% returns. What happens to the posterior?
+
+- The posterior stays centered near 0.5 because the prior is so strong
+- The posterior is undefined because the prior conflicts with the data
+- The posterior splits into two peaks: one near 0.5 and one near 0.12
+- The posterior concentrates near 0.12 because the massive sample overwhelms even a strong prior
 
 ::: {.feedback-correct}
-The frequentist confidence interval is a statement about the long-run behavior of the procedure, not about the parameter itself. It says: across many hypothetical repetitions of the experiment, 95% of the constructed intervals would contain the true (fixed) parameter. This claim is the "Interval interpretation" row in the table. Option A is the common misinterpretation (that is actually what a Bayesian credible interval means). Option B describes the Bayesian interpretation. Option D conflates point estimation with interval estimation.
+The Bernstein-von Mises theorem guarantees that the likelihood dominates the prior as sample size grows, regardless of how informative the prior is (as long as the prior assigns positive probability near the true value). The Beta(50, 50) prior contributes 100 pseudo-observations centered at 0.5, but 100,000 real observations contribute overwhelmingly more information. The posterior Beta(50 + 12000, 50 + 88000) has a mean very close to 0.12. The prior's "strength" of 100 pseudo-observations is negligible compared to 100,000 real observations.
 :::
 
 ::: {.feedback-incorrect}
-Look at the "Interval interpretation" row of the comparison table. The frequentist and Bayesian intervals have very different meanings. In the frequentist framework, the parameter is a fixed constant, so you cannot assign it a probability of being "in" any range. The interval's 95% refers to the coverage rate of the procedure across hypothetical repeated experiments, not to the probability of where the parameter lives.
+No matter how strong the prior is, the Bernstein-von Mises theorem guarantees convergence to the MLE as sample size grows. The prior contributes a fixed number of pseudo-observations (here, 100 from Beta(50, 50)). The data contributes $n$ real observations. The posterior mean is a precision-weighted average of the prior mean and the MLE, with the data's weight proportional to $n / (n + \alpha + \beta)$. When $n = 100{,}000$, the data's weight is $100{,}000 / 100{,}100 \approx 0.999$, so the posterior is almost entirely determined by the data.
 :::
 
 :::
@@ -117,29 +139,29 @@ Look at the "Interval interpretation" row of the comparison table. The frequenti
 
 **Common Misconception: "Bayesian statistics is just adding a prior to your likelihood."**
 
-While mechanically true (the posterior is proportional to the prior times the likelihood), this description misses the deeper point. The Bayesian framework changes what questions you can answer. In the frequentist framework, you ask: "what parameter value maximizes the probability of the observed data?" In the Bayesian framework, you ask: "what is the full distribution of plausible parameter values, given both my data and my prior knowledge?" The prior is not just an add-on. It is part of a fundamentally different way of reasoning about uncertainty.
+While mechanically true (the posterior is proportional to the prior times the likelihood), this description misses the deeper point. The Bayesian framework changes what questions you can answer. In the frequentist framework, you ask: "what parameter value maximizes the probability of the observed data?" In the Bayesian framework, you ask: "what is the full distribution of plausible parameter values, given both my data and my prior knowledge?" The prior is not just an add-on. The prior is part of a fundamentally different way of reasoning about uncertainty.
 
 :::
 
-::: {.exercise-predict correct="B"}
+::: {.exercise-predict correct="C"}
 
-Suppose the product accumulates $n = 20{,}000$ ratings (instead of the original 20). The Bayesian analysis uses the same prior as before. What happens to the difference between the frequentist MLE and the Bayesian posterior mean?
+Two analysts study the same headphones. Analyst A uses a Beta(2, 12) prior (based on experience with similar products). Analyst B uses a Beta(50, 200) prior (based on extensive data from hundreds of similar products, strongly centered at 20% return rate). Both observe the same 3 returns out of 20 buyers. Whose posterior will be closer to the MLE of 15%?
 
-- The difference grows larger because the prior has more data to conflict with
-- The difference shrinks to near zero because the likelihood overwhelms the prior
-- The difference stays about the same because the prior is fixed regardless of sample size
+- Analyst A, because a weaker prior adapts faster to the data
+- Both posteriors will be equally close to the MLE since they saw the same data
+- Analyst A, because the precision-weighted average gives more weight to data when the prior pseudo-sample size is smaller
 
 ::: {.predict-reveal}
-**The answer is B.** As sample size grows, the likelihood function becomes overwhelmingly sharp and concentrated around the MLE. The prior, which is fixed, becomes negligible in comparison. The posterior is proportional to the prior times the likelihood, and when the likelihood is 1,000 times more peaked than the prior, the posterior is essentially determined by the likelihood alone. In other words, as the sample size grows, the posterior converges to a Normal distribution centered at the MLE, regardless of the prior you started with. (We will see the formal statement of this result shortly.) With 20,000 ratings, the Bayesian posterior mean and the frequentist MLE would be nearly identical.
+**The answer is C.** The posterior mean is a precision-weighted average of the prior mean and the MLE. Analyst A's prior has a pseudo-sample size of $\alpha + \beta = 14$, so the data's weight is $20 / (20 + 14) \approx 0.59$. Analyst B's prior has a pseudo-sample size of $250$, so the data's weight is only $20 / (20 + 250) \approx 0.07$. Analyst A's posterior mean will land close to the MLE (0.15), while Analyst B's posterior will remain close to the prior mean (0.20). Both posteriors are valid; they reflect different states of prior knowledge. With enough data, both would eventually converge to the same answer (Bernstein-von Mises), but 20 observations are not enough to overcome a prior built from 250 pseudo-observations.
 :::
 
 :::
 
 ### When the Two Frameworks Agree (and When They Don't)
 
-You might wonder: if the frequentist and Bayesian frameworks give different answers from the same data, which one is "right"? Here is the reassuring part: as data accumulates, the disagreement vanishes. The two frameworks converge under two conditions.
+You might wonder: if the frequentist and Bayesian frameworks give different answers from the same data, which one is "right"? The good news: as data accumulates, the disagreement vanishes. The two frameworks converge under two conditions.
 
-**Large sample size.** As $n \to \infty$, the likelihood overwhelms the prior. The posterior concentrates around the MLE, and the credible interval and confidence interval become numerically identical. This convergence has a name: the *Bernstein-von Mises theorem* ([Sosa et al., arXiv 2025](https://arxiv.org/abs/2512.05883)). In plain language, as the sample grows large, the posterior converges to a Normal distribution centered at the MLE, regardless of the prior you started with. The prior washes out, and Bayesian and frequentist answers agree.
+**Large sample size.** As $n \to \infty$, the likelihood overwhelms the prior. The posterior concentrates around the MLE, and the credible interval and confidence interval become numerically identical. The result has a name: the *Bernstein-von Mises theorem* ([Sosa et al., arXiv 2025](https://arxiv.org/abs/2512.05883)). In plain language, as the sample grows large, the posterior converges to a Normal distribution centered at the MLE, regardless of the prior you started with. The prior washes out, and Bayesian and frequentist answers agree.
 
 More precisely, under standard regularity conditions, the posterior distribution converges to:
 
@@ -147,13 +169,83 @@ $$
 \theta \mid x \;\approx\; \text{Normal}\!\Big(\hat{\theta}_{MLE},\; \mathbf{I}(\hat{\theta}_{MLE})^{-1}\Big),
 $$
 
-where $\hat{\theta}_{MLE}$ is the maximum likelihood estimator and $\mathbf{I}(\hat{\theta}_{MLE})$ is the Fisher information matrix evaluated at the MLE, which measures how sharply the log-likelihood curves at the MLE; a sharper curve means the data are more informative about $\theta$. The posterior becomes Gaussian, centered at the MLE, with spread determined by the curvature of the log-likelihood. Importantly, this approximation holds regardless of the prior, as long as the prior assigns positive probability to a neighborhood of the true parameter value. In the large-sample regime, the prior is irrelevant and the two frameworks agree.
+where $\hat{\theta}_{MLE}$ is the maximum likelihood estimator and $\mathbf{I}(\hat{\theta}_{MLE})$ is the Fisher information matrix evaluated at the MLE. The Fisher information measures how sharply the log-likelihood curves at the MLE; a sharper curve means the data are more informative about $\theta$. The posterior becomes Gaussian, centered at the MLE, with spread determined by the curvature of the log-likelihood. Importantly, this approximation holds regardless of the prior, as long as the prior assigns positive probability to a neighborhood of the true parameter value. In the large-sample regime, the prior is irrelevant.
 
 **Flat (uninformative) priors.** If you use a uniform prior $p(\theta) \propto 1$, then the posterior is proportional to the likelihood alone: $p(\theta | x) \propto p(x | \theta)$. The MAP estimate equals the MLE. The Bayesian credible interval numerically matches the frequentist confidence interval (for most standard problems). In this special case, Bayesian inference reduces to a re-interpretation of frequentist inference.
 
-The frameworks diverge when sample sizes are small and prior information is strong. In our headphones example ($n = 20$ with meaningful prior knowledge), the Bayesian answer differs from the frequentist answer because the prior pulls the posterior away from the pure MLE. With 20,000 ratings instead of 20, the prior would barely matter and both frameworks would give approximately the same estimate.
+The frameworks diverge when sample sizes are small and prior information is strong. In our headphones example ($n = 20$ with meaningful prior knowledge), the Bayesian answer for the return rate differs from the frequentist answer because the prior pulls the posterior away from the pure MLE. With 20,000 buyers instead of 20, the prior would barely matter and both frameworks would give approximately the same estimate.
 
-This convergence is reassuring. The Bayesian framework is *at least* as powerful as the frequentist one (it agrees with frequentist answers in the large-sample limit) and *strictly more expressive* when prior knowledge is available and data are scarce.
+The following plot makes the Bernstein-von Mises convergence concrete. Starting from the same Beta(2, 12) prior, we compute the posterior for increasing sample sizes while holding the observed return rate fixed at approximately 15%. Watch how the prior's influence evaporates as $n$ grows.
+
+```{python}
+#| output: false
+#| error: true
+#| warning: false
+import warnings
+warnings.filterwarnings("ignore")
+import numpy as np
+import pandas as pd
+import hvplot.pandas
+import holoviews as hv
+from scipy import stats
+hv.extension('bokeh')
+
+hvplot_opts = dict(width=750, height=450, grid=True)
+hv_opts = dict(
+    show_grid=True,
+    default_tools=['hover', 'save', 'pan', 'box_zoom', 'reset', 'wheel_zoom'],
+    active_tools=['pan'],
+)
+
+theta = np.linspace(0.001, 0.50, 500)
+
+a_prior, b_prior = 2, 12
+true_rate = 0.15
+
+sample_sizes = [5, 20, 100, 500, 2000]
+rows = []
+for n in sample_sizes:
+    k = int(round(n * true_rate))
+    a_post = a_prior + k
+    b_post = b_prior + n - k
+    pdf_vals = stats.beta.pdf(theta, a_post, b_post)
+    for t, d in zip(theta, pdf_vals):
+        rows.append({"θ": t, "Density": d, "Sample size": f"n={n}"})
+
+prior_pdf = stats.beta.pdf(theta, a_prior, b_prior)
+for t, d in zip(theta, prior_pdf):
+    rows.append({"θ": t, "Density": d, "Sample size": "Prior: Beta(2,12)"})
+
+df_bvm = pd.DataFrame(rows)
+
+bvm_plot = df_bvm.hvplot.line(
+    x='θ', y='Density', by='Sample size',
+    **hvplot_opts,
+    xlabel='θ (return rate)',
+    ylabel='Density',
+    title='Bernstein-von Mises: Posterior Converges to MLE as n Grows',
+    line_width=2.5,
+).opts(**hv_opts)
+
+mle_line = hv.VLine(true_rate).opts(
+    color='#F43F5E', line_dash='dashed', line_width=2,
+)
+
+bvm_plot_final = (bvm_plot * mle_line)
+```
+
+```{python}
+#| label: fig-bernstein-von-mises
+#| fig-cap: "Bernstein-von Mises convergence. Starting from a Beta(2, 12) prior (broad, blue), the posterior narrows and converges to a spike at the MLE (θ = 0.15, dashed red line) as sample size increases from n=5 to n=2000. By n=500, the posterior is effectively independent of the prior."
+#| echo: false
+#| warning: false
+from bokeh.io import output_notebook, show
+import holoviews as hv
+output_notebook(hide_banner=True)
+show(hv.render(bvm_plot_final, backend='bokeh'))
+```
+
+The convergence result matters. The Bayesian framework is *at least* as powerful as the frequentist one (it agrees with frequentist answers in the large-sample limit) and *strictly more expressive* when prior knowledge is available and data are scarce.
 
 ::: {.callout-note}
 
@@ -163,12 +255,14 @@ If two researchers use different priors on the same data and get different poste
 
 The prior is indeed subjective: it depends on what the analyst believes before seeing the data. Two reasonable analysts with different backgrounds may specify different priors and reach different conclusions.
 
-Two things mitigate this concern. First, the Bernstein-von Mises theorem guarantees that with enough data, the likelihood dominates and posteriors converge regardless of the prior (as long as the prior does not assign zero probability to the true parameter value). Subjectivity washes out as evidence accumulates. Second, the prior makes your assumptions *explicit* and *auditable*. In frequentist inference, subjective choices are hidden in at least four places: the choice of model, the choice of test, the choice of significance level, and the decision of which comparisons to make. The Bayesian prior puts one particular subjective choice on the table where it can be examined, debated, and tested via sensitivity analysis. You can ask "how much do the conclusions change if I use a different prior?" and get a quantitative answer. That transparency is arguably greater than what frequentist methods provide.
+Two things mitigate this concern. First, the Bernstein-von Mises theorem guarantees that with enough data, the likelihood dominates and posteriors converge regardless of the prior (as long as the prior does not assign zero probability to the true parameter value). Subjectivity washes out as evidence accumulates.
+
+Second, the prior makes your assumptions *explicit* and *auditable*. In frequentist inference, subjective choices hide in at least four places: the choice of model, the choice of test, the choice of significance level, and the decision of which comparisons to make. The Bayesian prior puts one particular subjective choice on the table where it can be examined, debated, and tested via sensitivity analysis. You can ask "how much do the conclusions change if I use a different prior?" and get a quantitative answer. That level of transparency is arguably greater than what frequentist methods provide.
 
 :::
 
 ### Looking Ahead: How Bayesian Updating Actually Works
 
-You now understand *why* you might want to treat $\theta$ as a random variable: it gives you three capabilities that the frequentist framework lacks (direct probability statements, formal incorporation of prior knowledge, and a full posterior distribution). But understanding the "why" is only half the story. The "how" requires working through the mechanics of Bayesian updating, step by step.
+You now understand *why* you might want to treat parameters as random variables: doing so gives you three capabilities the frequentist framework lacks (direct probability statements, formal incorporation of prior knowledge, and a full posterior distribution). But understanding the "why" is only half the story. The "how" requires working through the mechanics of Bayesian updating, step by step.
 
-In the next section, we will take our product rating problem and compute the posterior distribution from scratch. You will see exactly how a $\text{Beta}(3, 1)$ prior combines with 15 positive ratings in 20 total to produce a $\text{Beta}(18, 6)$ posterior. You will compare the MAP estimate to the MLE, watch the posterior update sequentially as each batch of rating data arrives, and build intuition for how the prior and the likelihood pull against each other to shape the final distribution.
+In the next section, we will take two of our headphones quantities and compute their posterior distributions from scratch. For the return rate, you will see exactly how a Beta prior combines with Binomial data to produce a Beta posterior. For the star ratings, you will see how a Dirichlet prior combines with Categorical data to produce a Dirichlet posterior. The two derivations share the same structure: multiply the prior by the likelihood, collect exponents, and recognize the result as a distribution from the same family. The structural identity between these two updates is the core lesson of Bayesian updating.

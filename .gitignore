@@ -42,3 +42,4 @@ scripts/.browser-profiles/
 # NOTE: _extensions/ is intentionally NOT ignored.
 # It contains Quarto extensions needed for rendering.
 Probability/probabilitycourse.com/*
+**/*.quarto_ipynb

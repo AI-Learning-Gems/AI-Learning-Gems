@@ -5,17 +5,18 @@
 | # | Source | Summary |
 |---|---|---|
 | 1 | [Probabilitycourse.com: Bayesian Interval Estimation](https://www.probabilitycourse.com/chapter9/9_1_9_bayesian_interval_estimation.php) | Credible interval definition |
-| 2 | [Statsig: Credible vs Confidence Intervals](https://www.statsig.com/perspectives/credible-vs-confidence-intervals) | Clear comparison |
-| 3 | [Bayesian Spectacles: Misconceptions](https://www.bayesianspectacles.org/popular-misconceptions-about-bayesian-inference-preface/) | Bayes factor misinterpretations |
+| 2 | [Statsig: Credible vs Confidence Intervals (2024)](https://www.statsig.com/perspectives/credible-vs-confidence-intervals) | Clear comparison of interval types |
+| 3 | [Wagenmakers and Etz, Bayesian Spectacles: Misconceptions (2017)](https://www.bayesianspectacles.org/popular-misconceptions-about-bayesian-inference-preface/) | Bayes factor misinterpretations |
 | 4 | [Sosa et al., "The Bayesian Way" (arXiv, 2025)](https://arxiv.org/abs/2512.05883) | Formal Bayes factor definitions |
+| 5 | [Wikipedia: Credible Interval](https://en.wikipedia.org/wiki/Credible_interval) | HPD vs equal-tailed intervals |
 
 :::
 
-A posterior distribution contains everything you know about a parameter. But sometimes "everything" is too much information. You need to make a decision: should you buy these headphones? That requires turning the full posterior distribution into actionable answers. A collaborator asks: "Is there a 95% probability that the product's positive rating rate exceeds 70%?" A product manager asks: "Give me a range for the true rate." A friend asks: "Which of these two products is better, and how confident should we be?" These are not questions about the full shape of a distribution. They are questions about intervals, probabilities, and comparisons, and they are exactly the questions the product decision requires. This section gives you the tools to answer all three.
+A posterior distribution contains everything you know about a parameter. But sometimes "everything" is too much information. You need to make a decision: should you buy these headphones? That requires turning the full posterior into actionable answers. A collaborator asks: "Is there a 95% probability that the return rate is below 15%?" A product manager asks: "Give me a range for the true five-star proportion." A friend asks: "Which of these two products is better, and how confident should we be?" These are not questions about the full shape of a distribution. They are questions about intervals, probabilities, and comparisons. This section gives you the tools to answer all of them, using the return rate and star rating posteriors from the previous sections.
 
 ### Credible Intervals: The Interval You Actually Wanted
 
-Suppose the product has a computed posterior $\text{Beta}(18, 6)$ for the positive rating rate $\theta$. The posterior mean is $18/24 = 0.75$, but quoting a single number throws away the uncertainty encoded in the distribution. A *credible interval* preserves that uncertainty by specifying a range $[a, b]$ such that
+Suppose the headphones have a computed posterior $\text{Beta}(5, 29)$ for the return rate $\theta$. The posterior mean is $5/34 \approx 0.147$, but quoting a single number throws away the uncertainty encoded in the distribution. A *credible interval* preserves that uncertainty by specifying a range $[a, b]$ such that
 
 $$
 P(a \leq \theta \leq b \mid \text{data}) = 1 - \alpha.
@@ -23,50 +24,154 @@ $$ {#eq-credible-interval}
 
 For a 95% credible interval, $\alpha = 0.05$, and the interval captures 95% of the posterior probability mass. The interpretation is direct: given the data and the prior, there is a 95% probability that $\theta$ lies in $[a, b]$. You are making a probability statement about the parameter itself, not about a repeated procedure.
 
-The simplest construction is the *equal-tailed credible interval*, which places $\alpha/2$ of the posterior mass in each tail. For the Beta(18, 6) posterior, you compute the 2.5th and 97.5th percentiles of the Beta distribution. Using the Beta quantile function (the inverse CDF):
+The simplest construction is the *equal-tailed credible interval*, which places $\alpha/2$ of the posterior mass in each tail. For the Beta(5, 29) posterior, you compute the 2.5th and 97.5th percentiles of the Beta distribution. Using the Beta quantile function (the inverse CDF):
 
 $$
-a = F^{-1}_{\text{Beta}(18,6)}(0.025) \approx 0.548, \qquad b = F^{-1}_{\text{Beta}(18,6)}(0.975) \approx 0.889.
+a = F^{-1}_{\text{Beta}(5,29)}(0.025) \approx 0.052, \qquad b = F^{-1}_{\text{Beta}(5,29)}(0.975) \approx 0.292.
 $$
 
-The 95% equal-tailed credible interval for $\theta$ is $[0.548, \, 0.889]$. You can report: "Given our data and prior beliefs, there is a 95% probability that the product's true positive rating rate lies between 54.8% and 88.9%."
+The 95% equal-tailed credible interval for $\theta$ is $[0.052, \, 0.292]$. You can report: "Given our data and prior beliefs, there is a 95% probability that the headphones' true return rate lies between 5.2% and 29.2%."
 
-Now consider the sharper question: "Is there a 95% probability that the positive rating rate exceeds 70%?" You can answer this directly by computing the posterior tail probability:
+Now consider the sharper question: "Is there a 95% probability that the return rate is below 15%?" You can answer this directly by computing the posterior tail probability:
 
 $$
-P(\theta > 0.70 \mid \text{data}) = 1 - F_{\text{Beta}(18,6)}(0.70) \approx 0.73.
+P(\theta < 0.15 \mid \text{data}) = F_{\text{Beta}(5,29)}(0.15) \approx 0.54.
 $$
 
-The answer is no. There is only a 73% posterior probability that the positive rating rate exceeds 70%, not the 95% you want. This kind of direct probability statement about a parameter is something a frequentist confidence interval cannot provide.
-
-::: {.exercise-mcq correct="C"}
-
-You computed $P(\theta > 0.70 \mid \text{data}) = 0.73$. What does this number mean?
-
-- If you repeated the study many times, 73% of the resulting confidence intervals would contain 0.70.
-- There is a 73% chance that the data was generated by a process with a positive rating rate above 0.70, assuming the frequentist null hypothesis is true.
-- Given the observed data and prior, there is a 73% probability that the true positive rating rate exceeds 0.70.
-- The $p$-value for testing $H_0: \theta \leq 0.70$ is 0.27, so we fail to reject at the 5% level.
-
-::: {.feedback-correct}
-Correct. This is a direct posterior probability statement: conditioning on the observed data and the prior, 73% of the posterior mass for $\theta$ lies above 0.70. The parameter $\theta$ is treated as a random variable with a distribution, and you are reading off a tail probability from that distribution. This kind of statement is unique to Bayesian inference.
-:::
-
-::: {.feedback-incorrect}
-Option A describes the frequentist confidence interval interpretation (a statement about repeated procedures, not about the parameter). Option B conflates Bayesian posterior probability with a likelihood-based statement and incorrectly invokes a frequentist null hypothesis. Option D reframes the result as a $p$-value, which is a frequentist concept with a fundamentally different meaning: it conditions on the null hypothesis being true, whereas the posterior probability conditions on the data. The correct answer is C: this is a direct Bayesian probability statement about the parameter $\theta$.
-:::
-
-:::
+The answer is no. There is only a 54% posterior probability that the return rate is below 15%, far from the 95% certainty you want. But notice what you just did: you computed a direct probability statement about the parameter itself. A frequentist confidence interval cannot give you that.
 
 ::: {.callout-warning title="Common Misconception: Credible intervals and confidence intervals mean the same thing"}
 
-They often produce similar numerical results, especially with large samples and weak priors. But their interpretations are fundamentally different.
+They often produce similar numerical results, especially with large samples and weak priors. But their interpretations are fundamentally different. As [Statsig (2024)](https://www.statsig.com/perspectives/credible-vs-confidence-intervals) explains clearly: "A 95% confidence interval doesn't imply a 95% probability that the specific interval contains the true parameter value. This is a common misconception. In the frequentist perspective, the parameter is considered a fixed, unknown quantity; it's the intervals that would vary if we repeated the sampling process."
 
-A **95% confidence interval** is a statement about the *procedure*: "If I repeated this experiment many times and built an interval each time, 95% of those intervals would contain the true $\theta$." For any single interval, $\theta$ is either in it or not; the interval is random, the parameter is fixed. You cannot say "there is a 95% probability that $\theta$ is in this specific interval."
+A **95% confidence interval** is a statement about a *random interval*, not about the parameter and not about any specific realized interval. To understand why, you need to distinguish three objects that all go by the same name:
 
-A **95% credible interval** is a statement about the *parameter*: "Given my data and prior, there is a 95% probability that $\theta$ lies in this range." The parameter is treated as random (it has a distribution), and the interval is fixed once you compute it.
+1. The **CI procedure** $h_\alpha(\cdot)$: a function that takes a sample $X_1, \ldots, X_n$ and outputs an interval. This is neither random nor specific; it is a recipe.
+2. The **CI itself** $(\hat{\theta}_L, \hat{\theta}_H) = h_\alpha(X_1, \ldots, X_n)$: a pair of **random variables** (because they are computed from the random sample). The coverage property $P(\hat{\theta}_L \leq \theta \leq \hat{\theta}_H) \geq 0.95$ is a property of this random interval. The probability is over the joint distribution of the sample, not over $\theta$ (which is fixed).
+3. A **CI realization** $(0.052, 0.292)$: a pair of **specific numbers** obtained by plugging in a particular observed sample. This is what people usually call "the 95% confidence interval."
+
+The critical point: once you move from object 2 (random variables) to object 3 (specific numbers), the 95% coverage property no longer applies. Both $\theta$ and the interval endpoints are now fixed numbers, and the containment question $0.052 \leq \theta \leq 0.292$ is a deterministic fact, like "$3 \leq 5$." It has a truth value (true or false) but no probability. Assigning a probability to it is as meaningless as asking "what is the probability that 7 is between 3 and 10?"
+
+A **95% credible interval** is a statement about the *parameter*: "Given my data and prior, there is a 95% probability that $\theta$ lies in this range." This is a well-defined probability because the Bayesian framework treats $\theta$ as a random variable with a posterior distribution. The interval $[a, b]$ satisfies $P(a \leq \theta \leq b \mid \text{data}) = 0.95$, computed directly from the posterior CDF.
 
 Most people intuitively want the credible interval interpretation. When a news article says "the vaccine efficacy is between 88% and 96% with 95% confidence," nearly everyone reads that as "there is a 95% chance the true efficacy is in this range." That reading is wrong for a confidence interval, but exactly correct for a credible interval. The Bayesian framework gives you the statement people think they are getting from frequentist methods.
+
+:::
+
+The following side-by-side visualization makes the conceptual difference between these two interval types visceral. On the left, 25 simulated confidence intervals from repeated sampling: each interval is different (because the data changes), and roughly 95% of them capture the fixed parameter. On the right, a single Bayesian posterior with its credible interval: the parameter is the random quantity, and 95% of the posterior mass falls in the shaded region.
+
+```{python}
+#| output: false
+#| error: true
+#| warning: false
+import warnings
+warnings.filterwarnings("ignore")
+import numpy as np
+import pandas as pd
+import hvplot.pandas
+import holoviews as hv
+from scipy import stats
+hv.extension('bokeh')
+
+hv_opts = dict(
+    show_grid=True,
+    default_tools=['hover', 'save', 'pan', 'box_zoom', 'reset', 'wheel_zoom'],
+    active_tools=['pan'],
+)
+
+np.random.seed(42)
+true_theta = 0.15
+n_obs = 20
+n_sims = 25
+
+ci_rows = []
+for i in range(n_sims):
+    k = np.random.binomial(n_obs, true_theta)
+    p_hat = k / n_obs
+    se = np.sqrt(p_hat * (1 - p_hat) / n_obs) if p_hat > 0 and p_hat < 1 else 0.05
+    lo = max(0, p_hat - 1.96 * se)
+    hi = min(1, p_hat + 1.96 * se)
+    contains = lo <= true_theta <= hi
+    ci_rows.append({"Simulation": i + 1, "lower": lo, "upper": hi, "p_hat": p_hat,
+                     "Contains θ": "Yes" if contains else "No"})
+
+df_ci = pd.DataFrame(ci_rows)
+
+ci_segments = []
+ci_dots = []
+for _, row in df_ci.iterrows():
+    color = '#10B981' if row['Contains θ'] == 'Yes' else '#F43F5E'
+    seg = hv.Curve([(row['lower'], row['Simulation']), (row['upper'], row['Simulation'])]).opts(
+        color=color, line_width=2.5,
+    )
+    dot = hv.Points([(row['p_hat'], row['Simulation'])]).opts(
+        color=color, size=6,
+    )
+    ci_segments.append(seg)
+    ci_dots.append(dot)
+
+true_line = hv.VLine(true_theta).opts(color='#374151', line_dash='dashed', line_width=2)
+cover_count = df_ci['Contains θ'].value_counts().get('Yes', 0)
+
+ci_panel = hv.Overlay(ci_segments + ci_dots + [true_line]).opts(
+    width=380, height=450,
+    xlabel='θ (return rate)', ylabel='Simulation #',
+    title=f'Frequentist: {cover_count}/{n_sims} CIs contain θ',
+    show_grid=True,
+    xlim=(0, 0.5),
+)
+
+theta_ax = np.linspace(0.001, 0.50, 500)
+post_pdf = stats.beta.pdf(theta_ax, 5, 29)
+ci_lo = stats.beta.ppf(0.025, 5, 29)
+ci_hi = stats.beta.ppf(0.975, 5, 29)
+
+df_post = pd.DataFrame({'θ': theta_ax, 'Density': post_pdf})
+mask = (theta_ax >= ci_lo) & (theta_ax <= ci_hi)
+df_shaded = pd.DataFrame({'θ': theta_ax[mask], 'Density': post_pdf[mask]})
+
+post_curve = df_post.hvplot.line(
+    x='θ', y='Density', width=380, height=450, grid=True,
+    xlabel='θ (return rate)', ylabel='Posterior Density',
+    title='Bayesian: 95% of posterior mass in interval',
+    line_width=2.5, color='#10B981', label='Posterior: Beta(5, 29)',
+)
+shaded = df_shaded.hvplot.area(
+    x='θ', y='Density', alpha=0.3, color='#10B981', label='95% Credible Interval',
+)
+
+bayes_panel = (shaded * post_curve).opts(**hv_opts)
+
+ci_vs_credible_plot = (ci_panel + bayes_panel)
+```
+
+```{python}
+#| label: fig-ci-vs-credible
+#| fig-cap: "Left: 25 simulated 95% confidence intervals for the return rate θ = 0.15 (dashed line). Each interval is different because the data changes across simulations; green intervals contain θ, red ones do not. The '95%' refers to this long-run coverage rate. Right: a single Bayesian 95% credible interval on the Beta(5, 29) posterior. The '95%' refers to the shaded posterior mass. The two intervals answer fundamentally different questions."
+#| echo: false
+#| warning: false
+from bokeh.io import output_notebook, show
+import holoviews as hv
+output_notebook(hide_banner=True)
+show(hv.render(ci_vs_credible_plot, backend='bokeh'))
+```
+
+::: {.exercise-mcq correct="D"}
+
+A frequentist computes a 95% confidence interval of [0.052, 0.292] for a return rate. Your colleague says: "There is a 95% probability that the true return rate is between 0.052 and 0.292." Which of the following best explains why this statement is wrong?
+
+- It is wrong because the sample size is too small for the normal approximation to hold
+- It is wrong because the confidence level should be 99%, not 95%, for such a wide interval
+- It is wrong because the true return rate is definitely inside the interval, so the probability is 100%
+- It is wrong because [0.052, 0.292] is a pair of fixed numbers (a CI realization), and the true parameter is also fixed; the 95% coverage property applies to the random interval before data are observed, not to any specific realized interval
+
+::: {.feedback-correct}
+Correct. Once you plug in your specific sample and get the numbers 0.052 and 0.292, both the interval endpoints and the parameter are fixed quantities. The question "Is the fixed number theta between the fixed numbers 0.052 and 0.292?" has a definite yes-or-no answer, not a probability. The 95% guarantee applies to the CI procedure (the random interval): if you repeated the sampling process many times, 95% of the resulting random intervals would contain the true parameter. But this specific interval either contains it or does not. A Bayesian credible interval, by contrast, does allow the probability statement your colleague wants to make.
+:::
+
+::: {.feedback-incorrect}
+The issue is not about sample size (option A), confidence level choice (option B), or certainty of containment (option C, which is wrong because we do not know whether the specific interval contains the parameter). The fundamental issue is the distinction between three objects: the CI procedure (a recipe), the CI as a random interval (the one with the 95% property), and a CI realization (specific numbers). The probability statement applies to the random interval, not to any particular pair of numbers. This is the key conceptual difference between frequentist confidence intervals and Bayesian credible intervals.
+:::
 
 :::
 
@@ -80,11 +185,94 @@ $$
 C_{\text{HPD}} = \{  \theta : p(\theta \mid \text{data}) \geq c  \},
 $$
 
-where $c$ is chosen so that $P(\theta \in C_{\text{HPD}} \mid \text{data}) = 1 - \alpha$. Every point inside the HPD interval has higher posterior density than every point outside it. For symmetric posteriors (like the Normal), the HPD interval and the equal-tailed interval are identical. The difference appears with skewed distributions. The Beta(18, 6) posterior is moderately left-skewed (the mode at 0.773 sits above the mean at 0.75), so its HPD interval is slightly shorter than the equal-tailed interval and shifted toward higher values of $\theta$. The practical difference for this example is small. For heavily skewed posteriors (e.g., Beta(2, 10)), the HPD interval can be substantially narrower and more informative.
+where $c$ is chosen so that $P(\theta \in C_{\text{HPD}} \mid \text{data}) = 1 - \alpha$. Every point inside the HPD interval has higher posterior density than every point outside it. For symmetric posteriors (like the Normal), the HPD interval and the equal-tailed interval are identical. The difference appears with skewed distributions.
+
+The Beta(5, 29) posterior is right-skewed: the mode at $(5-1)/(5+29-2) = 0.125$ sits below the mean at 0.147. As a result, the HPD interval is slightly shorter than the equal-tailed interval and shifted toward lower values of $\theta$. For heavily skewed posteriors (e.g., Beta(2, 30)), the HPD interval can be substantially narrower and more informative.
+
+The following plot makes the difference between these two interval types visible. Both intervals capture 95% of the posterior mass, but the HPD interval is shorter because it includes only the highest-density region.
+
+```{python}
+#| output: false
+#| error: true
+#| warning: false
+import warnings
+warnings.filterwarnings("ignore")
+import numpy as np
+import pandas as pd
+import hvplot.pandas
+import holoviews as hv
+from scipy import stats
+from scipy.optimize import brentq
+hv.extension('bokeh')
+
+hvplot_opts = dict(width=750, height=450, grid=True)
+hv_opts = dict(
+    show_grid=True,
+    default_tools=['hover', 'save', 'pan', 'box_zoom', 'reset', 'wheel_zoom'],
+    active_tools=['pan'],
+)
+
+theta = np.linspace(0.001, 0.50, 1000)
+a_post, b_post = 5, 29
+posterior_pdf = stats.beta.pdf(theta, a_post, b_post)
+
+et_lower = stats.beta.ppf(0.025, a_post, b_post)
+et_upper = stats.beta.ppf(0.975, a_post, b_post)
+
+def hpd_interval(a, b, alpha=0.05):
+    from scipy.optimize import minimize_scalar
+    def interval_width(lower_tail):
+        lo = stats.beta.ppf(lower_tail, a, b)
+        hi = stats.beta.ppf(lower_tail + 1 - alpha, a, b)
+        return hi - lo
+    result = minimize_scalar(interval_width, bounds=(0, alpha), method='bounded')
+    lo = stats.beta.ppf(result.x, a, b)
+    hi = stats.beta.ppf(result.x + 1 - alpha, a, b)
+    return lo, hi
+
+hpd_lower, hpd_upper = hpd_interval(a_post, b_post)
+
+df_curve = pd.DataFrame({'θ': theta, 'Density': posterior_pdf})
+
+mask_et = (theta >= et_lower) & (theta <= et_upper)
+df_et = pd.DataFrame({'θ': theta[mask_et], 'Density': posterior_pdf[mask_et]})
+
+mask_hpd = (theta >= hpd_lower) & (theta <= hpd_upper)
+df_hpd = pd.DataFrame({'θ': theta[mask_hpd], 'Density': posterior_pdf[mask_hpd]})
+
+curve = df_curve.hvplot.line(
+    x='θ', y='Density', **hvplot_opts,
+    xlabel='θ (return rate)', ylabel='Posterior Density',
+    title='HPD vs. Equal-Tailed 95% Credible Intervals on Beta(5, 29)',
+    line_width=2.5, color='#374151', label='Posterior',
+)
+
+area_et = df_et.hvplot.area(
+    x='θ', y='Density', alpha=0.25, color='#6366F1',
+    label=f'Equal-tailed [{et_lower:.3f}, {et_upper:.3f}]',
+)
+area_hpd = df_hpd.hvplot.area(
+    x='θ', y='Density', alpha=0.25, color='#F59E0B',
+    label=f'HPD [{hpd_lower:.3f}, {hpd_upper:.3f}]',
+)
+
+hpd_et_plot = (area_et * area_hpd * curve).opts(**hv_opts)
+```
+
+```{python}
+#| label: fig-hpd-vs-equal-tailed
+#| fig-cap: "Two types of 95% credible intervals on the skewed Beta(5, 29) posterior. The equal-tailed interval (indigo) places 2.5% in each tail. The HPD interval (amber) is shorter because it captures the highest-density region, shifting leftward toward the mode. For symmetric posteriors, the two intervals coincide."
+#| echo: false
+#| warning: false
+from bokeh.io import output_notebook, show
+import holoviews as hv
+output_notebook(hide_banner=True)
+show(hv.render(hpd_et_plot, backend='bokeh'))
+```
 
 ### Visualizing the Credible Interval
 
-The plot below shows the Beta(18, 6) posterior with the 95% equal-tailed credible interval shaded. The vertical dashed lines mark the interval boundaries at 0.548 and 0.889.
+The plot below shows the Beta(5, 29) posterior with the 95% equal-tailed credible interval shaded. The vertical dashed lines mark the interval boundaries at approximately 0.052 and 0.292.
 
 ```{python}
 #| output: false
@@ -107,10 +295,10 @@ hv_opts = dict(
 )
 
 theta = np.linspace(0.001, 0.999, 500)
-posterior_pdf = stats.beta.pdf(theta, 18, 6)
+posterior_pdf = stats.beta.pdf(theta, 5, 29)
 
-lower = stats.beta.ppf(0.025, 18, 6)
-upper = stats.beta.ppf(0.975, 18, 6)
+lower = stats.beta.ppf(0.025, 5, 29)
+upper = stats.beta.ppf(0.975, 5, 29)
 
 df_full = pd.DataFrame({'θ': theta, 'Density': posterior_pdf})
 mask = (theta >= lower) & (theta <= upper)
@@ -119,12 +307,12 @@ df_shaded = pd.DataFrame({'θ': theta[mask], 'Density': posterior_pdf[mask]})
 posterior_curve = df_full.hvplot.line(
     x='θ', y='Density',
     **hvplot_opts,
-    xlabel='θ (positive rating rate)',
+    xlabel='θ (return rate)',
     ylabel='Posterior Density',
-    title='Beta(18, 6) Posterior with 95% Equal-Tailed Credible Interval',
+    title='Beta(5, 29) Posterior with 95% Equal-Tailed Credible Interval',
     line_width=2.5,
     color='#10B981',
-    label='Posterior: Beta(18, 6)',
+    label='Posterior: Beta(5, 29)',
 )
 
 shaded_area = df_shaded.hvplot.area(
@@ -155,7 +343,7 @@ credible_interval_plot = (
 
 ```{python}
 #| label: fig-credible-interval
-#| fig-cap: "The Beta(18, 6) posterior for the product's positive rating rate. The shaded region marks the 95% equal-tailed credible interval [0.548, 0.889]. There is a 95% posterior probability that the true positive rating rate lies in this range."
+#| fig-cap: "The Beta(5, 29) posterior for the headphones' return rate. The shaded region marks the 95% equal-tailed credible interval [0.052, 0.292]. There is a 95% posterior probability that the true return rate lies in this range."
 #| echo: false
 #| warning: false
 from bokeh.io import output_notebook, show
@@ -164,17 +352,17 @@ output_notebook(hide_banner=True)
 show(hv.render(credible_interval_plot, backend='bokeh'))
 ```
 
-::: {.exercise-order correct="B,A,C,D"}
+::: {.exercise-order correct="D,B,A,C"}
 
-Arrange the following steps in the correct order for computing a Bayesian credible interval:
+Arrange the following steps in the correct order for making a Bayesian purchasing decision about the headphones:
 
-- Choose the desired credibility level (e.g., 95%, so $\alpha = 0.05$)
-- Compute the posterior distribution from the prior and the likelihood
-- Find the $\alpha/2$ and $1 - \alpha/2$ quantiles of the posterior distribution
-- Report the interval $[a, b]$ with the interpretation: "There is a $1 - \alpha$ probability that $\theta$ lies in this range"
+- Compute the posterior risk of each action by multiplying the probability of being wrong by the cost of that error
+- Use Bayes' theorem to compute the posterior distribution from the prior and observed data
+- Choose the action (buy or skip) with the lower posterior risk
+- Specify the loss function: assign asymmetric costs to the two types of errors (buying a bad product vs. skipping a good one)
 
 ::: {.order-feedback}
-**Correct order: B, A, C, D.** You must first compute the posterior distribution (B), because the credible interval is defined as quantiles of the posterior. Only after you have the posterior can you choose the credibility level (A), which determines how much probability mass the interval captures. Then you find the corresponding quantiles (C), and finally report the interval with the correct Bayesian probability interpretation (D). Choosing $\alpha$ before computing the posterior is a common workflow shortcut, but logically the posterior must exist before you can extract quantiles from it.
+**Correct order: D, B, A, C.** First specify the loss function (D), because the costs determine how evidence maps to decisions. Then compute the posterior (B) from the prior and data, which gives you the probability of each hypothesis. Next compute the posterior risk (A) for each action by combining the posterior probabilities with the loss function. Finally, choose the action with the lower posterior risk (C). Specifying costs before seeing the data is important: it prevents you from unconsciously adjusting costs to justify a preferred decision after seeing the posterior.
 :::
 
 :::
@@ -195,7 +383,7 @@ $$
 P(\text{data} \mid H_i) = \int P(\text{data} \mid \theta, H_i) \, P(\theta \mid H_i) \, d\theta.
 $$
 
-The Bayes factor has a clean interpretation: $\text{BF}_{10} = 3$ means the observed data is 3 times more likely under $H_1$ than under $H_0$. In other words, the Bayes factor measures the *relative evidence* the data provides for one hypothesis over another. Unlike a $p$-value, it can provide evidence *for* the null hypothesis (when $\text{BF}_{10} < 1$, the data favors $H_0$), and it does not depend on the sample space or the experimenter's stopping intentions (i.e., whether the experimenter decided in advance to collect exactly 20 ratings, or stopped when a certain result was reached).
+The Bayes factor has a direct interpretation: $\text{BF}_{10} = 3$ means the observed data is 3 times more likely under $H_1$ than under $H_0$. The Bayes factor measures the *relative evidence* the data provides for one hypothesis over another. Unlike a $p$-value, the Bayes factor can provide evidence *for* the null hypothesis (when $\text{BF}_{10} < 1$, the data favors $H_0$). The Bayes factor also does not depend on the sample space or the experimenter's stopping rule.
 
 The connection to posterior beliefs follows from Bayes' theorem applied to hypotheses:
 
@@ -215,48 +403,48 @@ The posterior odds equal the prior odds multiplied by the Bayes factor. The Baye
 | 20 to 150 | Strong |
 | > 150 | Very strong |
 
-**A product comparison.** Suppose you are comparing these headphones against the category average. Under $H_0$, the positive rating rate is $\theta = 0.70$ (the category baseline). Under $H_1$, the positive rating rate follows a Beta(18, 6) posterior (this product's ratings). If the computed Bayes factor comes out to $\text{BF}_{10} = 8.5$, you can say: "The data is 8.5 times more likely under this product's model than under the assumption that the positive rating rate is exactly 70%." By the Kass-Raftery scale, that counts as positive evidence favoring the product.
+**A product comparison.** Suppose you are comparing these headphones against the category average. Under $H_0$, the return rate is $\theta = 0.15$ (the category baseline). Under $H_1$, the return rate follows the Beta(5, 29) posterior (this product's data). If the computed Bayes factor comes out to $\text{BF}_{10} = 8.5$, you can say: "The data is 8.5 times more likely under this product's model than under the assumption that the return rate is exactly 15%." By the Kass-Raftery scale, that counts as positive evidence favoring the product.
 
 ::: {.callout-warning title="Common Misconception: A large Bayes factor proves the hypothesis"}
 
-A Bayes factor of 100 means the data is 100 times more likely under $H_1$ than under $H_0$. That sounds overwhelming, but it does not mean $H_1$ is true or even probable. Remember the posterior odds equation: posterior odds = prior odds $\times$ BF. If $H_1$ was extraordinarily unlikely a priori (say, prior odds of 1:10,000), then even $\text{BF}_{10} = 100$ gives posterior odds of only 100:10,000 = 1:100. The hypothesis remains improbable.
+A Bayes factor of 100 means the data is 100 times more likely under $H_1$ than under $H_0$. That sounds overwhelming, but it does not mean $H_1$ is true or even probable. As [Wagenmakers and Etz (Bayesian Spectacles, 2017)](https://www.bayesianspectacles.org/popular-misconceptions-about-bayesian-inference-preface/) demonstrate with a concrete example: a BF of 1.15 does NOT mean "$H_1$ is 15% more likely than $H_0$." If $H_0$ and $H_1$ are equally likely a priori (prior odds 1:1), a BF of 1.15 updates the posterior to only $1.15/2.15 \approx 0.53$, barely above 50%. The Bayes factor measures *relative evidence from the data*, not absolute truth.
 
-The Bayes factor measures *relative evidence from the data*, not absolute truth. A large Bayes factor means the data strongly discriminates between the two hypotheses. Whether that discrimination translates into high posterior probability for $H_1$ depends entirely on how plausible $H_1$ was before you saw the data. For this reason, reporting Bayes factors alongside prior assumptions is good practice: it lets the reader apply their own prior odds.
+Remember the posterior odds equation: posterior odds = prior odds $\times$ BF. If $H_1$ was extraordinarily unlikely a priori (say, prior odds of 1:10,000), then even $\text{BF}_{10} = 100$ gives posterior odds of only 100:10,000 = 1:100. The hypothesis remains improbable. Reporting Bayes factors alongside prior assumptions is good practice: it lets the reader apply their own prior odds.
 
 :::
 
-::: {.exercise-mcq correct="B"}
+::: {.exercise-mcq correct="A"}
 
-Suppose a researcher computes a Bayes factor of BF10 = 50 in favor of hypothesis H1. The prior odds for H1 are 1:1000 (i.e., before the data, H1 was considered 1000 times less likely than H0). What are the posterior odds for H1 versus H0?
+A researcher computes a Bayes factor of BF10 = 0.3 when comparing a new treatment (H1) against the standard treatment (H0). What does this result tell you?
 
-- 50:1 in favor of H1, because the Bayes factor overwhelms any prior.
-- 1:20 against H1, because posterior odds equal prior odds times the Bayes factor: (1/1000) times 50 = 1/20.
-- 50:1000 in favor of H0, but this should be interpreted as "positive evidence" for H1 on the Kass-Raftery scale.
-- The posterior odds cannot be computed without knowing the sample size.
+- The observed data is about 3.3 times more likely under H0 than under H1, providing moderate evidence favoring the standard treatment
+- The new treatment has a 30% probability of being effective
+- The result is inconclusive because the Bayes factor is less than 1, and only Bayes factors greater than 1 provide useful information
+- The p-value for H1 is 0.30, so you fail to reject the null at the 5% level
 
 ::: {.feedback-correct}
-Correct. The posterior odds equal the prior odds multiplied by the Bayes factor: $(1/1000) \times 50 = 50/1000 = 1/20$. Despite strong evidence from the data (BF10 = 50 is "very strong" on the Kass-Raftery scale), the hypothesis remains 20 times less probable than the alternative because it started from such a low prior probability. This illustrates why a large Bayes factor does not by itself prove a hypothesis.
+Correct. A Bayes factor BF10 = 0.3 means the data is 0.3 times as likely under H1 as under H0. Equivalently, BF01 = 1/0.3 = 3.3, so the data is 3.3 times more likely under H0. This is one of the strengths of Bayes factors over p-values: they can quantify evidence *for* the null hypothesis, not just against it. On the Kass-Raftery scale, a BF of 3.3 in favor of H0 counts as "positive" evidence for the standard treatment.
 :::
 
 ::: {.feedback-incorrect}
-The key equation is: posterior odds = prior odds $\times$ BF. With prior odds of 1:1000 and BF10 = 50, the posterior odds are $(1/1000) \times 50 = 1/20$. Option A ignores the prior entirely. Option C states the arithmetic correctly (50:1000) but mislabels it as "in favor of H0" and confuses the Kass-Raftery scale (which applies to the Bayes factor alone, not to the posterior odds). Option D is wrong because the posterior odds formula requires only the prior odds and the Bayes factor, not the sample size. The correct answer is B.
+Option B confuses a Bayes factor with a posterior probability. The BF measures the relative likelihood of the data under two models, not the probability that a hypothesis is true. Option C is wrong because Bayes factors less than 1 are informative: they provide evidence for H0, which is something a p-value cannot do. Option D confuses Bayes factors with p-values, which have a fundamentally different definition and interpretation. The correct answer recognizes that BF10 = 0.3 means BF01 = 3.3, providing evidence favoring H0.
 :::
 
 :::
 
 ### Beyond Bayes Factors: Decision-Theoretic Hypothesis Testing
 
-The Bayes factor measures relative evidence, but it does not tell you *what to do*. Evidence is not the same as a decision: knowing that the data favors $H_1$ by a factor of 8.5 does not tell you whether to buy these headphones, because the costs of different errors may be wildly asymmetric. Buying a bad product (wasted money, hassle of returns) is worse than missing a good one (mild regret, buy something else). The Bayesian framework handles this naturally through *posterior risk minimization*, as described in [Probabilitycourse.com Ch9.1.8](https://www.probabilitycourse.com/chapter9/9_1_8_bayesian_hypothesis_testing.php).
+The Bayes factor measures relative evidence, but it does not tell you *what to do*. The data may favor $H_1$ by a factor of 8.5, but that number alone does not tell you whether to buy these headphones. The costs of different errors may be wildly asymmetric: buying a bad product (wasted money, hassle of returns) hurts more than missing a good one (mild regret, buy something else). The Bayesian framework handles this naturally through *posterior risk minimization*, as described in [Probabilitycourse.com Ch9.1.8](https://www.probabilitycourse.com/chapter9/9_1_8_bayesian_hypothesis_testing.php).
 
-The posterior risk framework makes costs explicit. Assign a cost $C_{01}$ to accepting $H_0$ when $H_1$ is true (a miss), and a cost $C_{10}$ to accepting $H_1$ when $H_0$ is true (a false alarm). The *posterior risk* of accepting $H_0$ is $P(H_1 \mid \text{data}) \cdot C_{01}$, and the posterior risk of accepting $H_1$ is $P(H_0 \mid \text{data}) \cdot C_{10}$. The optimal decision rule is: accept the hypothesis with the lower posterior risk.
+The posterior risk framework makes costs explicit. Assign a cost $C_{01}$ to accepting $H_0$ when $H_1$ is true (a miss), and a cost $C_{10}$ to accepting $H_1$ when $H_0$ is true (a false alarm). The *posterior risk* of accepting $H_0$ is $P(H_1 \mid \text{data}) \cdot C_{01}$; the posterior risk of accepting $H_1$ is $P(H_0 \mid \text{data}) \cdot C_{10}$. The optimal decision rule: accept whichever hypothesis has lower posterior risk.
 
-For our headphones, suppose the cost of buying a mediocre product (the positive rating rate is actually below 70%) is 10 times the cost of skipping a good product. That is, $C_{01} = 10 \, C_{10}$: missing a genuinely good product costs you one unit of regret, but buying a bad one costs you ten.
+For our headphones, suppose the cost of buying a mediocre product (the return rate is actually above 15%) is 10 times the cost of skipping a good product. That is, $C_{01} = 10 \, C_{10}$: missing a genuinely good product costs you one unit of regret, but buying a bad one costs you ten.
 
 Given $P(\theta > 0.70 \mid \text{data}) = 0.73$, the posterior risk of buying (accepting "rate > 70%") is $0.27 \times C_{01} = 0.27 \times 10 \, C_{10} = 2.7 \, C_{10}$. The posterior risk of not buying is $0.73 \times C_{10}$. Since $2.7 \, C_{10} > 0.73 \, C_{10}$, the minimum-cost decision is to *not* buy yet and wait for more ratings. The asymmetric costs flip the decision compared to what the raw posterior probability alone would suggest.
 
 ### The Posterior Predictive Distribution
 
-All our questions so far have been about the parameter $\theta$ itself. But the ultimate concern is practical: "If we look at the next 100 ratings, how many will be positive?" This is a question about future observations, not parameters. The *posterior predictive distribution* answers it.
+All our questions so far have been about the parameter $\theta$. But the real concern is practical: "If 100 more people buy these headphones, how many will return them?" This question is about future observations, not parameters. The *posterior predictive distribution* answers it.
 
 The posterior predictive distribution for a new observation $\tilde{x}$ is obtained by averaging the likelihood over the posterior:
 
@@ -264,30 +452,102 @@ $$
 p(\tilde{x} \mid \text{data}) = \int p(\tilde{x} \mid \theta) \, p(\theta \mid \text{data}) \, d\theta.
 $$ {#eq-posterior-predictive}
 
-The integral in @eq-posterior-predictive marginalizes out the parameter $\theta$. Instead of conditioning on a single point estimate (which ignores uncertainty), the posterior predictive weights each possible value of $\theta$ by how plausible that value is given the data. The result is a distribution over future observations that fully accounts for parameter uncertainty.
+The integral in @eq-posterior-predictive marginalizes out $\theta$. Instead of conditioning on a single point estimate (which ignores uncertainty), the posterior predictive weights each possible $\theta$ value by how plausible it is given the data. The result is a distribution over future observations that fully accounts for parameter uncertainty.
 
-For our product, the likelihood for the number of positive ratings $\tilde{k}$ in $n = 100$ new ratings is Binomial$(100, \theta)$. The posterior is Beta$(18, 6)$. Combining these gives a *Beta-Binomial* predictive distribution:
+For our headphones, the likelihood for the number of returns $\tilde{k}$ in $n = 100$ new buyers is Binomial$(100, \theta)$. The posterior is Beta$(5, 29)$. Combining these gives a *Beta-Binomial* predictive distribution:
 
 $$
-P(\tilde{k} \mid \text{data}) = \binom{100}{\tilde{k}} \frac{B(\tilde{k} + 18, \, 100 - \tilde{k} + 6)}{B(18, 6)},
+P(\tilde{k} \mid \text{data}) = \binom{100}{\tilde{k}} \frac{B(\tilde{k} + 5, \, 100 - \tilde{k} + 29)}{B(5, 29)},
 $$
 
-where $B(\cdot, \cdot)$ is the Beta function. This distribution has mean $100 \times 18/24 = 75$ and a standard deviation of approximately 10.0. Compare that with the plug-in approach: the Binomial$(100, 0.75)$ has standard deviation $\sqrt{100 \times 0.75 \times 0.25} \approx 4.33$. The Beta-Binomial is more spread out because it incorporates uncertainty about $\theta$ itself, not just the randomness in individual rating outcomes.
+where $B(\cdot, \cdot)$ is the Beta function. The Beta-Binomial predictive has mean $100 \times 5/34 \approx 14.7$ and a standard deviation of approximately 6.3. Compare this spread with the plug-in approach: the Binomial$(100, 0.147)$ has standard deviation $\sqrt{100 \times 0.147 \times 0.853} \approx 3.54$. The Beta-Binomial is more spread out because it incorporates uncertainty about $\theta$ itself, not just the randomness in individual return outcomes.
 
-The practical implication is important. If you used the point estimate $\theta = 0.75$ and ignored parameter uncertainty, you would predict roughly 75 positive ratings with a tight spread, placing outcomes between about 66 and 84. The posterior predictive tells a different story: because $\theta$ might be as low as 0.55 or as high as 0.89, outcomes could plausibly range from about 55 to 95. The posterior predictive gives you an honest forecast that reflects everything you do not know.
+The difference matters in practice. If you used the point estimate $\theta = 0.147$ and ignored parameter uncertainty, you would predict roughly 15 returns with a tight spread. The posterior predictive tells a different story: because $\theta$ might be as low as 0.05 or as high as 0.29, outcomes could plausibly range from about 5 to 25. The posterior predictive gives you an honest forecast that reflects everything you do not know.
 
-The posterior predictive has a companion: the *prior predictive distribution*, $p(\boldsymbol{y}) = \int p(\boldsymbol{y} \mid \theta) \, p(\theta) \, d\theta$, which is the distribution of data you would expect *before* seeing any observations, based on the prior alone. As [Sosa et al. (arXiv, 2025)](https://arxiv.org/abs/2512.05883) note, the prior predictive is the denominator in Bayes' theorem. The prior predictive also plays a central role in model checking: if simulated data from the prior predictive looks nothing like your actual observations, then your prior or your model is misspecified. We will return to this idea when discussing the Bayesian workflow in @sec-computational-methods.
+The following plot makes the contrast stark. The plug-in Binomial is narrow and overconfident. The Beta-Binomial posterior predictive has heavier tails that reflect real parameter uncertainty.
+
+```{python}
+#| output: false
+#| error: true
+#| warning: false
+import warnings
+warnings.filterwarnings("ignore")
+import numpy as np
+import pandas as pd
+import hvplot.pandas
+import holoviews as hv
+from scipy import stats
+from scipy.special import betaln, comb
+hv.extension('bokeh')
+
+hvplot_opts = dict(width=750, height=450, grid=True)
+hv_opts = dict(
+    show_grid=True,
+    default_tools=['hover', 'save', 'pan', 'box_zoom', 'reset', 'wheel_zoom'],
+    active_tools=['pan'],
+)
+
+n_future = 100
+a_post, b_post = 5, 29
+theta_hat = a_post / (a_post + b_post)
+
+k_vals = np.arange(0, 45)
+
+plugin_pmf = stats.binom.pmf(k_vals, n_future, theta_hat)
+
+def beta_binomial_pmf(k, n, a, b):
+    log_pmf = (
+        np.log(comb(n, k, exact=False))
+        + betaln(k + a, n - k + b)
+        - betaln(a, b)
+    )
+    return np.exp(log_pmf)
+
+postpred_pmf = np.array([beta_binomial_pmf(k, n_future, a_post, b_post) for k in k_vals])
+
+df_pred = pd.DataFrame({
+    'Returns out of 100': np.tile(k_vals, 2),
+    'Probability': np.concatenate([plugin_pmf, postpred_pmf]),
+    'Method': (
+        [f'Plug-in Binomial (σ ≈ 3.5)'] * len(k_vals)
+        + [f'Posterior predictive Beta-Binomial (σ ≈ 6.3)'] * len(k_vals)
+    ),
+})
+
+pred_plot = df_pred.hvplot.step(
+    x='Returns out of 100', y='Probability', by='Method',
+    **hvplot_opts,
+    xlabel='Number of returns out of 100 future buyers',
+    ylabel='Probability',
+    title='Posterior Predictive vs. Plug-in Prediction',
+    line_width=2.5,
+    color=['#6366F1', '#10B981'],
+).opts(**hv_opts)
+```
+
+```{python}
+#| label: fig-posterior-predictive-vs-plugin
+#| fig-cap: "Predicted number of returns out of 100 future buyers. The plug-in Binomial(100, 0.147) is narrow (σ ≈ 3.5) because it treats the return rate as known. The Beta-Binomial posterior predictive is wider (σ ≈ 6.3) because it accounts for uncertainty about the return rate itself. Ignoring parameter uncertainty makes forecasts dangerously overconfident."
+#| echo: false
+#| warning: false
+from bokeh.io import output_notebook, show
+import holoviews as hv
+output_notebook(hide_banner=True)
+show(hv.render(pred_plot, backend='bokeh'))
+```
+
+The posterior predictive has a companion: the *prior predictive distribution*, $p(\boldsymbol{y}) = \int p(\boldsymbol{y} \mid \theta) \, p(\theta) \, d\theta$. The prior predictive is the distribution of data you would expect *before* seeing any observations, based on the prior alone. As [Sosa et al. (arXiv, 2025)](https://arxiv.org/abs/2512.05883) note, the prior predictive is the denominator in Bayes' theorem. The prior predictive also plays a central role in model checking: if simulated data from the prior predictive looks nothing like your actual observations, then your prior or your model is misspecified. We will return to this idea when discussing the Bayesian workflow in @sec-computational-methods.
 
 ::: {.exercise-predict correct="A"}
 
-You want to predict how many of the next 100 ratings will be positive. You could either (a) use the full posterior Beta(18, 6) to compute a posterior predictive distribution, or (b) plug in the point estimate of 0.75 and use a Binomial(100, 0.75) distribution. Which approach produces a wider prediction interval?
+The headphones have a Beta(5, 29) posterior for the return rate. You want to predict how many of the next 100 buyers will return the product. You could either (a) use the full posterior predictive (Beta-Binomial) distribution, or (b) plug in the posterior mean of 0.147 and use a Binomial(100, 0.147). Before computing, predict: which approach gives a wider prediction interval?
 
-- The full posterior predictive (Beta-Binomial) produces a wider interval.
-- The plug-in Binomial estimate produces a wider interval.
-- Both produce the same width, because the point estimate equals the posterior mean.
+- The posterior predictive (Beta-Binomial) gives a wider interval, because it accounts for uncertainty about the return rate itself on top of the randomness in individual outcomes
+- The plug-in Binomial gives a wider interval, because plugging in a single value removes the averaging effect that narrows the Beta-Binomial
+- Both give the same width, because the posterior mean is the same either way and the width depends only on n
 
 ::: {.predict-reveal}
-**The answer is A.** The posterior predictive distribution (Beta-Binomial) is wider because it accounts for two sources of uncertainty: the randomness in individual rating outcomes *and* the uncertainty about the true value of $\theta$. The plug-in Binomial only accounts for the first source. Concretely, the Binomial(100, 0.75) has a standard deviation of about 4.33, while the Beta-Binomial has a standard deviation of about 10.0. Ignoring parameter uncertainty makes predictions overconfident: you would expect outcomes tightly clustered around 75, when in reality the spread is much larger.
+**The answer is A.** The posterior predictive (Beta-Binomial) has a standard deviation of about 6.3, while the plug-in Binomial has a standard deviation of about 3.5. The plug-in approach treats the return rate as known at 0.147, so the only variation comes from the coin-flip randomness of individual return decisions. The posterior predictive additionally accounts for the fact that the true return rate might be 0.05 or 0.29 (the Beta(5, 29) posterior is wide). This parameter uncertainty inflates the prediction spread. Ignoring parameter uncertainty makes your forecasts overconfident, which is particularly dangerous with small samples like our 20 buyers.
 :::
 
 :::
@@ -296,14 +556,14 @@ You want to predict how many of the next 100 ratings will be positive. You could
 
 The tools in this section work together. Consider the question: "Should we buy these headphones?" Four Bayesian answers address different aspects of the decision.
 
-1. **Credible interval.** The 95% credible interval for the positive rating rate is $[0.548, 0.889]$. The parameter is probably in this range, but the interval is wide, reflecting substantial uncertainty from only 20 observations.
+1. **Credible interval (return rate).** The 95% credible interval for the return rate is $[0.052, 0.292]$. The true return rate probably lies in this range, but the interval is wide, reflecting substantial uncertainty from only 20 buyers.
 
-2. **Direct probability.** The posterior probability $P(\theta > 0.70 \mid \text{data}) \approx 0.73$. There is a reasonable but not overwhelming chance that the positive rating rate exceeds the 70% threshold.
+2. **Direct probability.** The posterior probability $P(\theta < 0.15 \mid \text{data}) \approx 0.54$. It is roughly a coin flip whether the return rate is below your 15% comfort threshold.
 
-3. **Bayes factor.** Comparing $H_1$: "the product's rate is better than 70%" against $H_0$: "the rate is exactly 70%" yields positive evidence for $H_1$, but not strong evidence.
+3. **Star rating distribution.** The Dirichlet(3, 2, 3, 6, 11) posterior from @sec-bayesian-updating gives a posterior mean five-star proportion of 11/25 = 0.44. The posterior probability that the five-star proportion exceeds 40% is $P(p_5 > 0.40 \mid \text{data})$, which you can estimate by simulation from the Dirichlet posterior.
 
-4. **Posterior predictive.** In the next 100 ratings, the expected number of positive ratings is 75, but with a wide spread (standard deviation around 10). You should plan for variability.
+4. **Posterior predictive.** If the next 100 buyers leave ratings, the Beta-Binomial predictive distribution (integrating over the Beta(5, 29) posterior for the return rate) tells you to expect roughly 15 returns with a wide spread. The Dirichlet posterior predicts the next buyer gives five stars with probability 11/25 = 0.44.
 
-None of these answers alone is sufficient. Together, they give you a complete picture: the product is probably good, but the evidence is not yet conclusive, and the practical outcomes will be variable. The recommendation is clear: wait for more ratings before making a purchase decision. As the sample size grows, the credible interval will narrow, the posterior probability will move decisively toward 0 or 1, and the Bayes factor will accumulate stronger evidence in one direction.
+No single answer is sufficient. Together, they give you a complete picture: the return rate is uncertain (could be as low as 5% or as high as 29%), the star ratings skew positive (44% five-star estimate), and practical outcomes will be variable. The recommendation: wait for more data before committing. As the sample size grows, credible intervals will narrow, posterior probabilities will move decisively, and evidence will accumulate in one direction.
 
 Every posterior we have computed so far had a closed-form expression. The Beta-Binomial, Normal-Normal, and other conjugate models are mathematically convenient, but most real-world problems are not this tidy. When the prior and likelihood do not form a conjugate pair, the integral in Bayes' theorem has no analytical solution. The next section introduces the computational methods that make Bayesian inference possible for these harder problems.

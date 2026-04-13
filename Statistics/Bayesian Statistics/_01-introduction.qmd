@@ -9,34 +9,89 @@
 | 3 | [Gelman et al., *Bayesian Data Analysis* 3e (2013)](https://sites.stat.columbia.edu/gelman/book/) | Definitive textbook on Bayesian methods |
 | 4 | [Gregory Gundersen, "Conjugacy in Bayesian Inference" (2019)](https://gregorygundersen.com/blog/2019/03/16/conjugacy/) | Beta-Binomial conjugacy, sequential updating |
 | 5 | [Sosa et al., "The Bayesian Way" (arXiv, 2025)](https://arxiv.org/abs/2512.05883) | Axiomatic foundations, coherency argument |
+| 6 | [Evan Miller, "Ranking Items With Star Ratings" (2014)](https://www.evanmiller.org/ranking-items-with-star-ratings.html) | Dirichlet prior for star rating distributions |
+| 7 | [Stephen Tu, "Dirichlet-Multinomial and Dirichlet-Categorical" (2014)](https://stephentu.github.io/writeups/dirichlet-conjugate-prior.pdf) | Formal Dirichlet conjugacy derivations |
+| 8 | [Johnson, Ott, Dogucu, *Bayes Rules!* Ch5 (2022)](https://www.bayesrulesbook.com/chapter-5) | Gamma-Poisson and Normal-Normal conjugate families |
 
 :::
 
 ### Should You Buy These Headphones?
 
-You are on Amazon, looking at a pair of wireless headphones. They cost $79, the photos look good, and the description checks all your boxes. Then you scroll down to the reviews. The product has 20 ratings: 15 are 4 or 5 stars (positive), and 5 are 1 to 3 stars (negative). The product page shows a 4.1-star average. **Should you buy these headphones, or keep looking?**
+You are on Amazon at 11pm, staring at a pair of wireless headphones. They cost $79. The photos look sleek, the feature list is perfect, and tomorrow is the last day of the sale. You scroll down to the reviews. Twenty ratings. A 4.1-star average.
 
-That decision depends on one thing you cannot observe directly: the product's *true* positive rating rate. Not the 75% you see from 20 ratings (a small, noisy sample), but the rate you would see if thousands of people rated these headphones. If the true rate is above 70%, you are comfortable buying. If it is below 70%, too many people are having bad experiences, and you would rather keep searching. So **the core question is: what is the probability that this product's true positive rating rate is above 70%?**
+Your finger hovers over "Add to Cart." But something nags at you. Twenty ratings is not a lot. You are not a casual buyer; you are a headphone person. The shelf behind your desk holds eight pairs: the Sonys for commuting, the Bose for flights, the cheap gym pair you do not care about sweating on. You have been through this ritual dozens of times, for headphones, for running shoes, for phone cases, for every product category where online reviews are the only signal. Some purchases were great. Some had batteries that died after a year. One pair had such bad Bluetooth connectivity that you returned them within a week. You glance at the breakdown: two one-star reviews, one two-star, two three-star, five four-star, ten five-star. The five-star count looks encouraging, but those two one-stars worry you. Defective unit? Bad fit? Or just picky reviewers?
 
-Your friend, looking over your shoulder, says: "75% positive. That's the number. Just buy them."
+![A headphone connoisseur stares at an Amazon listing with conflicting reviews while a confident friend points at the screen. The shelf behind holds a collection of headphones from years of online shopping.](Bayesian Statistics/images/headphones-decision.png){#fig-headphones-hook}
 
-But you have been buying electronics on Amazon for years. You have seen dozens of products in this price range. From that experience, you know that wireless headphones in the $50-$100 range typically have positive rating rates between 70% and 90%, with most landing around 80%. You also know that 20 ratings is not many. You have seen products start at 60% with their first batch of reviews and climb to 85% as more ratings come in, and others that start at 95% and settle back to 80%. Twenty ratings is a snapshot, not a verdict.
+Your friend Ronald, watching over your shoulder, is not worried. (Ronald is a stats major. He trusts the numbers.) "4.1 stars," he says, scanning the screen. "Three out of twenty people returned them. That is a 15% return rate. Totally normal. Just buy them."
 
-So you have two pieces of information: the 20 ratings in front of you (data), and your experience buying dozens of similar products (prior knowledge). Your friend wants to use only the first. You want to use both. Who is right? And more concretely: **can you get a number, an actual probability, that this product's true positive rate is above 70%?**
+You push back. "But 20 ratings is a tiny sample. I have seen products start at 4.5 stars and drop to 3.2 once more people buy them. And I have been shopping this category for years. Most headphones in this price range have return rates between 5% and 20%. Should that information not count for something?"
 
-The frequentist approach, the one your friend is implicitly using, cannot answer this question. A frequentist computes 15/20 = 75% and constructs a confidence interval. But that confidence interval is a statement about a *procedure* ("if I repeated this on many products, 95% of my intervals would contain the true rate"), not a statement about *these particular headphones*. The frequentist framework treats the product's true rate as a fixed constant, so the sentence "there is an 82% probability the rate is above 70%" is literally meaningless in that framework. The probability is either 0 or 1; you just don't know which.
+"That is just your gut feeling," Ronald says. "I am using the data."
 
-The Bayesian approach does something different. You encode your years of Amazon shopping experience as a probability distribution: most wireless headphones in this price range have positive rates between 70% and 90%. You then update that distribution with the 20 ratings using Bayes' rule. The result is a *posterior distribution*, a new curve that combines both sources of information. From that posterior, you can read off: there is an 82% probability this product's true rate exceeds 70%. That is a direct answer to the question your friend could not answer.
+So you try Ronald's approach. You compute a 95% confidence interval for the return rate. The interval comes out to roughly (0.03, 0.27). You stare at it. A range from 3% to 27%. The range is not very helpful. But more importantly, the confidence interval does not answer the question you actually care about: **what is the probability that the population return rate is below 15%?**
 
-"But your starting point was a guess," your friend objects. True, but it was an informed guess, based on dozens of previous purchases. And here is the critical property: if you had 2,000 ratings instead of 20, the starting point would barely matter. The data would overwhelm it. The prior only matters when data is scarce, which is exactly when you need it most.
+By "population return rate," you mean this: if not 20 but *thousands* of people bought these headphones, what fraction would return them? The 20 buyers you see are a sample from that larger population. The sample return rate is $3/20 = 15\%$, but the population return rate (call it $\theta$) could be higher or lower. You want to know the probability that $\theta$, the population quantity, is below 0.15.
 
-This chapter is about answering the headphones question. You will learn a framework that takes the 20 ratings *and* your prior experience, combines them using a precise mathematical rule, and produces a single number: the probability that this product's true rate exceeds 70%. Along the way, you will see precisely what the Bayesian framework gains (and gives up) compared to the frequentist framework you already know. Throughout, we will return to this Amazon shopping scenario, progressively building up the tools needed to make that purchase decision.
+You want a number. A probability. Something like "there is an 82% chance the return rate is below 15%, so you are probably safe." But when you try to compute that probability using your frequentist toolkit, you hit a wall.
+
+The return rate $\theta$ is a fixed constant in the frequentist framework. It is not a random variable. The statement "$\theta < 0.15$" is a deterministic fact about a fixed number, like "3 < 5." Probability is defined as a measure on events generated by random variables; when $\theta$ is a constant, the set $\{\theta < 0.15\}$ is not an event in any probability space. Writing "$P(\theta < 0.15)$" is a *category error*: you are applying the machinery of probability to something that is not a random event.
+
+The confidence interval told you which values of $\theta$ are "consistent with the data," but it cannot tell you the probability that $\theta$ falls in any particular range. The probability question is not just unanswered; in the frequentist framework, **it is unanswerable**.
+
+Ronald's approach used the data. But it ignored everything you know from years of shopping. And it cannot answer the question you care about. There must be a better way.
+
+There is. What if you could treat $\theta$ not as a fixed number you will never know, but as a *random variable* with a probability distribution that encodes your uncertainty? What if your years of Amazon shopping experience could be expressed as a mathematical distribution over plausible return rates, and the 20 ratings could then *update* that distribution? If $\theta$ were a random variable, then $\{\theta < 0.15\}$ would be a well-defined event in a probability space. The quantity $P(\theta < 0.15 \mid \text{data})$ would be a concrete integral: the area under the updated distribution from 0 to 0.15. You could compute the exact number you wanted.
+
+This is what Bayesian statistics does. It takes the same data Ronald used, combines it with your prior knowledge about headphones in this price range, and produces a *posterior distribution* over $\theta$. From that posterior, you can read off any probability you want: $P(\theta < 0.15 \mid \text{data})$, the 95% most plausible range for $\theta$, or even the probability that the next buyer will return the product. The answer to the headphones question is not "15% return rate, plus or minus a confidence interval." The answer is a full probability distribution over what the population return rate could be, given both the data and your prior knowledge.
+
+But the return rate is only one piece of the puzzle. "Should you buy these headphones?" is actually five different questions, each involving a different kind of data:
+
+1. **Will you have to return them?** Three of the 20 buyers returned them. Is the population return rate (the rate you would see if thousands bought them) above 15%? (The data here is binary: each buyer either returned the product or did not.)
+2. **What does the star rating distribution really look like?** The 20 ratings break down as: 2 one-star, 1 two-star, 2 three-star, 5 four-star, 10 five-star. If thousands of people rated these headphones, what fraction would give each star level? The sample says 50% give five stars, but the population fraction could be higher or lower. A 4.1 average sounds decent, but is there a hidden cluster of one-star ratings that the average masks? (The data here is ordinal: each rating is an integer from 1 to 5.)
+3. **If returns happen, why?** Of the 3 returns, the reasons were: 1 defective unit, 1 wrong fit, 1 changed mind. Is the population defect rate worrisome, or did you just see bad luck in a small sample? (The data here is categorical: each return event falls into one of several unordered categories.)
+4. **How active is customer support?** The listing shows about 2 customer questions per day over the past week, for a total of 14 questions. Is the population question rate (the long-run average) high enough to suggest product confusion? (The data here is a count: the number of discrete events in a fixed time window.)
+5. **How long does the battery really last?** Five reviewers reported battery lives of 28, 31, 29, 32, and 30 hours. The manufacturer claims 30 hours. Is the population mean battery life (the average across all manufactured units) actually 30 hours? (The data here is continuous: each measurement is a positive real number.)
+
+Each question involves a different kind of measurement. The Bayesian approach handles all five the same way: encode prior knowledge as a probability distribution, observe data, compute the posterior via Bayes' rule. The only thing that changes is which distributions you plug in. The table below maps each question to its data type, likelihood, and conjugate prior:
+
+| Quantity | Data Type | Observation Space | Likelihood | Conjugate Prior | Parameter |
+|---|---|---|---|---|---|
+| **Return rate** | Binary | {returned, not returned} | Binomial | Beta($\alpha, \beta$) | $\theta \in [0,1]$ |
+| **Star rating** | Ordinal | {1, 2, 3, 4, 5} | Categorical | Dirichlet($\boldsymbol{\alpha}$) | $\mathbf{p} \in \Delta^4$ |
+| **Return reason** | Categorical | {Defective, Wrong fit, Changed mind, Better price, Other} | Categorical | Dirichlet($\boldsymbol{\gamma}$) | $\mathbf{q} \in \Delta^4$ |
+| **Questions/day** | Count | {0, 1, 2, 3, ...} | Poisson | Gamma($s, r$) | $\lambda \in (0, \infty)$ |
+| **Battery life** | Continuous | $(0, \infty)$ | Normal (known $\sigma^2$) | Normal($\mu_0, \sigma_0^2$) | $\mu \in \mathbb{R}$ |
+
+The third and sixth columns of this table reveal something important. The *observation space* (what the random variable produces) is different from the *parameter space* (what the unknown quantity lives in) for every row. Returns are binary {0, 1}, but the return probability $\theta$ is continuous on $[0, 1]$. Star ratings are integers {1, 2, 3, 4, 5}, but the parameter is a probability vector $\mathbf{p} = (p_1, \ldots, p_5)$ living on the 4-dimensional simplex. Question counts are non-negative integers, but the rate parameter $\lambda$ is a positive real number. Tracking all five quantities simultaneously makes it impossible to confuse what you observe with what you are trying to learn about.
+
+::: {.callout-note title="Think Hard: What exactly is a 'population parameter'?"}
+
+Throughout this chapter, every unknown quantity ($\theta$, $\mathbf{p}$, $\lambda$, $\mu$) is a *population parameter*: the value you would compute if you had access to the entire population, not just the sample in front of you.
+
+For the return rate, the population is all people who could ever buy these headphones. The population return rate $\theta$ is the fraction of that (conceptually infinite) population who would return the product. Your 20 buyers are a sample from that population. The sample return rate is $3/20 = 0.15$. The population return rate $\theta$ is unknown.
+
+For star ratings, the population distribution $\mathbf{p} = (p_1, \ldots, p_5)$ describes the fraction of the entire population that would give each star level. Your 20 ratings are a sample; the sample proportions $(0.10, 0.05, 0.10, 0.25, 0.50)$ estimate $\mathbf{p}$ but may not match it.
+
+The entire chapter is about one thing: reasoning about these population quantities when all you have is a small sample. The frequentist and Bayesian frameworks disagree about *how* to reason about them, not about *what* they are.
+
+:::
+
+The rest of this chapter answers the headphones question. All five sub-questions. You will learn a framework that takes data *and* prior knowledge, combines them using Bayes' rule, and produces posterior distributions from which you can extract any probability, interval, or prediction you need. Along the way, you will see precisely what the Bayesian framework gains (and gives up) compared to the frequentist framework you already know. Throughout, we return to these same Amazon headphones, progressively building up the tools needed to make the purchase decision.
+
+::: {.callout-warning title="Common Misconception: 'The true parameter' is not a Bayesian concept"}
+
+Many textbooks say "the true parameter $\theta$" as if the word "true" adds precision. It does not. In both the frequentist and Bayesian frameworks, $\theta$ refers to the same thing: the *population-level quantity*. The return rate $\theta$ is the fraction of the entire population of potential buyers who would return the product. The star rating distribution $\mathbf{p}$ is the population proportion vector across star levels. These population quantities exist whether you are a frequentist or a Bayesian.
+
+What the two frameworks disagree about is how to *reason* about $\theta$ given limited data. The frequentist treats $\theta$ as a fixed unknown constant. The Bayesian treats $\theta$ as a random variable with a distribution. But the *referent* (the population quantity) is the same. Throughout this chapter, we write $\theta$ (without "true") when we mean the population parameter, and $\hat{\theta}$ when we mean an estimate computed from a sample.
+
+:::
 
 ```{.d2}
 # =========================================================================
 # 1. LAYOUT CONFIGURATION
 # =========================================================================
-direction: right
+direction: down
 vars: {
   d2-config: {
     layout-engine: elk
@@ -95,72 +150,88 @@ classes: {
       bold: true
     }
   }
+  decision: {
+    style: {
+      stroke: "#F59E0B"
+      fill: "#FFFBEB"
+      font-color: "#92400E"
+    }
+  }
 }
 
 # =========================================================================
 # 3. CONTENT
 # =========================================================================
-data: {
-  class: [base; input]
-  label: "Observed Data\n(15 positive out of 20 ratings)"
+product: {
+  class: [base; highlight]
+  label: "Amazon Headphones (79 USD)\n20 ratings, 3 returns"
 }
 
-freq: {
+quantities: {
   class: container
-  label: "Frequentist Pipeline"
+  label: "Five Questions, Five Data Types"
   label.near: top-left
 
-  likelihood: {
-    class: [base; process]
-    label: "Maximize\nLikelihood"
+  q1: {
+    class: [base; input]
+    label: "Return rate\n(binary → Beta-Binomial)"
   }
-  freq_out: {
-    class: [base; output]
-    label: "Point Estimate\nrate = 0.75\n+ Confidence Interval"
+  q2: {
+    class: [base; input]
+    label: "Star ratings\n(ordinal → Dirichlet-Categorical)"
   }
-  likelihood -> freq_out
+  q3: {
+    class: [base; input]
+    label: "Return reasons\n(categorical → Dirichlet-Categorical)"
+  }
+  q4: {
+    class: [base; input]
+    label: "Questions/day\n(count → Gamma-Poisson)"
+  }
+  q5: {
+    class: [base; input]
+    label: "Battery life\n(continuous → Normal-Normal)"
+  }
 }
 
-bayes: {
-  class: container
-  label: "Bayesian Pipeline"
-  label.near: top-left
-
-  prior: {
-    class: [base; highlight]
-    label: "Prior Belief\n(headphones typically ~80%)"
-  }
-  update: {
-    class: [base; process]
-    label: "Bayes' Rule\nPrior x Likelihood"
-  }
-  posterior: {
-    class: [base; output]
-    label: "Posterior Distribution\n+ Credible Interval\n+ P(rate > 0.70) = 0.82"
-  }
-  prior -> update
-  update -> posterior
+engine: {
+  class: [base; process]
+  label: "Bayes' Rule\np(θ | data) ∝ p(data | θ) · p(θ)"
 }
 
-data -> freq.likelihood
-data -> bayes.update
+posterior: {
+  class: [base; output]
+  label: "Five Posterior Distributions\n→ Should you buy?"
+}
+
+product -> quantities.q1
+product -> quantities.q2
+product -> quantities.q3
+product -> quantities.q4
+product -> quantities.q5
+quantities.q1 -> engine
+quantities.q2 -> engine
+quantities.q3 -> engine
+quantities.q4 -> engine
+quantities.q5 -> engine
+engine -> posterior
 ```
 
 ### Chapter Overview
 
 If you have worked through frequentist statistics (statistical models, estimators, confidence intervals, and hypothesis testing), then you already have a solid framework for reasoning about data. In the frequentist world, the population parameter $\theta$ is a fixed but unknown constant. You draw a sample, compute an estimator $\hat{\theta}$, and evaluate its properties (bias, variance, MSE) by imagining what would happen if you repeated the experiment many times. The frequentist framework is powerful, well-understood, and forms the backbone of most introductory statistics courses.
 
-But the frequentist framework cannot answer the headphones question. You asked: "What is the probability that this product's true positive rating rate is above 70%?" In the frequentist world, the product's true rate $\theta$ is a fixed number. It is either above 0.70, or it is not. The probability is either 0 or 1; you just don't know which. The best a frequentist can give you is a confidence interval and the MLE of $\hat{\theta} = 0.75$. That interval says something about the *procedure* you used to construct it, not about *this particular product*.
+But as the headphones scenario showed, the frequentist framework has a fundamental limitation: it cannot answer probability questions about parameters. You wanted $P(\theta < 0.15 \mid \text{data})$, and the frequentist framework said that question is meaningless. The confidence interval gave you a range (0.03 to 0.27), but the "95%" attached to it describes the interval-construction *procedure* across hypothetical repetitions, not the probability that this particular interval contains $\theta$. For all five headphones quantities, the frequentist can give you point estimates and confidence intervals, but cannot give you direct probabilities about the parameters themselves.
 
-Bayesian statistics keeps the same goal (learn about $\theta$ from data) but makes one change that ripples through everything. Instead of treating $\theta$ as a fixed constant, Bayesian statistics treats $\theta$ as a *random variable* with its own probability distribution. Before collecting data, you specify a *prior distribution* $p(\theta)$ that encodes what you already know. For the headphones, the prior encodes your years of Amazon shopping experience: most wireless headphones in this price range have positive rates between 70% and 90%. After collecting data $x$ (the 15 positive ratings out of 20), you use Bayes' rule to compute a *posterior distribution* $p(\theta | x)$ that combines the prior with the evidence. The posterior is the answer machine: from it you can read off "the probability that $\theta > 0.70$ is 82%," directly answering the question the frequentist could not.
+Bayesian statistics resolves this limitation with one change that ripples through everything: instead of treating each parameter as a fixed constant, it treats each parameter as a *random variable* with its own probability distribution. Before collecting data, you specify a *prior distribution* that encodes what you already know (your years of Amazon shopping experience, for the headphones). After collecting data, you use Bayes' rule to compute a *posterior distribution* that combines the prior with the evidence. Because each parameter is now a random variable, questions that were meaningless in the frequentist framework become well-defined integrals. For the return rate: $P(\theta < 0.15 \mid \text{data}) = \int_0^{0.15} p(\theta \mid \text{data})\, d\theta$. That integral might come out to 0.54, giving you the number you wanted: a 54% probability the return rate is below 15%.
 
-Why does this single change matter? Because it unlocks three capabilities that map directly onto what you need for the purchase decision:
+Why does this single change matter? Because it unlocks three capabilities that the frequentist framework lacks.
 
-First, you can make **direct probability statements about parameters**. "There is an 82% probability that this product's true rate exceeds 70%." That is a literal probability about $\theta$ itself, not about a procedure. This is the capability that answers the headphones question directly. We examine how this differs from confidence intervals in @sec-credible-intervals.
+First, you can make **direct probability statements about parameters**. "There is an 82% probability that the return rate is below 15%." "There is a 73% probability that the five-star rate exceeds 40%." These are literal probabilities about the parameters themselves, computed as integrals of the posterior. The frequentist cannot produce these statements. We examine how this differs from confidence intervals in @sec-credible-intervals.
 
-Second, you can **formally incorporate prior knowledge**. Your years of buying headphones on Amazon is not wasted. The prior distribution gives you a principled mechanism to combine that experience with the 20 ratings you see now. Without prior knowledge, 20 ratings is a noisy estimate. With prior knowledge, the estimate is sharper and more reliable.
+Second, you can **formally incorporate prior knowledge**. Your years of buying headphones on Amazon are not wasted. The prior distribution gives you a principled mechanism to combine that experience with the data you see now. Without prior knowledge, 20 ratings is a noisy estimate. With prior knowledge, the estimate is sharper and more reliable. A [Dirichlet(1,1,1,1,1) prior](https://www.evanmiller.org/ranking-items-with-star-ratings.html) on the star rating distribution, for example, is equivalent to adding one virtual vote for each star level before any real ratings come in.
 
-Third, you get **a full distribution over parameters** instead of a single point estimate. The posterior tells you not just "our best guess is 77%" but "there is a 95% probability the product's true rate lies between 55% and 89%." That range is what you need to make a risk-aware purchase decision.
+Third, you get **a full distribution over parameters** instead of a single point estimate. The posterior tells you not just "our best guess is 12% return rate" but the entire shape of your uncertainty about the return rate, from which you can extract any probability, interval, or prediction.
 
 The mathematical engine behind all of this is Bayes' rule, which you already know from probability:
 
@@ -168,19 +239,19 @@ $$
 p(\theta | x) = \frac{p(x | \theta) \, p(\theta)}{p(x)}
 $$ {#eq-bayes-rule}
 
-Each term maps onto a piece of the headphones problem. The *prior* $p(\theta)$ is your shopping experience (what you believe about product rating rates before reading the reviews). The *likelihood* $p(x | \theta)$ is the probability of seeing 15 positive ratings out of 20 if the product's true rate were $\theta$ (this is the same likelihood function you maximized in MLE). The *posterior* $p(\theta | x)$ is your updated belief after reading the ratings. The *evidence* $p(x) = \int p(x | \theta) p(\theta) \, d\theta$ is a normalizing constant that ensures the posterior integrates to 1.
+Each of the four terms maps onto a piece of the headphones problem. The *prior* $p(\theta)$ is your shopping experience: what you believe about the parameter before reading the reviews. The *likelihood* $p(x | \theta)$ is the probability of seeing the observed data if the parameter had a particular value (the same likelihood function you maximized in MLE). The *posterior* $p(\theta | x)$ is your updated belief after seeing the data. The *evidence* $p(x) = \int p(x | \theta) p(\theta) \, d\theta$ is a normalizing constant that ensures the posterior integrates to 1. The same recipe applies to all five quantities; only the specific distributions change.
 
-The story of this chapter follows a natural progression, and each section gives you a new tool for answering the headphones question. We begin in @sec-bayesian-leap by examining what it means, concretely, to treat $\theta$ as a random variable and why this choice lets you answer questions the frequentist cannot. In @sec-bayesian-updating, we work through the mechanics of Bayesian updating step by step: you start with a Beta(3, 1) prior reflecting your Amazon shopping experience, observe 15 positive ratings out of 20, and compute the exact posterior distribution Beta(18, 6). That posterior is the first concrete answer: from it, you can compute that the probability of $\theta > 0.70$ is 82%.
+The chapter follows a natural progression; each section gives you new tools for answering the headphones questions. We begin in @sec-bayesian-leap by examining what it means, concretely, to treat parameters as random variables, and why this choice lets you answer questions the frequentist cannot. In @sec-bayesian-updating, we work through the mechanics of Bayesian updating step by step for two quantities: the return rate (Beta-Binomial) and the star rating distribution (Dirichlet-Categorical). You will see that the "multiply and normalize" recipe is structurally identical for both. The only difference is which distributions you plug in.
 
-From there, @sec-conjugate-priors introduces *conjugate priors*, families of prior distributions that make the posterior calculation a simple parameter update (no integrals to solve by hand). Conjugate priors answer the question: "How do I pick a prior that makes the computation tractable?" We cover three major families: Beta-Binomial, Normal-Normal, and Gamma-Poisson. We also develop a practical framework for choosing priors, because the posterior answer depends on which prior you start with, and getting the prior right matters.
+From there, @sec-conjugate-priors introduces *conjugate priors* for all five data types: Beta-Binomial for the return rate, Dirichlet-Categorical for star ratings and return reasons, Gamma-Poisson for customer questions per day, and Normal-Normal for battery life. Each conjugate family makes the posterior calculation a simple parameter update (no integrals to solve by hand). We also develop a practical framework for choosing priors, because the posterior depends on which prior you start with.
 
-In @sec-credible-intervals, we tackle the output side: *credible intervals* (the Bayesian answer to "give me a range for this product's true rate"), *Bayes factors* (the Bayesian alternative to "is the rate significantly above 70%?"), and the *posterior predictive distribution* (the answer to "if one more person buys these headphones, what is the probability they leave a positive rating?"). These are the tools that turn a posterior distribution into actionable decisions.
+In @sec-credible-intervals, we tackle the output side: *credible intervals* (the Bayesian answer to "give me a range"), *Bayes factors* (the Bayesian alternative to hypothesis testing), and the *posterior predictive distribution* (the answer to "if one more person buys these headphones, what rating will they give?"). These tools turn posterior distributions into actionable decisions.
 
-Most real-world Bayesian problems are too complex for conjugate solutions. @sec-computational-methods explains what happens when you have a more realistic model (e.g., the product's rating rate varies by price tier). The posterior integral becomes intractable, and you need computational methods: MCMC, HMC, and variational inference. You will see a complete PyMC model, from specifying priors to running MCMC to checking convergence diagnostics.
+Most real-world Bayesian problems are too complex for conjugate solutions. @sec-computational-methods explains what happens when you need a model that conjugacy cannot handle. The Dirichlet-Categorical model for star ratings, for example, ignores the ordering of the star levels (it treats "1 star" and "5 stars" as equally unrelated categories). An ordinal regression model respects the ordering but has no conjugate posterior, so you need MCMC. You will see a complete PyMC model, from specifying priors to running NUTS to checking convergence diagnostics.
 
-Finally, @sec-bayesian-regression-hierarchical shows what to do when you want to evaluate not just one product, but many products in the same category. Hierarchical models let data from products with many ratings improve your estimate for products with few ratings, through a mechanism called *partial pooling*. If Product A has 500 ratings and Product B has only 8, the hierarchical model borrows strength from Product A to give you a better estimate of Product B's true rate. Partial pooling is one of the most practically useful features of Bayesian statistics.
+Finally, @sec-bayesian-regression-hierarchical shows what to do when you want to evaluate not just one product, but many products in the same category. Hierarchical models let data from products with many ratings improve your estimate for products with few ratings, through a mechanism called *partial pooling*.
 
-Throughout, we return to the Amazon shopping scenario: first estimating a single product's rating, then choosing priors, then computing credible intervals, then fitting a non-conjugate model with MCMC, and finally pooling data across many products with a hierarchical model. By the end, you will have every tool you need to answer the headphones question, and you will understand exactly how each tool works.
+Throughout, we return to the Amazon headphones: first estimating two quantities (return rate and star ratings), then covering all five conjugate families, then computing credible intervals, then fitting a non-conjugate model with MCMC, and finally pooling data across many products. By the end, you will have every tool you need to answer all five headphones questions.
 
 ### Learning Objectives
 
@@ -188,10 +259,10 @@ After completing this chapter, you will be able to:
 
 - Explain the philosophical and practical differences between frequentist and Bayesian inference
 - Compute a posterior distribution from a given prior and likelihood using Bayes' rule
-- Identify when a conjugate prior exists and apply the Beta-Binomial and Normal-Normal conjugate update rules
-- Choose appropriate priors (informative, weakly informative) and understand why flat priors are not truly "uninformative"
+- Apply conjugate update rules for five families: Beta-Binomial, Dirichlet-Categorical, Gamma-Poisson, and Normal-Normal
+- Choose appropriate priors (informative, weakly informative) and explain why flat priors are not truly "uninformative"
 - Construct and interpret Bayesian credible intervals, and contrast them with frequentist confidence intervals
-- Explain how MCMC algorithms sample from posterior distributions and why they are needed
+- Explain how MCMC algorithms sample from posterior distributions and why they are needed when conjugacy fails
 - Specify and fit a Bayesian model in PyMC, including prior predictive and posterior predictive checks
 - Explain partial pooling in hierarchical Bayesian models and when it is useful
 
@@ -284,11 +355,11 @@ inputs: {
 
   data: {
     class: [base; input]
-    label: "Observed Data"
+    label: "Observed Data\n(5 quantities)"
   }
   prior: {
     class: [base; input]
-    label: "Prior Distribution"
+    label: "Prior Distribution\n(your shopping experience)"
   }
 }
 
@@ -371,35 +442,42 @@ outputs.posterior -> extensions.hierarchical
 
 ### Notation
 
-| Symbol | Definition | Valid Values | Example (Product Ratings) |
+| Symbol | Definition | Valid Values | Example (Headphones) |
 |---|---|---|---|
-| $\theta$ | Unknown parameter (random variable in Bayesian framework) | $\theta \in \Theta \subseteq \mathbb{R}^d$ | Product's true positive rating rate $\theta \in [0, 1]$ |
-| $p(\theta)$ | Prior distribution over $\theta$ before seeing data | A valid PDF/PMF over $\Theta$ | $\text{Beta}(3, 1)$, reflecting experience with similar products |
-| $p(x \mid \theta)$ | Likelihood: probability of data $x$ given parameter $\theta$ | Function of $\theta$ for fixed $x$; $\geq 0$ | $\text{Binomial}(20, \theta)$ evaluated at $x = 15$ positive ratings |
-| $p(\theta \mid x)$ | Posterior distribution over $\theta$ after observing data $x$ | A valid PDF/PMF over $\Theta$ | $\text{Beta}(18, 6)$ |
+| $\theta$ | Unknown parameter (treated as random variable in Bayesian framework) | $\theta \in \Theta \subseteq \mathbb{R}^d$ | Return rate $\theta \in [0, 1]$ |
+| $p(\theta)$ | Prior distribution over $\theta$ before seeing data | A valid PDF/PMF over $\Theta$ | $\text{Beta}(3, 1)$ for the return rate |
+| $p(x \mid \theta)$ | Likelihood: probability of data $x$ given parameter $\theta$ | Function of $\theta$ for fixed $x$; $\geq 0$ | $\text{Binomial}(20, \theta)$ evaluated at $k = 3$ returns |
+| $p(\theta \mid x)$ | Posterior distribution over $\theta$ after observing data $x$ | A valid PDF/PMF over $\Theta$ | $\text{Beta}(6, 18)$ for the return rate |
 | $p(x)$ | Evidence (marginal likelihood): $\int p(x \mid \theta) p(\theta) \, d\theta$ | Positive real number | Normalizing constant for the posterior |
-| $\hat{\theta}_{MAP}$ | MAP estimate: mode of the posterior $p(\theta \mid x)$ | A single value in $\Theta$ | $\hat{\theta}_{MAP} = 0.77$ |
-| $\hat{\theta}_{MLE}$ | MLE: mode of the likelihood $p(x \mid \theta)$ | A single value in $\Theta$ | $\hat{\theta}_{MLE} = 15/20 = 0.75$ |
-| $\alpha, \beta$ | Hyperparameters of a Beta prior | $\alpha > 0, \beta > 0$ | $\alpha = 3, \beta = 1$ |
+| $\alpha, \beta$ | Hyperparameters of a Beta prior | $\alpha > 0, \beta > 0$ | $\alpha = 3, \beta = 1$ (prior pseudo-counts) |
+| $\mathbf{p} = (p_1, \ldots, p_K)$ | Probability vector on the $(K{-}1)$-simplex $\Delta^{K-1}$ | $p_k \geq 0$, $\sum_k p_k = 1$ | Star rating probabilities $(p_1, \ldots, p_5)$ |
+| $\boldsymbol{\alpha} = (\alpha_1, \ldots, \alpha_K)$ | Concentration parameters of a Dirichlet prior | Each $\alpha_k > 0$ | $\boldsymbol{\alpha} = (1,1,1,1,1)$ (uniform over 5 star levels) |
+| $\lambda$ | Rate parameter (Poisson model) | $\lambda > 0$ | Population question rate per day |
+| $s, r$ | Shape and rate parameters of a Gamma prior | $s > 0, r > 0$ | $s = 4, r = 2$ (prior mean $s/r = 2$) |
+| $\mu$ | Mean parameter (Normal model) | $\mu \in \mathbb{R}$ | Population mean battery life in hours |
+| $\mu_0, \sigma_0^2$ | Mean and variance of a Normal prior on $\mu$ | $\sigma_0^2 > 0$ | $\mu_0 = 30, \sigma_0^2 = 4$ |
+| $\sigma^2$ | Known data variance (Normal likelihood) | $\sigma^2 > 0$ | Known measurement variance for battery life |
+| $\hat{\theta}_{MAP}$ | MAP estimate: mode of the posterior $p(\theta \mid x)$ | A single value in $\Theta$ | $\hat{\theta}_{MAP} = 0.12$ for return rate |
+| $\hat{\theta}_{MLE}$ | MLE: mode of the likelihood $p(x \mid \theta)$ | A single value in $\Theta$ | $\hat{\theta}_{MLE} = 3/20 = 0.15$ for return rate |
 | $BF_{10}$ | Bayes factor comparing model $H_1$ to $H_0$ | Positive real number | $BF_{10} = 4.2$: data 4.2x more likely under $H_1$ |
 
 ### Check Your Understanding
 
-::: {.exercise-mcq correct="C"}
+::: {.exercise-mcq correct="B"}
 
-You are looking at wireless headphones on Amazon with 15 positive ratings out of 20. A frequentist estimates the positive rate as $\hat{\theta} = 0.75$. A Bayesian who knows that similar products typically have rates around 80% computes a posterior centered near 0.77. Why do these two analyses reach different conclusions from the same data?
+In the headphones scenario, you tried to compute the probability that the population return rate is below 15%. The frequentist framework cannot produce this number. Why not?
 
-- The Bayesian uses a different formula to compute the likelihood of the data
-- The frequentist made a computational error by ignoring the 5 negative ratings
-- The Bayesian combines the rating data with prior knowledge about similar products, while the frequentist uses only the observed ratings
-- The Bayesian analysis is more statistically powerful because it uses more information from the sample
+- The frequentist confidence interval is too wide with only 20 data points to give a precise probability
+- The frequentist treats the return rate as a fixed constant, so the event "return rate is below 15%" is not a random event and has no probability
+- The frequentist lacks a formula for computing tail probabilities of the Binomial distribution
+- The frequentist would need to know the exact prior distribution before computing any probability
 
 ::: {.feedback-correct}
-Exactly. The frequentist treats the parameter $\theta$ as a fixed unknown and estimates it purely from the observed sample (15/20 = 0.75). The Bayesian treats $\theta$ as a random variable with a prior distribution reflecting existing knowledge (that similar products on Amazon typically have rates around 80%), then updates that prior with the observed data via Bayes' rule. The posterior is a compromise between prior belief and data, which is why the Bayesian estimate lands between the prior mean and the MLE.
+Exactly. In the frequentist framework, the parameter $\theta$ is a fixed but unknown constant. The set $\{\theta < 0.15\}$ is a deterministic fact (like "3 < 5"), not a random event. Probability is defined as a measure on events generated by random variables, and since $\theta$ is not a random variable, writing $P(\theta < 0.15)$ is a category error. The Bayesian framework resolves this by treating $\theta$ as a random variable with a posterior distribution, making $P(\theta < 0.15 \mid \text{data})$ a well-defined integral.
 :::
 
 ::: {.feedback-incorrect}
-Both analyses use the same likelihood function for the data. The frequentist did not make an error, and the Bayesian does not extract "more information" from the sample itself. The key difference is that the Bayesian *also* incorporates prior knowledge about $\theta$ (encoded as a prior distribution based on experience with similar products), while the frequentist relies solely on the observed data. This incorporation of prior knowledge is the defining feature of Bayesian inference and is what pulls the estimate away from the raw MLE toward the prior belief.
+The limitation is not about sample size, missing formulas, or priors. The frequentist can compute tail probabilities of the Binomial distribution just fine; the issue is about the *parameter* $\theta$, not the data. In the frequentist framework, $\theta$ is a fixed constant. Asking "what is the probability that a fixed constant is below 0.15?" is like asking "what is the probability that 3 is less than 5?" The question applies probability to something that is not random. This is a fundamental conceptual limitation of the framework, not a computational one.
 :::
 
 :::

@@ -5,128 +5,268 @@
 | # | Source | Summary |
 |---|---|---|
 | 1 | [Gregory Gundersen, "Conjugacy in Bayesian Inference" (2019)](https://gregorygundersen.com/blog/2019/03/16/conjugacy/) | Benefits of conjugacy, sequential learning |
-| 2 | [Wikipedia: Conjugate Prior](https://en.wikipedia.org/wiki/Conjugate_prior) | Table of conjugate families |
-| 3 | [Strimmer Lab: Choosing Priors](https://strimmerlab.github.io/publications/lecture-notes/MATH20802/choosing-priors-in-bayesian-analysis.html) | Informative/uninformative/weakly informative |
+| 2 | [Wikipedia: Conjugate Prior](https://en.wikipedia.org/wiki/Conjugate_prior) | Complete table of conjugate families |
+| 3 | [Cook, "Compendium of Conjugate Priors" (2009)](https://www.johndcook.com/CompendiumOfConjugatePriors.pdf) | 47-page reference for all conjugate pairs |
 | 4 | [Gelman et al., "Bayes, Jeffreys, and Philosophy of Statistics"](https://stat.columbia.edu/~gelman/research/published/jeffreys.pdf) | Why flat priors fail |
+| 5 | [Johnson, Ott, Dogucu, *Bayes Rules!* Ch5 (2022)](https://www.bayesrulesbook.com/chapter-5) | Gamma-Poisson and Normal-Normal conjugate families |
+| 6 | [MIT 18.05 Lec 15](https://ocw.mit.edu/courses/18-05-introduction-to-probability-and-statistics-spring-2022/) | Conjugate prior worked examples |
+| 7 | [Stephen Tu, "Dirichlet-Multinomial and Dirichlet-Categorical" (2014)](https://stephentu.github.io/writeups/dirichlet-conjugate-prior.pdf) | Formal Dirichlet conjugacy derivations |
 
 :::
 
-In the previous sections, you saw how Bayes' theorem turns a prior and a likelihood into a posterior. The examples we worked through had a convenient property: the posterior came out in a recognizable closed form. That was not an accident. We chose priors from special families that pair naturally with their corresponding likelihoods. These are called *conjugate priors*, and understanding them gives you both a computational shortcut and a conceptual framework for how data updates beliefs.
+In the previous sections, you saw how Bayes' theorem turns a prior and a likelihood into a posterior. The Beta-Binomial example (return rate) and the Dirichlet-Categorical example (star ratings) both had a convenient property: the posterior came out in a recognizable closed form. That convenience was not an accident. We chose priors from special families that pair naturally with their corresponding likelihoods. These special families are called *conjugate priors*, and understanding them gives you both a computational shortcut and a conceptual framework for how data updates beliefs.
 
-But the product question raises a practical issue: how do you choose the prior in the first place? You encoded your Amazon shopping experience as a Beta(3, 1), but why that specific distribution? Could you have used Beta(8, 2)? Beta(1, 1)? The posterior, and therefore the answer to "is the product's rate above 70%?", depends on which prior you start with. This section gives you the tools to make that choice well.
+But the headphones problem has five quantities, not two. We have already derived posteriors for the return rate and the star ratings. What about the other three: return reasons (also categorical), customer questions per day (count data), and battery life (continuous)? This section tackles all five conjugate families in parallel, applies each one to its corresponding headphones quantity, and develops a framework for choosing priors.
 
 ### What Conjugacy Means
 
-Think back to the headphones example. You started with a Beta(3, 1) prior, observed Binomial data, and got a Beta posterior. You plugged in numbers and read off the answer directly. No integrals, no numerical approximation. Why did that work so cleanly? Because Beta is *conjugate* to the Binomial likelihood. Here is what that means precisely:
+Think back to the headphones example. You started with a Beta(2, 12) prior for the return rate, observed Binomial data, and got a Beta posterior. You plugged in numbers and read off the answer directly. No integrals, no numerical approximation. Why did that work so cleanly? Because the Beta distribution is *conjugate* to the Binomial likelihood. The same happened with the Dirichlet-Categorical pair for star ratings. The precise definition is straightforward:
 
-A prior distribution $p(\theta)$ is *conjugate* to a likelihood $p(x \mid \theta)$ if the resulting posterior $p(\theta \mid x)$ belongs to the same distributional family as the prior. The posterior has the same functional form; only its parameters change.
+A prior distribution $p(\theta)$ is *conjugate* to a likelihood $p(x \mid \theta)$ if the resulting posterior $p(\theta \mid x)$ belongs to the same distributional family as the prior. The posterior has the same functional form; only its parameters change. As [MIT 18.05 Lec 15](https://ocw.mit.edu/courses/18-05-introduction-to-probability-and-statistics-spring-2022/) puts it: "A prior is conjugate to a likelihood if the posterior is the same type of distribution as the prior. Updating becomes algebra instead of calculus."
 
-Why does this matter? You never need to evaluate the normalizing integral in Bayes' theorem. You can read off the posterior parameters directly from the prior parameters and the data summary. As [Gundersen (2019)](https://gregorygundersen.com/blog/2019/03/16/conjugacy/) explains, conjugacy also enables *sequential updating*: after observing one batch of data and computing a posterior, that posterior becomes the prior for the next batch. Because the posterior stays in the same family, you can keep feeding in data indefinitely without changing your computational machinery.
+Why does conjugacy matter? Three practical benefits stand out.
 
-The cost of conjugacy is a constraint on flexibility. Conjugate priors express a specific shape of belief, and real prior knowledge may not fit neatly into that shape. We will return to this limitation at the end of the section.
+Three practical benefits stand out. First, you never need to evaluate the normalizing integral in Bayes' theorem. Second, you can read off the posterior parameters directly from the prior parameters and the data summary. Third, as [Gundersen (2019)](https://gregorygundersen.com/blog/2019/03/16/conjugacy/) explains, conjugacy enables *sequential updating*: after observing one batch of data and computing a posterior, that posterior becomes the prior for the next batch. Because the posterior stays in the same family, you can keep feeding in data indefinitely without changing your computational machinery.
+
+The cost of conjugacy is a constraint on flexibility. Conjugate priors express a specific shape of belief, and real prior knowledge may not fit neatly into that shape. We return to this limitation at the end of the section.
 
 ### The Major Conjugate Families
 
-The table below lists five conjugate pairs that cover a large fraction of textbook Bayesian problems. Each row shows the prior family, the likelihood it pairs with, the resulting posterior family, and the rule for updating the prior parameters into posterior parameters. Refer to [Wikipedia: Conjugate Prior](https://en.wikipedia.org/wiki/Conjugate_prior) for the complete catalog.
+The table below lists the four conjugate families that cover our five headphones quantities (the Dirichlet-Categorical serves double duty for star ratings and return reasons). Each row shows the prior family, the likelihood it pairs with, the resulting posterior family, the update rule, and which headphones quantity it handles. Refer to [Wikipedia: Conjugate Prior](https://en.wikipedia.org/wiki/Conjugate_prior) and [Cook's Compendium of Conjugate Priors (2009)](https://www.johndcook.com/CompendiumOfConjugatePriors.pdf) for the complete catalog.
 
-| Prior | Likelihood | Posterior | Update Rule |
-|---|---|---|---|
-| $\text{Beta}(\alpha, \beta)$ | $\text{Binomial}(n, \theta)$ | $\text{Beta}(\alpha + k,\; \beta + n - k)$ | Add successes to $\alpha$, failures to $\beta$ |
-| $\text{Normal}(\mu_0, \sigma_0^2)$ | $\text{Normal}(\theta, \sigma^2)$ with known $\sigma^2$ | $\text{Normal}(\mu_{\text{post}}, \sigma_{\text{post}}^2)$ | Precision-weighted average of prior and data means |
-| $\text{Normal-Inverse-Gamma}(\mu_0, \nu, \alpha, \beta)$ | $\text{Normal}(\mu, \sigma^2)$ with both unknown | $\text{Normal-Inverse-Gamma}(\mu_n, \nu_n, \alpha_n, \beta_n)$ | Incorporates sample mean, sample variance, and sample size |
-| $\text{Gamma}(\alpha, \beta)$ | $\text{Poisson}(\lambda)$ | $\text{Gamma}(\alpha + \sum x_i,\; \beta + n)$ | Add total count to $\alpha$, number of observations to $\beta$ |
-| $\text{Dirichlet}(\boldsymbol{\alpha})$ | $\text{Multinomial}(n, \boldsymbol{\theta})$ | $\text{Dirichlet}(\boldsymbol{\alpha} + \mathbf{c})$ | Add category counts $\mathbf{c}$ to concentration parameters $\boldsymbol{\alpha}$ |
+| Prior | Likelihood | Posterior | Update Rule | Headphones Quantity |
+|---|---|---|---|---|
+| $\text{Beta}(\alpha, \beta)$ | $\text{Binomial}(n, \theta)$ | $\text{Beta}(\alpha + k,\; \beta + n - k)$ | Add returns to $\alpha$, non-returns to $\beta$ | **Return rate** |
+| $\text{Dirichlet}(\boldsymbol{\alpha})$ | $\text{Categorical}(\mathbf{p})$ | $\text{Dirichlet}(\boldsymbol{\alpha} + \mathbf{n})$ | Add category counts to concentration parameters | **Star ratings, Return reasons** |
+| $\text{Gamma}(s, r)$ | $\text{Poisson}(\lambda)$ | $\text{Gamma}(s + \sum y_i,\; r + n)$ | Add total count to $s$, number of observations to $r$ | **Questions/day** |
+| $\text{Normal}(\mu_0, \sigma_0^2)$ | $\text{Normal}(\mu, \sigma^2)$ (known $\sigma^2$) | $\text{Normal}(\mu_{\text{post}}, \sigma_{\text{post}}^2)$ | Precision-weighted average of prior and data means | **Battery life** |
 
-The pattern across all five rows is the same: the data summary (counts, sums, sample means) gets absorbed into the prior's parameters. The posterior is just the prior "plus evidence." The Normal-Inverse-Gamma and Dirichlet-Multinomial rows are included for reference; we will not work through their derivations in this chapter.
+The pattern across all four rows is the same: the data summary (counts, sums, sample means) gets absorbed into the prior's parameters. The posterior is just the prior "plus evidence." In each case, the exponents or sufficient statistics from the likelihood combine additively with the prior's hyperparameters.
 
-::: {.exercise-mcq correct="C"}
+::: {.exercise-mcq correct="B"}
 
-You are modeling the number of customer arrivals per hour at a store as a Poisson process with unknown rate $\lambda$. Which prior distribution is conjugate to the Poisson likelihood?
+You observe 7 days of customer-question counts for the headphones and want to update your Gamma(4, 2) prior to a posterior. Which of the following correctly describes the Gamma-Poisson conjugate update?
 
-- Beta
-- Normal
-- Gamma
-- Dirichlet
+- Add the sample mean to the shape parameter and divide the rate parameter by n
+- Add the total count across all days to the shape parameter and add the number of days to the rate parameter
+- Replace the shape parameter with the sample mean and replace the rate parameter with the sample variance
+- Multiply the shape parameter by the number of days and leave the rate parameter unchanged
 
 ::: {.feedback-correct}
-Correct. The Gamma distribution is conjugate to the Poisson likelihood. After observing counts, the posterior is also Gamma with updated shape and rate parameters: the total count adds to the shape parameter, and the number of observations adds to the rate parameter.
+Correct. The Gamma-Poisson update adds the total observed count to the prior shape parameter s and adds the number of observation periods to the prior rate parameter r. If you observe 7 days with a total of 14 questions, the posterior is Gamma(4 + 14, 2 + 7) = Gamma(18, 9). The sufficient statistics for the Poisson likelihood are the total count and the number of observations, which map directly onto the Gamma's two parameters.
 :::
 
 ::: {.feedback-incorrect}
-Look at the conjugate families table again. Each prior pairs with a specific likelihood. The Beta is conjugate to the Binomial; the Normal is conjugate to the Normal (known variance); the Dirichlet is conjugate to the Multinomial. The Poisson likelihood pairs with the Gamma prior.
+The Gamma-Poisson update has a specific structure: the total count (not the mean) adds to the shape parameter, and the number of observations (not the variance or a divisor) adds to the rate parameter. Option A incorrectly uses the sample mean and divides. Option C replaces rather than adds, destroying the prior information. Option D only modifies one parameter and uses multiplication instead of addition. The conjugate update always combines prior parameters and data summaries additively.
 :::
 
 :::
 
-### Worked Example: Normal-Normal Conjugacy
+### Worked Example: Normal-Normal (Battery Life)
 
-Suppose you want to estimate the mean positive rating rate $\theta$ across similar products in a category on Amazon. You have measurements from $n = 12$ products in this category, yielding a sample mean $\bar{x} = 0.82$. From Amazon's data, you know the measurement variance is $\sigma^2 = 0.01$ (known). Your prior belief, based on your shopping history on Amazon, is that the positive rating rate is around 0.80 with moderate uncertainty: $\theta \sim \text{Normal}(\mu_0 = 0.80,\; \sigma_0^2 = 0.04)$.
+The manufacturer claims these headphones have a 30-hour battery life. Five reviewers reported battery lives of 28, 31, 29, 32, and 30 hours. The parameter $\mu$ is the true mean battery life. We model each measurement as $Y_i \mid \mu \sim \text{Normal}(\mu, \sigma^2)$ with known measurement variance $\sigma^2 = 4$ (corresponding to $\sigma = 2$ hours). Your prior belief, based on experience with similar electronics, is that battery life claims are usually close to reality: $\mu \sim \text{Normal}(\mu_0 = 30,\; \sigma_0^2 = 4)$.
 
-The conjugate update proceeds in two steps. First, compute the posterior variance using the *precision-addition* rule. Precision is the reciprocal of variance, so the prior precision is $1/\sigma_0^2$ and the data precision is $n/\sigma^2$:
+The conjugate update for the Normal-Normal model proceeds in two steps. First, compute the posterior variance using the *precision-addition* rule. Precision is the reciprocal of variance, so the prior precision is $1/\sigma_0^2$ and the data precision is $n/\sigma^2$:
 
 $$
-\sigma_{\text{post}}^2 = \frac{1}{\frac{1}{\sigma_0^2} + \frac{n}{\sigma^2}} = \frac{1}{\frac{1}{0.04} + \frac{12}{0.01}} = \frac{1}{25 + 1200} = \frac{1}{1225} \approx 0.000816.
+\sigma_{\text{post}}^2 = \frac{1}{\frac{1}{\sigma_0^2} + \frac{n}{\sigma^2}} = \frac{1}{\frac{1}{4} + \frac{5}{4}} = \frac{1}{0.25 + 1.25} = \frac{1}{1.5} \approx 0.667.
 $$ {#eq-normal-posterior-variance}
 
-The posterior precision is the sum of the prior precision and the data precision. This addition rule is the core insight: *more information (from either source) always increases precision*.
+The posterior precision is the sum of the prior precision and the data precision. This precision-addition rule is the core insight: *more information (from either source) always increases precision*.
 
-Second, compute the posterior mean as a precision-weighted average of the prior mean and the sample mean:
+Second, compute the posterior mean as a precision-weighted average of the prior mean and the sample mean. The sample mean is $\bar{y} = (28 + 31 + 29 + 32 + 30)/5 = 30.0$.
 
 $$
-\mu_{\text{post}} = \sigma_{\text{post}}^2 \left( \frac{\mu_0}{\sigma_0^2} + \frac{n\bar{x}}{\sigma^2} \right) = 0.000816 \times \left( \frac{0.80}{0.04} + \frac{12 \times 0.82}{0.01} \right) = 0.000816 \times (20 + 984) = 0.000816 \times 1004 \approx 0.8193.
+\mu_{\text{post}} = \sigma_{\text{post}}^2 \left( \frac{\mu_0}{\sigma_0^2} + \frac{n\bar{y}}{\sigma^2} \right) = 0.667 \times \left( \frac{30}{4} + \frac{5 \times 30}{4} \right) = 0.667 \times (7.5 + 37.5) = 0.667 \times 45 = 30.0.
 $$ {#eq-normal-posterior-mean}
 
-The posterior is $\text{Normal}(0.8193,\; 0.000816)$, which has a standard deviation of about $0.029$. Notice what happened: the prior mean was $0.80$ and the sample mean was $0.82$, yet the posterior mean landed at $0.819$, very close to the data. The prior had low precision ($25$) compared to the data ($1200$), so the data dominated the update. With 12 observations and a tight measurement variance, the evidence overwhelmed the prior. If you had only $n = 1$ observation, the posterior mean would sit closer to the prior.
+The posterior is $\text{Normal}(30.0,\; 0.667)$, with a standard deviation of about $0.82$ hours. In this case, the prior mean and the sample mean agree (both are 30.0), so the posterior mean is also 30.0. The posterior variance is much smaller than either the prior variance (4.0) or the data variance (4.0/5 = 0.8), because the posterior precision is the *sum* of the prior and data precisions. The prior carried precision 0.25; the data carried precision 1.25; the posterior carries precision 1.5. Five measurements plus the prior produced a posterior standard deviation under 1 hour, tight enough to be confident the true mean is close to 30 hours.
 
-This precision-weighted averaging is what makes the Normal-Normal pair so intuitive. The posterior always lies between the prior mean and the sample mean, pulled toward whichever source carries more precision.
+The following plot visualizes the three distributions. Because the prior mean and sample mean happen to agree, the three curves are centered at the same point; the visual payoff is seeing the *precision addition* in action.
 
-### A Second Conjugate Pair: Poisson-Gamma
+```{python}
+#| output: false
+#| error: true
+#| warning: false
+import warnings
+warnings.filterwarnings("ignore")
+import numpy as np
+import pandas as pd
+import hvplot.pandas
+import holoviews as hv
+from scipy import stats
+hv.extension('bokeh')
 
-To see the same pattern in a different setting, consider modeling the number of return requests per day for a product. You observe counts $y_1, y_2, \ldots, y_n$ where each $y_i \mid \lambda \sim \text{Poisson}(\lambda)$, and $\lambda > 0$ is the unknown return rate. Following the derivation in [Sosa et al. (arXiv, 2025)](https://arxiv.org/abs/2512.05883), assign a Gamma prior $\lambda \sim \text{Gamma}(a, b)$ with density proportional to $\lambda^{a-1} e^{-b\lambda}$. The likelihood is proportional to $\lambda^{\sum y_i} e^{-n\lambda}$. Multiplying gives
+hvplot_opts = dict(width=750, height=450, grid=True)
+hv_opts = dict(
+    show_grid=True,
+    default_tools=['hover', 'save', 'pan', 'box_zoom', 'reset', 'wheel_zoom'],
+    active_tools=['pan'],
+)
 
-$$
-p(\lambda \mid \boldsymbol{y}) \propto \lambda^{a + \sum y_i - 1} \, e^{-(b+n)\lambda},
-$$
+x = np.linspace(24, 36, 500)
 
-which is the *kernel* of a $\text{Gamma}(a + \sum y_i, \; b + n)$ distribution (the part of the density that identifies the distributional family, ignoring normalizing constants). The update rule is straightforward: add the total count to $a$ and the number of observations to $b$. The posterior mean is
+prior_pdf = stats.norm.pdf(x, 30, np.sqrt(4))
+data_pdf = stats.norm.pdf(x, 30, np.sqrt(4/5))
+posterior_pdf = stats.norm.pdf(x, 30, np.sqrt(0.667))
 
-$$
-E[\lambda \mid \boldsymbol{y}] = \frac{a + \sum y_i}{b + n} = \frac{b}{b+n} \cdot \frac{a}{b} + \frac{n}{b+n} \cdot \bar{y},
-$$
+df_nn = pd.DataFrame({
+    'Battery life (hours)': np.tile(x, 3),
+    'Density': np.concatenate([prior_pdf, data_pdf, posterior_pdf]),
+    'Distribution': (
+        ['Prior: N(30, 4)'] * len(x)
+        + ['Data: N(30, 0.8)'] * len(x)
+        + ['Posterior: N(30, 0.667)'] * len(x)
+    ),
+})
 
-where $a/b$ is the prior mean and $\bar{y} = \sum y_i / n$ is the sample mean (the MLE). Once again, the posterior mean is a convex combination of the prior mean and the MLE, with weights governed by the ratio of prior pseudo-observations $b$ to actual observations $n$. This convex-combination structure is the same "Linear Bayes" property we saw in the Beta-Binomial case.
+nn_plot = df_nn.hvplot.line(
+    x='Battery life (hours)', y='Density', by='Distribution',
+    **hvplot_opts,
+    xlabel='μ (mean battery life, hours)',
+    ylabel='Density',
+    title='Normal-Normal Update: Precision Addition',
+    line_width=2.5,
+    color=['#6366F1', '#F59E0B', '#10B981'],
+).opts(**hv_opts)
+```
+
+```{python}
+#| label: fig-normal-normal-posterior
+#| fig-cap: "Normal-Normal Bayesian update for battery life. The prior N(30, 4) is broad (σ = 2 hours). The sampling distribution of the mean N(30, 0.8) is narrower. The posterior N(30, 0.667) is narrower still, because posterior precision equals prior precision plus data precision: 0.25 + 1.25 = 1.5."
+#| echo: false
+#| warning: false
+from bokeh.io import output_notebook, show
+import holoviews as hv
+output_notebook(hide_banner=True)
+show(hv.render(nn_plot, backend='bokeh'))
+```
+
+This precision-weighted averaging is what makes the Normal-Normal pair so intuitive. The posterior always lies between the prior mean and the sample mean, pulled toward whichever source carries more precision. Following [Bayes Rules Ch5 (2022)](https://www.bayesrulesbook.com/chapter-5), the posterior mean weight on the data is $n\tau^2 / (n\tau^2 + \sigma^2)$, which equals $5 \times 4 / (5 \times 4 + 4) = 20/24 \approx 0.83$. With five observations, the data contributes 83% of the total evidence.
 
 ::: {.exercise-fillin}
 
-A factory produces bolts whose diameters follow a Normal distribution with known variance of 0.04 square millimeters. Your prior belief about the mean diameter is Normal with prior mean 10.0 mm and prior variance 0.16 square millimeters. You measure 4 bolts and get a sample mean of 10.3 mm. Work through the posterior mean calculation:
+Suppose a rival headphones product has battery life measurements from 8 reviewers with a sample mean of 27.5 hours. You use the same Normal-Normal setup: known variance of 4 and a Normal(30, 4) prior. Work through the posterior:
 
-1. The prior precision is 1 divided by 0.16, which equals 6.25.
-2. The data precision is n divided by the known variance, which equals 4 divided by 0.04, giving 100.
-3. The total posterior precision is 6.25 plus 100, which equals 106.25, so the posterior variance is approximately 0.00941.
-4. To compute the posterior mean, you take the posterior variance times the sum of two terms. The first term is the prior mean weighted by {A|A: prior precision|B: data precision|C: posterior variance}, which equals 10.0 times 6.25.
-5. The second term is the sample mean weighted by data precision, which equals 10.3 times 100, giving 1030.
-6. Adding these: 62.5 plus 1030 equals 1092.5. Multiplying by 0.00941 gives a posterior mean of approximately 10.29.
+1. The prior precision is 1 divided by 4, which equals 0.25.
+2. The data precision is 8 divided by 4, which equals 2.0.
+3. The posterior precision is 0.25 plus 2.0, giving 2.25. The posterior variance is 1 divided by 2.25, approximately 0.444.
+4. The posterior mean weights the prior mean by prior precision and the sample mean by data precision. The prior term is 30 times 0.25 = 7.5 and the data term is 27.5 times 2.0 = 55.
+5. Adding: 7.5 plus 55 equals 62.5. Multiplying by the posterior variance: the posterior mean is approximately {B|A: 30.0|B: 27.8|C: 28.75}.
 
 ::: {.fillin-feedback}
-**Correct: A (prior precision).** The posterior mean formula weights the prior mean by the prior precision and the sample mean by the data precision. The prior contributes 10.0 times 6.25 = 62.5 while the data contributes 10.3 times 100 = 1030. Since the data precision (100) is much larger than the prior precision (6.25), the posterior mean of 10.29 is pulled strongly toward the sample mean of 10.3.
+**Correct: B (27.8).** The posterior mean is 0.444 times 62.5 = 27.78, approximately 27.8 hours. Because the data precision (2.0) is eight times larger than the prior precision (0.25), the posterior mean is pulled strongly toward the sample mean of 27.5 rather than the prior mean of 30. The data contributes 2.0/2.25 = 89% of the weight. This is a case where the data contradicts the manufacturer's claim, and the posterior reflects that disagreement.
 :::
 
 :::
+
+### Gamma-Poisson: Customer Questions Per Day
+
+The headphones listing shows customer questions arriving at about 2 per day. You observe the daily counts over 7 days: $y_1, \ldots, y_7$, giving a total of $\sum y_i = 14$ questions and a sample mean of $\bar{y} = 2.0$. The parameter $\lambda > 0$ is the true question rate (expected questions per day). Following the derivation in [Bayes Rules Ch5 (2022)](https://www.bayesrulesbook.com/chapter-5), assign a Gamma prior $\lambda \sim \text{Gamma}(s = 4, r = 2)$ with mean $s/r = 2$ questions per day. This prior reflects your belief that 1-3 questions per day is typical for products in this category. Each daily count follows $Y_i \mid \lambda \sim \text{Poisson}(\lambda)$, so the likelihood is proportional to $\lambda^{\sum y_i} e^{-n\lambda}$. Multiplying by the Gamma prior gives
+
+$$
+p(\lambda \mid \boldsymbol{y}) \propto \lambda^{s + \sum y_i - 1} \, e^{-(r+n)\lambda},
+$$
+
+which is the *kernel* of a $\text{Gamma}(s + \sum y_i, \; r + n)$ distribution. (The kernel is the part of the density that identifies the distributional family, ignoring normalizing constants.) For our headphones data: $\text{Gamma}(4, 2)$ prior + Poisson observations ($\sum y_i = 14$, $n = 7$) yields $\text{Gamma}(4 + 14, 2 + 7) = \text{Gamma}(18, 9)$. The update rule adds the total count to $s$ and the number of observations to $r$. The posterior mean is
+
+$$
+E[\lambda \mid \boldsymbol{y}] = \frac{s + \sum y_i}{r + n} = \frac{18}{9} = 2.0 = \frac{r}{r+n} \cdot \frac{s}{r} + \frac{n}{r+n} \cdot \bar{y},
+$$
+
+where $s/r = 2$ is the prior mean and $\bar{y} = 14/7 = 2.0$ is the sample mean (the MLE). The posterior mean equals both the prior mean and the MLE in this case, because they happen to agree. Once again, the posterior mean is a convex combination of the prior mean and the MLE, with weights governed by the ratio of prior pseudo-observations $r$ to actual observations $n$. This convex-combination structure is the same *linear Bayes* property we saw in the Beta-Binomial case.
+
+The following plot shows the Gamma-Poisson update visually. Unlike the symmetric Normal-Normal, the Gamma distribution is right-skewed, so the curves have a distinctive asymmetric shape.
+
+```{python}
+#| output: false
+#| error: true
+#| warning: false
+import warnings
+warnings.filterwarnings("ignore")
+import numpy as np
+import pandas as pd
+import hvplot.pandas
+import holoviews as hv
+from scipy import stats
+hv.extension('bokeh')
+
+hvplot_opts = dict(width=750, height=450, grid=True)
+hv_opts = dict(
+    show_grid=True,
+    default_tools=['hover', 'save', 'pan', 'box_zoom', 'reset', 'wheel_zoom'],
+    active_tools=['pan'],
+)
+
+lam = np.linspace(0.01, 6.0, 500)
+
+prior_pdf = stats.gamma.pdf(lam, a=4, scale=1/2)
+
+raw_likelihood = np.exp(14 * np.log(lam) - 7 * lam)
+likelihood_normalized = raw_likelihood / np.trapz(raw_likelihood, lam)
+
+posterior_pdf = stats.gamma.pdf(lam, a=18, scale=1/9)
+
+df_gp = pd.DataFrame({
+    'λ': np.tile(lam, 3),
+    'Density': np.concatenate([prior_pdf, likelihood_normalized, posterior_pdf]),
+    'Distribution': (
+        ['Prior: Gamma(4, 2)'] * len(lam)
+        + ['Likelihood (normalized)'] * len(lam)
+        + ['Posterior: Gamma(18, 9)'] * len(lam)
+    ),
+})
+
+gp_plot = df_gp.hvplot.line(
+    x='λ', y='Density', by='Distribution',
+    **hvplot_opts,
+    xlabel='λ (questions per day)',
+    ylabel='Density',
+    title='Gamma-Poisson Update: Customer Questions Per Day',
+    line_width=2.5,
+    color=['#6366F1', '#F59E0B', '#10B981'],
+).opts(**hv_opts)
+```
+
+```{python}
+#| label: fig-gamma-poisson-posterior
+#| fig-cap: "Gamma-Poisson Bayesian update for customer questions per day. The Gamma(4, 2) prior (mean = 2) is broad and right-skewed. The normalized Poisson likelihood concentrates near the sample mean of 2.0. The posterior Gamma(18, 9) is narrower and symmetric-looking because the large shape parameter makes the Gamma approximately Normal."
+#| echo: false
+#| warning: false
+from bokeh.io import output_notebook, show
+import holoviews as hv
+output_notebook(hide_banner=True)
+show(hv.render(gp_plot, backend='bokeh'))
+```
+
+### All Five Quantities: The Completed Posterior Table
+
+We now have conjugate posteriors for all five headphones quantities. The table below summarizes the prior, data, and posterior for each:
+
+| Quantity | Prior | Data | Posterior | Posterior Mean |
+|---|---|---|---|---|
+| **Return rate** | Beta(2, 12) | 3 returns / 20 buyers | Beta(5, 29) | 0.147 |
+| **Star ratings** | Dir(1,1,1,1,1) | counts (2,1,2,5,10) | Dir(3,2,3,6,11) | (0.12, 0.08, 0.12, 0.24, 0.44) |
+| **Return reasons** | Dir(1,1,1,1,1) | counts (1,1,1,0,0) | Dir(2,2,2,1,1) | (0.25, 0.25, 0.25, 0.125, 0.125) |
+| **Questions/day** | Gamma(4, 2) | $\sum y_i = 14$, $n = 7$ | Gamma(18, 9) | 2.0 |
+| **Battery life** | Normal(30, 4) | $\bar{y} = 30$, $n = 5$ | Normal(30.0, 0.667) | 30.0 |
+
+Every row was computed using the same recipe: multiply prior by likelihood, collect sufficient statistics into the prior's parameters, and read off the result. The observation spaces are different (binary, categorical, counts, continuous), the parameter spaces are different ($[0,1]$, simplex, positive reals, all reals), and the specific distributions are different. But the Bayesian updating machinery is identical in structure. This structural uniformity is the payoff of the conjugate prior framework.
 
 ### Prior Sensitivity: Same Data, Different Beliefs
 
-The Normal-Normal example had a single prior. But what happens when you are less sure about the prior? To see how the choice of prior affects the posterior, consider the original Beta-Binomial problem from @sec-bayesian-updating: 15 positive ratings out of 20. The following plot shows four different priors and their resulting posteriors, all conditioned on the same data.
+The Normal-Normal example had a single prior. But what happens when you are less sure about the prior? To see how the choice of prior affects the posterior, consider the return rate Beta-Binomial problem from @sec-bayesian-updating: 3 returns out of 20 buyers. The following plot shows four different priors and their resulting posteriors, all conditioned on the same data.
 
-::: {.exercise-predict correct="B"}
+::: {.exercise-predict correct="C"}
 
-Before seeing the sensitivity plot, make a prediction. One of the four priors is a strong Beta(10,3) prior, which has a mean of about 0.77 and concentrates most of its mass between 0.55 and 0.95. The observed data is 15 successes out of 20 trials, giving a sample proportion of 0.75. Where do you think the posterior peak will land under this strong prior?
+Before seeing the sensitivity plot, make a prediction. Suppose you use four different priors for the headphones return rate, all with the same 3/20 observed data. The four priors are: Beta(1,1) uniform, Beta(0.5, 0.5) Jeffreys, Beta(2, 12) mild prior experience, and Beta(4, 20) strong belief. How will the four posteriors compare?
 
-- Closer to 0.70, because the strong prior pulls the posterior well below the data
-- Closer to 0.75, because even a strong prior cannot fully resist 20 data points
-- Exactly at 0.77, because the prior mean dominates with only 20 observations
+- All four posteriors will be nearly identical, because 20 observations are enough to overwhelm any prior
+- The four posteriors will have completely different peaks and spread, with no convergence
+- The weaker priors (uniform and Jeffreys) will produce nearly identical posteriors, while the strong prior Beta(4, 20) will noticeably shift the posterior peak away from the MLE
 
 ::: {.predict-reveal}
-**The answer is B.** The posterior peaks near 0.74-0.75. Even a strong Beta(10,3) prior (which acts like having seen 13 pseudo-observations) cannot dominate 20 real data points. The effective sample size is 10 + 3 = 13 pseudo-observations from the prior plus 20 real observations, so the data contributes about 60% of the total evidence. The posterior is pulled slightly below 0.75 by the prior, but not as far as 0.70. Scroll down to @fig-prior-sensitivity to see the exact curves.
+**The answer is C.** The uniform Beta(1,1) and Jeffreys Beta(0.5, 0.5) priors are so weak that 20 observations dominate them, producing posteriors that are nearly identical and centered near the MLE of 0.15. But the strong Beta(4, 20) prior contributes the equivalent of 24 pseudo-observations, which is comparable to the 20 real data points. With nearly equal "weight," the strong prior noticeably pulls the posterior peak toward its own mean of 0.167. Twenty observations is enough to wash out weak priors but not strong ones. Scroll down to @fig-prior-sensitivity to see the exact curves.
 :::
 
 :::
@@ -145,12 +285,12 @@ import holoviews as hv
 hv.extension('bokeh')
 
 theta = np.linspace(0, 1, 500)
-k, n = 15, 20
+k, n = 3, 20
 
 priors = {
     "Beta(1,1) Uniform": (1, 1),
-    "Beta(3,1) Mild optimism": (3, 1),
-    "Beta(10,3) Strong belief": (10, 3),
+    "Beta(2,12) Prior experience": (2, 12),
+    "Beta(4,20) Strong belief": (4, 20),
     "Beta(0.5,0.5) Jeffreys": (0.5, 0.5),
 }
 
@@ -189,7 +329,7 @@ final_plot = (prior_plot + posterior_plot).cols(1)
 
 ```{python}
 #| label: fig-prior-sensitivity
-#| fig-cap: "Prior sensitivity analysis. Top: four different prior distributions for θ. Bottom: the corresponding posteriors after observing 15 successes in 20 trials. The posteriors converge toward each other, but the strong Beta(10,3) prior still pulls the peak leftward."
+#| fig-cap: "Prior sensitivity analysis. Top: four different prior distributions for the return rate θ. Bottom: the corresponding posteriors after observing 3 returns in 20 buyers. The posteriors converge toward each other, but the strong Beta(4,20) prior still shifts the peak."
 #| echo: false
 #| warning: false
 from bokeh.io import output_notebook, show
@@ -198,7 +338,7 @@ output_notebook(hide_banner=True)
 show(hv.render(final_plot, backend='bokeh'))
 ```
 
-Four lessons emerge from @fig-prior-sensitivity. First, the uniform prior $\text{Beta}(1,1)$ and the Jeffreys prior $\text{Beta}(0.5, 0.5)$ produce nearly identical posteriors, both centered near $\theta = 0.75$. Second, the mildly optimistic prior $\text{Beta}(3,1)$ nudges the posterior slightly rightward. Third, the strong prior $\text{Beta}(10,3)$ pulls the posterior peak noticeably toward $\theta = 0.70$, reflecting its firm belief that the positive rating rate is high but with mass spread below 0.75. Finally, with only 20 observations, the strong prior still exerts meaningful influence. With 200 observations, even that strong prior would be overwhelmed.
+Four lessons emerge from @fig-prior-sensitivity. First, the uniform prior $\text{Beta}(1,1)$ and the Jeffreys prior $\text{Beta}(0.5, 0.5)$ produce nearly identical posteriors, both centered near $\theta = 0.15$. Second, the prior-experience prior $\text{Beta}(2,12)$ nudges the posterior only slightly, since its mean of 0.143 is close to the MLE of 0.15. Third, the strong prior $\text{Beta}(4,20)$ pulls the posterior peak noticeably toward $\theta = 0.167$. Fourth, with only 20 observations, the strong prior still exerts meaningful influence. With 200 observations, even that strong prior would be overwhelmed.
 
 **The key takeaway:** with enough data, the posterior becomes insensitive to the prior. With limited data, the prior matters. You should examine how sensitive your conclusions are to the prior choice.
 
@@ -206,44 +346,46 @@ Four lessons emerge from @fig-prior-sensitivity. First, the uniform prior $\text
 
 If conjugacy tells you the *form* of the prior, prior selection tells you *which parameters to set*. Three broad strategies exist, ordered from most to least informative.
 
-**Informative priors** encode genuine domain knowledge. If you have browsed similar products in this category across 50 listings on Amazon and seen positive rating rates around 0.85 with a standard deviation of 0.05, you can encode this belief directly as a Beta prior whose mean and variance match those values. Informative priors are the most powerful tool in the Bayesian toolkit when the knowledge is real, but they require honest calibration. Overstating your certainty biases the posterior. Understating it wastes information.
+**Informative priors** encode genuine domain knowledge. Suppose you have browsed similar products in this category across 50 listings on Amazon and seen return rates around 0.10 with a standard deviation of 0.05. You can encode this belief directly as a Beta prior whose mean and variance match those values. Informative priors are the most powerful tool in the Bayesian toolkit when the knowledge is real, but they require honest calibration. Overstating your certainty biases the posterior. Understating it wastes information.
 
-**Weakly informative priors** constrain the parameter to a reasonable range without committing to a precise value. [Gelman et al.](https://stat.columbia.edu/~gelman/research/published/jeffreys.pdf) advocate this approach as the practical default. For a proportion, $\text{Beta}(2, 2)$ says "probably somewhere between 0.2 and 0.8, but I'm not sure where." For a regression coefficient, $\text{Normal}(0, 10)$ says "probably not enormous, but could be positive or negative." The prior rules out absurd values (like a positive rating rate of $10^6$) without pretending to know the truth. This strategy works well because it regularizes estimation without dominating the data.
+**Weakly informative priors** constrain the parameter to a reasonable range without committing to a precise value. [Gelman (2009)](https://stat.columbia.edu/~gelman/research/published/jeffreys.pdf) advocates this approach as the practical default: "seemingly noninformative distributions can sometimes have strong and undesirable implications." He argues for priors that "attempt to let the data speak while being strong enough to exclude various 'unphysical' possibilities which, if not blocked, can take over a posterior distribution in settings with sparse data."
+
+For a return rate, $\text{Beta}(2, 8)$ says "probably somewhere between 5% and 30%, but I'm not sure where." For a regression coefficient, $\text{Normal}(0, 10)$ says "probably not enormous, but could be positive or negative." The prior rules out absurd values (like a return rate of 99%) without pretending to know the truth. This strategy works well because it regularizes estimation without dominating the data.
 
 **"Uninformative" priors** aim to let the data speak entirely for themselves. The most common attempt is the flat (uniform) prior. But here is the problem:
 
 ::: {.callout-warning}
 **Common Misconception: Flat priors are non-informative.**
 
-A uniform prior on $\theta$ is *not* uniform on $\log(\theta)$ or $\theta^2$. If you reparametrize the problem, the "flat" prior becomes informative in the new parametrization. As [Gelman et al.](https://stat.columbia.edu/~gelman/research/published/jeffreys.pdf) argue, there is no such thing as a truly non-informative prior. Every prior encodes *some* assumption. The modern recommendation is to use *weakly informative* priors that are transparent about their assumptions, rather than flat priors that pretend to have none.
+A uniform prior on $\theta$ is *not* uniform on $\log(\theta)$ or $\theta^2$. If you reparametrize the problem, the "flat" prior becomes informative in the new parametrization. As [Gelman (2009)](https://stat.columbia.edu/~gelman/research/published/jeffreys.pdf) argues, "it can be notoriously difficult to choose among noninformative priors; and, even more importantly, seemingly noninformative distributions can sometimes have strong and undesirable implications." He recommends *weakly informative* priors that are "strong enough to exclude various 'unphysical' possibilities" rather than flat priors that create an illusion of objectivity.
 :::
 
-The *Jeffreys prior* offers a principled alternative. The core problem is that a flat prior on $\theta$ is not flat on $\log(\theta)$ or $\theta^2$, so we need a prior whose shape adjusts automatically when you reparametrize. The Jeffreys prior does exactly this. It is defined as $p(\theta) \propto \sqrt{I(\theta)}$, and it is *invariant under reparametrization*: if you transform $\theta \to \phi(\theta)$, the Jeffreys prior in $\phi$-space is exactly what you get by transforming the Jeffreys prior in $\theta$-space.
+The *Jeffreys prior* offers a principled alternative to flat priors. The core problem is that a flat prior on $\theta$ is not flat on $\log(\theta)$ or $\theta^2$, so you need a prior whose shape adjusts automatically under reparametrization. The Jeffreys prior does exactly that: it is defined as $p(\theta) \propto \sqrt{I(\theta)}$ and is *invariant under reparametrization*. If you transform $\theta \to \phi(\theta)$, the Jeffreys prior in $\phi$-space is exactly what you get by transforming the Jeffreys prior in $\theta$-space.
 
-In this formula, $I(\theta)$ is the *Fisher information*, a measure of how sharply the log-likelihood $p(x \mid \theta)$ curves around $\theta$. When the likelihood is sharply peaked, $I(\theta)$ is large and the data are highly informative about $\theta$. For the Bernoulli model, the Jeffreys prior works out to $\text{Beta}(0.5, 0.5)$. For the Normal mean with known variance, it is a uniform (improper) prior on $\mu$. The Jeffreys prior is mathematically elegant, but it has two drawbacks: it can produce improper posteriors in some models, and it does not incorporate domain knowledge. For these reasons, weakly informative priors are preferred in practice.
+The quantity $I(\theta)$ is the *Fisher information*, a measure of how sharply the log-likelihood $p(x \mid \theta)$ curves around $\theta$. When the likelihood is sharply peaked, $I(\theta)$ is large and the data are highly informative about $\theta$. For the Bernoulli model, the Jeffreys prior works out to $\text{Beta}(0.5, 0.5)$. For the Normal mean with known variance, the Jeffreys prior is a uniform (improper) prior on $\mu$. The Jeffreys prior is mathematically elegant, but it has two drawbacks: (a) it can produce improper posteriors in some models, and (b) it does not incorporate domain knowledge. For these reasons, weakly informative priors are preferred in practice.
 
-Here is a decision framework, following the recommendations in [Strimmer Lab: Choosing Priors](https://strimmerlab.github.io/publications/lecture-notes/MATH20802/choosing-priors-in-bayesian-analysis.html):
+The following decision framework, based on the recommendations in [Gelman et al.](https://stat.columbia.edu/~gelman/research/published/jeffreys.pdf), summarizes these strategies:
 
 1. **Do you have genuine domain expertise?** Use an *informative* prior. Encode what you know, and run a sensitivity analysis to check that your conclusions are robust.
 2. **Are you uncertain but want regularization?** Use a *weakly informative* prior. Set broad but bounded parameters that rule out implausible values.
 3. **Do you want a "default" prior for comparison?** Use the *Jeffreys* prior for that model, but check that the posterior is proper.
 4. **Always run a prior sensitivity analysis.** Plot the posterior under 2-3 different priors (as in @fig-prior-sensitivity) and verify that your substantive conclusions do not hinge on the prior choice.
 
-::: {.exercise-mcq correct="B"}
+::: {.exercise-mcq correct="C"}
 
-A colleague says: "I used a flat (uniform) prior so my analysis is completely objective and non-informative." What is the most accurate response?
+You are modeling a new product's return rate and have no domain expertise. A colleague suggests using a Beta(1, 1) flat prior "to be objective." Based on the framework for choosing priors, what is the best response?
 
-- This is correct; a uniform prior assigns equal probability to all values and therefore encodes no assumptions
-- This is misleading; a uniform prior on one parametrization becomes informative under reparametrization, so weakly informative priors are preferred
-- This is wrong because flat priors always produce improper posteriors
-- This is correct as long as the parameter space is bounded
+- Use Beta(1, 1) because it encodes no assumptions and lets the data speak
+- Use the Jeffreys prior Beta(0.5, 0.5) because it is provably non-informative in all parametrizations
+- Use a weakly informative prior like Beta(2, 8) because it rules out implausible extremes (like 99% return rates) while still letting the data dominate, and then run a sensitivity analysis
+- Use an informative prior based on your gut feeling about the product
 
 ::: {.feedback-correct}
-Correct. A uniform prior on a parameter is not invariant under reparametrization. If you put a flat prior on a probability, that same prior is not flat on the log-odds. As Gelman et al. argue, there is no truly non-informative prior. The modern recommendation is to use weakly informative priors that are transparent about their assumptions (ruling out implausible values) rather than flat priors that create an illusion of objectivity.
+Correct. Weakly informative priors are the recommended default when you lack strong domain expertise. A flat prior like Beta(1,1) is not truly "objective" because it becomes informative under reparametrization (e.g., it is not flat on the log-odds scale). The Jeffreys prior Beta(0.5, 0.5) solves the reparametrization problem but can produce improper posteriors in some models and does not prevent implausible values from dominating in sparse-data settings. A weakly informative prior like Beta(2, 8) constrains the return rate to a plausible range without pretending to know the exact value. Running a sensitivity analysis (comparing posteriors under 2-3 priors) confirms that your conclusions are robust.
 :::
 
 ::: {.feedback-incorrect}
-Flat priors do not always produce improper posteriors (option C is too strong), and being on a bounded space does not resolve the reparametrization issue (option D misses the point). The key problem is that "flat" is not a coordinate-free property: a prior that is uniform on one scale is informative on another. This reparametrization problem is why weakly informative priors, which explicitly constrain the parameter to a plausible range, are preferred in practice.
+Option A ignores the reparametrization problem: a flat prior on the return rate is not flat on the log-odds, so "objectivity" is illusory. Option B is closer but overstates the Jeffreys prior's universality; it can produce improper posteriors and does not incorporate even soft constraints. Option D conflates gut feeling with calibrated domain knowledge; informative priors require genuine expertise, not guesses. The practical recommendation is a weakly informative prior plus sensitivity analysis.
 :::
 
 :::
@@ -256,12 +398,13 @@ Ridge regression minimizes $\sum_{i=1}^n (y_i - \mathbf{x}_i^\top \boldsymbol{\b
 
 ### When Conjugacy Breaks Down
 
-The five conjugate families in the table above are powerful, but they cover a narrow slice of real problems. Conjugacy breaks down as soon as you encounter any of the following three situations:
+The four conjugate families in the table above are powerful, but they cover a narrow slice of real problems. Conjugacy breaks down in four common situations:
 
 - The prior and likelihood do not form a conjugate pair (for instance, a Cauchy prior with a Normal likelihood).
 - The model involves multiple parameters with complex dependencies (hierarchical models, mixture models).
 - The likelihood itself is intractable or defined only through simulation.
+- **The model's structure does not match the data's structure.** The Dirichlet-Categorical model for star ratings treats all five levels as unordered categories. This model cannot encode the fact that 5 stars is "better" than 4 stars, which is "better" than 3 stars. An ordinal regression model respects this ordering, but ordinal regression has no conjugate posterior.
 
-In these cases, no closed-form posterior exists. You need numerical methods to approximate the posterior distribution. The most important class of these methods is *Markov chain Monte Carlo* (MCMC), which generates samples from the posterior without ever computing the normalizing constant.
+In all four cases, no closed-form posterior exists. You need numerical methods to approximate the posterior. The most important class of numerical methods is *Markov chain Monte Carlo* (MCMC), which generates samples from the posterior without ever computing the normalizing constant.
 
-We can now compute posteriors and choose priors. But so far, all our examples have produced clean, closed-form posteriors. What can we *do* with a posterior distribution? The next section answers this question by showing how posteriors translate into interval estimates, predictions, and decisions.
+You can now compute posteriors and choose priors for all five headphones quantities. But so far, all the examples have produced clean, closed-form posteriors. What can you *do* with a posterior distribution? The next section answers that question: it shows how posteriors translate into interval estimates, predictions, and decisions.
