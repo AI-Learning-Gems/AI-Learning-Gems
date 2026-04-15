@@ -1,20 +1,40 @@
-<!-- web-highlighter library: UMD build exposes global `Highlighter` -->
-<script src="https://unpkg.com/web-highlighter@0.7.4/dist/web-highlighter.min.js"
+<!--
+  web-highlighter library: UMD build exposes global `Highlighter`.
+  RequireJS is on the page (loaded by Quarto), so the UMD's define() call
+  gets intercepted, causing "Mismatched anonymous define()". We temporarily
+  hide window.define so the UMD falls through to the global-variable export.
+-->
+<script>var _savedDefine = window.define; window.define = undefined;</script>
+<script id="web-highlighter-lib"
+    src="https://unpkg.com/web-highlighter@0.7.4/dist/web-highlighter.min.js"
     crossorigin="anonymous"></script>
+<script>window.define = _savedDefine;</script>
 
-<!-- Load highlighter.js: derive path from the CSS link Quarto already generated -->
+<!-- Load highlighter.js ONLY after the library has finished loading -->
 <script>
 (function() {
-    var cssLink = document.querySelector('link[href*="highlighter/assets/highlighter.css"]');
-    if (cssLink) {
-        var jsPath = cssLink.getAttribute("href").replace("highlighter.css", "highlighter.js");
+    var libScript = document.getElementById("web-highlighter-lib");
+
+    function loadHighlighterJs() {
+        var cssLink = document.querySelector('link[href*="highlighter/assets/highlighter.css"]');
+        var jsPath;
+        if (cssLink) {
+            jsPath = cssLink.getAttribute("href").replace("highlighter.css", "highlighter.js");
+        } else {
+            jsPath = "_extensions/highlighter/assets/highlighter.js";
+        }
         var s = document.createElement("script");
         s.src = jsPath;
         document.body.appendChild(s);
+    }
+
+    if (typeof Highlighter !== "undefined") {
+        loadHighlighterJs();
     } else {
-        var s = document.createElement("script");
-        s.src = "_extensions/highlighter/assets/highlighter.js";
-        document.body.appendChild(s);
+        libScript.addEventListener("load", loadHighlighterJs);
+        libScript.addEventListener("error", function() {
+            console.warn("web-highlighter library failed to load from CDN; highlighter disabled.");
+        });
     }
 })();
 </script>

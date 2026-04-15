@@ -43,3 +43,6 @@ scripts/.browser-profiles/
 # It contains Quarto extensions needed for rendering.
 Probability/probabilitycourse.com/*
 **/*.quarto_ipynb
+
+# Panel build artifact (copied into _book/ by fix-panel-esm.sh at render time)
+**/static/extensions/panel/
