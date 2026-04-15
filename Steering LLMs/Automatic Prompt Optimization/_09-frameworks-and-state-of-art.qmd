@@ -241,7 +241,6 @@ classes: {
     }
   }
   decision: {
-    shape: diamond
     style: {
       stroke: "#F59E0B"
       fill: "#FFFBEB"
