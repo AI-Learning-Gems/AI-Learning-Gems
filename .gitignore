@@ -46,3 +46,7 @@ Probability/probabilitycourse.com/*
 
 # Panel build artifact (copied into _book/ by fix-panel-esm.sh at render time)
 **/static/extensions/panel/
+
+# Per-chapter pipeline artifacts (regeneratable; manifests are committed)
+**/_pipeline_log.txt
+.kiro/audit-log/
