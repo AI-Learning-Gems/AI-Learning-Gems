@@ -261,23 +261,27 @@ def download_image(url: str, images_dir: Path, index: int) -> tuple:
         return (url, False)
 
 
-def extract_inline_svgs(content: BeautifulSoup, images_dir: Path) -> dict:
+def extract_inline_svgs(content, images_dir: Path) -> dict:
     """
     Extract inline <svg> elements, save them as .svg files,
     and return a mapping from a placeholder to the local path.
     """
     svg_map = {}
+    soup = content if isinstance(content, BeautifulSoup) else content.find_parent()
+    if soup is None:
+        soup = BeautifulSoup(str(content), "html.parser")
+
     for i, svg in enumerate(content.find_all("svg")):
-        # Save the SVG
         svg_str = str(svg)
         svg_hash = hashlib.sha1(svg_str.encode()).hexdigest()[:8]
         filename = f"inline_svg_{i:03d}_{svg_hash}.svg"
         out_path = images_dir / filename
         out_path.write_text(svg_str, encoding="utf-8")
 
-        # Replace the SVG with an <img> tag pointing to the file
         local_path = str(out_path.relative_to(images_dir.parent))
-        new_img = content.new_tag("img", src=local_path, alt=f"Figure {i+1}")
+        new_img = BeautifulSoup(
+            f'<img src="{local_path}" alt="Figure {i+1}"/>', "html.parser"
+        ).img
         svg.replace_with(new_img)
         svg_map[local_path] = local_path
 
