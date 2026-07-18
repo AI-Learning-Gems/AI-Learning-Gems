@@ -1,0 +1,4 @@
+interface:
+  display_name: "Update Textbook Chapter"
+  short_description: "Integrate new sources into a chapter"
+  default_prompt: "Use $update-textbook-chapter to integrate these new sources into the existing chapter."

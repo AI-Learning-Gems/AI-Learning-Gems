@@ -1,0 +1,38 @@
+# Source Download Checklist: CLIP and SigLIP
+
+- [x] `arxiv-2103.00020` — CLIP — arXiv LaTeX
+- [x] `arxiv-2303.15343` — SigLIP — verified PDF text extraction
+- [x] `arxiv-2502.14786` — SigLIP 2 — arXiv LaTeX
+- [x] `arxiv-2102.05918` — ALIGN — arXiv LaTeX
+- [x] `arxiv-2111.07991` — LiT — arXiv LaTeX
+- [x] `arxiv-2111.10050` — BASIC — arXiv LaTeX
+- [x] `arxiv-2212.07143` — OpenCLIP scaling laws — arXiv LaTeX
+- [x] `arxiv-2210.08402` — LAION-5B — arXiv LaTeX
+- [x] `arxiv-2304.14108` — DataComp — arXiv LaTeX
+- [x] `arxiv-2204.03162` — Winoground — arXiv LaTeX
+- [x] `arxiv-2210.01936` — ARO — arXiv LaTeX
+- [x] `arxiv-2306.14610` — SugarCrepe — arXiv LaTeX
+- [x] `arxiv-2404.04125` — No Zero-Shot Without Exponential Data — arXiv LaTeX
+- [x] `arxiv-2506.08227` — A Good CREPE Needs More Than Sugar — arXiv LaTeX
+- [x] `arxiv-2410.01534` — Holistic Evaluation of CLIP Robustness — arXiv LaTeX
+- [x] `arxiv-2402.12336` — Robust CLIP — arXiv LaTeX
+- [x] `arxiv-2411.12785` — Joint Vision-Language Social Bias Removal — arXiv LaTeX
+- [x] `arxiv-2406.17711` — JEST data curation — arXiv LaTeX
+- [x] `arxiv-2405.13777` — No Filter — arXiv LaTeX
+- [x] `arxiv-2205.01397` — Data Determines Distributional Robustness — arXiv LaTeX
+- [x] `arxiv-2212.00794` — FLIP — arXiv LaTeX
+- [x] `arxiv-2112.12750` — SLIP — arXiv LaTeX
+- [x] `arxiv-2309.16671` — MetaCLIP — arXiv LaTeX
+- [x] `arxiv-2110.11316` — CLOOB — arXiv LaTeX
+- [x] `github.com/openai/CLIP` — official CLIP implementation — shallow Git clone
+- [x] `github.com/google-research/big_vision` — official SigLIP implementation — shallow Git clone
+- [x] `github.com/mlfoundations/open_clip` — OpenCLIP implementation — shallow Git clone
+- [x] `openai.com/index/clip` — official CLIP explanation — web extraction
+- [x] `lilianweng.github.io/posts/2021-05-31-contrastive` — contrastive learning tutorial — web extraction
+- [x] `blog.ritwikraha.dev/choosing-between-siglip-and-clip-for-language-image-pretraining` — direct comparison tutorial — web extraction
+- [x] `huggingface.co/docs/transformers/model_doc/clip` — official CLIP documentation — raw Markdown
+- [x] `huggingface.co/docs/transformers/model_doc/siglip` — official SigLIP documentation — raw Markdown
+- [x] `huggingface.co/docs/transformers/main/tasks/zero_shot_image_classification` — zero-shot tutorial — web extraction
+- [x] `huggingface.co/blog/siglip2` — official SigLIP 2 tutorial — web extraction
+- [x] `uvadlc-notebooks/tutorial17/SimCLR` — university contrastive-learning tutorial — web extraction
+- [x] `bair.berkeley.edu/blog/2024/07/20/visual-haystacks` — retrieval limitations case study — web extraction

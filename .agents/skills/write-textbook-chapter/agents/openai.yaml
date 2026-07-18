@@ -1,0 +1,4 @@
+interface:
+  display_name: "Write Textbook Chapter"
+  short_description: "Write a chapter from a verified plan"
+  default_prompt: "Use $write-textbook-chapter to write the chapter described by this TEXTBOOK-PLAN.md."

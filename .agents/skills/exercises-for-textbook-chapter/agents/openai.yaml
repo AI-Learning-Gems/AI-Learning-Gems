@@ -1,0 +1,4 @@
+interface:
+  display_name: "Add Textbook Exercises"
+  short_description: "Add verifiable interactive exercises"
+  default_prompt: "Use $exercises-for-textbook-chapter to add interactive exercises to this chapter."

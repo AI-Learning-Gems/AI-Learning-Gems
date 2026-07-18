@@ -1,0 +1,97 @@
+## Masked Image Modeling: MAE, BEiT, and BEiT v2 {#sec-mim-mae-beit}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Masked Autoencoders Are Scalable Vision Learners (MAE)](https://arxiv.org/abs/2111.06377) | Asymmetric encoder-decoder; 75% masking |
+| 2 | [BEiT: BERT Pre-Training of Image Transformers](https://arxiv.org/abs/2106.08254) | Discrete visual tokenizer |
+| 3 | [BEiT v2: Masked Image Modeling with VQ-KD](https://arxiv.org/abs/2208.06366) | Semantic tokenizer; patch aggregation |
+| 4 | [Beyond [cls]: MIM Representation Aggregation](https://arxiv.org/abs/2412.03215) | MAE [CLS] weakness |
+| 5 | [Objectives Matter (Shekhar et al.)](https://arxiv.org/abs/2304.13089) | REC vs JE transfer |
+
+:::
+
+### BERT Comes to Images {#sec-mim-motivation}
+
+Masked language modeling made BERT the default NLP pretrainer: hide tokens, predict them, learn representations as a side effect. Vision needed a patch-based architecture before the same trick worked cleanly. ViT supplies the token sequence; MAE and BEiT supply the masking objective.
+
+Maya wonders whether she should reconstruct masked patches of retinal images instead of matching DINO views. MAE trains faster (encoder sees only 25% of patches) and fine-tunes well. But when she linear-probes [CLS] on her 2,000 labels, MAE underperforms her DINO run. This section explains why both results are expected.
+
+### MAE Architecture {#sec-mae-architecture}
+
+MAE masks a large random subset of patches, encodes **only visible patches** with a ViT encoder (no mask tokens in the encoder), then uses a lightweight decoder with mask tokens to reconstruct pixel values ([He et al., 2022](https://arxiv.org/abs/2111.06377)).
+
+![MAE architecture. A large random subset of patches is masked. The encoder processes only visible patches. Mask tokens are inserted after the encoder; a small decoder reconstructs pixels. After pretraining, the decoder is discarded. Source: He et al., Figure 1.](Self-Supervised Vision Transformers/images/mae-architecture.png){#fig-mae-architecture}
+
+Three design choices matter:
+
+1. **Asymmetric encoder-decoder:** The encoder avoids mask tokens, saving compute. The decoder is shallow (default: 8 blocks, width 512), handling $<$10% compute per token vs. the encoder ([He et al., 2022](https://arxiv.org/abs/2111.06377)).
+2. **High masking ratio:** 75% masking works best for both fine-tuning and linear probing on ImageNet (Figure 5 in the paper). Images have heavy spatial redundancy; hiding most patches forces global reasoning.
+3. **Loss on masked patches only:** MSE in pixel space, computed only on masked locations, similar to BERT's masked-token loss.
+
+$$
+\mathcal{L}_{\text{MAE}} = \frac{1}{|\mathcal{M}|}\sum_{i \in \mathcal{M}} \|\hat{\mathbf{x}}_i - \mathbf{x}_i\|_2^2
+$$ {#eq-mae-loss}
+
+where $\mathcal{M}$ is the set of masked patch indices and $|\mathcal{M}|/N \approx 0.75$.
+
+MAE accelerates pretraining by 3× or more versus encoding all patches ([He et al., 2022](https://arxiv.org/abs/2111.06377)). ViT-Huge reaches 87.8% fine-tuned accuracy on ImageNet-1K using only IN1K data.
+
+### Why 75% Masking? {#sec-mae-masking-rationale}
+
+The MAE introduction contrasts language and vision information density. Words are semantic and sparse; missing words are hard to guess. Image patches are redundant; a missing patch near visible neighbors can be inpainted with low-level texture cues unless most of the image is hidden ([He et al., 2022](https://arxiv.org/abs/2111.06377)). High masking removes redundancy and creates a "challenging self-supervisory task that requires holistic understanding."
+
+Maya can picture this on retinal scans: if 25% of patches stay visible, many vessel crossings remain in view and the model copies local intensity patterns. At 75% masking, the model must infer global vessel layout from sparse clues.
+
+### BEiT: Predict Visual Tokens, Not Pixels {#sec-beit}
+
+BEiT predates MAE's pixel reconstruction. It tokenizes patches with a discrete variational autoencoder (dVAE), then predicts **discrete visual tokens** for masked patches, analogous to BERT predicting word IDs ([Bao et al., 2021](https://arxiv.org/abs/2106.08254)). The tokenizer is pretrained offline; BEiT is a two-stage pipeline.
+
+Pixel MAE simplifies the stack (no fixed tokenizer) and scales better, but BEiT established that masked **token** prediction is viable for ViT pretraining.
+
+### BEiT v2: Semantic Tokenizers {#sec-beit-v2}
+
+BEiT v2 trains a vector-quantized knowledge-distillation (VQ-KD) tokenizer that captures higher-level semantics than the original dVAE ([Peng et al., 2022](https://arxiv.org/abs/2208.06366)). Patch aggregation strategies improve global representation from patch tokens. The trend is clear: move reconstruction targets from raw pixels toward semantic codes.
+
+### Strengths and Weaknesses {#sec-mim-tradeoffs}
+
+| Aspect | MAE / MIM | DINO / JE |
+|--------|-----------|-----------|
+| Fine-tune on small labeled set | Excellent | Strong |
+| Frozen linear probe on [CLS] | Moderate (e.g., 73.5% lin. with ViT-L MAE) | Strong (DINO 80.1%+) |
+| k-NN on frozen features | Weak | Strong |
+| Augmentations | Not required across views | Critical |
+| Compute pattern | Fast encoder (25% patches) | Full forward on all crops |
+
+Objectives Matter shows MAE [CLS] lacks concentrated class information in final layers compared to DINO ([Shekhar et al., 2023](https://arxiv.org/abs/2304.13089)). Beyond [cls] analyzes how MAE aggregates global representation poorly from [CLS] alone; patch tokens carry more usable information for MIM models ([Przewięźlikowski et al., 2024](https://arxiv.org/abs/2412.03215)).
+
+::: {.callout-warning title="Common Misconception: MAE and DINO are interchangeable"}
+They optimize different targets. MAE reconstructs pixels (low-level signal in the decoder path); DINO aligns semantic projections across views. Frozen-feature rankings invert: DINO wins linear probe and k-NN; MAE wins many fine-tuning and scaling benchmarks. Pick MAE when Maya will fine-tune the full model on 2,000 labels; pick DINOv2 when she needs frozen patch features for segmentation adapters.
+:::
+
+::: {.callout-note title="Think Hard: If MAE [CLS] aggregates poorly, what could fix it without full fine-tuning?"}
+Use patch tokens instead of [CLS]: global average pool over patch embeddings, or learned aggregation (BEiT v2 patch aggregation, Beyond [cls] methods). Train a small probe on patch features rather than [CLS]. Hybrid objectives (iBOT, DINOv2) explicitly add patch-level distillation so global and local signals co-train. Maya's linear probe on MAE [CLS] undersells MAE; pooling patch tokens often helps.
+:::
+
+### Maya's MAE Experiment {#sec-maya-mae}
+
+Maya pretrains MAE ViT-S/16 on 10,000 unlabeled scans, then fine-tunes on 2,000 labels. End-to-end fine-tuning beats her 72% supervised baseline. Frozen DINOv2 features with a linear head on 2,000 labels also beat the baseline, but with no fine-tuning of the backbone. MAE's value is **label-efficient adaptation** when she can afford full fine-tuning; DINO's value is **off-the-shelf structure** in attention and patch features.
+
+@sec-ibot-hybrid explains how DINOv2 merges DINO's global loss with iBOT's patch loss, giving Maya the best of both paradigms without training from scratch.
+
+### MAE Linear Probe Numbers (Concrete) {#sec-mae-linear-numbers}
+
+Table 1 in the MAE paper (ViT-L/16, 800 epochs, 75% mask) reports fine-tune 84.9% vs. linear probe 73.5% with default decoder depth 8 ([He et al., 2022](https://arxiv.org/abs/2111.06377)). Shallow decoders suffice; deeper decoders barely move fine-tune but can help linear probe slightly. Mask ratio ablation (Figure 5): 75% is the sweet spot; 50% hurts linear probe more than fine-tune because the task becomes too easy.
+
+### BEiT v2 Results (Semantic Tokens) {#sec-beit-v2-results}
+
+BEiT v2 base model reaches 85.5% fine-tune and 80.1% **linear** probe on ImageNet-224 ([Peng et al., 2022](https://arxiv.org/abs/2208.06366)), closing much of the JE gap via semantic VQ-KD targets and patch aggregation. That shows MIM **can** produce strong frozen probes when targets are semantic, not pixel-level. MAE trades that for simplicity and faster training.
+
+### Reconstruction Visualization as Intuition {#sec-mae-recon-viz}
+
+MAE Figure 2 shows 80% masking leaving only 39 of 196 patches visible; reconstructions are blurry on visible regions (loss not computed there) but semantically plausible on COCO images never seen during ImageNet training ([He et al., 2022](https://arxiv.org/abs/2111.06377)). Maya should inspect MAE reconstructions on fundus data: if vessels smear into generic textures, pixel MIM may waste capacity on illumination rather than anatomy.
+
+### Simple Implementation Trick {#sec-mae-impl}
+
+MAE shuffles patch indices, drops the last fraction for encoding, then unshuffles mask tokens into the decoder sequence without sparse CUDA ops ([He et al., 2022](https://arxiv.org/abs/2111.06377)). That engineering simplicity helped adoption: one ViT encoder, one small decoder, random mask each step.

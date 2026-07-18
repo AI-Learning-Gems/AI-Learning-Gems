@@ -1,0 +1,4 @@
+interface:
+  display_name: "Convert PDF to Quarto"
+  short_description: "Transcribe a PDF into faithful Quarto"
+  default_prompt: "Use $pdf-to-qmd to convert this PDF into faithful Quarto files."

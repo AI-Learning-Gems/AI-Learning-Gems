@@ -1,0 +1,116 @@
+## Why ViTs Need Self-Supervision {#sec-why-ssl}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [An Image is Worth 16x16 Words (ViT)](https://arxiv.org/abs/2010.11929) | Inductive bias vs scale; dataset requirements |
+| 2 | [D2L: Transformers for Vision](https://d2l.ai/chapter_attention-mechanisms-and-transformers/vision-transformer.html) | Small-data failure; scalability |
+| 3 | [Self-Supervised Representation Learning (Lilian Weng)](https://lilianweng.github.io/posts/2019-11-10-self-supervised/) | Pretext tasks; linear probe evaluation |
+| 4 | [Contrastive Representation Learning (Lilian Weng)](https://lilianweng.github.io/posts/2021-05-31-contrastive/) | Augmentations; positive pairs |
+| 5 | [Objectives Matter (Shekhar et al.)](https://arxiv.org/abs/2304.13089) | JE vs REC paradigm comparison |
+| 6 | [MoCo v3 for ViT (Chen et al.)](https://arxiv.org/abs/2104.02057) | ViT training instability |
+
+:::
+
+### Maya's Label Arithmetic {#sec-maya-label-arithmetic}
+
+Maya has 50,000 retinal scans and 2,000 labels. That is a 25:1 ratio of unlabeled to labeled data. Her supervised ViT-S/16, trained only on the labeled subset, reaches 72% accuracy and stops improving. The ViT paper makes the underlying issue plain: on mid-sized datasets like ImageNet (1.3M images), ViTs "yield modest accuracies of a few percentage points below ResNets of comparable size" because Transformers lack CNN inductive biases such as translation equivariance and locality ([Dosovitskiy et al., 2021](https://arxiv.org/abs/2010.11929)).
+
+D2L puts the same point for practitioners: on small datasets ViT does not outperform ResNet, but "when training larger models on larger datasets (e.g., 300 million images), vision Transformers outperform ResNets by a large margin" ([D2L ViT](https://d2l.ai/chapter_attention-mechanisms-and-transformers/vision-transformer.html)). Maya cannot label 300 million retina images. She can, however, run self-supervised pretraining on all 50,000 unlabeled scans overnight, then fine-tune on her 2,000 labels. That is the practical fix this section motivates.
+
+### The Scaling Cliff {#sec-scaling-cliff}
+
+The ViT scaling story is not gradual. On ImageNet alone, ViT-Large can underperform ViT-Base despite more capacity. Benefits of larger models appear only when pretraining on ImageNet-21k (14M images) or JFT-300M (303M images) ([Dosovitskiy et al., 2021](https://arxiv.org/abs/2010.11929)). The authors conclude that for larger datasets, "learning the relevant patterns is sufficient, even beneficial" compared to hardwired convolutions.
+
+ViT's own masked-patch self-supervision experiment reaches 79.9% on ImageNet with ViT-B/16, a 2% gain over scratch training, but still 4% behind supervised pretraining at the same scale ([Dosovitskiy et al., 2021](https://arxiv.org/abs/2010.11929)). Methods like DINO and MAE, developed after ViT, close that gap. SSL is how you get ViT-scale representations without ViT-scale label budgets.
+
+### Self-Supervision in One Paragraph {#sec-ssl-definition}
+
+Self-supervised learning creates labels from the data. Lilian Weng's framing is the one to remember: "framing a supervised learning task in a special form to predict only a subset of information using the rest" ([Weng, 2019](https://lilianweng.github.io/posts/2019-11-10-self-supervised/)). The invented task is called a **pretext task**. You optimize it with a standard loss, but the pretext accuracy itself is irrelevant. What matters is whether the learned features help downstream tasks when evaluated by linear probing, k-NN, or fine-tuning.
+
+### Paradigm 1: Joint-Embedding Methods {#sec-paradigm-je}
+
+Joint-embedding (JE) methods train two encoders (or one encoder twice) to produce similar embeddings for different views of the same image and dissimilar embeddings for different images. SimCLR, MoCo, BYOL, and DINO all live here. They rely on **data augmentations** (random crops, color jitter, blur) to define what "same image" means ([Weng, 2021 contrastive post](https://lilianweng.github.io/posts/2021-05-31-contrastive/)).
+
+The central failure mode is **collapse**: the network outputs a constant vector for every input, trivially satisfying invariance. Fixes include contrastive negatives (MoCo), momentum teachers with stop-gradient (BYOL, DINO), batch centering and sharpening (DINO, SwAV), and spreading regularizers (KoLeo in DINOv2).
+
+Shekhar et al. formalize JE as maximizing view invariance through a Siamese setup, grouping SimCLR, MoCo, and DINO together ([Objectives Matter](https://arxiv.org/abs/2304.13089)). JE models share representational structure even across different architectures; the **objective** matters more than the backbone choice.
+
+::: {.callout-warning title="Common Misconception: Self-supervised always beats supervised"}
+Supervised ViT can win on in-domain classification when you have enough labels and the task matches the training objective. SSL wins on label efficiency and on emergent dense features (segmentation-like attention, patch retrieval). Maya's 72% supervised baseline is not hopeless; it is data-starved. SSL pretraining on 50,000 scans before fine-tuning on 2,000 labels is the realistic upgrade path.
+:::
+
+### Paradigm 2: Masked Image Modeling {#sec-paradigm-mim}
+
+Reconstruction-based (REC) methods mask patches and train the model to predict what was hidden. MAE reconstructs pixels; BEiT predicts discrete visual tokens from a tokenizer. The pretext task does not need hand-crafted augmentations across views; masking itself defines the task.
+
+MAE masks a **high proportion** of patches (typically 75%) because images have heavy spatial redundancy ([He et al., 2022](https://arxiv.org/abs/2111.06377)). A missing patch surrounded by visible neighbors is a hard task that forces semantic understanding rather than low-level inpainting.
+
+Objectives Matter shows REC and JE representations are **fundamentally different**. CKA similarity between MoCo-v3 and DINO is high; both are dissimilar to MAE ([Shekhar et al., 2023](https://arxiv.org/abs/2304.13089)). Differences concentrate in attention and layer-norm layers, not MLP blocks. MAE distributes class information across layers rather than concentrating it in the final [CLS] token, which explains weak frozen linear probes.
+
+### Collapse and Stability {#sec-collapse}
+
+For JE methods, collapse means all inputs map to the same point. For MIM, collapse is less common because the decoder must reconstruct diverse pixels from masked inputs.
+
+ViT adds a separate stability issue. MoCo v3 reports that self-supervised ViT training can be **unstable** without obvious divergence: accuracy drops 1–3% in ways that are easy to miss ([Chen et al., 2021](https://arxiv.org/abs/2104.02057)). Freezing the patch projection layer (fixed random projection) improves stability. This matters when Maya trains DINO from scratch on a small domain rather than using Meta's web-pretrained weights.
+
+### Evaluation Protocols Rank Methods Differently {#sec-eval-protocols}
+
+Three evaluation modes appear throughout the chapter:
+
+| Protocol | What you measure | JE (DINO) typical rank | MIM (MAE) typical rank |
+|----------|------------------|------------------------|------------------------|
+| **k-NN** | Nearest-neighbor vote on frozen features | Strong | Weak without preprocessing |
+| **Linear probe** | Train linear layer on frozen features | Strong | Moderate |
+| **Fine-tune** | End-to-end adaptation | Strong | Often strongest |
+
+Objectives Matter shows JE [CLS] tokens already contain class-discriminative information in the final block, while MAE needs deeper probes or fine-tuning to access the same information ([Shekhar et al., 2023](https://arxiv.org/abs/2304.13089)). REC features can transfer **better to spatial tasks** (segmentation-like structure) even when linear classification lags.
+
+::: {.callout-note title="Think Hard: Why does evaluation protocol change the ranking?"}
+Different objectives store information in different places. DINO pushes global semantics into [CLS] through cross-view agreement, so a linear probe on [CLS] works well. MAE pushes reconstruction detail into patch tokens; [CLS] is a byproduct, not the main carrier. k-NN on raw MAE [CLS] features fails partly because high-variance dimensions dominate distance (analyzed in follow-up work on local representations). Always match the protocol to the deployment: frozen segmentation adapters want patch-level JE features (DINOv2), not MAE [CLS].
+:::
+
+### Maya's Decision Tree {#sec-maya-decision-tree}
+
+```{.d2}
+direction: down
+
+classes: {
+  input: { style.fill: "#EFF6FF"; style.stroke: "#3B82F6" }
+  process: { style.fill: "#F0FDF4"; style.stroke: "#22C55E" }
+  output: { style.fill: "#FFF7ED"; style.stroke: "#F97316" }
+}
+
+Start: Need ViT\nfeatures? {class: input}
+Frozen: Frozen backbone\n(no full fine-tune)? {class: process}
+Segment: Segmentation or\ndense prediction? {class: process}
+Labels: Plenty of labels\nfor fine-tune? {class: process}
+
+DINO: DINOv2 / DINOv3\npretrained weights {class: output}
+MAE: MAE pretrain\n-> fine-tune {class: output}
+I-JEPA: I-JEPA\n(latent prediction) {class: output}
+
+Start -> Frozen
+Frozen -> Segment: Yes -> DINO
+Frozen -> Labels: No -> MAE
+Segment -> Labels: No -> I-JEPA
+```
+
+For Maya's immediate problem (vessel-like structure from unlabeled scans, almost no labels), the tree points to **pretrained DINOv2/DINOv3** rather than training MAE from scratch. @sec-dino-v1 develops the first method she would try on her cluster.
+
+### Worked Example: Information Flow in Each Paradigm {#sec-paradigm-worked}
+
+Take one retinal image. **JE (DINO):** Random resized crop and color jitter produce view A (global 224²) and view B (global + locals). Student and teacher must agree that A and B depict the same anatomy despite pixel differences. The learning signal is **invariance** to nuisance factors.
+
+**MIM (MAE):** One view only. 75% of patch tokens are removed; encoder sees 49 of 196 patches. Decoder must fill in missing pixels from context. The learning signal is **completion** from partial observation.
+
+**Evaluation consequence:** If Maya evaluates MAE with a linear layer on [CLS] after pretraining, she measures how well completion pretraining summarized the image into one vector. That was never MAE's training target (patch pixels were). JE methods explicitly train [CLS] projections via DINO heads, so linear probe is aligned with the objective.
+
+### MoCo v3 as JE Reference Point {#sec-moco-preview}
+
+MoCo v3 keeps explicit contrastive structure (two crops, momentum encoder, queue-free variant in v3) and documents ViT-specific recipes ([Chen et al., 2021](https://arxiv.org/abs/2104.02057)). Table 1 reports ViT-B 76.7% linear vs. DINO 80.1% in the DINO paper, but MoCo remains the baseline for "contrastive JE" ablations. Instability appears as small accuracy gaps; always compare against frozen patch embed and learning rate sweeps when reproducing.
+
+### Transition {#sec-why-ssl-transition}
+
+You now have vocabulary for the two paradigms, collapse, evaluation traps, and Maya's constraint set. @sec-dino-v1 starts the DINO lineage with the method that first showed SSL ViTs are not just competitive but qualitatively different from supervised ViTs in attention structure.

@@ -1,0 +1,86 @@
+## Closing {#sec-closing}
+
+### Key Takeaways {#sec-key-takeaways}
+
+- ViTs need large-scale signal; SSL manufactures labels via pretext tasks when manual annotation cannot scale.
+- **Joint-embedding** methods (DINO, MoCo) match views; **masked modeling** (MAE, BEiT) reconstructs hidden patches; **JEPA** predicts latent blocks without pixels or augmentations.
+- DINO v1 introduced label-free self-distillation with emergent segmentation in [CLS] attention and strong k-NN features on ViT.
+- iBOT and DINOv2 combine global DINO + patch iBOT + KoLeo losses; separate projection heads matter at foundation scale.
+- DINOv2's LVD-142M pipeline shows curated retrieval beats raw web crawl for frozen feature quality; artifact tokens appear in dense maps (registers mitigate).
+- DINOv3 adds Gram anchoring to preserve patch similarity structure during long 7B training; distilled ViT-L models deploy at practical cost.
+- Evaluation protocol determines rankings: MAE fine-tunes best; DINO/DINOv2/DINOv3 win frozen linear probe and dense transfer.
+
+### Completed Concept Map {#sec-completed-concept-map}
+
+```{.d2}
+direction: right
+
+classes: {
+  input: { style.fill: "#EFF6FF"; style.stroke: "#3B82F6" }
+  process: { style.fill: "#F0FDF4"; style.stroke: "#22C55E" }
+  output: { style.fill: "#FFF7ED"; style.stroke: "#F97316" }
+  highlight: { style.fill: "#FDF4FF"; style.stroke: "#A855F7" }
+}
+
+Data: 50K unlabeled\n+ 2K labels {class: input}
+
+JE: JE: DINO\nMoCo {class: process}
+MIM: MIM: MAE\nBEiT {class: process}
+JEPA: JEPA: I-JEPA {class: process}
+
+v1: DINO v1 {class: highlight}
+v2: DINOv2\nLVD-142M {class: highlight}
+v3: DINOv3\nGram anchor {class: highlight}
+
+Frozen: Frozen\nfeatures {class: output}
+Finetune: Full\nfine-tune {class: output}
+
+Clinical: "Maya's\nretinal deploy" {class: output}
+
+Data -> JE -> v1 -> v2 -> v3 -> Frozen -> Clinical
+Data -> MIM -> Finetune -> Clinical
+Data -> JEPA -> Frozen
+```
+
+### Retrieval Practice {#sec-retrieval-practice}
+
+1. Why does DINO produce segmentation-like attention maps while supervised ViT often does not?
+2. What is the fundamental difference between MAE and DINO objectives?
+3. Why does DINOv2 combine three losses instead of DINO alone?
+4. What problem does Gram anchoring address in DINOv3?
+5. When would you choose I-JEPA over DINO?
+6. Why does MAE underperform on k-NN but excel after fine-tuning?
+
+::: {.callout-note collapse="true" title="Answers"}
+
+1. DINO's multi-crop objective forces [CLS] to aggregate semantically consistent regions across local and global views without class labels. Supervised ViT optimizes disease/category logits, not spatial consistency; Objectives Matter shows JE and REC store class information differently ([Shekhar et al., 2023](https://arxiv.org/abs/2304.13089)).
+2. MAE reconstructs masked **pixels** (generative, asymmetric decoder). DINO matches **prototype distributions** across augmented views (discriminative JE). Different targets, different frozen-feature behavior.
+3. DINO alone optimizes global [CLS]; dense tasks need patch-level iBOT; KoLeo spreads [CLS] on the sphere for k-NN and stability ([Oquab et al., 2023](https://arxiv.org/abs/2304.07193)).
+4. Long training of large models degrades patch similarity maps despite rising global accuracy. Gram anchoring matches student and early-teacher Gram matrices of patch features to preserve dense structure ([Siméoni et al., 2025](https://arxiv.org/abs/2508.10104)).
+5. When augmentations are undesirable or tasks need spatial specificity (depth, counting); I-JEPA predicts latent targets without crop invariance ([Assran et al., 2023](https://arxiv.org/abs/2301.08243)).
+6. MAE puts reconstructive detail in patch tokens; [CLS] is weak for global readout until fine-tuning reorganizes information ([Shekhar et al., 2023](https://arxiv.org/abs/2304.13089); [He et al., 2022](https://arxiv.org/abs/2111.06377)).
+
+:::
+
+### Common Mistakes to Avoid {#sec-common-mistakes}
+
+- **Using k-NN on MAE [CLS] without patch pooling or preprocessing:** distances dominated by high-variance dims; use patch aggregation or fine-tune.
+- **Assuming DINOv2/DINOv3 dense maps are artifact-free:** high-norm outlier tokens appear in background; check attention on uniform regions ([Darcet et al., 2023](https://arxiv.org/abs/2309.16588)).
+- **Confusing DeiT with DINO:** DeiT uses supervised CNN teacher; DINO is label-free SSL.
+- **Using MAE [CLS] alone for dense prediction:** prefer patch tokens or hybrid models (DINOv2).
+- **Skipping data quality when scaling SSL:** DINOv2's LVD-142M curation is load-bearing; raw crawl alone hurts features.
+
+### Curated Resources {#sec-resources}
+
+- [DINO: Emerging Properties in Self-Supervised Vision Transformers](https://arxiv.org/abs/2104.14294): original self-distillation method and emergent attention analysis
+- [DINOv2: Learning Robust Visual Features without Supervision](https://arxiv.org/abs/2304.07193): LVD-142M, hybrid losses, scaling benchmarks
+- [DINOv3 Technical Report](https://arxiv.org/abs/2508.10104): Gram anchoring, 7B training, model family
+- [MAE: Masked Autoencoders Are Scalable Vision Learners](https://arxiv.org/abs/2111.06377): 75% masking, asymmetric encoder-decoder
+- [iBOT: Image BERT Pre-Training with Online Tokenizer](https://arxiv.org/abs/2111.07832): patch-level online tokenizer
+- [I-JEPA](https://arxiv.org/abs/2301.08243): latent predictive SSL without augmentations
+- [Objectives Matter](https://arxiv.org/abs/2304.13089): systematic JE vs REC comparison for ViT
+- [DINOv3 GitHub](https://github.com/facebookresearch/dinov3): weights, code, HuggingFace integration
+- [Lilian Weng: Self-Supervised Representation Learning](https://lilianweng.github.io/posts/2019-11-10-self-supervised/): pretext task primer
+- [D2L: Transformers for Vision](https://d2l.ai/chapter_attention-mechanisms-and-transformers/vision-transformer.html): ViT architecture tutorial
+
+Maya's arc closes where it opened: unlabeled retinal scans contain structure that class labels alone never taught her supervised ViT. Self-supervised Vision Transformers, from DINO through DINOv3, are the tools that extract that structure and make it usable.

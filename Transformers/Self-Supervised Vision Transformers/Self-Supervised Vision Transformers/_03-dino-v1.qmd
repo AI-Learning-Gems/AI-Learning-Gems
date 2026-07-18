@@ -1,0 +1,116 @@
+## DINO v1: Self-Distillation with No Labels {#sec-dino-v1}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [Emerging Properties in Self-Supervised Vision Transformers (DINO)](https://arxiv.org/abs/2104.14294) | Method, emergent segmentation, ablations |
+| 2 | [Contrastive Representation Learning (Lilian Weng)](https://lilianweng.github.io/posts/2021-05-31-contrastive/) | BYOL / non-contrastive JE context |
+
+:::
+
+### From BYOL to DINO {#sec-dino-context}
+
+DINO (self-**DI**stillation with **NO** labels) builds on the joint-embedding family. BYOL showed that a student can match a momentum-averaged teacher without contrastive negatives ([Grill et al., 2020](https://arxiv.org/abs/2006.07733)). DINO simplifies further: same architecture for student and teacher, cross-entropy between teacher and student output distributions over $K$ prototype dimensions, with centering and sharpening on the teacher ([Caron et al., 2021](https://arxiv.org/abs/2104.14294)).
+
+The paper's motivation is ViT-specific. Supervised ViTs "have not yet delivered clear benefits over" convnets and "their features do not exhibit unique properties" ([Caron et al., 2021](https://arxiv.org/abs/2104.14294)). SSL changes that: self-supervised ViT features contain explicit scene layout and object boundaries in self-attention, reach 78.3% ImageNet top-1 with k-NN on a small ViT, and hit 80.1% linear probing with ViT-Base/small patches.
+
+### Architecture Walkthrough {#sec-dino-architecture}
+
+Two networks share architecture $g$ but use different parameters $\theta_s$ (student) and $\theta_t$ (teacher). Given image $x$, both produce $K$-dimensional logits passed through softmax with temperatures $\tau_s$ and $\tau_t$:
+
+$$
+P_s(x)^{(i)} = \frac{\exp(g_{\theta_s}(x)^{(i)}/\tau_s)}{\sum_{k=1}^{K}\exp(g_{\theta_s}(x)^{(k)}/\tau_s)}
+$$ {#eq-dino-softmax-student}
+
+The training loss is cross-entropy between teacher and student distributions:
+
+$$
+\min_{\theta_s} H(P_t(x), P_s(x))
+$$ {#eq-dino-ce}
+
+For self-supervision, $x$ is replaced by a set of crops $V$ from multi-crop augmentation ([Caron et al., 2021](https://arxiv.org/abs/2104.14294)):
+
+$$
+\min_{\theta_s}\sum_{x \in \{x^{g}_{1}, x^{g}_{2}\}}\sum_{\substack{x' \in V \\ x' \neq x}} H(P_t(x), P_s(x'))
+$$ {#eq-dino-multicrop-loss}
+
+The teacher receives only **global crops** (224², covering >50% of the image). The student receives **all crops**, including local views (96², <50% area). Local-to-global matching is the learning signal.
+
+![Self-distillation with no labels. Student and teacher ViTs process different random transformations of the same image. Teacher outputs are centered and sharpened; student outputs are matched via cross-entropy. Teacher weights follow an exponential moving average of the student. Source: Caron et al., Figure 2.](Self-Supervised Vision Transformers/images/dino-self-distillation-architecture.png){#fig-dino-architecture}
+
+The teacher update uses exponential moving average (EMA):
+
+$$
+\theta_t \leftarrow \lambda \theta_t + (1-\lambda)\theta_s
+$$ {#eq-dino-ema}
+
+with $\lambda$ following a cosine schedule from $0.996$ to $1$ during training ([Caron et al., 2021](https://arxiv.org/abs/2104.14294)). Gradients flow only through the student; the teacher is stop-gradient.
+
+Centering prevents collapse toward a single prototype. The teacher softmax subtracts a batch center $c$ updated by EMA before sharpening with $\tau_t$. Algorithm 1 in the paper gives PyTorch-style pseudocode: center $C$ tracks mean teacher output; $H(t,s)$ applies detach on teacher, softmax on both branches ([Caron et al., 2021](https://arxiv.org/abs/2104.14294)).
+
+### Maya Trains DINO on 10,000 Scans {#sec-maya-dino-train}
+
+Maya subsamples 10,000 unlabeled retinal images and runs DINO with ViT-S/16 for a few hundred epochs. She uses the default multi-crop recipe: two 224² globals and several 96² locals. No disease labels enter the loss.
+
+After training, she extracts [CLS] self-attention from the last layer (as in @fig-hook-dino-attention). Vessel branches and the optic disc appear as high-attention regions. She thresholds each head's attention map at 60% of its mass, following the PASCAL VOC12 analysis in the DINO paper, which reports Jaccard similarity between thresholded attention and semantic segments ([Caron et al., 2021](https://arxiv.org/abs/2104.14294)). The maps are smooth hints, not trained segmenters, but they are enough for Maya to prioritize unlabeled pretraining over more supervised epochs on 2,000 labels.
+
+### Emergent Properties {#sec-dino-emergent}
+
+Three findings distinguish DINO + ViT from supervised ViT and from DINO + ResNet:
+
+**Segmentation in attention.** Figure 1 and @fig-hook-dino-attention show [CLS] attention on last-layer heads forming object-like regions without segmentation labels. Supervised ViTs produce noisier maps; the paper's Figure 4 compares supervised versus DINO segmentations side by side.
+
+![Segmentations from supervised versus DINO self-supervised ViTs. SSL attention aligns more closely with object boundaries than supervised training on class labels alone. Source: Caron et al., Figure 4.](Self-Supervised Vision Transformers/images/dino-supervised-vs-ssl-segmentation.png){#fig-dino-vs-sup-seg}
+
+**k-NN classification.** DINO ViT-S reaches 74.5% k-NN top-1 on ImageNet, "almost on par with a linear classifier (77.0%)" ([Caron et al., 2021](https://arxiv.org/abs/2104.14294)). The property "emerges only when using DINO with ViT architectures."
+
+**Small patches matter.** ViT-S/8 outperforms ViT-S/16 for both linear and k-NN evaluation. ViT-B/8 reaches 80.1% linear and 77.4% k-NN top-1. Patch size affects dense features more than scaling model width ([Caron et al., 2021](https://arxiv.org/abs/2104.14294)).
+
+::: {.callout-warning title="Common Misconception: DINO attention maps ARE segmentation masks"}
+Attention maps are a side effect of [CLS] trying to aggregate information across patches. They are smooth, head-dependent, and never optimized for pixel-accurate masks. Thresholding at 60% mass is an analysis probe, not a deployment-ready segmenter. For clinical use Maya still needs a labeled head or a dense prediction method on top of frozen patch features.
+:::
+
+::: {.callout-note title="Think Hard: Why do smaller patches help DINO more than bigger models?"}
+Each patch is a token. Finer patches ($8 \times 8$ instead of $16 \times 16$) quadruple the number of tokens at fixed image resolution, giving self-attention finer spatial resolution to align local crops with global context. DINO's multi-crop objective explicitly rewards local-to-global correspondence; finer tokens make that correspondence spatially precise. That is why emergent segmentation and k-NN improve disproportionately with /8 variants, while simply widening the model helps less ([Caron et al., 2021](https://arxiv.org/abs/2104.14294)).
+:::
+
+### Ablations: What DINO Requires {#sec-dino-ablations}
+
+The paper ablates momentum encoder, multi-crop, and patch size ([Caron et al., 2021](https://arxiv.org/abs/2104.14294)):
+
+- **Momentum teacher:** Copying student weights into the teacher fails to converge; EMA is required.
+- **Multi-crop:** Removing local crops hurts linear and k-NN accuracy; local-to-global matching is load-bearing.
+- **Predictor / contrastive loss:** DINO works without BYOL-style predictors or explicit contrastive negatives; centering + sharpening on the teacher suffice.
+
+Training DINO ViT on two 8-GPU servers for three days reaches 76.1% linear probing on ImageNet, beating convnet SSL systems of similar size with less compute ([Caron et al., 2021](https://arxiv.org/abs/2104.14294)).
+
+### DINO vs ResNet vs Supervised ViT {#sec-dino-comparisons}
+
+DINO matches state of the art on ResNet-50 (75.3% linear) while the ViT variant unlocks the emergent properties above. Supervised ViT does not produce the same attention segmentation structure. The lesson for Maya: if she needs interpretable spatial structure from unlabeled retinal data, DINO on ViT is the right architecture, not a supervised classifier on the same backbone.
+
+Pure DINO optimizes global [CLS] agreement across views. Dense prediction still benefits from **patch-level** objectives. @sec-mim-mae-beit covers reconstruction methods; @sec-ibot-hybrid shows how iBOT and DINOv2 combine global and patch losses.
+
+### Algorithm 1 Walkthrough {#sec-dino-algorithm}
+
+The DINO paper's pseudocode (Algorithm 1) clarifies the training step without multi-crop notation ([Caron et al., 2021](https://arxiv.org/abs/2104.14294)):
+
+1. Load minibatch $x$; produce two augmented views $x_1, x_2$.
+2. Student forward: $s_1, s_2 = g_s(x_1), g_s(x_2)$.
+3. Teacher forward (no grad): $t_1, t_2 = g_t(x_1), g_t(x_2)$.
+4. Loss $(H(t_1, s_2) + H(t_2, s_1))/2$.
+5. Backprop through student only; SGD step.
+6. EMA: $\theta_t \leftarrow \lambda \theta_t + (1-\lambda)\theta_s$.
+7. Center update: $C \leftarrow m C + (1-m)\,\text{mean}(t_1, t_2)$.
+
+Function $H(t,s)$: detach teacher; student softmax with $\tau_s$; teacher softmax with $(t - C)/\tau_t$. This is the entire anti-collapse mechanism besides EMA itself.
+
+With multi-crop, replace $x_1,x_2$ with global/local sets and sum $H(P_t(\text{global}), P_s(\text{any other view}))$ as in @eq-dino-multicrop-loss.
+
+### Temperature and Centering Intuition {#sec-dino-temperature}
+
+Sharpening the teacher ($\tau_t < \tau_s$) forces the student to commit to peaky targets, preventing uniform softmax collapse. Centering subtracts the batch average prototype scores so one dimension cannot dominate every sample. Together they replace the explicit negative pairs used in MoCo/SimCLR ([Caron et al., 2021](https://arxiv.org/abs/2104.14294)).
+
+### When Maya Should Not Train DINO v1 Herself {#sec-dino-when-not}
+
+DINO v1 pretrained on ImageNet is obsolete for deployment versus DINOv2/DINOv3. Training from scratch on 10k fundus images may underfit web-scale diversity. Maya's sensible path: use DINOv2/DINOv3 weights for feature extraction; consider domain SSL only if transfer fails clinically. The pedagogical reason to study v1 is emergent phenomena and the cleanest statement of self-distillation without iBOT/KoLeo/Gram extensions.

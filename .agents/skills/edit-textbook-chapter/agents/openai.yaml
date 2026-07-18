@@ -1,0 +1,4 @@
+interface:
+  display_name: "Edit Textbook Chapter"
+  short_description: "Polish an existing technical chapter"
+  default_prompt: "Use $edit-textbook-chapter to improve this chapter while preserving its technical content."
