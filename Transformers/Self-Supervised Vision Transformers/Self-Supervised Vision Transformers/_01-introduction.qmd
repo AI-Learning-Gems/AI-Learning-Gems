@@ -1,0 +1,144 @@
+## Introduction {#sec-introduction}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [An Image is Worth 16x16 Words (ViT)](https://arxiv.org/abs/2010.11929) | Patch embedding, data scaling, inductive bias |
+| 2 | [D2L: Transformers for Vision](https://d2l.ai/chapter_attention-mechanisms-and-transformers/vision-transformer.html) | Pedagogical ViT pipeline; patch embed as convolution |
+| 3 | [Self-Supervised Representation Learning (Lilian Weng)](https://lilianweng.github.io/posts/2019-11-10-self-supervised/) | Pretext tasks; labels-from-data framing |
+| 4 | [Emerging Properties in Self-Supervised Vision Transformers (DINO)](https://arxiv.org/abs/2104.14294) | Emergent segmentation in attention; k-NN performance |
+
+:::
+
+### The Puzzle of Labels You Do Not Have {#sec-hook}
+
+Dr. Maya Chen runs a small medical imaging lab. Her team collects photographs of the retina (the light-sensitive layer at the back of the eye) to screen for eye disease. They have roughly 50,000 unlabeled scans and only 2,000 that an ophthalmologist has graded. Maya trained a Vision Transformer on the labeled subset and plateaued at 72% accuracy. That is not enough for the clinic to trust the system.
+
+A colleague suggests something stranger: skip the labels entirely for pretraining. Download a pretrained DINOv2 model, run it on Maya's unlabeled scans, and look at the attention maps. Maya tries it on a handful of images. The model has never seen a segmentation mask, never been told where the optic disc or blood vessels are. Yet the self-attention patterns outline those structures anyway. Her supervised model, trained on disease labels, never produced maps this clean.
+
+How can a model trained with zero annotations draw anatomical boundaries better than one trained on expert labels? That question drives this chapter.
+
+The following figure previews the mechanism behind Maya's surprise. A ViT trained with DINO (self-distillation, no labels) produces [CLS] self-attention maps that segment objects and regions without any segmentation supervision ([Caron et al., ICCV 2021](https://arxiv.org/abs/2104.14294)). We will unpack the training loop that produces this behavior in @sec-dino-v1.
+
+![Self-attention from a ViT with $8 \times 8$ patches trained with no supervision. The [CLS] token's attention in the last layer highlights object boundaries, producing unsupervised segmentations. This is the phenomenon Maya observed on retinal scans when using pretrained DINO features. Source: Caron et al., Figure 1.](Self-Supervised Vision Transformers/images/dino-attention-segmentation.png){#fig-hook-dino-attention}
+
+Before we dive into self-supervision, we need a shared picture of the Vision Transformer itself.
+
+### Chapter Overview {#sec-chapter-overview}
+
+You already know that Transformers process sequences with self-attention. The Vision Transformer ([Dosovitskiy et al., ICLR 2021](https://arxiv.org/abs/2010.11929)) applies that same recipe to images with what the authors call "the fewest possible modifications." An image is split into fixed-size patches; each patch is flattened and linearly projected into a token embedding, exactly like a word embedding in NLP. A special **[CLS] token** is prepended to the sequence. Positional embeddings are added, and the stack of tokens passes through a standard Transformer encoder. The [CLS] output becomes the image representation used for classification or downstream tasks.
+
+The D2L tutorial makes the patch step concrete: splitting and linearly projecting patches is equivalent to a single convolution with kernel size and stride both equal to the patch size ([D2L ViT section](https://d2l.ai/chapter_attention-mechanisms-and-transformers/vision-transformer.html)). For a $224 \times 224$ image with $16 \times 16$ patches, you get $14 \times 14 = 196$ patch tokens plus one [CLS] token. The architecture is simple; the training requirements are not.
+
+ViTs lack the inductive biases baked into convolutional networks: locality, translation equivariance, and hierarchical feature building. On ImageNet alone (about 1.3 million labeled images), ViTs underperform well-tuned ResNets. The picture changes at scale. When pretrained on ImageNet-21k (14M images) or JFT-300M (303M images), ViT reaches 88.55% top-1 accuracy on ImageNet and beats state-of-the-art convnets ([Dosovitskiy et al., 2021](https://arxiv.org/abs/2010.11929)). The authors summarize the lesson: **large scale training trumps inductive bias.** Most labs, including Maya's, do not have access to hundreds of millions of labels.
+
+That is where **self-supervised learning (SSL)** enters. As Lilian Weng explains, SSL manufactures supervision from the data itself: you design a pretext task that predicts one part of the input from another, so inputs and targets both come from unlabeled examples ([Weng, 2019](https://lilianweng.github.io/posts/2019-11-10-self-supervised/)). You do not care about the pretext accuracy; you care about the representation the model learns. A common evaluation protocol trains a linear classifier on frozen features to measure representation quality.
+
+For ViTs, two SSL paradigms dominate this chapter:
+
+1. **Joint-embedding (JE) methods** (DINO, MoCo, SimCLR): match representations across different views of the same image. They need careful augmentations and anti-collapse tricks (momentum teachers, centering, stop-gradient).
+2. **Masked image modeling (MIM)** methods (MAE, BEiT, iBOT): hide patches and reconstruct pixels or tokens. They use high masking ratios and often an asymmetric encoder-decoder.
+
+The DINO lineage threads through the JE side and evolves into hybrids. **DINO v1** ([Caron et al., 2021](https://arxiv.org/abs/2104.14294)) is self-distillation with no labels: a student ViT matches a momentum-averaged teacher on multi-crop views. It produces emergent segmentation in attention maps and strong k-NN classifiers (78.3% top-1 on ImageNet with a small ViT, without fine-tuning). **iBOT** adds patch-level masked distillation, bridging JE and MIM. **DINOv2** ([Oquab et al., 2023](https://arxiv.org/abs/2304.07193)) scales data curation (LVD-142M), combines DINO + iBOT + KoLeo losses, and targets frozen features competitive with CLIP. **DINOv3** ([Siméoni et al., 2025](https://arxiv.org/abs/2508.10104)) pushes to a 7B-parameter teacher on 1.7B images and introduces **Gram anchoring** to fix dense feature degradation during long training.
+
+Parallel tracks matter too. **MAE** ([He et al., CVPR 2022](https://arxiv.org/abs/2111.06377)) shows that masking 75% of patches and reconstructing pixels is a scalable ViT pretrainer, excellent after fine-tuning but weaker for frozen linear probes. **I-JEPA** ([Assran et al., 2023](https://arxiv.org/abs/2301.08243)) predicts latent embeddings rather than pixels, avoiding hand-crafted augmentations. **MoCo v3** ([Chen et al., 2021](https://arxiv.org/abs/2104.02057)) adapts contrastive learning to ViTs and documents training instability. **DeiT** ([Touvron et al., 2021](https://arxiv.org/abs/2012.12877)) is supervised distillation, not SSL, but contrasts with DINO when labels are scarce.
+
+Maya's journey mirrors this landscape. In @sec-why-ssl she quantifies why unlabeled pretraining beats her 2,000-label baseline. In @sec-dino-v1 she experiments with DINO and visualizes emergent vessel-like attention. @sec-mim-mae-beit compares MAE and BEiT when she needs fine-tuning. @sec-ibot-hybrid explains why DINOv2 combines three losses. @sec-dinov2 covers scaling and data curation. @sec-dinov3-landscape finishes with DINOv3, alternatives, and a decision framework for her deployment.
+
+What will be easy: the high-level split between "match views" and "reconstruct masks," and the intuition that DINO's attention maps reveal structure without labels. What will be harder: choosing evaluation protocols (k-NN vs linear probe vs fine-tune rank methods differently), understanding when frozen DINO features beat MAE, and knowing the limitations (DINOv2 artifact tokens, domain shift from web pretraining to medical images). By the end, you should be able to pick a method, explain its loss, and know what to expect from frozen features on Maya's retinal scans.
+
+### Learning Objectives {#sec-learning-objectives}
+
+After reading this chapter, you should be able to:
+
+- Explain why ViTs are data-hungry and how SSL supplies training signal without manual labels
+- Distinguish joint-embedding SSL from masked image modeling and name representative methods in each
+- Describe DINO's teacher-student loop, multi-crop strategy, and anti-collapse mechanisms
+- Compare MAE, BEiT, and iBOT reconstruction targets and when each excels
+- Summarize DINOv2's data pipeline and combined loss, and DINOv3's Gram anchoring motivation
+- Choose among DINOv2/DINOv3, MAE, I-JEPA, and MoCo v3 given constraints on labels, compute, and downstream task
+
+### Concept Map {#sec-concept-map}
+
+```{.d2}
+direction: right
+
+classes: {
+  input: {
+    style.fill: "#EFF6FF"
+    style.stroke: "#3B82F6"
+  }
+  process: {
+    style.fill: "#F0FDF4"
+    style.stroke: "#22C55E"
+  }
+  output: {
+    style.fill: "#FFF7ED"
+    style.stroke: "#F97316"
+  }
+  highlight: {
+    style.fill: "#FDF4FF"
+    style.stroke: "#A855F7"
+  }
+}
+
+Unlabeled Images: Unlabeled\nimage corpus {class: input}
+Augment: Multi-crop\naugmentations {class: process}
+Mask: Random patch\nmasking {class: process}
+
+JE: Joint-Embedding\n(DINO, MoCo) {class: highlight}
+MIM: Masked Modeling\n(MAE, BEiT) {class: process}
+JEPA: Latent Prediction\n(I-JEPA) {class: process}
+
+CLS: "[CLS] features" {class: output}
+Patch: Patch features {class: output}
+Dense: Dense maps {class: output}
+
+Eval: Linear probe /\nk-NN / fine-tune {class: process}
+Deploy: Classification,\nsegmentation, depth {class: output}
+
+Unlabeled Images -> Augment -> JE
+Unlabeled Images -> Mask -> MIM
+Unlabeled Images -> Mask -> JEPA
+
+JE -> CLS
+JE -> Patch
+MIM -> Patch
+MIM -> CLS
+JEPA -> Patch
+
+CLS -> Eval
+Patch -> Dense
+Dense -> Deploy
+Eval -> Deploy
+
+JE -> DINOv2: DINO lineage\nv1 -> v2 -> v3 {class: highlight}
+DINOv2 -> Dense
+```
+
+### Notation {#sec-notation}
+
+| Symbol | Definition | Valid Values | Example (Maya's ViT-S/16) |
+|--------|------------|--------------|---------------------------|
+| $N$ | Number of image patches | Positive integers | $196$ for $224 \times 224$ image, $16 \times 16$ patches |
+| $p$ | Patch size (pixels) | Typically 8, 14, or 16 | $16$ |
+| $\mathbf{x}_{\text{cls}}$ | Class token embedding | $\mathbb{R}^d$ | Learnable vector prepended to patch sequence |
+| $\mathbf{E}$ | Patch embedding projection | $\mathbb{R}^{d \times cp^2}$ | Linear proj. of flattened $16 \times 16 \times 3$ patch |
+| $\theta_s, \theta_t$ | Student / teacher parameters | Model weights | ViT-S weights; $\theta_t$ from EMA |
+| $\lambda$ | EMA momentum coefficient | $(0, 1)$ | Cosine schedule from $0.996$ to $1$ (DINO) |
+| $\tau_s, \tau_t$ | Student / teacher temperature | $(0, \infty)$ | Sharpen teacher, smooth student |
+| $\mathcal{M}$ | Set of masked patch indices | Subset of $\{1,\ldots,N\}$ | ~75% of patches in MAE |
+| $P_s, P_t$ | Student / teacher output distributions | Simplex over $K$ prototypes | After softmax + centering |
+| $\mathcal{L}_{\text{DINO}}$ | Image-level distillation loss | $\mathbb{R}_{\geq 0}$ | Cross-entropy on [CLS] outputs |
+| $\mathcal{L}_{\text{iBOT}}$ | Patch-level distillation loss | $\mathbb{R}_{\geq 0}$ | Cross-entropy on masked patch tokens |
+| $\mathcal{L}_{\text{KoLeo}}$ | Feature spreading regularizer | $\mathbb{R}_{\geq 0}$ | Minimum pairwise distance on [CLS] batch |
+| $\mathcal{L}_{\text{MAE}}$ | Pixel reconstruction loss | $\mathbb{R}_{\geq 0}$ | MSE on masked patches only |
+
+Patch embedding for a single image:
+
+$$
+\mathbf{z}_0 = [\mathbf{x}_{\text{cls}}; \mathbf{E}\mathbf{x}_p^1; \ldots; \mathbf{E}\mathbf{x}_p^N] + \mathbf{E}_{\text{pos}}
+$$ {#eq-vit-patch-embed}
+
+Here $\mathbf{E}$ maps each flattened patch into dimension $d$, and $\mathbf{E}_{\text{pos}}$ adds learnable positional information. This is the starting point for every method in the chapter, whether the training signal comes from view matching or patch reconstruction.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Paper Notes"
+  short_description: "Create faithful notes from one paper"
+  default_prompt: "Use $paper-notes to create source-grounded Quarto notes for this research paper."

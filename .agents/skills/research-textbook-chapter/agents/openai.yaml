@@ -1,0 +1,4 @@
+interface:
+  display_name: "Research Textbook Chapter"
+  short_description: "Research and plan a technical chapter"
+  default_prompt: "Use $research-textbook-chapter to research this topic and create a textbook plan."

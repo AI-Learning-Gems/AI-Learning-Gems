@@ -1,0 +1,90 @@
+## DINOv2: Scaling Self-Supervised ViTs {#sec-dinov2}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [DINOv2 (Oquab et al.)](https://arxiv.org/abs/2304.07193) | LVD-142M pipeline; scaling; distillation |
+| 2 | [Understanding DINOv2 (Lightly AI)](https://www.lightly.ai/blog/dinov2) | Practical loss and training overview |
+| 3 | [Vision Transformers Need Registers (Darcet et al.)](https://arxiv.org/abs/2309.16588) | High-norm artifact tokens in DINOv2 |
+| 4 | [Objectives Matter (Shekhar et al.)](https://arxiv.org/abs/2304.13089) | Patch vs [CLS] analysis |
+
+:::
+
+### From Algorithm to Foundation Model {#sec-dinov2-motivation}
+
+DINO v1 proved SSL ViTs learn emergent structure. DINOv2 asks a production question: can self-supervised features alone match weakly-supervised foundation models like OpenCLIP **without fine-tuning**? The answer, on curated web-scale data, is yes for many image- and pixel-level benchmarks ([Oquab et al., 2023](https://arxiv.org/abs/2304.07193)).
+
+Goal for Maya: download frozen weights, linear-probe 2,000 retinal labels, deploy patch features for vessel segmentation. Training ViT-g from scratch on 50,000 scans is unnecessary if DINOv2 transfers.
+
+### LVD-142M Data Pipeline {#sec-lvd-142m}
+
+Prior SSL scaling used uncurated web crawls; feature quality dropped versus ImageNet curation ([Oquab et al., 2023](https://arxiv.org/abs/2304.07193)). DINOv2 builds **LVD-142M** (142 million images) by retrieval from 1.2B deduplicated web images toward diverse **curated seed** datasets (ImageNet-22k, ImageNet-1k train, Google Landmarks, fine-grained sets).
+
+![Overview of the DINOv2 data processing pipeline. Curated and uncurated images map to embeddings; uncurated images are deduplicated and matched to curated seeds via retrieval. Source: Oquab et al., Figure 3.](Self-Supervised Vision Transformers/images/dinov2-data-pipeline.png){#fig-dinov2-pipeline}
+
+Steps ([Oquab et al., 2023](https://arxiv.org/abs/2304.07193)):
+
+1. **Uncurated pool:** 1.2B unique images from public web crawl (URL extraction, NSFW filter, face blur, PCA-hash dedup).
+2. **Deduplication:** Remove near-duplicates within uncurated data and overlap with benchmark test sets ([Pizzi et al., 2022](https://arxiv.org/abs/2203.16507)).
+3. **Retrieval:** Embed images with SSL ViT-H/16 pretrained on ImageNet-22k; k-means cluster uncurated data; for each curated seed image, retrieve $N=4$ nearest neighbors per query (tradeoff against collision).
+4. **Output:** 142M curated images without metadata or text.
+
+No human labels gate the pipeline; visual similarity drives curation, inspired by NLP text filtering ([Wenzek et al., 2020](https://arxiv.org/abs/1911.00359)).
+
+::: {.callout-warning title="Common Misconception: Skipping data curation when scaling SSL"}
+Uncurated billions help only if the objective survives redundancy and mode collapse. DINOv2 shows uncurated-only scaling degrades feature quality; retrieval toward diverse seeds rebalance concepts ([Oquab et al., 2023](https://arxiv.org/abs/2304.07193)). Maya's 50,000 medical scans are already a single domain; curation means dedup, quality filters, and class balance, not web-scale retrieval.
+:::
+
+### Training at Scale {#sec-dinov2-training}
+
+DINOv2 trains ViT-g (1.1B parameters, 1536 dim, 24 heads) with the combined loss from @sec-ibot-hybrid. Engineering improvements ([Oquab et al., 2023](https://arxiv.org/abs/2304.07193)):
+
+- **FlashAttention-style** kernels and sequence packing (concatenate global and local crop sequences with block-diagonal attention masks).
+- **FSDP**, mixed precision, longer schedules, larger batches.
+- **High-resolution phase:** Short final training at $518 \times 518$ for dense tasks.
+- **2× faster, ~3× less memory** than the iBOT reference implementation on the same hardware.
+
+![Evolution of performance when scaling model parameters across eight vision task types. DINOv2 (dark blue) surpasses prior SSL and approaches weakly-supervised CLIP variants. Source: Oquab et al., Figure 2.](Self-Supervised Vision Transformers/images/dinov2-scaling-performance.png){#fig-dinov2-scaling}
+
+Distillation compresses ViT-g into ViT-S, B, L, and g student models that exceed OpenCLIP on most benchmarks at image and pixel levels ([Oquab et al., 2023](https://arxiv.org/abs/2304.07193)).
+
+### Maya's Frozen-Feature Workflow {#sec-maya-dinov2}
+
+Maya downloads DINOv2 ViT-L/14, extracts [CLS] + patch tokens from her 2,000 labeled scans, trains a linear disease classifier on [CLS], and a small conv head on patch tokens for vessel maps. Linear probe beats 72% supervised baseline without pretraining her own backbone. For segmentation she uses patch cosine similarity (as in DINOv2 Figure 1 PCA maps), not raw attention thresholds.
+
+### Limitations: Artifact Tokens {#sec-dinov2-artifacts}
+
+DINO v1 attention maps were praised as interpretable. DINOv2 achieves stronger dense benchmarks but behaves differently. Darcet et al. show **high-norm outlier tokens** (~2.37% of patches with norm $> 150$) in DINOv2-g, appearing in low-information background regions ([Darcet et al., 2023](https://arxiv.org/abs/2309.16588)). These tokens store global image information while discarding local spatial detail; attention maps show peaky artifacts unlike original DINO.
+
+Interestingly, original DINO is the exception; supervised DeiT-III, CLIP, and DINOv2 all exhibit similar outliers. **Register tokens** (extra learned tokens appended to the sequence) absorb this role and smooth feature maps. DINOv3-era models incorporate lessons from this analysis.
+
+::: {.callout-note title="Think Hard: Are DINOv2 artifacts the same problem Gram anchoring fixes?"}
+Related symptoms, different mechanisms. Artifacts (registers paper) are high-norm tokens repurposed for global computation in background patches. Gram anchoring (DINOv3) addresses **patch similarity structure degradation** during very long training of very large models. Both affect dense maps, but DINOv3's Gram loss matches student and teacher Gram matrices of patch features; register tokens fix outlier norms in ViT sequences. Use registers/smooth features when you see spike attention on blank regions; Gram anchoring matters when scaling training iterations and model size.
+:::
+
+@sec-dinov3-landscape carries the lineage forward with 7B teachers, Gram anchoring, and a full model family.
+
+### Benchmark Story (Frozen Features) {#sec-dinov2-benchmarks}
+
+DINOv2 evaluates frozen backbones across classification, segmentation, depth, and retrieval benchmarks (Section 7 of the paper). Figure 2 averages metrics within task families: as parameter count grows, DINOv2 crosses weakly-supervised OpenCLIP lines on many pixel-level tasks while matching or beating prior SSL curves ([Oquab et al., 2023](https://arxiv.org/abs/2304.07193)). The design goal is explicit: features you can plug into linear heads without fine-tuning the trunk, analogous to CLIP image encoders but without text pairing.
+
+For Maya, the relevant comparison is not ImageNet top-1 alone but **dense transfer**: patch cosine similarity for vessel continuity, linear probe on 2k fundus labels, and whether a frozen trunk beats her 72% supervised end-to-end model with a thin head.
+
+### Distillation: ViT-g to Practical Models {#sec-dinov2-distill}
+
+Training ViT-g (1.1B) is the teacher pass; distillation produces ViT-S/B/L/g students that retain most teacher quality ([Oquab et al., 2023](https://arxiv.org/abs/2304.07193)). Students use the same DINO+iBOT+KoLeo objective with the frozen teacher replacing EMA. Maya downloads ViT-L because it balances accuracy and GPU memory for 512² fundus crops at inference.
+
+### Implementation Checklist for Practitioners {#sec-dinov2-checklist}
+
+When deploying DINOv2 (or fine-tuning heads only):
+
+1. **Input resolution:** Pretraining uses 224² globals; dense tasks benefit from 518² or multi-scale features after the high-res phase.
+2. **Token choice:** Use patch tokens for segmentation; [CLS] for global classification probes.
+3. **Normalize features:** $\ell_2$-normalize before cosine similarity maps or k-NN.
+4. **Watch background patches:** High-norm artifact tokens on uniform retina regions may spike attention; consider register-augmented successors or smooth pooling ([Darcet et al., 2023](https://arxiv.org/abs/2309.16588)).
+5. **Domain gap:** LVD-142M is natural images; medical transfer should always be validated on labeled clinic data.
+
+### Relation to Objectives Matter Findings {#sec-dinov2-objectives-matter}
+
+Shekhar et al. show JE models concentrate class information in final [CLS] while MAE spreads it ([Shekhar et al., 2023](https://arxiv.org/abs/2304.13089)). DINOv2's iBOT term explicitly supervises patch tokens, bridging JE global structure with REC-style local targets without pixel decoders. That hybrid explains why DINOv2 leads on pixel benchmarks while pure DINO v1 was stronger on k-NN but less tuned for dense SOTA at scale.

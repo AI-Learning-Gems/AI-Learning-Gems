@@ -1,0 +1,4 @@
+interface:
+  display_name: "Deep Factual Search"
+  short_description: "Research a factual question rigorously"
+  default_prompt: "Use $deep-factual-search to investigate this question with source verification."

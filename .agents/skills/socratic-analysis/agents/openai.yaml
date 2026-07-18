@@ -1,0 +1,4 @@
+interface:
+  display_name: "Socratic Analysis"
+  short_description: "Stress-test a question through critique"
+  default_prompt: "Use $socratic-analysis to analyze this question through iterative research and critique."

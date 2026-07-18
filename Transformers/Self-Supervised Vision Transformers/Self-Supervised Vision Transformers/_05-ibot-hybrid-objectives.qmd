@@ -1,0 +1,131 @@
+## iBOT and Hybrid Objectives {#sec-ibot-hybrid}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [iBOT: Image BERT Pre-Training with Online Tokenizer](https://arxiv.org/abs/2111.07832) | Masked patch distillation; online tokenizer |
+| 2 | [DINOv2 (Oquab et al.)](https://arxiv.org/abs/2304.07193) | Combined DINO + iBOT + KoLeo; separate heads |
+| 3 | [Understanding DINOv2 (Lightly AI)](https://www.lightly.ai/blog/dinov2) | Engineer's guide to losses |
+
+:::
+
+### The Gap Pure DINO Leaves {#sec-ibot-motivation}
+
+DINO excels at global [CLS] features and emergent attention maps (@sec-dino-v1). Dense tasks (segmentation, depth, patch retrieval) benefit from **patch-level** alignment, not just [CLS] agreement across crops. iBOT ("image BERT pre-training with Online Tokenizer") fills that gap by applying self-distillation to masked patch tokens ([Zhou et al., 2022](https://arxiv.org/abs/2111.07832)).
+
+Maya needs vessel boundaries at patch resolution for a frozen-backbone segmenter. Pure DINO gives promising attention maps; iBOT and DINOv2 train patch tokens explicitly for that use case.
+
+### iBOT Framework {#sec-ibot-framework}
+
+iBOT recasts masked image modeling as knowledge distillation. BEiT distills from a **fixed** discrete tokenizer (dVAE). iBOT uses the **momentum teacher** as an online tokenizer: the teacher sees the full image; the student sees a masked version and must match teacher patch outputs on masked positions ([Zhou et al., 2022](https://arxiv.org/abs/2111.07832)).
+
+Two losses run in parallel:
+
+**[CLS] loss (DINO-style):** cross-view self-distillation on class tokens.
+
+$$
+\mathcal{L}_{\texttt{[CLS]}} = -P_{\theta'}^{\texttt{[CLS]}}(\mathbf{v})^{\top} \log P_{\theta}^{\texttt{[CLS]}}(\mathbf{u})
+$$ {#eq-ibot-cls}
+
+**MIM patch loss:** masked patch distillation within the same view.
+
+$$
+\mathcal{L}_{\mathrm{MIM}} = -\sum_{i=1}^{N} m_i \cdot P_{\theta'}^{\mathrm{patch}}(u_i)^{\top} \log P_{\theta}^{\mathrm{patch}}(\hat{u}_i)
+$$ {#eq-ibot-mim}
+
+Here $m_i$ is the mask indicator, $\hat{u}$ the masked student input, and teacher patch outputs come from the unmasked view. The teacher tokenizer is jointly learned via EMA; no offline dVAE stage.
+
+iBOT shares projection heads between [CLS] and patches in the original paper (unlike DINOv2 at scale). Mask ratio $r$ is random: 0 with probability 0.5, else uniform in [0.1, 0.5] ([Zhou et al., 2022](https://arxiv.org/abs/2111.07832)). ImageNet-1K ViT-B/16 reaches 79.5% linear probing and 77.1% k-NN; ViT-L/16 on ImageNet-22K reaches 82.3% linear and 87.8% fine-tune.
+
+### DINOv2's Combined Loss {#sec-dinov2-combined-loss}
+
+DINOv2 explicitly combines three terms ([Oquab et al., 2023](https://arxiv.org/abs/2304.07193)):
+
+**DINO (image-level):**
+
+$$
+\mathcal{L}_{\text{DINO}} = -\sum p_t \log p_s
+$$ {#eq-dinov2-dino}
+
+Cross-entropy between centered/sharpened teacher prototype scores $p_t$ and student scores $p_s$ on [CLS] tokens from different crops.
+
+**iBOT (patch-level):**
+
+$$
+\mathcal{L}_{\text{iBOT}} = -\sum_i p_{ti} \log p_{si}
+$$ {#eq-dinov2-ibot}
+
+Summed over masked patch indices $i$, with separate iBOT MLP heads on patch tokens.
+
+**KoLeo (spread regularizer):**
+
+$$
+\mathcal{L}_{\text{koleo}} = -\frac{1}{n}\sum_{i=1}^{n}\log(d_{n,i}), \quad d_{n,i} = \min_{j \neq i}\|x_i - x_j\|
+$$ {#eq-koleo}
+
+Applied to $\ell_2$-normalized [CLS] features in a batch; encourages uniform spacing on the hypersphere ([Sablayrolles et al., 2019](https://arxiv.org/abs/1905.13290), cited in DINOv2).
+
+DINOv2 uses **separate MLP heads** for DINO and iBOT. iBOT originally shared heads; at scale DINOv2 found sharing hurts ([Oquab et al., 2023](https://arxiv.org/abs/2304.07193)). Teacher weights still come from EMA; Sinkhorn-Knopp centering can replace softmax centering ([Caron et al., 2020](https://arxiv.org/abs/2006.09882)).
+
+```{.d2}
+direction: right
+
+classes: {
+  input: { style.fill: "#EFF6FF"; style.stroke: "#3B82F6" }
+  process: { style.fill: "#F0FDF4"; style.stroke: "#22C55E" }
+  output: { style.fill: "#FFF7ED"; style.stroke: "#F97316" }
+}
+
+Image: Input image\ncrops {class: input}
+Student: Student ViT\n(CLS + patches) {class: process}
+Teacher: Teacher ViT\n(EMA) {class: process}
+
+DHead: DINO head\n-> L_DINO {class: output}
+IHead: iBOT head\n-> L_iBOT {class: output}
+Koleo: "KoLeo on\n[CLS] batch" {class: output}
+
+Image -> Student
+Image -> Teacher
+Student -> DHead
+Student -> IHead
+Student -> Koleo
+Teacher -> DHead
+Teacher -> IHead
+```
+
+### Why the Hybrid Wins {#sec-hybrid-why}
+
+Global DINO loss clusters images semantically across augmentations. Patch iBOT loss aligns local token semantics for dense downstream tasks. KoLeo prevents representational collapse in [CLS] space and helps k-NN. Neither alone covers both global classification probes and pixel-level feature quality at foundation-model scale.
+
+::: {.callout-note title="Think Hard: Why does DINOv2 untie heads when iBOT tied them?"}
+At small scale, shared heads transfer [CLS] semantics to patch tokens beneficially ([Zhou et al., 2022](https://arxiv.org/abs/2111.07832)). At ViT-g scale and 142M images, competing gradient signals on one MLP destabilize or dilute patch-specific learning. Separate heads let DINO optimize global invariance and iBOT optimize masked patch matching without capacity interference ([Oquab et al., 2023](https://arxiv.org/abs/2304.07193)).
+:::
+
+### Maya Uses Pretrained DINOv2 {#sec-maya-ibot}
+
+Maya does not train iBOT from scratch. She downloads DINOv2 ViT-L/14 weights (trained with the combined loss on LVD-142M) and extracts patch features for a lightweight segmentation head. The iBOT term in DINOv2 pretraining is why patch-level cosine similarity maps look semantically coherent (PCA of patch features in DINOv2 Figure 1). @sec-dinov2 covers data curation and scaling that make these weights possible.
+
+### Worked Example: Patch Loss on a Single Masked Token {#sec-ibot-worked-example}
+
+Consider one patch index $i$ masked in the student view. The teacher outputs $K$-dimensional logits on the corresponding visible patch, centered and sharpened into $p_{ti}$. The student head outputs $p_{si}$ on the mask token position. The iBOT contribution is a single cross-entropy $-\sum_k p_{ti}^{(k)} \log p_{si}^{(k)}$. Summing over all masked indices gives $\mathcal{L}_{\text{iBOT}}$.
+
+If the teacher assigns high probability to prototype dimension $k=42$ for a vessel patch, the student must raise $p_{si}^{(42)}$ even though the student input hid that patch. The teacher never sees the mask; it supplies semantic targets. This is why iBOT targets are "semantic-level" compared to MAE pixels: prototypes encode cluster structure learned jointly with the backbone.
+
+DINOv2 applies the same formula at scale with **blockwise masking** on student global crops, separate iBOT MLP heads, and Sinkhorn-Knopp centering on the teacher ([Oquab et al., 2023](https://arxiv.org/abs/2304.07193)). KoLeo runs on the batch of [CLS] embeddings before the DINO head, encouraging no two retinal images in a minibatch to collapse to identical global vectors.
+
+### iBOT vs BEiT vs MAE Targets {#sec-ibot-target-comparison}
+
+| Method | Target | Tokenizer | Stages |
+|--------|--------|-----------|--------|
+| MAE | Normalized pixels | None | One |
+| BEiT | Discrete dVAE codes | Offline dVAE | Two |
+| BEiT v2 | VQ-KD codes | Offline VQ-KD | Two |
+| iBOT | Softmax prototype distribution | Online EMA teacher | One |
+| DINOv2 iBOT | Same as iBOT | EMA + SK centering | One |
+
+Maya's choice: if she must train from scratch on fundus data only, iBOT-style joint training is simpler than training a BEiT tokenizer first. If she uses public weights, DINOv2 already paid that cost on LVD-142M.
+
+### Training Dynamics at Scale {#sec-ibot-scale-notes}
+
+The Lightly AI blog summarizes DINOv2 for engineers: three loss branches, separate heads, longer training, high-res finisher ([Lightly, 2023](https://www.lightly.ai/blog/dinov2)). Memory tricks (sequence packing, FlashAttention) exist because simultaneously forwarding global 224² crops, local 98² crops, masked patch paths, and dual heads multiplies activation cost. Maya training iBOT locally on 10k images should start with DINO-only pretrain before adding patch masking; ablations in iBOT show both branches contribute, but DINO alone is the simpler baseline (@sec-dino-v1).

@@ -1,0 +1,21 @@
+---
+title: "Self-Supervised Vision Transformers"
+filters:
+  - ../../_extensions/pandoc-ext/diagram/diagram.lua
+---
+
+{{< include "Self-Supervised Vision Transformers/_01-introduction.qmd" >}}
+
+{{< include "Self-Supervised Vision Transformers/_02-why-vits-need-self-supervision.qmd" >}}
+
+{{< include "Self-Supervised Vision Transformers/_03-dino-v1.qmd" >}}
+
+{{< include "Self-Supervised Vision Transformers/_04-masked-image-modeling.qmd" >}}
+
+{{< include "Self-Supervised Vision Transformers/_05-ibot-hybrid-objectives.qmd" >}}
+
+{{< include "Self-Supervised Vision Transformers/_06-dinov2.qmd" >}}
+
+{{< include "Self-Supervised Vision Transformers/_07-dinov3-and-landscape.qmd" >}}
+
+{{< include "Self-Supervised Vision Transformers/_99-closing.qmd" >}}

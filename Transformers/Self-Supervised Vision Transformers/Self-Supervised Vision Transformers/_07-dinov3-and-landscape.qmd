@@ -1,0 +1,139 @@
+## DINOv3, Alternatives, and Choosing a Method {#sec-dinov3-landscape}
+
+::: {.callout-note collapse="true" title="Sources for this section"}
+
+| # | Source | Summary |
+|---|---|---|
+| 1 | [DINOv3 Technical Report (Siméoni et al.)](https://arxiv.org/abs/2508.10104) | Gram anchoring; 7B scale; distillation |
+| 2 | [DINOv3 Blog (Meta AI)](https://ai.meta.com/blog/dinov3-self-supervised-vision-model/) | Accessible overview |
+| 3 | [DINOv3 GitHub](https://github.com/facebookresearch/dinov3) | Checkpoints and usage |
+| 4 | [I-JEPA (Assran et al.)](https://arxiv.org/abs/2301.08243) | Latent predictive SSL |
+| 5 | [MoCo v3 (Chen et al.)](https://arxiv.org/abs/2104.02057) | Contrastive ViT baseline |
+| 6 | [DeiT (Touvron et al.)](https://arxiv.org/abs/2012.12877) | Supervised distillation contrast |
+
+:::
+
+### DINOv3 Motivation {#sec-dinov3-motivation}
+
+DINOv2 proved SSL can produce foundation-quality frozen features on curated data. Scaling further exposed a new failure: **dense feature maps degrade** during long training of models above ViT-L (~300M parameters). Global benchmarks improve while patch similarity maps become noisy ([Siméoni et al., 2025](https://arxiv.org/abs/2508.10104)).
+
+DINOv3 targets three aims: versatile frozen backbones across domains, superior dense feature maps, and a **model family** (ViT-S/B/L+, ConvNeXt variants) distilled from a 7B teacher trained on 1.7B images.
+
+### Scale and Training Recipe {#sec-dinov3-scale}
+
+DINOv3 trains a **7B-parameter ViT** with axial RoPE positional embeddings and constant hyperparameter schedules for 1M iterations, mixing a large automatically curated background corpus with specialized data (including ImageNet-1k) ([Siméoni et al., 2025](https://arxiv.org/abs/2508.10104)). Unlike DINOv2's multiple cosine schedules tied to a fixed horizon, constant schedules suit open-ended web-scale training.
+
+Post-training adds high-resolution adaptation and **multi-student distillation** from the 7B teacher into practical ViT-S (21M) through ViT-L (300M) and ConvNeXt variants. ViT-L distilled approaches 7B teacher quality on many tasks ([Siméoni et al., 2025](https://arxiv.org/abs/2508.10104)).
+
+Frozen DINOv3 backbones report state-of-the-art dense results, e.g., ADE20k segmentation mIoU 63.0 and COCO detection mAP 66.1 with frozen encoders ([Siméoni et al., 2025](https://arxiv.org/abs/2508.10104)).
+
+![Performance of the DINOv3 model family vs. other SSL and weakly-supervised families on dense and global benchmarks. DINOv3 leads especially on dense tasks. Source: Siméoni et al., Figure 2.](Self-Supervised Vision Transformers/images/dinov3-benchmark-comparison.png){#fig-dinov3-benchmarks}
+
+### Gram Anchoring {#sec-gram-anchoring}
+
+During extended training, patch-level iBOT loss improves globally but patch **consistency** collapses: similarity maps become unusable. DINOv3 adds **Gram anchoring** after 1M iterations in a refinement phase ([Siméoni et al., 2025](https://arxiv.org/abs/2508.10104)).
+
+Let $\mathbf{X}_S, \mathbf{X}_G \in \mathbb{R}^{P \times d}$ be $\ell_2$-normalized patch features (student and Gram teacher) for $P$ patches:
+
+$$
+\mathcal{L}_{\text{Gram}} = \left\|\mathbf{X}_S \mathbf{X}_S^{\top} - \mathbf{X}_G \mathbf{X}_G^{\top}\right\|_{\text{F}}^2
+$$ {#eq-gram-loss}
+
+The Gram teacher is an **early checkpoint** with strong dense maps, updated every 10k steps. Matching Gram matrices preserves patch **similarity structure** while allowing features to move. Refinement optimizes:
+
+$$
+\mathcal{L}_{\text{Ref}} = w_D \mathcal{L}_{\text{DINO}} + \mathcal{L}_{\text{iBOT}} + w_{DK}\mathcal{L}_{\text{DKoleo}} + w_{\text{Gram}}\mathcal{L}_{\text{Gram}}
+$$ {#eq-dinov3-ref-loss}
+
+High-resolution Gram teachers (512px input, bicubic downsample) further improve dense tasks (+2 mIoU on ADE20k in the ablation) ([Siméoni et al., 2025](https://arxiv.org/abs/2508.10104)).
+
+![High-resolution dense features. Cosine similarity maps from DINOv3 patch features at 4096×4096 remain clean across object boundaries. Source: Siméoni et al., Figure 3.](Self-Supervised Vision Transformers/images/dinov3-dense-features.png){#fig-dinov3-dense}
+
+::: {.callout-note title="Think Hard: When pretraining on medical images, what transfers from DINOv2/DINOv3?"}
+Low-level texture and generic edge detectors transfer widely. Semantic patch grouping trained on web photos may misalign on fundus geometry (vessel trees vs. object boundaries). Maya should expect strong off-the-shelf structure but validate on her domain; linear probes on 2,000 labels measure disease signal, not vessel topology. Domain-specific SSL or fine-tuning remains necessary when web semantics mismatch clinic semantics.
+:::
+
+### I-JEPA: A Third Paradigm {#sec-i-jepa}
+
+I-JEPA (Image-based Joint-Embedding Predictive Architecture) predicts **target block embeddings** in representation space from a context block in the same image, without pixel reconstruction and without multi-view augmentations ([Assran et al., 2023](https://arxiv.org/abs/2301.08243)).
+
+Key design: sample **semantic** target blocks (scale 0.15–0.2 of image) and a large context block (0.85–1.0 scale) with overlap removed. Predictions happen in the target-encoder embedding space, eliminating pixel-level detail that would lower semantic quality.
+
+I-JEPA outperforms MAE on ImageNet linear probe and competes with DINO-style methods on semantic tasks while winning on **low-level** tasks (object counting, depth) where augmentation invariances hurt ([Assran et al., 2023](https://arxiv.org/abs/2301.08243)). ViT-H/14 trains in under 72 hours on 16 A100s, over 10× more efficient than MAE ViT-H at similar scale.
+
+Choose I-JEPA when you want strong representations **without hand-crafted augmentations** or when downstream tasks need spatial specificity that crop invariance destroys.
+
+### MoCo v3: Contrastive Baseline {#sec-moco-v3}
+
+MoCo v3 adapts contrastive learning to ViT with systematic training recipes ([Chen et al., 2021](https://arxiv.org/abs/2104.02057)). ViT-B reaches 76.7% linear probe; ViT-L 77.6%; ViT-H 78.1%. It documents **instability** (hidden 1–3% accuracy loss) and fixes (frozen patch embed).
+
+MoCo v3 is the fair JE baseline when ablating DINO design choices. Objectives Matter groups MoCo-v3 with DINO as similar JE representations ([Shekhar et al., 2023](https://arxiv.org/abs/2304.13089)).
+
+### DeiT: Supervised, Not Self-Supervised {#sec-deit}
+
+DeiT trains ViT on ImageNet-1k alone using a **distillation token** and a CNN teacher ([Touvron et al., 2021](https://arxiv.org/abs/2012.12877)). It needs labels (via the teacher's supervision signal). Useful when comparing label-efficient **supervised** distillation vs. SSL, but not interchangeable with DINO.
+
+::: {.callout-warning title="Common Misconception: DeiT is a self-supervised method"}
+DeiT uses a supervised CNN teacher to distill into ViT. The teacher saw ImageNet labels. DINO's teacher is EMA of the student with no labels. If Maya has 2,000 labels, DeiT-style distillation from a strong CNN may help, but it is not the same as SSL on 50,000 unlabeled scans.
+:::
+
+### Decision Framework {#sec-decision-framework}
+
+| Need | Starting point |
+|------|----------------|
+| Frozen features, segmentation, retrieval | DINOv2 or DINOv3 ViT-L |
+| Fine-tune full model on small labeled set | MAE pretrain → fine-tune |
+| No augmentations; latent prediction | I-JEPA |
+| Maximum off-the-shelf quality (2025) | DINOv3 ViT-L distilled |
+| Legacy JE baseline / ablations | MoCo v3 |
+| Labels exist but are scarce (supervised) | DeiT-style distillation |
+
+```{.d2}
+direction: down
+
+classes: {
+  input: { style.fill: "#EFF6FF"; style.stroke: "#3B82F6" }
+  highlight: { style.fill: "#FDF4FF"; style.stroke: "#A855F7" }
+  output: { style.fill: "#FFF7ED"; style.stroke: "#F97316" }
+}
+
+v1: DINO v1\n(self-distill) {class: input}
+v2: DINOv2\n+ iBOT + KoLeo\n+ LVD-142M {class: highlight}
+v3: DINOv3\n+ Gram anchor\n+ 7B distill {class: highlight}
+
+Deploy: "Frozen backbone\nfor Maya's clinic" {class: output}
+
+v1 -> v2 -> v3 -> Deploy
+```
+
+Maya's deployment: **DINOv3 ViT-L** (or DINOv2 if compute-constrained) for frozen retinal feature extraction, linear head on 2,000 labels, patch features for vessel segmentation adapter. She monitors artifact tokens on uniform retinal background and validates domain shift before clinical use.
+
+The DINO lineage timeline summarizes the chapter arc: emergent attention (v1) → curated scale + hybrid losses (v2) → Gram-anchored dense maps + 7B family (v3). Alternatives (MAE, I-JEPA, MoCo) occupy different points in the objective landscape from @sec-why-ssl.
+
+### DINOv3 Data and Schedule Details {#sec-dinov3-data}
+
+Building on automatic curation (Vo et al., 2024), DINOv3 mixes a massive background corpus with specialized subsets ([Siméoni et al., 2025](https://arxiv.org/abs/2508.10104)). Total training sees **1.7B images** vs. DINOv2's 142M. Constant learning-rate/multiplier schedules remove the need to preset total iterations exactly when data keeps growing. Axial RoPE replaces absolute positional embeddings for resolution flexibility.
+
+### I-JEPA Architecture Sketch {#sec-i-jepa-arch}
+
+Context encoder sees only context patches (large block, ~85–100% area after removing overlaps). Predictor is a narrow ViT conditioned on target block positions. Target encoder is EMA of context encoder. Loss is $\ell_2$ between predicted and target **representations**, not pixels ([Assran et al., 2023](https://arxiv.org/abs/2301.08243)). Masking strategy is the core design: targets must be semantically large enough; context must be informative but sparse for efficiency (Figure 4 in I-JEPA paper).
+
+### MoCo v3 Fine-Tune vs Linear {#sec-moco-numbers}
+
+MoCo v3 ViT-B: 76.7% linear, 83.2% end-to-end fine-tune ([Chen et al., 2021](https://arxiv.org/abs/2104.02057)). Compare MAE ViT-B masked pretrain + fine-tune 79.9% (ViT paper) and DINO 80.1% linear. MoCo is competitive but does not produce DINO's emergent attention; choose MoCo for reproduction studies, not Maya's segmentation-first workflow.
+
+### HuggingFace and Deployment {#sec-dinov3-deploy}
+
+The DINOv3 GitHub README documents ViT-S/B/L+ checkpoints, ConvNeXt variants, and Transformers integration ([facebookresearch/dinov3](https://github.com/facebookresearch/dinov3)). Meta's blog emphasizes histopathology, remote sensing, and other label-scarce domains ([Meta AI, 2025](https://ai.meta.com/blog/dinov3-self-supervised-vision-model/)). Maya's retinal use case fits the same pattern: many unlabeled scans, few expert grades, need for dense structure.
+
+### Final Decision for Maya {#sec-maya-final}
+
+| Constraint | Choice |
+|------------|--------|
+| 50k unlabeled, 2k labeled | Pretrained backbone + small head |
+| Vessel structure | DINOv3/DINOv2 patch features |
+| Limited GPU | ViT-L distilled, not 7B teacher |
+| Must fine-tune everything | MAE pretrain on fundus, then full fine-tune |
+| No color augmentations safe | I-JEPA or careful MAE |
+
+She ships DINOv3 ViT-L frozen features with a linear disease classifier and a patch-level segmentation adapter, validating on held-out clinic labels before deployment.
